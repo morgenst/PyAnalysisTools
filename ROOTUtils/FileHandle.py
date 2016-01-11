@@ -15,3 +15,14 @@ class FileHandle(object):
             raise ValueError("File " + os.path.join(self.path, self.fName) + " does not exist.")
 
         self.file = TFile.Open(os.path.join(self.path, self.fName), 'READ')
+
+    def getObjects(self):
+        objects = []
+        for obj in self.file.GetListOfKeys():
+            objects.append(self.file.Get(obj.GetName()))
+        return objects
+
+    def getObjectsByType(self, typename):
+        obj = self.getObjects()
+        obj = filter(lambda t: t.InheritsFrom(typename), obj)
+        return obj
