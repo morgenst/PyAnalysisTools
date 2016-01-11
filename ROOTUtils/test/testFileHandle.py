@@ -31,3 +31,13 @@ class TestFileHandle(unittest.TestCase):
         self.handle.open()
         l = self.handle.getObjectsByType("TH1F")
         self.assertEqual(len(l), 0)
+
+    def testFileGetObjectByNameExisting(self):
+        self.handle.open()
+        obj = self.handle.getObjectByName("DRTr-1d_residualDose")
+        self.assertTrue(obj is not None)
+
+    def testFileGetObjectByNameNonExisting(self):
+        self.handle.open()
+        with self.assertRaises(ValueError):
+            obj = self.handle.getObjectByName("DRTr-1s_residualDose")
