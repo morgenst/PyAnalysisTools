@@ -2,15 +2,32 @@ __author__ = 'marcusmorgenstern'
 __mail__ = ''
 
 import unittest
+import ROOT
 from ROOTUtils.FileHandle import FileHandle
 
 class TestFileHandle(unittest.TestCase):
     def setUp(self):
-        pass
+        self.handle = FileHandle('test.root')
 
     def testFileOpenNoPathSuccess(self):
-        handle = FileHandle('')
+        handle = FileHandle('test.root')
+        handle.open()
 
     def testFileOpenNoPathFail(self):
         with self.assertRaises(ValueError):
             FileHandle('NonExistingFile.root').open()
+
+    def testFileGetObjects(self):
+        self.handle.open()
+        l = self.handle.getObjects()
+        self.assertEqual(len(l), 9)
+
+    def testFileGetObjectsByTypeCanvas(self):
+        self.handle.open()
+        l = self.handle.getObjectsByType("TCanvas")
+        self.assertEqual(len(l), 9)
+
+    def testFileGetObjectByTypeHist(self):
+        self.handle.open()
+        l = self.handle.getObjectsByType("TH1F")
+        self.assertEqual(len(l), 0)
