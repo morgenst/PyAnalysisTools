@@ -26,3 +26,9 @@ class FileHandle(object):
         obj = self.getObjects()
         obj = filter(lambda t: t.InheritsFrom(typename), obj)
         return obj
+
+    def getObjectByName(self, objName):
+        obj = self.file.Get(objName)
+        if not obj.__nonzero__():
+            raise ValueError("Object " + objName + " does not exist in file " + os.path.join(self.path, self.fName))
+        return obj
