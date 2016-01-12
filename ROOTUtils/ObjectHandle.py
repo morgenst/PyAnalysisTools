@@ -5,7 +5,8 @@ __mail__ = 'marcus.matthias.morgenstern@cern.ch'
 
 
 def getObjectsFromCanvas(canvas):
-    obj = [canvas.Get(key) for key in canvas.GetListOfPrimitives]
+    #todo: add logger warning for empty canvas
+    obj = [canvas.GetPrimitive(key.GetName()) for key in canvas.GetListOfPrimitives()]
     return obj
 
 def getObjectsFromCanvasByType(canvas, typename):
