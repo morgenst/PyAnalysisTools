@@ -2,9 +2,11 @@ __author__ = 'marcusmorgenstern'
 __mail__ = ''
 
 import unittest
+
 import ROOT
-from PlottingUtils import Formatting as FM
-from base import InvalidInputError
+
+from PyAnalysisTools.PlottingUtils import Formatting as FM
+from PyAnalysisTools.base import InvalidInputError
 
 
 class TestFormatting(unittest.TestCase):
@@ -72,6 +74,13 @@ class TestFormatting(unittest.TestCase):
         self.assertEqual(self.unformatted_hist_1d.GetMarkerStyle(), 22)
         self.assertEqual(self.unformatted_hist_1d.GetMarkerSize(), 2)
 
+    def test_set_line_style_1d(self):
+        config = {"line": {"color": ROOT.kRed, "style": 22, "width": 2}}
+        FM.set_style_options(self.unformatted_hist_1d, config)
+        self.assertEqual(self.unformatted_hist_1d.GetLineColor(), ROOT.kRed)
+        self.assertEqual(self.unformatted_hist_1d.GetLineStyle(), 22)
+        self.assertEqual(self.unformatted_hist_1d.GetLineWidth(), 2)
+        
     def test_set_style_invalid_config(self):
         self.assertRaises(InvalidInputError, FM.set_style_options, *[None, []])
 
@@ -82,3 +91,7 @@ class TestFormatting(unittest.TestCase):
         config = {"marker": {"sizes": 2}}
         FM.set_style_options(self.unformatted_hist_1d, config)
         self.assertEqual(self.unformatted_hist_1d.GetMarkerSize(), 1)
+
+    @unittest.skip("Not implemented")
+    def test_set_bin_label_x(self):
+        pass

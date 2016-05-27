@@ -13,7 +13,7 @@ class FileComparator(object):
         self.lhs.Close()
         self.rhs.Close()
 
-    def parseFiles(self):
+    def parse_files(self):
         self.content = {}
         self.__parseFile(self.lhs)
 
