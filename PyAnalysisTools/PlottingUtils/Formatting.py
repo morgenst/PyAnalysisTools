@@ -1,10 +1,12 @@
 __author__ = 'marcusmorgenstern'
 __mail__ = ''
 
-import numpy as np
 import re
+
 import ROOT
-from base import InvalidInputError, _logger
+import numpy as np
+
+from PyAnalysisTools.base import InvalidInputError, _logger
 
 
 def set_title_x(obj, title):
