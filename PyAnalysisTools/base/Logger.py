@@ -3,15 +3,22 @@ __mail__ = ''
 
 import logging
 
+
 class Logger():
     def __init__(self, name="base_logger", level="warning"):
-        logger = logging.getLogger(name)
+        self.logger = logging.getLogger(name)
         hdl = logging.StreamHandler()
         form = logging.Formatter('[%(funcName)s at %(lineno)s] %(levelname)s: %(message)s')
         hdl.setFormatter(form)
-        logger.addHandler(hdl)
-        logger.setLevel(eval('logging.' + level))
-        logger.propagate = 0
+        self.logger.addHandler(hdl)
+        self._set_log_level(level)
+        self.logger.propagate = 0
 
     def retrieve_logger(self):
         return self.logger
+
+    def _set_log_level(self, level):
+        try:
+            self.logger.setLevel(getattr(logging, level.upper()))
+        except AttributeError:
+            self.logger.setLevel(logging.WARNING)
