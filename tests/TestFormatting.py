@@ -11,7 +11,7 @@ from PyAnalysisTools.base import InvalidInputError
 
 class TestFormatting(unittest.TestCase):
     def setUp(self):
-        root_file = ROOT.TFile.Open("../../ROOTUtils/test/test.root", "READ")
+        root_file = ROOT.TFile.Open("test_data/test.root", "READ")
         self.unformatted_hist_1d = root_file.Get("test_hist_1")
         self.unformatted_hist_1d.SetDirectory(0)
         ROOT.SetOwnership(self.unformatted_hist_1d, False)
