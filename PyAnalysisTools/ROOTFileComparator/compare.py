@@ -4,7 +4,8 @@ __mail__ = ''
 import argparse
 import sys
 
-from ROOTFileComparator.FileComparator import FileComparator
+from PyAnalysisTools.ROOTFileComparator import FileComparator
+
 
 def main(argv):
     parser = argparse.ArgumentParser(description='')

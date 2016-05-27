@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$USER_HOME$/PycharmProjects/PyAnalysisTools/.idea/PyAnalysisTools.iml" filepath="$USER_HOME$/PycharmProjects/PyAnalysisTools/.idea/PyAnalysisTools.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/PyAnalysisTools.iml" filepath="$PROJECT_DIR$/.idea/PyAnalysisTools.iml" />
     </modules>
   </component>
 </project>
