@@ -95,3 +95,4 @@ class TestFormatting(unittest.TestCase):
     @unittest.skip("Not implemented")
     def test_set_bin_label_x(self):
         pass
+
