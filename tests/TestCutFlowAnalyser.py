@@ -2,16 +2,16 @@ __author__ = 'marcusmorgenstern'
 __mail__ = ''
 
 import unittest
-
 import numpy as np
 from ROOT import TFile
 
-from PyAnalysisTools.AnalysisTools import CutflowAnalyser as CA
+from PyAnalysisTools.base import InvalidInputError
+from PyAnalysisTools.AnalysisTools.CutFlowAnalyser import CutflowAnalyser as CA
 
 
 class TestCutFlowAnalyser(unittest.TestCase):
     def setUp(self):
-        self.test_input_file_name = "CutflowTestInput.root"
+        self.test_input_file_name = "test_data/CutflowTestInput.root"
         f =  TFile(self.test_input_file_name, "READ")
         self.cutflow_raw_hist = f.Get("cutflow_raw")
         self.cutflow_raw_hist.SetDirectory(0)
@@ -32,3 +32,6 @@ class TestCutFlowAnalyser(unittest.TestCase):
 
     def test_execution(self):
         self.ca.execute()
+
+    def test_non_existing_file(self):
+        self.assertRaises(InvalidInputError, CA, ["NonExistingFile.root"])
