@@ -2,13 +2,7 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="165a8440-d2da-41b0-9212-e2f4d30f2d44" name="Default" comment="">
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/dictionaries/marcusmorgenstern.xml" afterPath="$PROJECT_DIR$/.idea/dictionaries/marcusmorgenstern.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/__init__.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/__init__.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/base/__init__.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/base/__init__.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/README.md" afterPath="$PROJECT_DIR$/README.md" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/tests/TestCutFlowAnalyser.py" afterPath="$PROJECT_DIR$/tests/TestCutFlowAnalyser.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/tests/TestFormatting.py" afterPath="$PROJECT_DIR$/tests/TestFormatting.py" />
     </list>
     <ignored path="ROOTCompare.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -963,7 +957,14 @@
       <option name="project" value="LOCAL" />
       <updated>1465148696193</updated>
     </task>
-    <option name="localTasksCounter" value="17" />
+    <task id="LOCAL-00017" summary="commit all changes before rebase">
+      <created>1465160609400</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
+      <option name="project" value="LOCAL" />
+      <updated>1465160609400</updated>
+    </task>
+    <option name="localTasksCounter" value="18" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -1062,7 +1063,8 @@
     <MESSAGE value="extract HistTools" />
     <MESSAGE value="add functionality" />
     <MESSAGE value="add lumi text" />
-    <option name="LAST_COMMIT_MESSAGE" value="add lumi text" />
+    <MESSAGE value="commit all changes before rebase" />
+    <option name="LAST_COMMIT_MESSAGE" value="commit all changes before rebase" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager />
@@ -1343,6 +1345,7 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="30">
           <caret line="2" column="100" selection-start-line="2" selection-start-column="100" selection-end-line="2" selection-end-column="100" />
+          <folding />
         </state>
       </provider>
     </entry>
