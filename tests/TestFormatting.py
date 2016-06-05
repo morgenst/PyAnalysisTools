@@ -96,3 +96,38 @@ class TestFormatting(unittest.TestCase):
     def test_set_bin_label_x(self):
         pass
 
+    def test_set_range_hist_min_only(self):
+        FM.set_range(self.unformatted_hist_1d, 1.)
+        self.assertEqual(self.unformatted_hist_1d.GetMinimum(), 1.)
+
+    def test_set_range_hist_max_only(self):
+        FM.set_range(self.unformatted_hist_1d, maximum=10.)
+        self.assertEqual(self.unformatted_hist_1d.GetMaximum(), 10.)
+
+    def test_set_range_hist(self):
+        FM.set_range(self.unformatted_hist_1d, 1., 10.)
+        self.assertEqual(self.unformatted_hist_1d.GetMinimum(), 1.)
+        self.assertEqual(self.unformatted_hist_1d.GetMaximum(), 10.)
+
+    @unittest.skip("Not implemented")
+    def test_set_range_graph_min_only(self):
+        FM.set_range(self.unformatted_graph_1d, 1.)
+        self.assertEqual(self.unformatted_graph_1d.GetMinimum(), 1.)
+
+    @unittest.skip("Not implemented")
+    def test_set_range_graph_max_only(self):
+        FM.set_range(self.unformatted_graph_1d, maximum=10.)
+        self.assertEqual(self.unformatted_graph_1d.GetMaximum(), 10.)
+
+    @unittest.skip("Not implemented")
+    def test_set_range_hist(self):
+        FM.set_range(self.unformatted_graph_1d, 1., 10.)
+        self.assertEqual(self.unformatted_graph_1d.GetMinimum(), 1.)
+        self.assertEqual(self.unformatted_graph_1d.GetMaximum(), 10.)
+
+    def test_make_text(self):
+        res = FM.make_text(0., 1., "TexText", size=10, angle=10., color=ROOT.kBlue)
+        self.assertEqual(res.GetX(), 0.)
+        self.assertEqual(res.GetY(), 1.)
+        self.assertEqual(res.GetTextSize(), 10.)
+        self.assertEqual(res.GetTextColor(), ROOT.kBlue)
