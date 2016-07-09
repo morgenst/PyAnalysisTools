@@ -4,7 +4,7 @@ __mail__ = ''
 import logging
 
 
-class Logger():
+class Logger(object):
     def __init__(self, name="base_logger", level="warning"):
         self.logger = logging.getLogger(name)
         hdl = logging.StreamHandler()
