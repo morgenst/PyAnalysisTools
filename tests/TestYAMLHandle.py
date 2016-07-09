@@ -1,6 +1,8 @@
 import unittest
 import yaml
-from PyAnalysisTools.base.YAMLLoader import YAMLLoader as YL
+import os
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as YL
+from PyAnalysisTools.base.YAMLHandle import YAMLDumper as YD
 
 
 class TestYAMLLoader(unittest.TestCase):
@@ -17,3 +19,14 @@ class TestYAMLLoader(unittest.TestCase):
 
     def test_io_exception(self):
         self.assertRaises(IOError, self.loader.read_yaml, "non_existing_file")
+
+
+class TestYAMLDumper(unittest.TestCase):
+    def setUp(self):
+        self.data = {"a": 1, "b": 2}
+        self.dumper = YD()
+        self.test_file_name = "yaml_dumper.yml"
+
+    def test_dump_dict(self):
+        YD().dump_yaml(self.data, self.test_file_name)
+        self.assertTrue(os.path.exists(self.test_file_name))

@@ -29,3 +29,21 @@ class YAMLLoader(object):
             self._logger.error("Unexpected error for %s" % file_name)
             raise e
 
+
+class YAMLDumper(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('log_level', 'warning')
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+        self._logger = Logger(self.__class__.__name__, self.log_level).retrieve_logger()
+
+    def dump_yaml(self, data, file_name):
+        try:
+            self._logger.debug("Try to open file %s" % file_name)
+            out_file = open(file_name, "w+")
+            self._logger.debug("Try to dump data to file %s" % file_name)
+            yaml.dump(data, out_file)
+            out_file.close()
+        except Exception as e:
+            self._logger("Failed to dump data to file %s" % file_name)
+            raise e
