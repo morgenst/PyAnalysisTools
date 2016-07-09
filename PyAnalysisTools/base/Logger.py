@@ -22,3 +22,7 @@ class Logger(object):
             self.logger.setLevel(getattr(logging, level.upper()))
         except AttributeError:
             self.logger.setLevel(logging.WARNING)
+
+    @staticmethod
+    def get_help_msg():
+        return "Log level. Options: [info, warning, error, debug]"
