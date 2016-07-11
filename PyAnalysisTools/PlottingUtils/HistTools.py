@@ -7,7 +7,7 @@ import re
 from PyAnalysisTools.base import InvalidInputError, _logger
 
 
-def rebin(self, histograms, factor=None):
+def rebin(histograms, factor=None):
     if factor is None:
         return histograms
     if type(histograms) == dict:
