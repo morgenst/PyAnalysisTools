@@ -5,8 +5,18 @@ import re
 
 import ROOT
 import numpy as np
+import os
 
 from PyAnalysisTools.base import InvalidInputError, _logger
+
+
+def load_atlas_style():
+    try:
+        base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
+        ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
+        ROOT.SetAtlasStyle()
+    except Exception as e:
+        _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
 def set_title_x(obj, title):
