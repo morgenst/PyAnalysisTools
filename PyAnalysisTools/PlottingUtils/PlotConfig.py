@@ -11,6 +11,7 @@ class PlotConfig(object):
             _logger.error("Plot config does not contain distribution. Add dist key")
             InvalidInputError("No distribution provided")
         kwargs.setdefault("cuts", None)
+        kwargs.setdefault("draw", "hist")
         for k,v in kwargs.iteritems():
             setattr(self, k, v)
 
@@ -21,14 +22,15 @@ class ProcessConfig(object):
 
     def decorate(self, **kwargs):
         for k,v in kwargs.iteritems():
-            setattr(self, k, v)
+            setattr(self, k.lower(), v)
 
 
 def parse_and_build_plot_config(config_file):
     try:
         parsed_config = YAMLLoader().read_yaml(config_file)
         plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
-        common_plot_config = PlotConfig(name="common", is_common=True, **parsed_config["common"])
+        common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
+        _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
         raise
@@ -39,13 +41,13 @@ def parse_and_build_process_config(process_config_file, xs_config_file):
         _logger.debug("Parsing process config")
         parsed_process_config = YAMLLoader().read_yaml(process_config_file)
         parsed_xs_config = YAMLLoader().read_yaml(xs_config_file)
-        process_configs = [ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()]
-        print parsed_xs_config
-        for config in process_configs:
+        process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
+        for config in process_configs.values():
             if config.name not in parsed_process_config:
                 _logger.warning("Could not find cross section entry for process %s" % config.name)
                 continue
             config.decorate(**(parsed_xs_config[config.name]))
+        _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
         raise e
