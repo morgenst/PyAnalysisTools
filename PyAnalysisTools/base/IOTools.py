@@ -39,12 +39,12 @@ class Writer:
         if not extension.startswith('.'):
             extension = '.' + extension
         if extension == '.root':
-            self.write_object_to_root_tile(canvas, name + extension)
+            self.write_object_to_root_file(canvas, name + extension)
         else:
             canvas.SaveAs(os.path.join(os.path.join(self.dir,
                                                     name + extension)))
 
-    def write_object_to_root_tile(self, obj, filename, dir=''):
+    def write_object_to_root_file(self, obj, filename, dir=''):
         f = ROOT.gROOT.GetListOfFiles().FindObject(filename)
         if not f:
             f = ROOT.TFile.Open(filename, 'UPDATE')
@@ -54,7 +54,8 @@ class Writer:
         d.cd()
         obj.Write()
 
-    def parse_extension_from_file_name(self, name):
+    @staticmethod
+    def parse_extension_from_file_name(name):
         ext = name.split('.')[-1]
         if ext is name:
             return None
