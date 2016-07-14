@@ -11,17 +11,18 @@ class Logger(object):
         form = logging.Formatter('[%(funcName)s at %(lineno)s] %(levelname)s: %(message)s')
         hdl.setFormatter(form)
         self.logger.addHandler(hdl)
-        self._set_log_level(level)
+        self.__class__._set_log_level(self.logger, level)
         self.logger.propagate = 0
 
     def retrieve_logger(self):
         return self.logger
 
-    def _set_log_level(self, level):
+    @staticmethod
+    def _set_log_level(logger, level):
         try:
-            self.logger.setLevel(getattr(logging, level.upper()))
+            logger.setLevel(getattr(logging, level.upper()))
         except AttributeError:
-            self.logger.setLevel(logging.WARNING)
+            logger.setLevel(logging.WARNING)
 
     @staticmethod
     def get_help_msg():
