@@ -31,18 +31,48 @@ def plot_hist(hist,
     return canvas, hist
 
 
-def plot_histograms(hists, plot_options=None, draw_options=None, canvas_name='canvas', canvas_title=''):
-    if plot_options is None:
-        plot_options = [None] * len(hists)
-    if not len(plot_options) == len(hists):
-        raise InvalidInputError("Number of provided plot options does not correspond to number of histograms." +
-                                str(len(plot_options)) + " plot options vs. " + str(len(hists)) + " histograms.")
-    canvas = retrieve_new_canvas(canvas_name, canvas_title)
+# todo: memoise
+def fetch_process_config(process, process_config):
+    if process not in process_config:
+        _logger.warning("Could not find process %s in process config" % process)
+        return None
+    return process_config[process]
+
+
+def plot_histograms(hist_dict, plot_config, common_config, process_configs):
+    print plot_config
+    canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
-    if draw_options is None:
-        draw_options = ['hist' for i in range(len(hists))]
-    hists[0].Draw(draw_options[0])
-    map(partial(add_histogram_to_canvas, canvas=canvas), hists[1:], plot_options[1:], draw_options[1:])
+    is_first = True
+    for process, hist in hist_dict.iteritems():
+        process_config = fetch_process_config(process, process_configs)
+        draw_option = "Hist"
+        style_attr, color = None, None
+        if hasattr(process_config, "draw"):
+            draw_option = process_config.draw
+        if hasattr(process_config, "style"):
+            style_attr = process_config.style
+        if hasattr(process_config, "color"):
+            color = process_config.color
+            if isinstance(color, str):
+                color = getattr(ROOT, color)
+        style_setter = None
+        if draw_option == "Hist":
+            style_setter = "Fill"
+        elif draw_option == "Marker":
+            style_setter = "Marker"
+            draw_option = "p"
+        elif draw_option == "Line":
+            style_setter = "Line"
+            draw_option = "l"
+        if not is_first:
+            draw_option += " sames"
+        #todo: refactoring of configs to be moved to plotHist
+        hist.Draw(draw_option)
+        if style_attr is not None:
+            getattr(hist, "Set"+style_setter+"Style")(style_attr)
+        if color is not None:
+            getattr(hist, "Set" + style_setter + "Color")(color)
     return canvas
 
 
