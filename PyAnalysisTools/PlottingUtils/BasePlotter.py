@@ -21,6 +21,9 @@ class BasePlotter(object):
             raise InvalidInputError("No plot config file")
         if "process_config_file" not in kwargs:
             _logger.warning("No process config file provided. Unable to read process specific options.")
+        if "xs_config_file" not in kwargs:
+            _logger.error("No cross section file provided. No scaling will be applied.")
+            kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", False)
@@ -28,7 +31,7 @@ class BasePlotter(object):
             setattr(self, k, v)
         ROOT.gROOT.SetBatch(self.batch)
         self.file_handles = [FileHandle(input_file) for input_file in self.input_files]
-        self.xs_handle = XSHandle()
+        self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.process_config = self.parse_process_config()
         FM.load_atlas_style()
         self.histograms = {}
@@ -56,7 +59,7 @@ class BasePlotter(object):
         elif dimension == 1:
             hist = ROOT.TH2F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax,
                              plot_config.ybins, plot_config.ymin, plot_config.ymax)
-        elif dimension==2:
+        elif dimension == 2:
             hist = ROOT.TH3F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax,
                              plot_config.ybins, plot_config.ymin, plot_config.ymax,
                              plot_config.zbins, plot_config.zmin, plot_config.zmax)
@@ -71,6 +74,8 @@ class BasePlotter(object):
         try:
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
+            cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process)
+            HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
         self.format_hist(hist, plot_config)
