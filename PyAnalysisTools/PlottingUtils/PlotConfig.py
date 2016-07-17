@@ -13,7 +13,7 @@ class PlotConfig(object):
         kwargs.setdefault("cuts", None)
         kwargs.setdefault("draw", "hist")
         for k,v in kwargs.iteritems():
-            setattr(self, k, v)
+            setattr(self, k.lower(), v)
 
 
 class ProcessConfig(object):
