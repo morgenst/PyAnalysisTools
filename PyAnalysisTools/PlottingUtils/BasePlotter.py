@@ -102,5 +102,5 @@ class BasePlotter(object):
 
         for plot_config_name, data in self.histograms.iteritems():
             canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
-            canvas.Update()
+            FM.decorate_canvas(canvas, self.common_config)
             raw_input()
