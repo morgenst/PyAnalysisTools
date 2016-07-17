@@ -19,6 +19,13 @@ def load_atlas_style():
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
+def decorate_canvas(canvas, config):
+    if hasattr(config, "watermark"):
+        add_atlas_label(canvas, config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
+    if hasattr(config, "lumi"):
+        add_lumi_text(canvas, config.lumi)
+
+
 def set_title_x(obj, title):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -51,6 +58,7 @@ def set_style_options(obj, style):
 
 def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=True):
     t = ROOT.TLatex(x, y, text)
+    ROOT.SetOwnership(t, False)
     t.SetTextSize(size)
     t.SetTextAngle(angle)
     t.SetTextFont(font)
@@ -59,29 +67,27 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(self, canvas, lumi, pos={'x': 0.6, 'y': 0.79}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.79}, size=0.04, split_lumi_text=False):
     canvas.cd()
-    text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi) / 1000.)
+    text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
     text_energy = '#sqrt{s} = 13 TeV'
     if split_lumi_text:
-        label_lumi = self.make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
-        label_energy = self.make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
+        label_lumi = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
+        label_energy = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
         label_energy.Draw('sames')
     else:
-        label_lumi = self.make_text(x=pos['x'], y=pos['y'], text=','.join(text_lumi, text_energy), size=size)
+        label_lumi = make_text(x=pos['x'], y=pos['y'], text=','.join([text_lumi, text_energy]), size=size)
     label_lumi.Draw('sames')
     canvas.Update()
-    return canvas
 
 
-def add_atlas_label(canvas, description='', pos={'x': 0.6, 'y': 0.87}, size=0.05, offset=0.155):
+def add_atlas_label(canvas, description='', pos={'x': 0.6, 'y': 0.87}, size=0.05, offset=0.125):
     label_atlas = make_text(x=pos['x'], y=pos['y'], text='ATLAS', size=size, font=72)
     label_descr = make_text(x=pos['x'] + offset, y=pos['y'], text=description, size=size, font=42)
     canvas.cd()
     label_atlas.Draw('sames')
     label_descr.Draw('sames')
     canvas.Update()
-    return canvas
 
 
 def set_title(self, hist, title, axis='x'):
