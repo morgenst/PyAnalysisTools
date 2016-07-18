@@ -18,12 +18,16 @@ class PlotConfig(object):
 
 class ProcessConfig(object):
     def __init__(self, **kwargs):
-        self.decorate(**kwargs)
-
-    def decorate(self, **kwargs):
-        for k,v in kwargs.iteritems():
+        for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
 
+    def retrieve_subprocess_config(self):
+        tmp = {}
+        if not hasattr(self, "subprocesses"):
+            return tmp
+        for sub_process in self.subprocesses:
+            tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+        return tmp
 
 def parse_and_build_plot_config(config_file):
     try:
@@ -36,18 +40,16 @@ def parse_and_build_plot_config(config_file):
         raise
 
 
-def parse_and_build_process_config(process_config_file, xs_config_file):
+def parse_and_build_process_config(process_config_file):
+    print "parse and buld"
     try:
         _logger.debug("Parsing process config")
         parsed_process_config = YAMLLoader().read_yaml(process_config_file)
-        parsed_xs_config = YAMLLoader().read_yaml(xs_config_file)
         process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
-        for config in process_configs.values():
-            if config.name not in parsed_process_config:
-                _logger.warning("Could not find cross section entry for process %s" % config.name)
-                continue
-            config.decorate(**(parsed_xs_config[config.name]))
+        for process_config in process_configs.values():
+            process_configs.update(process_config.retrieve_subprocess_config())
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
+        print e
         raise e

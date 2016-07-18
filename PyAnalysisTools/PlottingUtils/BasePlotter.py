@@ -39,11 +39,13 @@ class BasePlotter(object):
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
         self.plot_configs, self.common_config = parse_and_build_plot_config(self.plot_config_file)
+        if not hasattr(self, "lumi"):
+            self.lumi = self.common_config.lumi
 
     def parse_process_config(self):
         if self.process_config_file is None:
             return None
-        process_config = parse_and_build_process_config(self.process_config_file, self.xs_config_file)
+        process_config = parse_and_build_process_config(self.process_config_file)
         return process_config
 
     def initialise(self):
@@ -74,8 +76,10 @@ class BasePlotter(object):
         try:
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
-            cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process)
-            HT.scale(hist, cross_section_weight)
+            if not self.process_config[file_handle.process].type == "Data":
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
+                                                                            file_handle.get_number_of_total_events())
+                HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
         self.format_hist(hist, plot_config)
