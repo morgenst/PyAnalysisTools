@@ -9,7 +9,8 @@ class YAMLLoader(object):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
-    def read_yaml(self, file_name):
+    @staticmethod
+    def read_yaml(file_name):
         try:
             _logger.debug("Try to open yaml file %s" % file_name)
             config_file = open(file_name)
@@ -35,7 +36,8 @@ class YAMLDumper(object):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
-    def dump_yaml(self, data, file_name):
+    @staticmethod
+    def dump_yaml(data, file_name):
         try:
             _logger.debug("Try to open file %s" % file_name)
             out_file = open(file_name, "w+")

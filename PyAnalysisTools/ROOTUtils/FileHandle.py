@@ -46,7 +46,10 @@ class FileHandle(object):
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), 'READ')
 
     def parse_process(self):
-        return self.file_name.split("-")[-1].split(".")[0]
+        process_name = self.file_name.split("-")[-1].split(".")[0]
+        if process_name.isdigit():
+            return "Data"
+        return process_name
 
     def get_objects(self):
         objects = []
@@ -65,6 +68,14 @@ class FileHandle(object):
             raise ValueError("Object " + obj_name + " does not exist in file " + os.path.join(self.path, self.file_name))
         #self.release_object_from_file(obj)
         return obj
+
+    def get_number_of_total_events(self):
+        try:
+            cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
+            return cutflow_hist.GetBinContent(1)
+        except ValueError as e:
+            _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
+            raise e
 
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string=""):
         tree = self.get_object_by_name(tree_name)

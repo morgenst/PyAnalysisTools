@@ -11,12 +11,13 @@ class CutflowAnalyser(object):
     """
     Cutflow analyser
     """
-    def __init__(self, file_list, output_file_name = None):
+    def __init__(self, file_list, regions=None, output_file_name=None):
         self.file_list = file_list
         self.cutflow_hists = dict()
         self.cutflows = dict()
         self.cutflow_table = None
         self.output_file_name = output_file_name
+        self.regions = regions
 
     def analyse_cutflow(self):
         for k,v in self.cutflow_hists.items():
@@ -45,7 +46,7 @@ class CutflowAnalyser(object):
         for file_name in self.file_list:
             self._read_cutflow(file_name)
 
-    def _read_cutflow(self, file_name, cutflow_hist_name = "cutflow_raw"):
+    def _read_cutflow(self, file_name, cutflow_hist_name="cutflow_raw"):
         file_handle = FH(file_name)
         self.cutflow_hists[file_name] = file_handle.get_object_by_name(cutflow_hist_name)
 
