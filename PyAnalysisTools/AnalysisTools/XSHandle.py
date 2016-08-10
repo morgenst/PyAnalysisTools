@@ -14,7 +14,7 @@ class XSHandle(object):
             self.invalid = True
             return
         self.invalid = False
-        self.cross_sections = {key: XSInfo(**value) for (key, value) in YAMLLoader().read_yaml(cross_section_file).iteritems()}
+        self.cross_sections = {key: XSInfo(**value) for (key, value) in YAMLLoader.read_yaml(cross_section_file).iteritems()}
 
     def get_xs_scale_factor(self, process):
         if self.invalid:

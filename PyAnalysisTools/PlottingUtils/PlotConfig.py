@@ -29,9 +29,10 @@ class ProcessConfig(object):
             tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
         return tmp
 
+
 def parse_and_build_plot_config(config_file):
     try:
-        parsed_config = YAMLLoader().read_yaml(config_file)
+        parsed_config = YAMLLoader.read_yaml(config_file)
         plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
         common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
@@ -44,7 +45,7 @@ def parse_and_build_process_config(process_config_file):
     print "parse and buld"
     try:
         _logger.debug("Parsing process config")
-        parsed_process_config = YAMLLoader().read_yaml(process_config_file)
+        parsed_process_config = YAMLLoader.read_yaml(process_config_file)
         process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
         for process_config in process_configs.values():
             process_configs.update(process_config.retrieve_subprocess_config())

@@ -2,6 +2,7 @@ __author__ = 'marcusmorgenstern'
 __mail__ = ''
 
 import os
+import re
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 
@@ -46,7 +47,18 @@ class FileHandle(object):
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), 'READ')
 
     def parse_process(self):
-        return self.file_name.split("-")[-1].split(".")[0]
+        process_name = self.file_name.split("-")[-1].split(".")[0]
+        if process_name.isdigit():
+            return "Data"
+        return process_name
+
+    def get_directory(self, directory):
+        if directory is None:
+            return self.tfile
+        try:
+            return self.tfile.Get(directory)
+        except Exception as e:
+            print str(e)
 
     def get_objects(self):
         objects = []
@@ -59,12 +71,36 @@ class FileHandle(object):
         obj = filter(lambda t: t.InheritsFrom(typename), obj)
         return obj
 
-    def get_object_by_name(self, obj_name):
-        obj = self.tfile.Get(obj_name)
+    def get_objects_by_pattern(self, pattern, tdirectory=None):
+        tdir = self.get_directory(tdirectory)
+        objects = []
+        pattern = re.compile(pattern)
+        for key in tdir.GetListOfKeys():
+            if re.search(pattern, key.GetName()):
+                objects.append(tdir.Get(key.GetName()))
+        if len(objects) == 0:
+            _logger.warning("Could not find objects matching %s in %s" % (pattern, tdir.GetName()))
+        return objects
+
+    def get_object_by_name(self, obj_name, tdirectory=None):
+        tdir = self.tfile
+        if tdirectory:
+            try:
+                tdir = self.get_object_by_name(tdirectory)
+            except ValueError as e:
+                raise e
+        obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
             raise ValueError("Object " + obj_name + " does not exist in file " + os.path.join(self.path, self.file_name))
-        #self.release_object_from_file(obj)
         return obj
+
+    def get_number_of_total_events(self):
+        try:
+            cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
+            return cutflow_hist.GetBinContent(1)
+        except ValueError as e:
+            _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
+            raise e
 
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string=""):
         tree = self.get_object_by_name(tree_name)
