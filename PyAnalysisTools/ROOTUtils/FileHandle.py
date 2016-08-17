@@ -82,6 +82,16 @@ class FileHandle(object):
             _logger.warning("Could not find objects matching %s in %s" % (pattern, tdir.GetName()))
         return objects
 
+    def get_branch_names_from_tree(self, tree_name, tdirectory=None, pattern=".*"):
+        tree = self.get_object_by_name(tree_name, tdirectory)
+        pattern = re.compile(pattern)
+        branch_names = []
+        for branch in tree.GetListOfBranches():
+            print branch
+            if re.search(pattern, branch.GetName()):
+                branch_names.append(branch.GetName())
+        return branch_names
+
     def get_object_by_name(self, obj_name, tdirectory=None):
         tdir = self.tfile
         if tdirectory:
