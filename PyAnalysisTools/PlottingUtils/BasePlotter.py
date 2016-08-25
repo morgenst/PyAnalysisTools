@@ -51,6 +51,7 @@ class BasePlotter(object):
     def initialise(self):
         self.parse_plot_config()
 
+    #todo: should be move to more abstract class
     @staticmethod
     def get_histogram_definition(plot_config):
         dimension = plot_config.dist.count(":")
@@ -76,10 +77,11 @@ class BasePlotter(object):
         try:
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
+            print hist.GetEntries()
             if not self.process_config[file_handle.process].type == "Data":
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
                                                                             file_handle.get_number_of_total_events())
-                HT.scale(hist, cross_section_weight)
+                #HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
         self.format_hist(hist, plot_config)
@@ -112,4 +114,5 @@ class BasePlotter(object):
         for plot_config_name, data in self.histograms.iteritems():
             canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             FM.decorate_canvas(canvas, self.common_config)
+            FM.add_legend_to_canvas(canvas, self.process_config)
             raw_input()

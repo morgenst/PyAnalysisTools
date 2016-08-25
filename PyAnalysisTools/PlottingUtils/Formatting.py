@@ -8,6 +8,7 @@ import numpy as np
 import os
 
 from PyAnalysisTools.base import InvalidInputError, _logger
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
 
 def load_atlas_style():
@@ -176,3 +177,25 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
         set_minimum(graph_obj, minimum, axis)
         return
     set_range_y(graph_obj, minimum, maximum)
+
+
+def add_legend_to_canvas(canvas, process_configs, xl=0.1, yl=0.7, xh=0.9, yh=0.9):
+    def convert_draw_option(draw_option):
+        legend_option = ""
+        if "Hist" in draw_option:
+            legend_option += "F"
+        if "l" in draw_option:
+            legend_option += "L"
+        if "p" in draw_option:
+            legend_option += "P"
+        return legend_option
+
+    legend = ROOT.TLegend(xl, yl, xh, yh)
+    ROOT.SetOwnership(legend, False)
+    plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
+    for plot_obj in plot_objects:
+        label = process_configs[plot_obj.GetName().split("_")[-1]].label
+        legend.AddEntry(plot_obj, label, convert_draw_option(plot_obj.GetDrawOption()))
+    canvas.cd()
+    legend.Draw("sames")
+    canvas.Update()
