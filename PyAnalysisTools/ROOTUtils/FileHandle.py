@@ -87,7 +87,6 @@ class FileHandle(object):
         pattern = re.compile(pattern)
         branch_names = []
         for branch in tree.GetListOfBranches():
-            print branch
             if re.search(pattern, branch.GetName()):
                 branch_names.append(branch.GetName())
         return branch_names
@@ -122,6 +121,10 @@ class FileHandle(object):
                                                                                           tree_name,
                                                                                           var_name,
                                                                                           cut_string))
+        if n_selected_events != hist.GetEntries():
+            _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
+                          "initialised after histogram definition has been received")
+            raise RuntimeError("Inconsistency in TTree::Project")
         if n_selected_events == -1:
             _logger.error("Unable to project %s from tree %s with cut %s" % (var_name, tree_name, cut_string))
             raise RuntimeError("TTree::Project failed")
