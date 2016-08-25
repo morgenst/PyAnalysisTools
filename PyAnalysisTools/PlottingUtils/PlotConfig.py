@@ -34,7 +34,9 @@ def parse_and_build_plot_config(config_file):
     try:
         parsed_config = YAMLLoader.read_yaml(config_file)
         plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
-        common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
+        common_plot_config = None
+        if "common" in parsed_config:
+            common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
