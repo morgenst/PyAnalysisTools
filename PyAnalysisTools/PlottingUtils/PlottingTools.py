@@ -40,7 +40,6 @@ def fetch_process_config(process, process_config):
 
 
 def plot_histograms(hist_dict, plot_config, common_config, process_configs):
-    print plot_config
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     is_first = True
@@ -73,6 +72,7 @@ def plot_histograms(hist_dict, plot_config, common_config, process_configs):
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
             getattr(hist, "Set" + style_setter + "Color")(color)
+        is_first = False
     return canvas
 
 
@@ -83,9 +83,10 @@ def add_histogram_to_canvas(canvas, hist, plot_option=None, draw_option=None):
     hist.Draw(draw_option)
 
 
-def plot_graph(graph, plot_options=None, draw_options=None, canvas_name='canvas', canvas_title='title'):
-    #ROOT.SetOwnership(graph, False)
-    canvas = retrieve_new_canvas(canvas_name, canvas_title)
+def plot_graph(graph, plot_options=None, draw_options=None, **kwargs):
+    kwargs.setdefault("canvas_name", graph.GetName())
+    kwargs.setdefault("canvas_title", "")
+    canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
     if draw_options is None:
         draw_options = 'ap'
