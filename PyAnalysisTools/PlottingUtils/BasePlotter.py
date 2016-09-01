@@ -1,6 +1,3 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config
@@ -9,6 +6,8 @@ from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
+from PyAnalysisTools.ROOTUtils.ObjectHandle import merge_objects_by_process_type
+from PyAnalysisTools.AnalysisTools.StatisticsTools import get_significance
 
 
 class BasePlotter(object):
@@ -115,4 +114,9 @@ class BasePlotter(object):
             canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             FM.decorate_canvas(canvas, self.common_config)
             FM.add_legend_to_canvas(canvas, self.process_config)
-            raw_input()
+            if hasattr(plot_config, "calcsig"):
+                #todo: "Background" should be an actual type
+                signal_hist = merge_objects_by_process_type(canvas, self.process_config, "Signal")
+                background_hist = merge_objects_by_process_type(canvas, self.process_config, "Background")
+                significance_hist = get_significance(signal_hist, background_hist)
+                canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
