@@ -1,5 +1,6 @@
 import os
 import time
+import ROOT
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base import ShellUtils
 
@@ -34,3 +35,25 @@ class OutputHandle(object):
         if os.path.exists(latest_link_path):
             os.unlink(latest_link_path)
         os.symlink(self.output_dir, latest_link_path)
+
+
+class OutputFileHandle(object):
+    def __init__(self, output_file_name, output_path=None):
+        self.output_file_name = output_file_name
+        self.objects = dict()
+
+    def __del__(self):
+        self._write_and_close()
+
+    def _write_and_close(self):
+        output_file = ROOT.TFile.Open(self.output_file_name, "RECREATE")
+        output_file.cd()
+        for obj in self.objects.values():
+            obj.Write()
+        output_file.Write()
+        output_file.Close()
+        print "Written file %s" % output_file.GetName()
+        _logger.info("Written file %s" % output_file.GetName())
+
+    def register_object(self, obj):
+        self.objects[obj.GetName()] = obj
