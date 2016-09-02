@@ -1,9 +1,5 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import numpy as np
 from tabulate import tabulate
-
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 
 
@@ -36,9 +32,11 @@ class CutflowAnalyser(object):
         parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                  cutflow_hist.GetBinContent(b),
                                  raw_cutflow_hist.GetBinContent(b),
+                                 cutflow_hist.GetBinError(b),
+                                 raw_cutflow_hist.GetBinError(b),
                                  -1.,
                                  -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
-                               dtype=[("cut", "S100"), ("yield", "f4"), ("yield_raw", "f4"), ("eff", "f3"), ("eff_total", "f3")]) # todo: array dtype for string not a good choice
+                               dtype=[("cut", "S100"), ("yield", "f4"), ("yield_raw", "f4"), ("yield_unc", "f4"), ("yield_raw_unc", "f4"), ("eff", "f3"), ("eff_total", "f3")]) # todo: array dtype for string not a good choice
         return parsed_info
 
     def calculate_cut_efficiencies(self):
@@ -68,12 +66,18 @@ class CutflowAnalyser(object):
 
     def make_cutflow_table(self, systematic):
         for selection, cutflow in self.cutflows[systematic].items():
-            #headers = ["Cut"] + cutflow_hist.keys()
-            #cut_strings = self.cutflow_hists.values()[0]["cut"]
-            #event_yields = [map(lambda y: "%.4f" % y, l["yield"]) for l in self.cutflow_hists.values()]
-            #self.cutflow_table = tabulate(np.array([cut_strings] + event_yields).transpose())
+            cutflow = self.stringify(cutflow)
             self.cutflow_table = tabulate(cutflow.transpose())
-            print self.cutflow_table
+
+    @staticmethod
+    def stringify(cutflow):
+        cutflow = np.array([(cutflow[i]["cut"],
+                             "%f +- %f" % (cutflow[i]["yield"], cutflow[i]["yield_unc"]),
+                             "%f +- %f" % (cutflow[i]["yield_raw"], cutflow[i]["yield_raw_unc"]),
+                             cutflow[i]["eff"],
+                             cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+                           dtype=[("cut", "S100"), ("yield", "S100"), ("yield_raw", "S100"), ("eff", "f3"), ("eff_total", "f3")])
+        return cutflow
 
     def print_cutflow_table(self):
         print self.cutflow_table
