@@ -14,21 +14,33 @@ def retrieve_new_canvas(name, title):
 
 
 def plot_hist(hist,
-              plot_options=None,
-              draw_options=None,
-              canvas_name='c',
-              canvas_title=''):
-    #ROOT.SetOwnership(hist, False)
-
-    if plot_options is not None:
-        plot_options.configure(hist)
-    canvas = retrieve_new_canvas(canvas_name, canvas_title)
+              plot_config):
+    canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
-    if draw_options is None:
-        draw_options = 'hist'
-    hist.SetFillColor(ROOT.kRed)
-    hist.Draw(draw_options)
-    return canvas, hist
+    ROOT.SetOwnership(hist, False)
+    #process_config = fetch_process_config(process, process_configs)
+    draw_option = "Hist"
+    style_attr, color = None, None
+    #todo: INCONSISTENT -> create JIRA
+    if hasattr(plot_config, "draw"):
+        draw_option = plot_config.draw
+    style_setter = None
+    if draw_option == "Hist":
+        style_setter = "Fill"
+    elif draw_option == "Marker":
+        style_setter = "Marker"
+        draw_option = "p"
+    elif draw_option == "Line":
+        style_setter = "Line"
+        draw_option = "l"
+    #todo: refactoring of configs to be moved to plotHist
+    hist.Draw(draw_option)
+    if style_attr is not None:
+        getattr(hist, "Set"+style_setter+"Style")(style_attr)
+    if color is not None:
+        getattr(hist, "Set" + style_setter + "Color")(color)
+    canvas.Update()
+    return canvas
 
 
 # todo: memoise
