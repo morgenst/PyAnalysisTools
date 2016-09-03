@@ -8,6 +8,7 @@ from PyAnalysisTools.PlottingUtils import PlottingTools as PT
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import merge_objects_by_process_type
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_significance
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
 
 class BasePlotter(object):
@@ -26,6 +27,7 @@ class BasePlotter(object):
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", False)
+        kwargs.setdefault("output_file", "plots.root")
         for k,v in kwargs.iteritems():
             setattr(self, k, v)
         ROOT.gROOT.SetBatch(self.batch)
@@ -34,6 +36,7 @@ class BasePlotter(object):
         self.process_config = self.parse_process_config()
         FM.load_atlas_style()
         self.histograms = {}
+        self.output_handle = OutputFileHandle(self.output_file)
 
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
@@ -120,3 +123,5 @@ class BasePlotter(object):
                 background_hist = merge_objects_by_process_type(canvas, self.process_config, "Background")
                 significance_hist = get_significance(signal_hist, background_hist)
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
+
+            self.output_handle.register_object(canvas)
