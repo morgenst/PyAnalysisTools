@@ -52,7 +52,6 @@ class OutputFileHandle(object):
             obj.Write()
         output_file.Write()
         output_file.Close()
-        print "Written file %s" % output_file.GetName()
         _logger.info("Written file %s" % output_file.GetName())
 
     def register_object(self, obj):
