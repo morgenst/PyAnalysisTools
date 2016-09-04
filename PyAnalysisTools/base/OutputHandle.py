@@ -20,7 +20,7 @@ class OutputHandle(object):
     def register_file(self, file_name):
         self.file_list.append(file_name)
 
-    def move_all_files(self):
+    def move_all_files(self, overload=None):
         for abs_file_name in self.file_list:
             try:
                 _, file_name = os.path.split(abs_file_name)
@@ -28,14 +28,19 @@ class OutputHandle(object):
             except IOError:
                 _logger.error("Unable to move %s to %s" % (abs_file_name, self.output_dir))
                 raise
-        self.set_latest_link()
+        self.set_latest_link(overload)
 
-    def set_latest_link(self):
+    def _set_latest_link(self, link):
+        if os.path.exists(link):
+            os.unlink(link)
+        os.symlink(self.output_dir, link)
+
+    def set_latest_link(self, overload=None):
         latest_link_path = os.path.join(self.base_output_dir, "latest")
-        if os.path.exists(latest_link_path):
-            os.unlink(latest_link_path)
-        os.symlink(self.output_dir, latest_link_path)
-
+        self._set_latest_link(latest_link_path)
+        if overload:
+            latest_link_path_overload = os.path.join(self.base_output_dir, "latest_%s" % overload)
+            self._set_latest_link(latest_link_path_overload)
 
 class OutputFileHandle(object):
     def __init__(self, output_file_name, output_path=None):
