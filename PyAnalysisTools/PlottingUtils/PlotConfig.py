@@ -1,6 +1,4 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
+import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -56,3 +54,43 @@ def parse_and_build_process_config(process_config_file):
     except Exception as e:
         print e
         raise e
+
+
+def _parse_draw_option(plot_config, process_config):
+    draw_option = "Hist"
+    if process_config and hasattr(process_config, "draw"):
+        draw_option = process_config.draw
+    if hasattr(plot_config, "draw"):
+        draw_option = plot_config.draw
+    return draw_option
+
+
+def get_draw_option_as_root_str(plot_config, process_config = None):
+    draw_option = _parse_draw_option(plot_config, process_config)
+    if draw_option == "Marker":
+        draw_option = "p"
+    elif draw_option == "Line":
+        draw_option = "l"
+    return draw_option
+
+def get_style_setters_and_values(plot_config, process_config = None):
+    style_setter = None
+    style_attr, color = None, None
+    draw_option = _parse_draw_option(plot_config, process_config)
+    if hasattr(process_config, "style"):
+        style_attr = process_config.style
+    if hasattr(process_config, "color"):
+        color = process_config.color
+        if isinstance(color, str):
+            color = getattr(ROOT, color)
+    if hasattr(plot_config, "color"):
+        color = plot_config.color
+        if isinstance(color, str):
+            color = getattr(ROOT, color)
+    if draw_option == "Hist":
+        style_setter = "Fill"
+    elif draw_option == "Marker":
+        style_setter = "Marker"
+    elif draw_option == "Line":
+        style_setter = "Line"
+    return style_setter, style_attr, color

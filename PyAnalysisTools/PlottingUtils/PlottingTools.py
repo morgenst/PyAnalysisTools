@@ -1,12 +1,8 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import ROOT
-import numpy as np
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
-from functools import partial
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 
 
 def retrieve_new_canvas(name, title):
@@ -57,28 +53,10 @@ def plot_histograms(hist_dict, plot_config, common_config, process_configs):
     is_first = True
     for process, hist in hist_dict.iteritems():
         process_config = fetch_process_config(process, process_configs)
-        draw_option = "Hist"
-        style_attr, color = None, None
-        if hasattr(process_config, "draw"):
-            draw_option = process_config.draw
-        if hasattr(process_config, "style"):
-            style_attr = process_config.style
-        if hasattr(process_config, "color"):
-            color = process_config.color
-            if isinstance(color, str):
-                color = getattr(ROOT, color)
-        style_setter = None
-        if draw_option == "Hist":
-            style_setter = "Fill"
-        elif draw_option == "Marker":
-            style_setter = "Marker"
-            draw_option = "p"
-        elif draw_option == "Line":
-            style_setter = "Line"
-            draw_option = "l"
-        if not is_first:
-            draw_option += " sames"
-        #todo: refactoring of configs to be moved to plotHist
+        draw_option = get_draw_option_as_root_str(plot_config, process_config)
+        style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+        if not is_first and "same" not in draw_option:
+            draw_option += "sames"
         hist.Draw(draw_option)
         if style_attr is not None:
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
@@ -88,8 +66,9 @@ def plot_histograms(hist_dict, plot_config, common_config, process_configs):
     return canvas
 
 
-def add_histogram_to_canvas(canvas, hist, plot_option=None, draw_option=None):
+def add_histogram_to_canvas(canvas, hist, plot_config):
     canvas.cd()
+    draw_option = get_draw_option_as_root_str(plot_config)
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
