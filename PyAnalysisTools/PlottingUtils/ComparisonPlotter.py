@@ -1,18 +1,32 @@
 import ROOT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
-from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config
 
 
 class ComparisonPlotter(object):
-    def __init__(self, input_files, reference_file, config):
-        self.input_files = input_files
-        self.reference_file = reference_file
-        self.config_file = config
-        self.reference_file_handle = FileHandle(reference_file)
-        self.file_handles = [FileHandle(file_name) for file_name in input_files]
+    def __init__(self, **kwargs):
+        if not "input_files" in kwargs:
+            _logger.error("No input files provided")
+            raise InvalidInputError("Missing input files")
+        if not "reference_file" in kwargs:
+            _logger.error("No reference file provided")
+            raise InvalidInputError("Missing reference")
+        if not "config_file" in kwargs:
+            _logger.error("No config file provided")
+            raise InvalidInputError("Missing config")
+        if not "output" in kwargs:
+            _logger.warning("No output directory given. Using ./")
+        kwargs.setdefault("output", "./")
+        self.input_files = kwargs["input_files"]
+        self.reference_file = kwargs["reference_file"]
+        self.config_file = kwargs["config_file"]
+        self.reference_file_handle = FileHandle(self.reference_file)
+        self.file_handles = [FileHandle(file_name) for file_name in self.input_files]
+        self.output_handle = OutputFileHandle("Compare.root", kwargs["output"])
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan]
 
     def parse_config(self):
@@ -42,11 +56,11 @@ class ComparisonPlotter(object):
                                                                                                len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
         FM.add_legend_to_canvas(canvas, labels=labels)
+        self.output_handle.register_object(canvas)
 
     def compare_objects(self):
         self.parse_config()
         if hasattr(self.common_config, "colors"):
             self.update_color_palette()
-
         for plot_config in self.plot_configs:
             self.make_comparison_plot(plot_config)
