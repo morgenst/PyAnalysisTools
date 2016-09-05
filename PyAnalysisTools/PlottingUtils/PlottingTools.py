@@ -69,6 +69,11 @@ def plot_histograms(hist_dict, plot_config, common_config, process_configs):
 def add_histogram_to_canvas(canvas, hist, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
+    if style_attr is not None:
+        getattr(hist, "Set" + style_setter + "Style")(style_attr)
+    if color is not None:
+        getattr(hist, "Set" + style_setter + "Color")(color)
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
