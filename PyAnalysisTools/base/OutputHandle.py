@@ -50,12 +50,18 @@ class OutputFileHandle(object):
         self.output_file_name = output_file_name
         self.output_path = output_path
         if output_path is None:
-            self.output_path("./")
+            self.output_path = "./"
         self.objects = dict()
+        self.attached = False
 
     def __del__(self):
         self._write_and_close()
 
+    def attach_file(self):
+        if not self.attached:
+            self.output_file = ROOT.TFile.Open(self.output_file_name, "RECREATE")
+            self.output_file.cd()
+            self.attached = True
 
     def dump_canvas(self, canvas, name=None):
         extension = ".pdf"
@@ -65,15 +71,14 @@ class OutputFileHandle(object):
                                                 name + extension)))
 
     def _write_and_close(self):
-        output_file = ROOT.TFile.Open(self.output_file_name, "RECREATE")
-        output_file.cd()
+        self.attach_file()
         for obj in self.objects.values():
             obj.Write()
             if isinstance(obj, ROOT.TCanvas):
                 self.dump_canvas(obj)
-        output_file.Write()
-        output_file.Close()
-        _logger.info("Written file %s" % output_file.GetName())
+        self.output_file.Write()
+        self.output_file.Close()
+        _logger.info("Written file %s" % self.output_file.GetName())
 
-    def register_object(self, obj):
-        self.objects[obj.GetName()] = obj
+    def register_object(self, obj, tdir=""):
+        self.objects[tdir + obj.GetName()] = obj
