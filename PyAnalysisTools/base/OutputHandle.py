@@ -42,19 +42,35 @@ class OutputHandle(object):
             latest_link_path_overload = os.path.join(self.base_output_dir, "latest_%s" % overload)
             self._set_latest_link(latest_link_path_overload)
 
+
 class OutputFileHandle(object):
     def __init__(self, output_file_name, output_path=None):
+        if output_path:
+            output_file_name = os.path.join(output_path, output_file_name)
         self.output_file_name = output_file_name
+        self.output_path = output_path
+        if output_path is None:
+            self.output_path("./")
         self.objects = dict()
 
     def __del__(self):
         self._write_and_close()
+
+
+    def dump_canvas(self, canvas, name=None):
+        extension = ".pdf"
+        if not name:
+            name = canvas.GetName()
+        canvas.SaveAs(os.path.join(os.path.join(self.output_path,
+                                                name + extension)))
 
     def _write_and_close(self):
         output_file = ROOT.TFile.Open(self.output_file_name, "RECREATE")
         output_file.cd()
         for obj in self.objects.values():
             obj.Write()
+            if isinstance(obj, ROOT.TCanvas):
+                self.dump_canvas(obj)
         output_file.Write()
         output_file.Close()
         _logger.info("Written file %s" % output_file.GetName())
