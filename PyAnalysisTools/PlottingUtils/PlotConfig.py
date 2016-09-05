@@ -42,7 +42,6 @@ def parse_and_build_plot_config(config_file):
 
 
 def parse_and_build_process_config(process_config_file):
-    print "parse and buld"
     try:
         _logger.debug("Parsing process config")
         parsed_process_config = YAMLLoader.read_yaml(process_config_file)
@@ -73,6 +72,7 @@ def get_draw_option_as_root_str(plot_config, process_config = None):
         draw_option = "l"
     return draw_option
 
+
 def get_style_setters_and_values(plot_config, process_config = None):
     style_setter = None
     style_attr, color = None, None
@@ -87,10 +87,12 @@ def get_style_setters_and_values(plot_config, process_config = None):
         color = plot_config.color
         if isinstance(color, str):
             color = getattr(ROOT, color)
-    if draw_option == "Hist":
-        style_setter = "Fill"
-    elif draw_option == "Marker":
+    if draw_option.lower() == "hist":
+        if style_attr:
+            style_setter = "Fill"
+        style_setter = "Line"
+    elif draw_option.lower() == "marker":
         style_setter = "Marker"
-    elif draw_option == "Line":
+    elif draw_option.lower() == "line":
         style_setter = "Line"
     return style_setter, style_attr, color
