@@ -5,12 +5,30 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base import ShellUtils
 
 
-class OutputHandle(object):
-    def __init__(self, output_dir, sub_dir_name="output"):
+class SysOutputHandle(object):
+    #todo: refactor to using only kwargs
+    def __init__(self, output_dir, sub_dir_name="output", **kwargs):
         self.time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
         self.base_output_dir = output_dir
         self.output_dir = os.path.join(output_dir, "{}_{}".format(sub_dir_name, self.time_stamp))
         ShellUtils.make_dirs(self.output_dir)
+
+    def _set_latest_link(self, link):
+        if os.path.exists(link):
+            os.unlink(link)
+        os.symlink(self.output_dir, link)
+
+    def set_latest_link(self, overload=None):
+        latest_link_path = os.path.join(self.base_output_dir, "latest")
+        self._set_latest_link(latest_link_path)
+        if overload:
+            latest_link_path_overload = os.path.join(self.base_output_dir, "latest_%s" % overload)
+            self._set_latest_link(latest_link_path_overload)
+
+
+class OutputHandle(SysOutputHandle):
+    def __init__(self, **kwargs):
+        super(OutputHandle, self).__init__(**kwargs)
         self.file_list = []
 
     def register_file_list(self, file_list):
@@ -30,36 +48,23 @@ class OutputHandle(object):
                 raise
         self.set_latest_link(overload)
 
-    def _set_latest_link(self, link):
-        if os.path.exists(link):
-            os.unlink(link)
-        os.symlink(self.output_dir, link)
 
-    def set_latest_link(self, overload=None):
-        latest_link_path = os.path.join(self.base_output_dir, "latest")
-        self._set_latest_link(latest_link_path)
-        if overload:
-            latest_link_path_overload = os.path.join(self.base_output_dir, "latest_%s" % overload)
-            self._set_latest_link(latest_link_path_overload)
-
-
-class OutputFileHandle(object):
-    def __init__(self, output_file_name, output_path=None):
-        if output_path:
-            output_file_name = os.path.join(output_path, output_file_name)
-        self.output_file_name = output_file_name
-        self.output_path = output_path
-        if output_path is None:
-            self.output_path = "./"
+class OutputFileHandle(SysOutputHandle):
+    def __init__(self, overload=None, **kwargs):
+        super(self.__class__, self).__init__(**kwargs)
         self.objects = dict()
         self.attached = False
+        self.overload = overload
+        # todo: refactor using kwargs setdefault
+        self.output_file_name = kwargs["output_file_name"]
+        self.output_file = None
 
     def __del__(self):
         self._write_and_close()
 
     def attach_file(self):
         if not self.attached:
-            self.output_file = ROOT.TFile.Open(self.output_file_name, "RECREATE")
+            self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name), "RECREATE")
             self.output_file.cd()
             self.attached = True
 
@@ -67,7 +72,7 @@ class OutputFileHandle(object):
         extension = ".pdf"
         if not name:
             name = canvas.GetName()
-        canvas.SaveAs(os.path.join(os.path.join(self.output_path,
+        canvas.SaveAs(os.path.join(os.path.join(self.output_dir,
                                                 name + extension)))
 
     def _write_and_close(self):
@@ -79,6 +84,7 @@ class OutputFileHandle(object):
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
+        self.set_latest_link(self.overload)
 
     def register_object(self, obj, tdir=""):
         self.objects[tdir + obj.GetName()] = obj

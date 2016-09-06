@@ -18,15 +18,15 @@ class ComparisonPlotter(object):
         if not "config_file" in kwargs:
             _logger.error("No config file provided")
             raise InvalidInputError("Missing config")
-        if not "output" in kwargs:
+        if not "output_dir" in kwargs:
             _logger.warning("No output directory given. Using ./")
-        kwargs.setdefault("output", "./")
+        kwargs.setdefault("output_dir", "./")
         self.input_files = kwargs["input_files"]
         self.reference_file = kwargs["reference_file"]
         self.config_file = kwargs["config_file"]
         self.reference_file_handle = FileHandle(self.reference_file)
         self.file_handles = [FileHandle(file_name) for file_name in self.input_files]
-        self.output_handle = OutputFileHandle("Compare.root", kwargs["output"])
+        self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan]
 
     def parse_config(self):
