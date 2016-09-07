@@ -9,8 +9,7 @@ def retrieve_new_canvas(name, title):
     return ROOT.TCanvas(name, title, 800, 600)
 
 
-def plot_hist(hist,
-              plot_config):
+def plot_hist(hist, plot_config):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
@@ -55,6 +54,24 @@ def plot_histograms(hist_dict, plot_config, common_config, process_configs):
         process_config = fetch_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
         style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+        if not is_first and "same" not in draw_option:
+            draw_option += "sames"
+        hist.Draw(draw_option)
+        if style_attr is not None:
+            getattr(hist, "Set"+style_setter+"Style")(style_attr)
+        if color is not None:
+            getattr(hist, "Set" + style_setter + "Color")(color)
+        is_first = False
+    return canvas
+
+
+def plot_histograms_simple(hists, plot_config):
+    canvas = retrieve_new_canvas(plot_config.name, "")
+    canvas.cd()
+    is_first = True
+    for hist in hists:
+        draw_option = get_draw_option_as_root_str(plot_config)
+        style_setter, style_attr, color = get_style_setters_and_values(plot_config)
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
