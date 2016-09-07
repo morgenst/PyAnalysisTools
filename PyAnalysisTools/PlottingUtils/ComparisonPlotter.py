@@ -40,6 +40,20 @@ class ComparisonPlotter(object):
         else:
             _logger.warning("Unsuppored type %s for colors in common_config" % type(self.common_config.colors[0]))
 
+    @staticmethod
+    def calculate_ratio(hist, reference):
+        ratio_hist = hist.Clone("ratio_" + hist.GetName())
+        ratio_hist.Divide(reference)
+        FM.set_title_y(ratio_hist, "ratio")
+        return ratio_hist
+
+    def calculate_ratios(self, hists, reference, plot_config):
+        plot_config.name = "ratio_" + plot_config.name
+        plot_config.draw = "Marker"
+        ratios = [self.calculate_ratio(hist, reference) for hist in hists]
+        canvas = PT.plot_histograms_simple(ratios, plot_config)
+        return canvas
+
     def make_comparison_plot(self, plot_config):
         reference_hist = self.reference_file_handle.get_object_by_name(plot_config.dist)
         hists = [fh.get_object_by_name(plot_config.dist) for fh in self.file_handles]
@@ -52,11 +66,14 @@ class ComparisonPlotter(object):
         if hasattr(self.common_config, "labels"):
             labels = self.common_config.labels
         if len(labels) != len(hists) + 1:
-            _logger.error("Not enough labels provied. Received %i labels for %i histograms" % (len(labels),
+            _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
         FM.add_legend_to_canvas(canvas, labels=labels)
+        canvas_ratio = self.calculate_ratios(hists, reference_hist, plot_config)
+        canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
+        self.output_handle.register_object(canvas_combined)
 
     def compare_objects(self):
         self.parse_config()
