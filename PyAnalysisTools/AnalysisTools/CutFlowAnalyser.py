@@ -11,7 +11,7 @@ class CutflowAnalyser(object):
         self.file_list = file_list
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
-        self.cutflow_table = None
+        self.cutflow_tables = dict()
         self.output_file_name = output_file_name
         self.systematics = systematics
         self.cutflow_hists = dict()
@@ -67,7 +67,7 @@ class CutflowAnalyser(object):
     def make_cutflow_table(self, systematic):
         for selection, cutflow in self.cutflows[systematic].items():
             cutflow = self.stringify(cutflow)
-            self.cutflow_table = tabulate(cutflow.transpose())
+            self.cutflow_tables[selection] = tabulate(cutflow.transpose())
 
     @staticmethod
     def stringify(cutflow):
@@ -80,7 +80,10 @@ class CutflowAnalyser(object):
         return cutflow
 
     def print_cutflow_table(self):
-        print self.cutflow_table
+        for selection, cutflow in self.cutflow_tables.iteritems():
+            print
+            print "Cutflow for region %s" % selection
+            print cutflow
 
     def store_cutflow_table(self):
         pass
