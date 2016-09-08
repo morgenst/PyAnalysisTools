@@ -2,6 +2,7 @@ import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
@@ -26,17 +27,17 @@ class BasePlotter(object):
             kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("batch", False)
-        kwargs.setdefault("output_file", "plots.root")
+        kwargs.setdefault("batch", True)
+        kwargs.setdefault("output_file_name", "plots.root")
         for k,v in kwargs.iteritems():
             setattr(self, k, v)
-        ROOT.gROOT.SetBatch(self.batch)
+        set_batch_mode(kwargs["batch"])
         self.file_handles = [FileHandle(input_file) for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.process_config = self.parse_process_config()
         FM.load_atlas_style()
         self.histograms = {}
-        self.output_handle = OutputFileHandle(self.output_file)
+        self.output_handle = OutputFileHandle(**kwargs)
 
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
@@ -79,7 +80,6 @@ class BasePlotter(object):
         try:
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
-            print hist.GetEntries()
             if not self.process_config[file_handle.process].type == "Data":
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
                                                                             file_handle.get_number_of_total_events())
@@ -112,11 +112,10 @@ class BasePlotter(object):
                     self.histograms[plot_config][file_handle.process] = self.retrieve_histogram(file_handle, plot_config)
                 except KeyError:
                     self.histograms[plot_config] = {file_handle.process: self.retrieve_histogram(file_handle, plot_config)}
-
-        for plot_config_name, data in self.histograms.iteritems():
+        for plot_config, data in self.histograms.iteritems():
             canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             FM.decorate_canvas(canvas, self.common_config)
-            FM.add_legend_to_canvas(canvas, self.process_config)
+            FM.add_legend_to_canvas(canvas, process_configs = self.process_config)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
                 signal_hist = merge_objects_by_process_type(canvas, self.process_config, "Signal")
