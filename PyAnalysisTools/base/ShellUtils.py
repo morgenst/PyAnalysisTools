@@ -1,5 +1,6 @@
 import shutil
 import os
+import subprocess
 
 
 def make_dirs(path):
@@ -32,3 +33,12 @@ def remove_directory(path, safe=False):
             raise
     else:
         shutil.rmtree(path)
+
+
+def source(script_name):
+    print subprocess.PIPE
+    pipe = subprocess.Popen(". %s; env" % script_name, stdout=subprocess.PIPE, shell=True)
+    output = pipe.communicate()[0]
+    output = filter(lambda l: len(l.split("=")) == 2, output.splitlines())
+    env = dict((line.split("=", 1) for line in output))
+    os.environ.update(env)
