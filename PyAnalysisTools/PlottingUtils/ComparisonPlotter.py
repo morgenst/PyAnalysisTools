@@ -26,6 +26,7 @@ class ComparisonPlotter(object):
         self.config_file = kwargs["config_file"]
         self.reference_file_handle = FileHandle(self.reference_file)
         self.file_handles = [FileHandle(file_name) for file_name in self.input_files]
+        print kwargs
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan]
 
