@@ -1,12 +1,7 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import re
-
 import ROOT
 import numpy as np
 import os
-
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
@@ -107,6 +102,35 @@ def set_title(self, hist, title, axis='x'):
             hist = setTitle(hist, title, axis)
 
 
+def add_stat_box_to_canvas(canvas):
+    def retrieve_stat_box(hist):
+        ctmp = ROOT.TCanvas("c_tmp", "c_tmp")
+        ctmp.cd()
+        ROOT.gStyle.SetOptStat(111111)
+        hist.SetStats(1)
+        hist.Draw()
+        ROOT.gPad.Update()
+        stat_box = hist.FindObject("stats").Clone()
+        ROOT.SetOwnership(stat_box, False)
+        ROOT.gStyle.SetOptStat(0)
+        return stat_box
+
+    hists = get_objects_from_canvas_by_type(canvas, "TH1F")
+
+    stat_boxes = [retrieve_stat_box(hist) for hist in hists]
+    canvas.cd()
+    height = min(0.15, 1. / len(stat_boxes))
+    offset = 0.01
+    for stat_box in stat_boxes:
+        index = stat_boxes.index(stat_box)
+        color = hists[index].GetLineColor()
+        stat_box.SetTextColor(color)
+        stat_box.SetY1NDC(1. - (index + 1.) * height)
+        stat_box.SetY2NDC(1. - index * (height + offset))
+        stat_box.Draw("sames")
+    canvas.Update()
+
+
 def add_text_to_canvas(canvas, text, pos={'x': 0.6, 'y': 0.79}, size=0.04, color=None):
     label = make_text(x=pos['x'], y=pos['y'], text=text, size=size, color=color)
     label.Draw('sames')
@@ -179,7 +203,11 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
     set_range_y(graph_obj, minimum, maximum)
 
 
-def add_legend_to_canvas(canvas, xl=0.6, yl=0.7, xh=0.9, yh=0.9, **kwargs):
+def add_legend_to_canvas(canvas, **kwargs):
+    kwargs.setdefault("xl", 0.6)
+    kwargs.setdefault("yl", 0.7)
+    kwargs.setdefault("xh", 0.9)
+    kwargs.setdefault("yh", 0.9)
     def convert_draw_option():
         draw_option = plot_obj.GetDrawOption()
         legend_option = ""
@@ -195,8 +223,7 @@ def add_legend_to_canvas(canvas, xl=0.6, yl=0.7, xh=0.9, yh=0.9, **kwargs):
         if not legend_option:
             _logger.error("Unable to parse legend option from " % draw_option)
         return legend_option
-
-    legend = ROOT.TLegend(xl, yl, xh, yh)
+    legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
     for plot_obj in plot_objects:
