@@ -26,7 +26,6 @@ class ComparisonPlotter(object):
         self.config_file = kwargs["config_file"]
         self.reference_file_handle = FileHandle(self.reference_file)
         self.file_handles = [FileHandle(file_name) for file_name in self.input_files]
-        print kwargs
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan]
 
@@ -70,7 +69,9 @@ class ComparisonPlotter(object):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
-        FM.add_legend_to_canvas(canvas, labels=labels)
+        FM.add_legend_to_canvas(canvas, labels=labels, xl=0.3, xh=0.5)
+        if self.common_config.stat_box:
+            FM.add_stat_box_to_canvas(canvas)
         canvas_ratio = self.calculate_ratios(hists, reference_hist, plot_config)
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
