@@ -62,6 +62,7 @@ class ComparisonPlotter(object):
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
             plot_config.color = self.color_palette[hists.index(hist)]
             PT.add_histogram_to_canvas(canvas, hist, plot_config)
+        FM.decorate_canvas(canvas, self.common_config)
         labels = ["reference"] + [""] * len(hists)
         if hasattr(self.common_config, "labels"):
             labels = self.common_config.labels
