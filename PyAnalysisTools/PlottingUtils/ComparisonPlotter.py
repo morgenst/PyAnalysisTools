@@ -55,7 +55,13 @@ class ComparisonPlotter(object):
         return canvas
 
     def make_comparison_plot(self, plot_config):
-        reference_hist = self.reference_file_handle.get_object_by_name(plot_config.dist)
+        try:
+            reference_hist = self.reference_file_handle.get_object_by_name(plot_config.dist)
+        except ValueError as e:
+            _logger.error("Could not find %s in %s" % (plot_config.dist, self.reference_file_handle.file_name))
+            if hasattr(self.common_config, "ignore_missing") and self.common_config.ignore_missing:
+                return
+            raise e
         hists = [fh.get_object_by_name(plot_config.dist) for fh in self.file_handles]
         canvas = PT.plot_hist(reference_hist, plot_config)
         for hist in hists:
