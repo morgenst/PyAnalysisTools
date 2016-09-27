@@ -5,16 +5,18 @@ import os
 import re
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links
+
 
 _memoized = {}
 
 
 def get_id_tuple(f, args, kwargs, mark=object()):
-    l = [id(f)]
+    l = [hash(f)]
     for arg in args:
-        l.append(id(arg))
+        l.append(hash(arg))
     l.append(id(mark))
-    for k, v in kwargs:
+    for k, v in kwargs.iteritems():
         l.append(k)
         l.append(id(v))
     return tuple(l)
@@ -33,9 +35,11 @@ def memoize(f):
 
 @memoize
 class FileHandle(object):
-    def __init__(self, file_name, path='./'):
-        self.file_name = file_name
-        self.path = path
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("path", "./")
+        kwargs.setdefault("cwd", "None")
+        self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
+        self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
         self.open()
         self.process = self.parse_process()
