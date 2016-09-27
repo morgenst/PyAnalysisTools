@@ -40,17 +40,24 @@ def plot_hist(hist, plot_config):
 
 # todo: memoise
 def fetch_process_config(process, process_config):
+    if process is None:
+        return None
     if process not in process_config:
         _logger.warning("Could not find process %s in process config" % process)
         return None
     return process_config[process]
 
 
-def plot_histograms(hist_dict, plot_config, common_config, process_configs):
+def plot_histograms(hists, plot_config, common_config=None, process_configs=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     is_first = True
-    for process, hist in hist_dict.iteritems():
+    if isinstance(hists, dict):
+        hist_defs = hists.items()
+    elif isinstance(hists, list):
+        hist_defs = zip([None] * len(hists), hists)
+    max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
+    for process, hist in hist_defs:
         process_config = fetch_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
         style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
@@ -61,24 +68,8 @@ def plot_histograms(hist_dict, plot_config, common_config, process_configs):
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
             getattr(hist, "Set" + style_setter + "Color")(color)
-        is_first = False
-    return canvas
-
-
-def plot_histograms_simple(hists, plot_config):
-    canvas = retrieve_new_canvas(plot_config.name, "")
-    canvas.cd()
-    is_first = True
-    for hist in hists:
-        draw_option = get_draw_option_as_root_str(plot_config)
-        style_setter, style_attr, color = get_style_setters_and_values(plot_config)
-        if not is_first and "same" not in draw_option:
-            draw_option += "sames"
-        hist.Draw(draw_option)
-        if style_attr is not None:
-            getattr(hist, "Set"+style_setter+"Style")(style_attr)
-        if color is not None:
-            getattr(hist, "Set" + style_setter + "Color")(color)
+        if is_first:
+            FM.set_maximum_y(hist, max_y)
         is_first = False
     return canvas
 
@@ -152,8 +143,8 @@ def plot_stack(histograms, plot_options=None, draw_options=None, canvas_name='na
             continue
 
     stack.Draw()
-    FM.set_title_x(stack, title=x_title, axis='x')
-    FM.set_title_y(stack, title=y_title, axis='y')
+    FM.set_title_x(stack, title=x_title)
+    FM.set_title_y(stack, title=y_title)
     return canvas
 
 

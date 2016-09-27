@@ -24,8 +24,8 @@ class ComparisonPlotter(object):
         self.input_files = kwargs["input_files"]
         self.reference_file = kwargs["reference_file"]
         self.config_file = kwargs["config_file"]
-        self.reference_file_handle = FileHandle(self.reference_file)
-        self.file_handles = [FileHandle(file_name) for file_name in self.input_files]
+        self.reference_file_handle = FileHandle(file_name=self.reference_file, **kwargs)
+        self.file_handles = [FileHandle(file_name=file_name, **kwargs) for file_name in self.input_files]
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan]
 
@@ -51,7 +51,7 @@ class ComparisonPlotter(object):
         plot_config.name = "ratio_" + plot_config.name
         plot_config.draw = "Marker"
         ratios = [self.calculate_ratio(hist, reference) for hist in hists]
-        canvas = PT.plot_histograms_simple(ratios, plot_config)
+        canvas = PT.plot_histograms(ratios, plot_config)
         return canvas
 
     def make_comparison_plot(self, plot_config):
