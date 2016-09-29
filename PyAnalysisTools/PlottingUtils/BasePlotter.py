@@ -69,24 +69,24 @@ class BasePlotter(object):
                 #HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
-        self.format_hist(hist, plot_config)
         return hist
 
-    #todo: should be moved to formatter
-    def format_hist(self, hist, plot_config):
-        if hasattr(plot_config, "xtitle"):
-            xtitle = plot_config.xtitle
-            if hasattr(plot_config, "unit"):
-                xtitle += " [" + plot_config.unit + "]"
-            FM.set_title_x(hist, xtitle)
-        y_title = "Entries"
-        if hasattr(plot_config, "ytitle"):
-            y_title = plot_config.ytitle
-        if hasattr(plot_config, "unit"):
-            y_title += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
-        FM.set_title_y(hist, y_title)
-        if hasattr(plot_config, "rebin"):
-            HT.rebin(hist, plot_config.rebin)
+    def merge_histograms(self):
+        def merge(histograms):
+            for process, process_config in self.process_config.iteritems():
+                if not hasattr(process_config, "subprocesses"):
+                    continue
+                for sub_process in process_config.subprocesses:
+                    if sub_process not in histograms.keys():
+                        continue
+                    if process not in histograms.keys():
+                        new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
+                        histograms[process] = histograms[sub_process].Clone(new_hist_name)
+                    else:
+                        histograms[process].Add(histograms[sub_process])
+                    histograms.pop(sub_process)
+        for plot_config, histograms in self.histograms.iteritems():
+            merge(histograms)
 
     def make_plots(self):
         for file_handle in self.file_handles:
@@ -95,6 +95,7 @@ class BasePlotter(object):
                     self.histograms[plot_config][file_handle.process] = self.retrieve_histogram(file_handle, plot_config)
                 except KeyError:
                     self.histograms[plot_config] = {file_handle.process: self.retrieve_histogram(file_handle, plot_config)}
+        self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             FM.decorate_canvas(canvas, self.common_config)
@@ -107,3 +108,4 @@ class BasePlotter(object):
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
 
             self.output_handle.register_object(canvas)
+
