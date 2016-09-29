@@ -58,10 +58,10 @@ def parse_and_build_process_config(process_config_file):
 
 def _parse_draw_option(plot_config, process_config):
     draw_option = "Hist"
-    if process_config and hasattr(process_config, "draw"):
-        draw_option = process_config.draw
     if hasattr(plot_config, "draw"):
         draw_option = plot_config.draw
+    if process_config and hasattr(process_config, "draw"):
+        draw_option = process_config.draw
     return draw_option
 
 

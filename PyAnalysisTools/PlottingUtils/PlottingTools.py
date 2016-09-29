@@ -1,6 +1,7 @@
 import ROOT
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as FM
+from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 
@@ -48,6 +49,23 @@ def fetch_process_config(process, process_config):
     return process_config[process]
 
 
+def format_hist(hist, plot_config):
+    if hasattr(plot_config, "xtitle"):
+        xtitle = plot_config.xtitle
+        if hasattr(plot_config, "unit"):
+            xtitle += " [" + plot_config.unit + "]"
+        FM.set_title_x(hist, xtitle)
+    y_title = "Entries"
+    if hasattr(plot_config, "ytitle"):
+        y_title = plot_config.ytitle
+    if hasattr(plot_config, "unit"):
+        y_title += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
+    FM.set_title_y(hist, y_title)
+    if hasattr(plot_config, "rebin"):
+        HT.rebin(hist, plot_config.rebin)
+    return hist
+
+
 def plot_histograms(hists, plot_config, common_config=None, process_configs=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
@@ -58,6 +76,7 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
         hist_defs = zip([None] * len(hists), hists)
     max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
     for process, hist in hist_defs:
+        hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
         style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
