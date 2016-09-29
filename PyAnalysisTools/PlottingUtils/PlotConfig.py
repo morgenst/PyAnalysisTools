@@ -10,6 +10,7 @@ class PlotConfig(object):
             InvalidInputError("No distribution provided")
         kwargs.setdefault("cuts", None)
         kwargs.setdefault("draw", "hist")
+        kwargs.setdefault("stat_box", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)
 
@@ -96,3 +97,23 @@ def get_style_setters_and_values(plot_config, process_config = None):
     elif draw_option.lower() == "line":
         style_setter = "Line"
     return style_setter, style_attr, color
+
+
+def get_histogram_definition(plot_config):
+    dimension = plot_config.dist.count(":")
+    hist = None
+    hist_name = plot_config.name
+    if dimension == 0:
+        hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
+    elif dimension == 1:
+        hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
+                         plot_config.ybins, plot_config.ymin, plot_config.ymax)
+    elif dimension == 2:
+        hist = ROOT.TH3F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
+                         plot_config.ybins, plot_config.ymin, plot_config.ymax,
+                         plot_config.zbins, plot_config.zmin, plot_config.zmax)
+    if not hist:
+        _logger.error("Unable to create histogram for plot_config %s for variable %s" % (plot_config.name,
+                                                                                         plot_config.dist))
+        raise InvalidInputError("Invalid plot configuration")
+    return hist

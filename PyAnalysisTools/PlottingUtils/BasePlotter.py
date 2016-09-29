@@ -1,6 +1,7 @@
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
+    get_histogram_definition
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -25,6 +26,7 @@ class BasePlotter(object):
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
+        kwargs.setdefault("systematics", None)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", True)
@@ -32,7 +34,7 @@ class BasePlotter(object):
         for k,v in kwargs.iteritems():
             setattr(self, k, v)
         set_batch_mode(kwargs["batch"])
-        self.file_handles = [FileHandle(input_file) for input_file in self.input_files]
+        self.file_handles = [FileHandle(file_name=input_file) for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.process_config = self.parse_process_config()
         FM.load_atlas_style()
@@ -54,32 +56,13 @@ class BasePlotter(object):
     def initialise(self):
         self.parse_plot_config()
 
-    #todo: should be move to more abstract class
-    @staticmethod
-    def get_histogram_definition(plot_config):
-        dimension = plot_config.dist.count(":")
-        hist = None
-        hist_name = plot_config.name
-        if dimension == 0:
-            hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
-        elif dimension == 1:
-            hist = ROOT.TH2F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax,
-                             plot_config.ybins, plot_config.ymin, plot_config.ymax)
-        elif dimension == 2:
-            hist = ROOT.TH3F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax,
-                             plot_config.ybins, plot_config.ymin, plot_config.ymax,
-                             plot_config.zbins, plot_config.zmin, plot_config.zmax)
-        if not hist:
-            _logger.error("Unable to create histogram for plot_config %s for variable %s" % (plot_config.name,
-                                                                                             plot_config.dist))
-            raise InvalidInputError("Invalid plot configuration")
-        return hist
-
     def retrieve_histogram(self, file_handle, plot_config):
-        hist = self.__class__.get_histogram_definition(plot_config)
+        hist = get_histogram_definition(plot_config)
         try:
-            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts)
+            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts,
+                                                    tdirectory=self.systematics)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
+            _logger.debug("try to access config for process %s" % file_handle.process)
             if not self.process_config[file_handle.process].type == "Data":
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
                                                                             file_handle.get_number_of_total_events())
