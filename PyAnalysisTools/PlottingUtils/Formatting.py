@@ -203,6 +203,16 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
     set_range_y(graph_obj, minimum, maximum)
 
 
+def auto_scale_y_axis(canvas, offset=1.1):
+    graph_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
+    max_y = 1.1 * max([graph_obj.GetMaximum() for graph_obj in graph_objects])
+    draw_options = [graph_objects.GetDrawOption() for graph_obj in graph_objects]
+    first_index = draw_options.index(filter(lambda draw_option: draw_option.count("same") == 0)[0])
+    first_graph_obj = graph_objects[first_index]
+    set_maximum_y(first_graph_obj, max_y)
+    canvas.Update()
+
+
 def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("xl", 0.6)
     kwargs.setdefault("yl", 0.7)
