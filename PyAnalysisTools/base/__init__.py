@@ -1,7 +1,5 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import ROOT
+ROOT.PyConfig.IgnoreCommandLineOptions = True
 from Logger import Logger
 
 
