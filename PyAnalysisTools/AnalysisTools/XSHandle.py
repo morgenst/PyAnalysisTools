@@ -2,6 +2,11 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import _logger
 
 
+class Dataset(object):
+    def __init__(self, **kwargs):
+        for k, v in kwargs.iteritems():
+            setattr(self, k.lower(), v)
+
 class XSInfo(object):
     def __init__(self, **kwargs):
         for k,v in kwargs.iteritems():
