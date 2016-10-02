@@ -97,7 +97,13 @@ class BasePlotter(object):
                     self.histograms[plot_config] = {file_handle.process: self.retrieve_histogram(file_handle, plot_config)}
         self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
-            canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
+            if self.common_config.outline == "hist":
+                canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
+            elif self.common_config.outline == "stack":
+                canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_config)
+            else:
+                _logger.error("Unsupported outline option %s" % self.common_config.outline)
+                raise InvalidInputError("Unsupported outline option")
             FM.decorate_canvas(canvas, self.common_config)
             FM.add_legend_to_canvas(canvas, process_configs = self.process_config)
             if hasattr(plot_config, "calcsig"):

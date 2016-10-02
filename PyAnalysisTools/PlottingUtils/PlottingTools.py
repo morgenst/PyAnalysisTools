@@ -128,46 +128,34 @@ def add_graph_to_canvas(canvas, graph, plot_options=None, draw_options=None):
     graph.Draw(draw_options)
 
 
-def plot_stack(histograms, plot_options=None, draw_options=None, canvas_name='name', canvas_title='',
-               ordering=None, y_minimum=None, y_maximum=None):
-
-    if plot_options is not None:
-        if not len(histograms) == len(plot_options):
-            raise InvalidInputError("No of histograms does not match to no of provided plot_options")
-        for key in histograms.keys():
-            plot_options[key].configure(histograms[key])
-
-    canvas = retrieve_new_canvas(canvas_name, canvas_title)
+def plot_stack(hists, plot_config, common_config=None, process_configs=None):
+    canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
-    if draw_options is None:
-        draw_options = {}
-        for key in histograms.keys():
-            draw_options[key] = 'hist'
-    stack = ROOT.THStack('', '')
-    FM.set_range_y(stack, y_minimum, y_maximum)
-    x_title = None
-    y_title = None
-    if ordering is None:
-        ordering = histograms.keys()
-    for key in reversed(ordering):
-        try:
-            stack.Add(histograms[key], draw_options[key])
-        except KeyError:
-            _logger.debug('Could not add %s to stack' % (key))
-        try:
-            if x_title is None:
-                x_title = histograms[key].GetXaxis().GetTitle()
-                y_title = histograms[key].GetYaxis().GetTitle()
-        except KeyError:
+    is_first = True
+    if isinstance(hists, dict):
+        hist_defs = hists.items()
+    elif isinstance(hists, list):
+        hist_defs = zip([None] * len(hists), hists)
+    stack = ROOT.THStack('hs', '')
+    ROOT.SetOwnership(stack, False)
+    data = None
+    for process, hist in hist_defs:
+        if process == "Data":
+            data = (process, hist)
             continue
-
+        hist = format_hist(hist, plot_config)
+        process_config = fetch_process_config(process, process_configs)
+        draw_option = get_draw_option_as_root_str(plot_config, process_config)
+        FM.apply_style(hist, plot_config, process_config)
+        stack.Add(hist, draw_option)
     stack.Draw()
-    FM.set_title_x(stack, title=x_title)
-    FM.set_title_y(stack, title=y_title)
+    format_hist(stack, plot_config)
+    if data is not None:
+        add_data_to_stack(canvas, *data)
     return canvas
 
 
-def add_data_to_stack(canvas, data, blind=None):
+def add_data_to_stack(canvas, process, data, blind=None):
     if blind:
         blind_data(data, blind)
     canvas.cd()

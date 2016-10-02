@@ -10,6 +10,7 @@ class PlotConfig(object):
             InvalidInputError("No distribution provided")
         kwargs.setdefault("cuts", None)
         kwargs.setdefault("draw", "hist")
+        kwargs.setdefault("outline", "hist")
         kwargs.setdefault("stat_box", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)

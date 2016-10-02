@@ -4,7 +4,7 @@ import numpy as np
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
-
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values
 
 def load_atlas_style():
     try:
@@ -13,6 +13,14 @@ def load_atlas_style():
         ROOT.SetAtlasStyle()
     except Exception as e:
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
+
+
+def apply_style(obj, plot_config, process_config):
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+    if style_attr is not None:
+        getattr(obj, "Set" + style_setter + "Style")(style_attr)
+    if color is not None:
+        getattr(obj, "Set" + style_setter + "Color")(color)
 
 
 def decorate_canvas(canvas, config):
@@ -220,6 +228,8 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yh", 0.9)
     def convert_draw_option():
         draw_option = plot_obj.GetDrawOption()
+        if is_stacked:
+            draw_option = "Hist"
         legend_option = ""
         if "hist" in draw_option.lower():
             if plot_obj.GetFillStyle() == 1001:
@@ -236,11 +246,19 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
+    stack = get_objects_from_canvas_by_type(canvas, "THStack")
+    stacked_objects = None
+    if stack is not None:
+        stacked_objects = stack[0].GetHists()
+        plot_objects += stacked_objects
     for plot_obj in plot_objects:
         if "process_configs" in kwargs:
             label = kwargs["process_configs"][plot_obj.GetName().split("_")[-1]].label
         if "labels" in kwargs:
             label = kwargs["labels"][plot_objects.index(plot_obj)]
+        is_stacked = False
+        if stacked_objects and plot_obj in stacked_objects:
+            is_stacked = True
         legend.AddEntry(plot_obj, label, convert_draw_option())
     canvas.cd()
     legend.Draw("sames")

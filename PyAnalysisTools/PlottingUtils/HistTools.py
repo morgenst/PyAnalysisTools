@@ -8,7 +8,7 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 
 
 def rebin(histograms, factor=None):
-    if factor is None:
+    if factor is None or factor == 1:
         return histograms
     if type(histograms) == dict:
         for key, hist in histograms.items():
