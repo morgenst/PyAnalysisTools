@@ -90,4 +90,4 @@ class OutputFileHandle(SysOutputHandle):
         self.set_latest_link(self.overload)
 
     def register_object(self, obj, tdir=""):
-        self.objects[tdir + obj.GetName()] = obj
+        self.objects[tdir + obj.GetName()] = obj.Clone()
