@@ -67,7 +67,7 @@ class BasePlotter(object):
             if not self.process_config[file_handle.process].type == "Data":
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
                                                                             file_handle.get_number_of_total_events())
-                #HT.scale(hist, cross_section_weight)
+                HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
         return hist
@@ -89,6 +89,23 @@ class BasePlotter(object):
         for plot_config, histograms in self.histograms.iteritems():
             merge(histograms)
 
+    def calculate_ratios(self, hists, plot_config):
+        ratio = hists["Data"].Clone("ratio_%s" % plot_config.dist)
+        mc = None
+        for key, hist in hists.iteritems():
+            if key == "Data":
+                continue
+            if mc is None:
+                mc = hist.Clone("mc_total_%s" % plot_config.dist)
+                continue
+            mc.Add(hist)
+        ratio.Divide(mc)
+        plot_config.name = "ratio_" + plot_config.name
+        plot_config.draw = "Marker"
+        #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
+        canvas = PT.plot_hist(ratio, plot_config)
+        return canvas
+
     def make_plots(self):
         for file_handle in self.file_handles:
             for plot_config in self.plot_configs:
@@ -107,19 +124,23 @@ class BasePlotter(object):
             if self.common_config.outline == "hist":
                 canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             elif self.common_config.outline == "stack":
-                print data
                 canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_config)
             else:
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
             FM.decorate_canvas(canvas, self.common_config)
-            FM.add_legend_to_canvas(canvas, process_configs = self.process_config)
+            FM.add_legend_to_canvas(canvas, process_configs=self.process_config)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
                 signal_hist = merge_objects_by_process_type(canvas, self.process_config, "Signal")
                 background_hist = merge_objects_by_process_type(canvas, self.process_config, "Background")
                 significance_hist = get_significance(signal_hist, background_hist)
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
+            if hasattr(plot_config, "ratio") or hasattr(self.common_config, "ratio"):
+                if self.common_config.ratio:
+                    canvas_ratio = self.calculate_ratios(data, plot_config)
+                    canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                    self.output_handle.register_object(canvas_combined)
 
             self.output_handle.register_object(canvas)
 
