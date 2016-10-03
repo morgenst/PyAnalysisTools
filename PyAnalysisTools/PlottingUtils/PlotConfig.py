@@ -92,7 +92,8 @@ def get_style_setters_and_values(plot_config, process_config = None):
     if draw_option.lower() == "hist":
         if style_attr:
             style_setter = "Fill"
-        style_setter = "Line"
+        else:
+            style_setter = "Line"
     elif draw_option.lower() == "marker":
         style_setter = "Marker"
     elif draw_option.lower() == "line":
