@@ -14,7 +14,6 @@ def plot_hist(hist, plot_config):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
-    #process_config = fetch_process_config(process, process_configs)
     draw_option = "Hist"
     style_attr, color = None, None
     #todo: INCONSISTENT -> create JIRA
@@ -149,9 +148,17 @@ def plot_stack(hists, plot_config, common_config=None, process_configs=None):
         FM.apply_style(hist, plot_config, process_config)
         stack.Add(hist, draw_option)
     stack.Draw()
+    canvas.Update()
     format_hist(stack, plot_config)
+    max_y = 1.1 * stack.GetMaximum()
     if data is not None:
         add_data_to_stack(canvas, *data)
+        max_y = max(max_y, 1.1 * data[1].GetMaximum())
+    FM.set_maximum_y(stack, max_y)
+
+    if hasattr(plot_config, "logy") and plot_config.logy:
+        stack.SetMinimum(0.1)
+        canvas.SetLogy()
     return canvas
 
 
@@ -159,6 +166,7 @@ def add_data_to_stack(canvas, process, data, blind=None):
     if blind:
         blind_data(data, blind)
     canvas.cd()
+    ROOT.SetOwnership(data, False)
     data.Draw("psames")
 
 
