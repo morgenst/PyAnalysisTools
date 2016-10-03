@@ -2,6 +2,7 @@ import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -34,7 +35,7 @@ class BasePlotter(object):
         for k,v in kwargs.iteritems():
             setattr(self, k, v)
         set_batch_mode(kwargs["batch"])
-        self.file_handles = [FileHandle(file_name=input_file) for input_file in self.input_files]
+        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.process_config = self.parse_process_config()
         FM.load_atlas_style()
@@ -92,14 +93,21 @@ class BasePlotter(object):
         for file_handle in self.file_handles:
             for plot_config in self.plot_configs:
                 try:
-                    self.histograms[plot_config][file_handle.process] = self.retrieve_histogram(file_handle, plot_config)
+                    if file_handle.process not in self.histograms[plot_config].keys():
+                        self.histograms[plot_config][file_handle.process] = self.retrieve_histogram(file_handle,
+                                                                                                    plot_config)
+                    else:
+                        self.histograms[plot_config][file_handle.process].Add(self.retrieve_histogram(file_handle,
+                                                                                                      plot_config))
                 except KeyError:
-                    self.histograms[plot_config] = {file_handle.process: self.retrieve_histogram(file_handle, plot_config)}
+                    self.histograms[plot_config] = {file_handle.process: self.retrieve_histogram(file_handle,
+                                                                                                 plot_config)}
         self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             if self.common_config.outline == "hist":
                 canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             elif self.common_config.outline == "stack":
+                print data
                 canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_config)
             else:
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
