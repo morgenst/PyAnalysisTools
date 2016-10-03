@@ -4,13 +4,23 @@ from PyAnalysisTools.base import _logger
 
 class Dataset(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("is_data", False)
+        kwargs.setdefault("is_mc", False)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
 
+
 class XSInfo(object):
-    def __init__(self, **kwargs):
-        for k,v in kwargs.iteritems():
-            setattr(self, k.lower(), v)
+    def __init__(self, dataset):
+        if dataset.is_data:
+            return
+        self.xsec = dataset.cross_section
+        self.kfactor = 1.
+        self.filtereff = 1.
+        if hasattr(dataset, "kfactor"):
+            self.kfactor = dataset.kfactor
+        if hasattr(dataset, "filtereff"):
+            self.filtereff = dataset.filtereff
 
 
 class XSHandle(object):
@@ -19,7 +29,8 @@ class XSHandle(object):
             self.invalid = True
             return
         self.invalid = False
-        self.cross_sections = {key: XSInfo(**value) for (key, value) in YAMLLoader.read_yaml(cross_section_file).iteritems()}
+        self.cross_sections = {value.process_name: XSInfo(value)
+                               for value in YAMLLoader.read_yaml(cross_section_file).values() if value.is_mc}
 
     def get_xs_scale_factor(self, process):
         if self.invalid:
@@ -36,4 +47,4 @@ class XSHandle(object):
         return xs_scale_factor
 
     def get_lumi_scale_factor(self, process, lumi, mc_events):
-        return self.get_xs_scale_factor(process) * lumi / mc_events
+        return self.get_xs_scale_factor(process) * lumi * 1000. * 1000. / mc_events
