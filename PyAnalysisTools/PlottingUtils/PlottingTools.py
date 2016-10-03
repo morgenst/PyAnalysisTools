@@ -10,32 +10,50 @@ def retrieve_new_canvas(name, title):
     return ROOT.TCanvas(name, title, 800, 600)
 
 
+# def plot_hist(hist, plot_config):
+#     canvas = retrieve_new_canvas(plot_config.name, "")
+#     canvas.cd()
+#     ROOT.SetOwnership(hist, False)
+#     draw_option = "Hist"
+#     style_attr, color = None, None
+#     #todo: INCONSISTENT -> create JIRA
+#     if hasattr(plot_config, "draw"):
+#         draw_option = plot_config.draw
+#     style_setter = None
+#     if draw_option == "Hist":
+#         style_setter = "Fill"
+#     elif draw_option == "Marker":
+#         style_setter = "Marker"
+#         draw_option = "p"
+#     elif draw_option == "Line":
+#         style_setter = "Line"
+#         draw_option = "l"
+#     #todo: refactoring of configs to be moved to plotHist
+#     hist.Draw(draw_option)
+#     if style_attr is not None:
+#         getattr(hist, "Set"+style_setter+"Style")(style_attr)
+#     if color is not None:
+#         getattr(hist, "Set" + style_setter + "Color")(color)
+#     canvas.Update()
+#     return canvas
+
+
 def plot_hist(hist, plot_config):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
-    draw_option = "Hist"
-    style_attr, color = None, None
-    #todo: INCONSISTENT -> create JIRA
-    if hasattr(plot_config, "draw"):
-        draw_option = plot_config.draw
-    style_setter = None
-    if draw_option == "Hist":
-        style_setter = "Fill"
-    elif draw_option == "Marker":
-        style_setter = "Marker"
-        draw_option = "p"
-    elif draw_option == "Line":
-        style_setter = "Line"
-        draw_option = "l"
-    #todo: refactoring of configs to be moved to plotHist
+    hist = format_hist(hist, plot_config)
+    #process_config = fetch_process_config(process, process_configs)
+    process_config = None
+    draw_option = get_draw_option_as_root_str(plot_config, process_config)
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist.Draw(draw_option)
     if style_attr is not None:
         getattr(hist, "Set"+style_setter+"Style")(style_attr)
     if color is not None:
         getattr(hist, "Set" + style_setter + "Color")(color)
-    canvas.Update()
     return canvas
+
 
 
 # todo: memoise
@@ -55,6 +73,7 @@ def format_hist(hist, plot_config):
             xtitle += " [" + plot_config.unit + "]"
         FM.set_title_x(hist, xtitle)
     y_title = "Entries"
+
     if hasattr(plot_config, "ytitle"):
         y_title = plot_config.ytitle
     if hasattr(plot_config, "unit"):

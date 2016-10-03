@@ -101,6 +101,8 @@ class BasePlotter(object):
             mc.Add(hist)
         ratio.Divide(mc)
         plot_config.name = "ratio_" + plot_config.name
+        plot_config.ytitle = "data/MC"
+        plot_config.__dict__.pop("unit")
         plot_config.draw = "Marker"
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         canvas = PT.plot_hist(ratio, plot_config)
