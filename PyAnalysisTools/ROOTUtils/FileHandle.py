@@ -1,10 +1,8 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import os
 import re
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links
 
 
@@ -41,17 +39,27 @@ class FileHandle(object):
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
+        #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
+        self.dataset_info = None
+        if "dataset_info" in kwargs:
+            self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
         self.open()
         self.process = self.parse_process()
 
     def open(self):
         if not os.path.exists(self.absFName):
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
-
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), 'READ')
 
     def parse_process(self):
         process_name = self.file_name.split("-")[-1].split(".")[0]
+        process_name = re.sub(r"(\_\d)$", "", process_name)
+        if "data" in process_name:
+            return "Data"
+        if self.dataset_info is not None:
+            tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
+            if len(tmp) == 1:
+                return tmp[0].process_name
         if process_name.isdigit():
             return "Data"
         return process_name
@@ -62,7 +70,7 @@ class FileHandle(object):
         try:
             return self.tfile.Get(directory)
         except Exception as e:
-            print str(e)
+            print e.msg()
 
     def get_objects(self):
         objects = []
@@ -115,8 +123,8 @@ class FileHandle(object):
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
             raise e
 
-    def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string=""):
-        tree = self.get_object_by_name(tree_name)
+    def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None):
+        tree = self.get_object_by_name(tree_name, tdirectory)
         _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name, tree.GetEntries()))
         if cut_string is None:
             cut_string = ""
