@@ -1,16 +1,19 @@
 import os
 import time
 import ROOT
-from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base import ShellUtils
 
 
 class SysOutputHandle(object):
-    #todo: refactor to using only kwargs
-    def __init__(self, output_dir, sub_dir_name="output", **kwargs):
+    def __init__(self, **kwargs):
+        if "output_dir" not in kwargs:
+            _logger.error("No output directory provied")
+            raise InvalidInputError("Missing output directory")
+        kwargs.setdefault("sub_dir_name", "output")
         self.time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
-        self.base_output_dir = output_dir
-        self.output_dir = os.path.join(output_dir, "{}_{}".format(sub_dir_name, self.time_stamp))
+        self.base_output_dir = kwargs["output_dir"]
+        self.output_dir = os.path.join(kwargs["output_dir"], "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
         ShellUtils.make_dirs(self.output_dir)
 
     def _set_latest_link(self, link):
