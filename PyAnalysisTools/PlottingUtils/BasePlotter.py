@@ -136,11 +136,9 @@ class BasePlotter(object):
                 background_hist = merge_objects_by_process_type(canvas, self.process_config, "Background")
                 significance_hist = get_significance(signal_hist, background_hist)
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
+            self.output_handle.register_object(canvas)
             if hasattr(plot_config, "ratio") or hasattr(self.common_config, "ratio"):
                 if self.common_config.ratio:
                     canvas_ratio = self.calculate_ratios(data, plot_config)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
                     self.output_handle.register_object(canvas_combined)
-
-            self.output_handle.register_object(canvas)
-
