@@ -10,7 +10,9 @@ class YAMLLoader(object):
             setattr(self, k, v)
 
     @staticmethod
-    def read_yaml(file_name):
+    def read_yaml(file_name, accept_none=False):
+        if accept_none and file_name is None:
+            return None
         try:
             _logger.debug("Try to open yaml file %s" % file_name)
             config_file = open(file_name)
