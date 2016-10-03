@@ -6,6 +6,7 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values
 
+
 def load_atlas_style():
     try:
         base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
@@ -27,7 +28,7 @@ def decorate_canvas(canvas, config):
     if hasattr(config, "watermark"):
         add_atlas_label(canvas, config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
     if hasattr(config, "lumi"):
-        add_lumi_text(canvas, config.lumi)
+        add_lumi_text(canvas, config.lumi, {"x": 0.6, "y": 0.9})
 
 
 def set_title_x(obj, title):
@@ -71,7 +72,7 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.79}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False):
     canvas.cd()
     text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
     text_energy = '#sqrt{s} = 13 TeV'
@@ -186,7 +187,7 @@ def set_range_y(graph_obj, minimum, maximum):
 
 
 def get_min_y(graph_obj):
-    if isinstance(graph_obj, ROOT.TH1):
+    if isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.THStack):
         return graph_obj.GetMinimum()
     if isinstance(graph_obj, ROOT.TEfficiency):
         return graph_obj.GetPaintedGraph().GetMinimum()
@@ -223,9 +224,9 @@ def auto_scale_y_axis(canvas, offset=1.1):
 
 def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("xl", 0.6)
-    kwargs.setdefault("yl", 0.7)
+    kwargs.setdefault("yl", 0.5)
     kwargs.setdefault("xh", 0.9)
-    kwargs.setdefault("yh", 0.9)
+    kwargs.setdefault("yh", 0.7)
     def convert_draw_option():
         draw_option = plot_obj.GetDrawOption()
         if is_stacked:
