@@ -60,8 +60,11 @@ class BasePlotter(object):
     def retrieve_histogram(self, file_handle, plot_config):
         hist = get_histogram_definition(plot_config)
         try:
+            weight = None
+            if not file_handle.process == "Data":
+                weight="pileup_weight"
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts,
-                                                    tdirectory=self.systematics)
+                                                    tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
             if not self.process_config[file_handle.process].type == "Data":
@@ -102,7 +105,8 @@ class BasePlotter(object):
         ratio.Divide(mc)
         plot_config.name = "ratio_" + plot_config.name
         plot_config.ytitle = "data/MC"
-        plot_config.__dict__.pop("unit")
+        if "unit" in plot_config.__dict__.keys():
+            plot_config.__dict__.pop("unit")
         plot_config.draw = "Marker"
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         canvas = PT.plot_hist(ratio, plot_config)
