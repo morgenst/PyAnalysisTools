@@ -18,7 +18,6 @@ def main(argv):
         cmd = ["rsync", "-ravu", os.path.join(args.path, data, "."), " %s@%s:%s" % (config["user"],
                                                                                     config["server"],
                                                                                     os.path.join(config["destination"], data))]
-        print "executing " + ' '.join(cmd)
         os.system(" ".join(cmd))
 
 
