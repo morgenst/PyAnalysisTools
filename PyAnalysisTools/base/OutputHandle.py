@@ -72,6 +72,9 @@ class OutputFileHandle(SysOutputHandle):
             self.attached = True
 
     def dump_canvas(self, canvas, name=None):
+        #re-draw canvas to update internal reference in gPad
+        canvas.Draw()
+        ROOT.gPad.Update()
         extension = ".pdf"
         if not name:
             name = canvas.GetName()
@@ -81,13 +84,14 @@ class OutputFileHandle(SysOutputHandle):
     def _write_and_close(self):
         self.attach_file()
         for obj in self.objects.values():
-            obj.Write()
             if isinstance(obj, ROOT.TCanvas):
                 self.dump_canvas(obj)
+            obj.Write()
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
-        self.set_latest_link(self.overload)
+        #self.set_latest_link(self.overload)
 
     def register_object(self, obj, tdir=""):
-        self.objects[tdir + obj.GetName()] = obj.Clone()
+        _logger.debug("Adding object %s" % obj.GetName())
+        self.objects[tdir + obj.GetName()] = obj.Clone(obj.GetName() + "_clone")
