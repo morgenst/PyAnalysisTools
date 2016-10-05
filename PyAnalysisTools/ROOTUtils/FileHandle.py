@@ -129,7 +129,7 @@ class FileHandle(object):
         if cut_string is None:
             cut_string = ""
         if weight:
-            var_name += "* %s" % weight
+            cut_string = "%s * (%s)" % (weight, cut_string)
         n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
         _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." %(n_selected_events,
                                                                                           tree_name,

@@ -61,9 +61,13 @@ class BasePlotter(object):
         hist = get_histogram_definition(plot_config)
         try:
             weight = None
+            selection_cuts = ""
             if self.common_config.weight:
                 weight = self.common_config.weight
-            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts,
+            if hasattr(self.common_config, "cuts"):
+                selection_cuts += "&&".join(self.common_config.cuts)
+            #plot_config.cuts
+            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
