@@ -61,8 +61,8 @@ class BasePlotter(object):
         hist = get_histogram_definition(plot_config)
         try:
             weight = None
-            if not file_handle.process == "Data":
-                weight="pileup_weight"
+            if self.common_config.weight:
+                weight = self.common_config.weight
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, plot_config.cuts,
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
