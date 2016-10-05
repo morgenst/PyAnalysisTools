@@ -123,11 +123,13 @@ class FileHandle(object):
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
             raise e
 
-    def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None):
+    def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
         tree = self.get_object_by_name(tree_name, tdirectory)
         _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name, tree.GetEntries()))
         if cut_string is None:
             cut_string = ""
+        if weight:
+            var_name += "* %s" % weight
         n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
         _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." %(n_selected_events,
                                                                                           tree_name,
