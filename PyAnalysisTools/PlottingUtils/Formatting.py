@@ -24,11 +24,13 @@ def apply_style(obj, plot_config, process_config):
         getattr(obj, "Set" + style_setter + "Color")(color)
 
 
-def decorate_canvas(canvas, config):
-    if hasattr(config, "watermark"):
-        add_atlas_label(canvas, config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
-    if hasattr(config, "lumi"):
-        add_lumi_text(canvas, config.lumi, {"x": 0.6, "y": 0.9})
+def decorate_canvas(canvas, common_config, plot_config=None):
+    if hasattr(common_config, "watermark"):
+        add_atlas_label(canvas, common_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
+    if hasattr(common_config, "lumi"):
+        add_lumi_text(canvas, common_config.lumi, {"x": 0.6, "y": 0.9})
+    if hasattr(common_config, "grid") or hasattr(plot_config, "grid"):
+        canvas.SetGrid()
 
 
 def set_title_x(obj, title):

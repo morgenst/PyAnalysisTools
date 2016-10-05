@@ -134,7 +134,7 @@ class BasePlotter(object):
             else:
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
-            FM.decorate_canvas(canvas, self.common_config)
+            FM.decorate_canvas(canvas, self.common_config, plot_config)
             FM.add_legend_to_canvas(canvas, process_configs=self.process_config)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
