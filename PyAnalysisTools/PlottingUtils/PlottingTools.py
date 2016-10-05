@@ -10,34 +10,6 @@ def retrieve_new_canvas(name, title):
     return ROOT.TCanvas(name, title, 800, 600)
 
 
-# def plot_hist(hist, plot_config):
-#     canvas = retrieve_new_canvas(plot_config.name, "")
-#     canvas.cd()
-#     ROOT.SetOwnership(hist, False)
-#     draw_option = "Hist"
-#     style_attr, color = None, None
-#     #todo: INCONSISTENT -> create JIRA
-#     if hasattr(plot_config, "draw"):
-#         draw_option = plot_config.draw
-#     style_setter = None
-#     if draw_option == "Hist":
-#         style_setter = "Fill"
-#     elif draw_option == "Marker":
-#         style_setter = "Marker"
-#         draw_option = "p"
-#     elif draw_option == "Line":
-#         style_setter = "Line"
-#         draw_option = "l"
-#     #todo: refactoring of configs to be moved to plotHist
-#     hist.Draw(draw_option)
-#     if style_attr is not None:
-#         getattr(hist, "Set"+style_setter+"Style")(style_attr)
-#     if color is not None:
-#         getattr(hist, "Set" + style_setter + "Color")(color)
-#     canvas.Update()
-#     return canvas
-
-
 def plot_hist(hist, plot_config):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
@@ -53,7 +25,6 @@ def plot_hist(hist, plot_config):
     if color is not None:
         getattr(hist, "Set" + style_setter + "Color")(color)
     return canvas
-
 
 
 # todo: memoise
@@ -148,6 +119,7 @@ def add_graph_to_canvas(canvas, graph, plot_options=None, draw_options=None):
 
 def plot_stack(hists, plot_config, common_config=None, process_configs=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
+    canvas.Clear()
     canvas.cd()
     is_first = True
     if isinstance(hists, dict):
