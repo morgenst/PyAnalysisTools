@@ -1,6 +1,11 @@
 import numpy as np
 from tabulate import tabulate
+from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
+from PyAnalysisTools.PlottingUtils.HistTools import scale
+from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config
 from numpy.lib.recfunctions import rec_append_fields
 
 
@@ -10,6 +15,8 @@ class CutflowAnalyser(object):
     """
     def __init__(self, **kwargs):
         kwargs.setdefault("output_file_name", None)
+        kwargs.setdefault("lumi", None)
+        kwargs.setdefault("process_config", None)
         self.file_list = kwargs["file_list"]
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
@@ -20,8 +27,21 @@ class CutflowAnalyser(object):
         self.systematics = kwargs["systematics"]
         self.cutflow_hists = dict()
         self.cutflows = dict()
+        self.xs_handle = XSHandle(kwargs["dataset_config"])
+        self.event_numbers = dict()
+        self.process_config = parse_and_build_process_config(kwargs["process_config"])
+
+    def apply_cross_section_weight(self):
+        for process in self.cutflow_hists.keys():
+            lumi_weight = self.get_cross_section_weight(process)
+            for systematic in self.cutflow_hists[process].keys():
+                for cutflow in self.cutflow_hists[process][systematic].values():
+                    scale(cutflow, lumi_weight)
 
     def analyse_cutflow(self):
+        self.apply_cross_section_weight()
+        if self.process_config is not None:
+            self.merge_histograms(self.cutflow_hists)
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
             for process in self.cutflow_hists.keys():
@@ -30,20 +50,58 @@ class CutflowAnalyser(object):
                     if k.endswith("_raw"):
                         continue
                     raw_cutflow = self.cutflow_hists[process][systematic][k+"_raw"]
-                    self.cutflows[systematic][process][k] = CutflowAnalyser._analyse_cutflow(v, raw_cutflow)
+                    self.cutflows[systematic][process][k] = self._analyse_cutflow(v, raw_cutflow, process)
         self.calculate_cut_efficiencies()
 
-    @staticmethod
-    def _analyse_cutflow(cutflow_hist, raw_cutflow_hist):
+    def merge_histograms(self, hist_dict):
+        def merge(histograms):
+            for process, process_config in self.process_config.iteritems():
+                if not hasattr(process_config, "subprocesses"):
+                    continue
+                for sub_process in process_config.subprocesses:
+                    print "analyse subprocess ", sub_process, histograms.keys()
+
+                    if sub_process not in histograms.keys():
+                        continue
+                    #[process][systematic][region]
+                    for systematic in histograms[sub_process].keys():
+                        for selection in histograms[sub_process][systematic].keys():
+                            if not process in histograms.keys():
+                                histograms[process] = dict((syst,
+                                                            dict((sel, None) for sel in histograms[sub_process][syst].keys()))
+                                                           for syst in histograms[sub_process].keys())
+                            if histograms[process][systematic][selection] is None:
+                                new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(sub_process, process)
+                                histograms[process][systematic][selection] = histograms[sub_process][systematic][selection].Clone(new_hist_name)
+                            else:
+                                histograms[process][systematic][selection].Add(histograms[sub_process])
+                    histograms.pop(sub_process)
+
+        #for histograms in hist_dict.values():
+        merge(hist_dict)
+
+    def get_cross_section_weight(self, process):
+        if self.lumi is None or "data" in process.lower():
+            return 1.
+        lumi_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_numbers[process])
+        _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
+                                                                                               self.lumi))
+        return lumi_weight
+
+    def _analyse_cutflow(self, cutflow_hist, raw_cutflow_hist, process=None):
         parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                  cutflow_hist.GetBinContent(b),
-                                 raw_cutflow_hist.GetBinContent(b),
+                                 #raw_cutflow_hist.GetBinContent(b),
                                  cutflow_hist.GetBinError(b),
-                                 raw_cutflow_hist.GetBinError(b),
+                                 #raw_cutflow_hist.GetBinError(b),
                                  -1.,
                                  -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
-                               dtype=[("cut", "S100"), ("yield", "f4"), ("yield_raw", "f4"), ("yield_unc", "f4"),
-                                      ("yield_raw_unc", float), ("eff", float), ("eff_total", float)]) # todo: array dtype for string not a good choice
+                               dtype=[("cut", "S100"), ("yield", "f4"), #("yield_raw", "f4"),
+                                       ("yield_unc", "f4"),
+                                      ("eff", float),
+                                      ("eff_total", float)])  # todo: array dtype for string not a good choice
+
+        #("yield_raw_unc", float),
         return parsed_info
 
     def calculate_cut_efficiencies(self):
@@ -87,12 +145,19 @@ class CutflowAnalyser(object):
 
     @staticmethod
     def stringify(cutflow):
+        def format_yield(value, uncertainty):
+            if value > 10000.:
+                return "{:.3e} +- {:.3e}".format(value, uncertainty)
+            else:
+                return "{:.2f} +- {:.2f}".format(value, uncertainty)
+
         cutflow = np.array([(cutflow[i]["cut"],
-                             "%.2f +- %.2f" % (cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-                             "%.2f +- %.2f" % (cutflow[i]["yield_raw"], cutflow[i]["yield_raw_unc"]),
+                             format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
+                             #"%.2f +- %.2f" % (cutflow[i]["yield_raw"], cutflow[i]["yield_raw_unc"]),
                              cutflow[i]["eff"],
                              cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                           dtype=[("cut", "S100"), ("yield", "S100"), ("yield_raw", "S100"), ("eff", float), ("eff_total", float)])
+                           dtype=[("cut", "S100"), ("yield", "S100"), ("eff", float), ("eff_total", float)])
+                           #dtype=[("cut", "S100"), ("yield", "S100"), ("yield_raw", "S100"), ("eff", float), ("eff_total", float)])
         return cutflow
 
     def print_cutflow_table(self):
@@ -107,12 +172,12 @@ class CutflowAnalyser(object):
     def load_cutflows(self, file_name):
         file_handle = FH(file_name=file_name, dataset_info=self.dataset_config_file)
         process = file_handle.process
+        self.event_numbers[process] = file_handle.get_number_of_total_events()
         if process not in self.cutflow_hists.keys():
             self.cutflow_hists[process] = dict()
         for systematic in self.systematics:
             self.cutflow_hists[process][systematic] = dict()
             cutflow_hists = file_handle.get_objects_by_pattern("^(cutflow_)", systematic)
-
             for cutflow_hist in cutflow_hists:
                 self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")] = cutflow_hist
 
