@@ -29,7 +29,9 @@ class CutflowAnalyser(object):
         self.cutflows = dict()
         self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.event_numbers = dict()
-        self.process_config = parse_and_build_process_config(kwargs["process_config"])
+        self.process_config = None
+        if kwargs["process_config"] is not None:
+            self.process_config = parse_and_build_process_config(kwargs["process_config"])
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -59,11 +61,8 @@ class CutflowAnalyser(object):
                 if not hasattr(process_config, "subprocesses"):
                     continue
                 for sub_process in process_config.subprocesses:
-                    print "analyse subprocess ", sub_process, histograms.keys()
-
                     if sub_process not in histograms.keys():
                         continue
-                    #[process][systematic][region]
                     for systematic in histograms[sub_process].keys():
                         for selection in histograms[sub_process][systematic].keys():
                             if not process in histograms.keys():
@@ -74,10 +73,9 @@ class CutflowAnalyser(object):
                                 new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(sub_process, process)
                                 histograms[process][systematic][selection] = histograms[sub_process][systematic][selection].Clone(new_hist_name)
                             else:
-                                histograms[process][systematic][selection].Add(histograms[sub_process])
+                                histograms[process][systematic][selection].Add(histograms[sub_process][systematic][selection].Clone(new_hist_name))
                     histograms.pop(sub_process)
 
-        #for histograms in hist_dict.values():
         merge(hist_dict)
 
     def get_cross_section_weight(self, process):
@@ -95,7 +93,7 @@ class CutflowAnalyser(object):
                                  cutflow_hist.GetBinError(b),
                                  #raw_cutflow_hist.GetBinError(b),
                                  -1.,
-                                 -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
+                                 -1.) for b in range(0, cutflow_hist.GetNbinsX() + 1)],
                                dtype=[("cut", "S100"), ("yield", "f4"), #("yield_raw", "f4"),
                                        ("yield_unc", "f4"),
                                       ("eff", float),
@@ -162,6 +160,8 @@ class CutflowAnalyser(object):
 
     def print_cutflow_table(self):
         for selection, cutflow in self.cutflow_tables.iteritems():
+            if not selection == "BaseSelection":
+                continue
             print
             print "Cutflow for region %s" % selection
             print cutflow
@@ -172,14 +172,21 @@ class CutflowAnalyser(object):
     def load_cutflows(self, file_name):
         file_handle = FH(file_name=file_name, dataset_info=self.dataset_config_file)
         process = file_handle.process
-        self.event_numbers[process] = file_handle.get_number_of_total_events()
+        if process not in self.event_numbers:
+            self.event_numbers[process] = file_handle.get_number_of_total_events()
+        else:
+            self.event_numbers[process] += file_handle.get_number_of_total_events()
         if process not in self.cutflow_hists.keys():
             self.cutflow_hists[process] = dict()
         for systematic in self.systematics:
-            self.cutflow_hists[process][systematic] = dict()
             cutflow_hists = file_handle.get_objects_by_pattern("^(cutflow_)", systematic)
+            if systematic not in self.cutflow_hists[process]:
+                self.cutflow_hists[process][systematic] = dict()
             for cutflow_hist in cutflow_hists:
-                self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")] = cutflow_hist
+                try:
+                    self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")].Add(cutflow_hist)
+                except KeyError:
+                    self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")] = cutflow_hist
 
     def read_cutflows(self):
         for file_name in self.file_list:
