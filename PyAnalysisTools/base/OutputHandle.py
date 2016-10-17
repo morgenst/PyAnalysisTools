@@ -1,4 +1,5 @@
 import os
+import re
 import time
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -13,9 +14,16 @@ class SysOutputHandle(object):
         kwargs.setdefault("sub_dir_name", "output")
         self.time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
         self.base_output_dir = kwargs["output_dir"]
-        self.output_dir = os.path.join(kwargs["output_dir"], "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
+        self.output_dir = self.resolve_output_dir(**kwargs)
         ShellUtils.make_dirs(self.output_dir)
 
+    def resolve_output_dir(self, **kwargs):
+        output_dir = kwargs["output_dir"]
+        if os.path.islink(output_dir):
+            output_dir = os.readlink(output_dir)
+        if re.search(r"([0-9]{8}_[0-9]{2}-[0-9]{2}-[0-9]{2})$", output_dir):
+            return output_dir
+        return os.path.join(kwargs["output_dir"], "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
     def _set_latest_link(self, link):
         if os.path.exists(link):
             os.unlink(link)
