@@ -13,6 +13,7 @@ class PlotConfig(object):
         kwargs.setdefault("outline", "hist")
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
+        kwargs.setdefault("normalise", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)
 

@@ -64,9 +64,8 @@ class BasePlotter(object):
             selection_cuts = ""
             if self.common_config.weight:
                 weight = self.common_config.weight
-            if hasattr(self.common_config, "cuts"):
+            if self.common_config.cuts:
                 selection_cuts += "&&".join(self.common_config.cuts)
-            #plot_config.cuts
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
@@ -131,6 +130,8 @@ class BasePlotter(object):
                                                                                                  plot_config)}
         self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
+            if self.common_config.normalise or plot_config.normalise:
+                HT.normalise(data)
             if self.common_config.outline == "hist":
                 canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             elif self.common_config.outline == "stack":
@@ -139,7 +140,7 @@ class BasePlotter(object):
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
             FM.decorate_canvas(canvas, self.common_config, plot_config)
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_config)
+            #FM.add_legend_to_canvas(canvas, process_configs=self.process_config)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
                 signal_hist = merge_objects_by_process_type(canvas, self.process_config, "Signal")
