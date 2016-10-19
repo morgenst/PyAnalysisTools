@@ -249,10 +249,10 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
-    stack = get_objects_from_canvas_by_type(canvas, "THStack")
+    stacks = get_objects_from_canvas_by_type(canvas, "THStack")
     stacked_objects = None
-    if stack is not None:
-        stacked_objects = stack[0].GetHists()
+    if len(stacks) is not 0:
+        stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
     for plot_obj in plot_objects:
         if "process_configs" in kwargs:
