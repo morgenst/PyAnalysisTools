@@ -58,7 +58,7 @@ class FileHandle(object):
         process_name = re.sub(r"(\_\d)$", "", process_name)
         if "data" in process_name:
             self.year, _, self.period = process_name.split("_")
-            return "Data"
+            return ".".join([self.year, self.period])
         if self.dataset_info is not None:
             tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
             if len(tmp) == 1:
