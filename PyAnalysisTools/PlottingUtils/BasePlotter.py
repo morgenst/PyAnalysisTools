@@ -1,4 +1,5 @@
 import ROOT
+import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition
@@ -8,10 +9,12 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import merge_objects_by_process_type
-from PyAnalysisTools.AnalysisTools.StatisticsTools import get_significance
+from PyAnalysisTools.AnalysisTools import StatisticsTools as ST
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
 
 class BasePlotter(object):
@@ -39,6 +42,7 @@ class BasePlotter(object):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.process_config = self.parse_process_config()
         FM.load_atlas_style()
+        self.statistical_uncertainty_hist = None
         self.histograms = {}
         self.output_handle = OutputFileHandle(**kwargs)
 
@@ -112,23 +116,35 @@ class BasePlotter(object):
             plot_config.__dict__.pop("unit")
         plot_config.draw = "Marker"
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
-        canvas = PT.plot_hist(ratio, plot_config)
+        if self.statistical_uncertainty_hist:
+            plot_config_stat_unc_ratio = copy.copy(plot_config)
+            plot_config_stat_unc_ratio.color = ROOT.kYellow
+            plot_config_stat_unc_ratio.style = 1001
+            plot_config_stat_unc_ratio.draw = "E2"
+            plot_config_stat_unc_ratio.logy = False
+            statistical_uncertainty_ratio = self.statistical_uncertainty_hist.Clone("stat.unc.ratio")
+            statistical_uncertainty_ratio.Divide(mc)
+            canvas = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
+            PT.add_histogram_to_canvas(canvas, ratio, plot_config)
+        else:
+            canvas = PT.plot_hist(ratio, plot_config)
         return canvas
 
     def make_plots(self):
         for file_handle in self.file_handles:
             for plot_config in self.plot_configs:
+                process = file_handle.process
+                # if process.lower() == "data" and not self.common_config.merge:
+                #     process = "_".join([file_handle.year, file_handle.period])
                 try:
-                    if file_handle.process not in self.histograms[plot_config].keys():
-                        self.histograms[plot_config][file_handle.process] = self.retrieve_histogram(file_handle,
-                                                                                                    plot_config)
+                    if process not in self.histograms[plot_config].keys():
+                        self.histograms[plot_config][process] = self.retrieve_histogram(file_handle, plot_config)
                     else:
-                        self.histograms[plot_config][file_handle.process].Add(self.retrieve_histogram(file_handle,
-                                                                                                      plot_config))
+                        self.histograms[plot_config][process].Add(self.retrieve_histogram(file_handle, plot_config))
                 except KeyError:
-                    self.histograms[plot_config] = {file_handle.process: self.retrieve_histogram(file_handle,
-                                                                                                 plot_config)}
-        self.merge_histograms()
+                    self.histograms[plot_config] = {process: self.retrieve_histogram(file_handle, plot_config)}
+        if self.common_config.merge:
+            self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             if self.common_config.normalise or plot_config.normalise:
                 HT.normalise(data)
@@ -136,6 +152,14 @@ class BasePlotter(object):
                 canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
             elif self.common_config.outline == "stack":
                 canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_config)
+                stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
+                self.statistical_uncertainty_hist = ST.get_statistical_uncertainty_from_stack(stack)
+                #todo: temporary fix
+                self.statistical_uncertainty_hist.SetMarkerStyle(1)
+                plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
+                                                  color=ROOT.kBlack)
+                PT.add_histogram_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
+                self.process_config[plot_config_stat_unc.name] = plot_config_stat_unc
             else:
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
@@ -145,7 +169,7 @@ class BasePlotter(object):
                 #todo: "Background" should be an actual type
                 signal_hist = merge_objects_by_process_type(canvas, self.process_config, "Signal")
                 background_hist = merge_objects_by_process_type(canvas, self.process_config, "Background")
-                significance_hist = get_significance(signal_hist, background_hist)
+                significance_hist = ST.get_significance(signal_hist, background_hist)
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
             self.output_handle.register_object(canvas)
             if hasattr(plot_config, "ratio") or hasattr(self.common_config, "ratio"):

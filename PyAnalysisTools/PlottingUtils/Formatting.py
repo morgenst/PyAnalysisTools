@@ -225,10 +225,11 @@ def auto_scale_y_axis(canvas, offset=1.1):
 
 
 def add_legend_to_canvas(canvas, **kwargs):
-    kwargs.setdefault("xl", 0.6)
-    kwargs.setdefault("yl", 0.5)
+    kwargs.setdefault("xl", 0.7)
+    kwargs.setdefault("yl", 0.6)
     kwargs.setdefault("xh", 0.9)
-    kwargs.setdefault("yh", 0.7)
+    kwargs.setdefault("yh", 0.9)
+
     def convert_draw_option():
         draw_option = plot_obj.GetDrawOption()
         if is_stacked:
@@ -243,6 +244,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             legend_option += "L"
         if "p" in draw_option:
             legend_option += "P"
+        if re.match(r"e\d", draw_option.lower()):
+            legend_option += "F"
         if not legend_option:
             _logger.error("Unable to parse legend option from " % draw_option)
         return legend_option

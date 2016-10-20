@@ -67,12 +67,17 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
-        draw_option = get_draw_option_as_root_str(plot_config, process_config)
+        if not common_config.ignore_style:
+            draw_option = get_draw_option_as_root_str(plot_config, process_config)
+        else:
+            draw_option = "hist"
         style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
-        if style_attr is not None:
+        if common_config.ignore_style:
+            style_setter = "Line"
+        if style_attr is not None and not common_config.ignore_style:
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
             getattr(hist, "Set" + style_setter + "Color")(color)
@@ -93,6 +98,8 @@ def add_histogram_to_canvas(canvas, hist, plot_config):
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
+    canvas.SaveAs("foo_%s.pdf" % hist.GetName())
+    canvas.Update()
 
 
 def plot_graph(graph, plot_options=None, draw_options=None, **kwargs):
@@ -189,13 +196,13 @@ def add_signal_to_stack(canvas, signal, signal_strength=1., overlay=False, stack
         process.Draw("histsames")
 
 
-def add_hist_to_canvas(canvas, hist, plot_options=None, draw_options=None):
-    canvas.cd()
-    if plot_options is not None:
-        plot_options.configure(hist)
-    if draw_options is None:
-        draw_options = 'hist'
-    hist.Draw(draw_options + 'sames')
+# def add_hist_to_canvas(canvas, hist, plot_options=None, draw_options=None):
+#     canvas.cd()
+#     if plot_options is not None:
+#         plot_options.configure(hist)
+#     if draw_options is None:
+#         draw_options = 'hist'
+#     hist.Draw(draw_options + 'sames')
 
 
 def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, name=None, title=''):

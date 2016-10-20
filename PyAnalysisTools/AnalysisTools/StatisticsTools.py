@@ -32,3 +32,14 @@ def get_significance(signal, background):
     significance_hist.SetFillColor(0)
     significance_hist.Draw("l")
     return canvas
+
+
+def get_statistical_uncertainty_hist(hists):
+    statistical_uncertainty_hist = hists[0].Clone("stat.unc")
+    for hist in hists[1:]:
+        statistical_uncertainty_hist.Add(hist)
+    return statistical_uncertainty_hist
+
+
+def get_statistical_uncertainty_from_stack(stack):
+    return get_statistical_uncertainty_hist([h for h in stack.GetHists()])
