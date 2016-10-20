@@ -1,4 +1,5 @@
 import ROOT
+import re
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -14,6 +15,8 @@ class PlotConfig(object):
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
         kwargs.setdefault("normalise", False)
+        kwargs.setdefault("merge", True)
+        kwargs.setdefault("ignore_style", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)
 
@@ -78,20 +81,26 @@ def get_draw_option_as_root_str(plot_config, process_config = None):
 
 
 def get_style_setters_and_values(plot_config, process_config = None):
+    def transform_color(color):
+        if isinstance(color, str):
+            offset = 0
+            if "+" in color:
+                color, offset = color.split("+")
+            color = getattr(ROOT, color.rstrip()) + int(offset)
+        return color
+
     style_setter = None
     style_attr, color = None, None
     draw_option = _parse_draw_option(plot_config, process_config)
     if hasattr(process_config, "style"):
         style_attr = process_config.style
+    if hasattr(plot_config, "style"):
+        style_attr = plot_config.style
     if hasattr(process_config, "color"):
-        color = process_config.color
-        if isinstance(color, str):
-            color = getattr(ROOT, color)
+        color = transform_color(process_config.color)
     if hasattr(plot_config, "color"):
-        color = plot_config.color
-        if isinstance(color, str):
-            color = getattr(ROOT, color)
-    if draw_option.lower() == "hist":
+        color = transform_color(plot_config.color)
+    if draw_option.lower() == "hist" or re.match(r"e\d",draw_option.lower()):
         if style_attr:
             style_setter = "Fill"
         else:
@@ -100,6 +109,8 @@ def get_style_setters_and_values(plot_config, process_config = None):
         style_setter = "Marker"
     elif draw_option.lower() == "line":
         style_setter = "Line"
+    # else:
+    #     style_attr = None
     return style_setter, style_attr, color
 
 

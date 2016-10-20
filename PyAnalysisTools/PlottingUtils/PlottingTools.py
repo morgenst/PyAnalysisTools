@@ -98,7 +98,6 @@ def add_histogram_to_canvas(canvas, hist, plot_config):
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
-    canvas.SaveAs("foo_%s.pdf" % hist.GetName())
     canvas.Update()
 
 
