@@ -44,6 +44,8 @@ class FileHandle(object):
         if "dataset_info" in kwargs:
             self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
         self.open()
+        self.year = None
+        self.period = None
         self.process = self.parse_process()
 
     def open(self):
@@ -55,6 +57,7 @@ class FileHandle(object):
         process_name = self.file_name.split("-")[-1].split(".")[0]
         process_name = re.sub(r"(\_\d)$", "", process_name)
         if "data" in process_name:
+            self.year, _, self.period = process_name.split("_")
             return "Data"
         if self.dataset_info is not None:
             tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
@@ -117,7 +120,7 @@ class FileHandle(object):
 
     def get_number_of_total_events(self):
         try:
-            cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
+            cutflow_hist = self.get_object_by_name("Nominal/cutflow_BaseSelection_raw")
             return cutflow_hist.GetBinContent(1)
         except ValueError as e:
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
@@ -129,7 +132,11 @@ class FileHandle(object):
         if cut_string is None:
             cut_string = ""
         if weight:
-            cut_string = "%s * (%s)" % (weight, cut_string)
+            if cut_string == "":
+                cut_string = weight
+            else:
+                cut_string = "%s * (%s)" % (weight, cut_string)
+
         n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
         _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." %(n_selected_events,
                                                                                           tree_name,
