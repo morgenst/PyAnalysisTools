@@ -1,7 +1,3 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = 'marcus.matthias.morgenstern@cern.ch'
-
-
 # helper methods to deal with objects
 
 
