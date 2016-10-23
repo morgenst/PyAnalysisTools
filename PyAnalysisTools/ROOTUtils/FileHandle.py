@@ -31,7 +31,7 @@ def memoize(f):
         return _memoized[key]
     return memoized
 
-@memoize
+#@memoize
 class FileHandle(object):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("path", "./")
@@ -43,6 +43,7 @@ class FileHandle(object):
         self.dataset_info = None
         if "dataset_info" in kwargs:
             self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
+        self.tfile = None
         self.open()
         self.year = None
         self.period = None
@@ -51,6 +52,8 @@ class FileHandle(object):
     def open(self):
         if not os.path.exists(self.absFName):
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
+        if self.tfile is not None and self.tfile.IsOpen():
+            return
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), 'READ')
 
     def parse_process(self):
