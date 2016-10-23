@@ -4,6 +4,7 @@ import subprocess
 
 
 def make_dirs(path):
+    path = os.path.expanduser(path)
     if os.path.exists(path):
         return
     try:
@@ -21,6 +22,7 @@ def resolve_path_from_symbolic_links(symbolic_link, relative_path):
 
 
 def move(src, dest):
+    print src, dest
     try:
         shutil.move(src, dest)
     except IOError:
