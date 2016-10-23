@@ -16,6 +16,7 @@ class PlotConfig(object):
         kwargs.setdefault("weight", None)
         kwargs.setdefault("normalise", False)
         kwargs.setdefault("merge", True)
+        kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)

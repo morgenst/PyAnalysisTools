@@ -1,5 +1,8 @@
 import ROOT
 import copy
+import dill
+import pathos.multiprocessing as mp
+from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition
@@ -60,9 +63,12 @@ class BasePlotter(object):
 
     def initialise(self):
         self.parse_plot_config()
+        self.ncpu = min(self.ncpu, len(self.plot_configs))
 
     def retrieve_histogram(self, file_handle, plot_config):
+        file_handle.open()
         hist = get_histogram_definition(plot_config)
+        hist.SetName(hist.GetName() + file_handle.process)
         try:
             weight = None
             selection_cuts = ""
@@ -130,19 +136,33 @@ class BasePlotter(object):
             canvas = PT.plot_hist(ratio, plot_config)
         return canvas
 
+    def fetch_histograms(self, file_handle, plot_config):
+        if "data" in file_handle.process.lower() and (plot_config.no_data or self.common_config.no_data):
+            return
+        return file_handle.process, self.retrieve_histogram(file_handle, plot_config)
+
+    def read_histograms(self, plot_config):
+        histograms = mp.ThreadPool(min(self.nfile_handles,
+                                       len(self.file_handles))).map(partial(self.fetch_histograms,
+                                                                            plot_config=plot_config), self.file_handles)
+        return plot_config, histograms
+
+    def categorise_histograms(self, plot_config, histograms):
+        for process, hist in histograms:
+            try:
+                if process not in self.histograms[plot_config].keys():
+                    self.histograms[plot_config][process] = hist
+                else:
+                    self.histograms[plot_config][process].Add(hist)
+            except KeyError:
+                self.histograms[plot_config] = {process: hist}
+
     def make_plots(self):
-        for file_handle in self.file_handles:
-            for plot_config in self.plot_configs:
-                process = file_handle.process
-                # if process.lower() == "data" and not self.common_config.merge:
-                #     process = "_".join([file_handle.year, file_handle.period])
-                try:
-                    if process not in self.histograms[plot_config].keys():
-                        self.histograms[plot_config][process] = self.retrieve_histogram(file_handle, plot_config)
-                    else:
-                        self.histograms[plot_config][process].Add(self.retrieve_histogram(file_handle, plot_config))
-                except KeyError:
-                    self.histograms[plot_config] = {process: self.retrieve_histogram(file_handle, plot_config)}
+        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
+                                                                                       self.plot_configs)
+        for plot_config, histograms in fetched_histograms:
+            histograms = filter(lambda hist: hist is not None, histograms)
+            self.categorise_histograms(plot_config, histograms)
         if self.common_config.merge:
             self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
@@ -173,6 +193,8 @@ class BasePlotter(object):
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
             self.output_handle.register_object(canvas)
             if hasattr(plot_config, "ratio") or hasattr(self.common_config, "ratio"):
+                if plot_config.no_data or self.common_config.no_data:
+                    continue
                 if self.common_config.ratio:
                     canvas_ratio = self.calculate_ratios(data, plot_config)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
