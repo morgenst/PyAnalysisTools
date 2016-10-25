@@ -7,6 +7,13 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import ShellUtils
 
 
+def merge_dictionaries(*dicts):
+    result = {}
+    for dictionary in dicts:
+        result.update(dictionary)
+    return result
+
+
 def flatten(dictionary, left_key="", separator="/"):
     flatten_list = []
     for key, value in dictionary.iteritems():
