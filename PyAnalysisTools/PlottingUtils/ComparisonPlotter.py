@@ -63,7 +63,8 @@ class ComparisonPlotter(object):
                 return
             raise e
         hists = [fh.get_object_by_name(plot_config.dist) for fh in self.file_handles]
-        canvas = PT.plot_hist(reference_hist, plot_config)
+        y_max = 1.1 * max([item.GetMaximum() for item in hists] + [reference_hist])
+        canvas = PT.plot_hist(reference_hist, plot_config, y_max)
         for hist in hists:
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
             plot_config.color = self.color_palette[hists.index(hist)]
