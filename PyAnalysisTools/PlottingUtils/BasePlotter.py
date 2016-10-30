@@ -47,7 +47,8 @@ class BasePlotter(object):
         FM.load_atlas_style()
         self.statistical_uncertainty_hist = None
         self.histograms = {}
-        self.output_handle = OutputFileHandle(**kwargs)
+        self.initialise()
+        self.output_handle = OutputFileHandle(make_plotbook=self.common_config.make_plot_book, **kwargs)
 
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
@@ -72,10 +73,12 @@ class BasePlotter(object):
         try:
             weight = None
             selection_cuts = ""
-            if self.common_config.weight:
+            if self.common_config.weight and plot_config.weight is not None:
                 weight = self.common_config.weight
             if self.common_config.cuts:
                 selection_cuts += "&&".join(self.common_config.cuts)
+            if self.common_config.blind and self.process_config[file_handle.process].type == "Data":
+                selection_cuts += " && {:s}".format(self.common_config.blind)
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
