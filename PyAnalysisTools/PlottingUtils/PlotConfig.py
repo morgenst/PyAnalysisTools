@@ -19,6 +19,8 @@ class PlotConfig(object):
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("weight", False)
+        kwargs.setdefault("blind", None)
+        kwargs.setdefault("make_plot_book", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)
 

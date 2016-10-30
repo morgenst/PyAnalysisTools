@@ -6,16 +6,15 @@ from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 
 
-def retrieve_new_canvas(name, title):
-    return ROOT.TCanvas(name, title, 800, 600)
+def retrieve_new_canvas(name, title, size_x=800, size_y=600):
+    return ROOT.TCanvas(name, title, size_x, size_y)
 
 
-def plot_hist(hist, plot_config):
+def plot_hist(hist, plot_config, y_max=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
     hist = format_hist(hist, plot_config)
-    #process_config = fetch_process_config(process, process_configs)
     process_config = None
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
@@ -24,6 +23,9 @@ def plot_hist(hist, plot_config):
         getattr(hist, "Set"+style_setter+"Style")(style_attr)
     if color is not None:
         getattr(hist, "Set" + style_setter + "Color")(color)
+    if y_max:
+        FM.set_maximum_y(hist, y_max)
+        canvas.Update()
     return canvas
 
 
@@ -64,10 +66,11 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
     max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
+    print max_y
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
-        if not common_config.ignore_style:
+        if hasattr(common_config, "ignore_style") and not common_config.ignore_style:
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
             draw_option = "hist"
@@ -75,15 +78,16 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
-        if common_config.ignore_style:
+        if common_config is None or common_config.ignore_style:
             style_setter = "Line"
         if style_attr is not None and not common_config.ignore_style:
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
             getattr(hist, "Set" + style_setter + "Color")(color)
-        if is_first:
-            FM.set_maximum_y(hist, max_y)
         is_first = False
+    FM.set_maximum_y(hist_defs[0][0], max_y)
+    canvas.Update()
+
     return canvas
 
 

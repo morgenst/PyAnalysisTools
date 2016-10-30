@@ -4,6 +4,7 @@ import time
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base import ShellUtils
+from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
 
 
 class SysOutputHandle(object):
@@ -24,6 +25,7 @@ class SysOutputHandle(object):
         if re.search(r"([0-9]{8}_[0-9]{2}-[0-9]{2}-[0-9]{2})$", output_dir):
             return output_dir
         return os.path.join(kwargs["output_dir"], "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
+
     def _set_latest_link(self, link):
         if os.path.exists(link):
             os.unlink(link)
@@ -69,6 +71,8 @@ class OutputFileHandle(SysOutputHandle):
         # todo: refactor using kwargs setdefault
         self.output_file_name = kwargs["output_file_name"]
         self.output_file = None
+        kwargs.setdefault("make_plotbook", False)
+        self.enable_make_plot_book = kwargs["make_plotbook"]
 
     def __del__(self):
         self._write_and_close()
@@ -89,7 +93,31 @@ class OutputFileHandle(SysOutputHandle):
         canvas.SaveAs(os.path.join(os.path.join(self.output_dir,
                                                 name + extension)))
 
+    #todo: quite fragile as assumptions on bucket size are explicitly taken
+    def _make_plot_book(self, bucket, counter, prefix="plot_book"):
+        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", 1500, 2000)
+        plot_book_canvas.Divide(3, 4)
+        for i in range(len(bucket)):
+            plot_book_canvas.cd(i+1)
+            bucket[i].DrawClonePad()
+        self.dump_canvas(plot_book_canvas)
+
+    def make_plot_book(self):
+        all_canvases = filter(lambda obj: isinstance(obj, ROOT.TCanvas), self.objects.values())
+        ratio_plots = filter(lambda c: "ratio" in c.GetName(), all_canvases)
+        plots = list(set(all_canvases) - set(ratio_plots))
+        plots.sort(key=lambda i: i.GetName())
+        ratio_plots.sort(key=lambda i: i.GetName())
+        plots = [plots[i:i+9] for i in range(0, len(plots), 12)]
+        ratio_plots = [ratio_plots[i:i + 9] for i in range(0, len(ratio_plots), 9)]
+        for plot_bucket in plots:
+            self._make_plot_book(plot_bucket, plots.index(plot_bucket))
+        for plot_bucket in ratio_plots:
+            self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio")
+
     def _write_and_close(self):
+        if self.enable_make_plot_book:
+            self.make_plot_book()
         self.attach_file()
         for obj in self.objects.values():
             if isinstance(obj, ROOT.TCanvas):
