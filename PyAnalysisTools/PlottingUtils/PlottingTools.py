@@ -66,7 +66,6 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
     max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
-    print max_y
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
@@ -84,10 +83,13 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
             getattr(hist, "Set" + style_setter + "Color")(color)
+        if is_first:
+            FM.set_maximum_y(hist, max_y)
+            if hasattr(plot_config, "logy") and plot_config.logy:
+                hist.SetMinimum(0.0001)
+                canvas.SetLogy()
+            canvas.Update()
         is_first = False
-    FM.set_maximum_y(hist_defs[0][0], max_y)
-    canvas.Update()
-
     return canvas
 
 
