@@ -162,6 +162,14 @@ class BasePlotter(object):
             except KeyError:
                 self.histograms[plot_config] = {process: hist}
 
+    def make_multidimensional_plot(self, plot_config, data):
+        for process, histogram in data.iteritems():
+            canvas = PT.plot_hist(histogram, plot_config)
+            canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
+            canvas.SetRightMargin(0.15)
+            FM.decorate_canvas(canvas, self.common_config, plot_config)
+            self.output_handle.register_object(canvas)
+
     def make_plots(self):
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
                                                                                        self.plot_configs)
@@ -173,9 +181,9 @@ class BasePlotter(object):
         for plot_config, data in self.histograms.iteritems():
             if self.common_config.normalise or plot_config.normalise:
                 HT.normalise(data)
-            if self.common_config.outline == "hist":
+            if self.common_config.outline == "hist" and not plot_config.is_multidimensional:
                 canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
-            elif self.common_config.outline == "stack":
+            elif self.common_config.outline == "stack" and not plot_config.is_multidimensional:
                 canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_config)
                 stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
                 self.statistical_uncertainty_hist = ST.get_statistical_uncertainty_from_stack(stack)
@@ -185,6 +193,9 @@ class BasePlotter(object):
                                                   color=ROOT.kBlack)
                 PT.add_histogram_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
                 self.process_config[plot_config_stat_unc.name] = plot_config_stat_unc
+            elif plot_config.is_multidimensional:
+                self.make_multidimensional_plot(plot_config, data)
+                continue
             else:
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
@@ -198,7 +209,7 @@ class BasePlotter(object):
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
             self.output_handle.register_object(canvas)
             if hasattr(plot_config, "ratio") or hasattr(self.common_config, "ratio"):
-                if plot_config.no_data or self.common_config.no_data:
+                if plot_config.no_data or self.common_config.no_data or plot_config.is_multidimensional:
                     continue
                 if self.common_config.ratio:
                     canvas_ratio = self.calculate_ratios(data, plot_config)

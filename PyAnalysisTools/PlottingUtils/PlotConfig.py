@@ -21,8 +21,14 @@ class PlotConfig(object):
         kwargs.setdefault("weight", False)
         kwargs.setdefault("blind", None)
         kwargs.setdefault("make_plot_book", False)
+        kwargs.setdefault("is_multidimensional", False)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)
+        self.auto_decorate()
+
+    def auto_decorate(self):
+        if hasattr(self, "dist") and self.dist:
+            self.is_multidimensional = True if ":" in self.dist else False
 
 
 class ProcessConfig(object):
@@ -90,6 +96,8 @@ def get_style_setters_and_values(plot_config, process_config = None):
             offset = 0
             if "+" in color:
                 color, offset = color.split("+")
+            if "-" in color:
+                color, offset = color.split("-")
             color = getattr(ROOT, color.rstrip()) + int(offset)
         return color
 
