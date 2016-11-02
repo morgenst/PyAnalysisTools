@@ -22,7 +22,6 @@ def resolve_path_from_symbolic_links(symbolic_link, relative_path):
 
 
 def move(src, dest):
-    print src, dest
     try:
         shutil.move(src, dest)
     except IOError:
@@ -47,7 +46,6 @@ def remove_directory(path, safe=False):
 
 
 def source(script_name):
-    print subprocess.PIPE
     pipe = subprocess.Popen(". %s; env" % script_name, stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]
     output = filter(lambda l: len(l.split("=")) == 2, output.splitlines())
