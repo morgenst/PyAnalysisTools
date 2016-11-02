@@ -1,7 +1,7 @@
 import os
 import calendar
 import time
-from fnmatch import fnmatch
+import fnmatch
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import ShellUtils
