@@ -7,7 +7,7 @@ from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config
 from numpy.lib.recfunctions import rec_append_fields
-
+import ROOT
 
 class CutflowAnalyser(object):
     """
@@ -17,6 +17,7 @@ class CutflowAnalyser(object):
         kwargs.setdefault("output_file_name", None)
         kwargs.setdefault("lumi", None)
         kwargs.setdefault("process_config", None)
+        kwargs.setdefault("no_merge", False)
         self.file_list = kwargs["file_list"]
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
@@ -30,6 +31,7 @@ class CutflowAnalyser(object):
         self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.event_numbers = dict()
         self.process_config = None
+        self.merge = True if not kwargs["no_merge"] else False
         if kwargs["process_config"] is not None:
             self.process_config = parse_and_build_process_config(kwargs["process_config"])
 
@@ -42,7 +44,7 @@ class CutflowAnalyser(object):
 
     def analyse_cutflow(self):
         self.apply_cross_section_weight()
-        if self.process_config is not None:
+        if self.process_config is not None and self.merge:
             self.merge_histograms(self.cutflow_hists)
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
@@ -183,6 +185,7 @@ class CutflowAnalyser(object):
             if systematic not in self.cutflow_hists[process]:
                 self.cutflow_hists[process][systematic] = dict()
             for cutflow_hist in cutflow_hists:
+                cutflow_hist.SetDirectory(0)
                 try:
                     self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")].Add(cutflow_hist)
                 except KeyError:
