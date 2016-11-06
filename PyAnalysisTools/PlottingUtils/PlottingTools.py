@@ -66,6 +66,10 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
     max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
+    if common_config is not None and common_config.ordering is not None:
+        sorted(hist_defs, key=lambda k: common_config.ordering.index(k[0]))
+    print hist_defs
+    exit(1)
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
@@ -129,6 +133,13 @@ def add_graph_to_canvas(canvas, graph, plot_options=None, draw_options=None):
     graph.Draw(draw_options)
 
 
+def apply_ordering(hist_defs, ordering):
+    for process, _ in hist_defs:
+        if process not in ordering:
+            ordering.append(process)
+    return sorted(hist_defs, key=lambda k: ordering.index(k[0]))
+
+
 def plot_stack(hists, plot_config, common_config=None, process_configs=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.Clear()
@@ -141,6 +152,8 @@ def plot_stack(hists, plot_config, common_config=None, process_configs=None):
     stack = ROOT.THStack('hs', '')
     ROOT.SetOwnership(stack, False)
     data = None
+    if common_config is not None and common_config.ordering is not None:
+        hist_defs = apply_ordering(hist_defs, common_config.ordering)
     for process, hist in hist_defs:
         if process == "Data":
             data = (process, hist)

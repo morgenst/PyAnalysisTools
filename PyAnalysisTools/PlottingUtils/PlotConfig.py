@@ -22,6 +22,7 @@ class PlotConfig(object):
         kwargs.setdefault("blind", None)
         kwargs.setdefault("make_plot_book", False)
         kwargs.setdefault("is_multidimensional", False)
+        kwargs.setdefault("ordering", None)
         for k,v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         self.auto_decorate()
