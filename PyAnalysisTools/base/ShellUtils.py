@@ -14,12 +14,18 @@ def make_dirs(path):
 
 
 def resolve_path_from_symbolic_links(symbolic_link, relative_path):
+    def is_symbolic_link(path):
+        return os.path.islink(path)
+    
     if symbolic_link is None:
         return relative_path
-    if not os.path.islink(symbolic_link) or os.path.isabs(relative_path):
+    if os.path.isabs(relative_path):
         return relative_path
-    return os.path.abspath(os.path.join(symbolic_link, relative_path))
-
+    top_level_dir = symbolic_link.split("/")
+    for n in range(1, len(top_level_dir)):
+        if is_symbolic_link("/".join(top_level_dir[:-n])): 
+            return os.path.abspath(os.path.join(symbolic_link, relative_path))
+    return relative_path
 
 def move(src, dest):
     try:
