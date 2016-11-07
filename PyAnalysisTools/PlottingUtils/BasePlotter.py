@@ -5,7 +5,7 @@ import pathos.multiprocessing as mp
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
-    get_histogram_definition
+    get_histogram_definition, find_process_config
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
@@ -43,7 +43,7 @@ class BasePlotter(object):
         set_batch_mode(kwargs["batch"])
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
-        self.process_config = self.parse_process_config()
+        self.process_configs = self.parse_process_config()
         FM.load_atlas_style()
         self.statistical_uncertainty_hist = None
         self.histograms = {}
@@ -77,7 +77,7 @@ class BasePlotter(object):
                 weight = self.common_config.weight
             if self.common_config.cuts:
                 selection_cuts += "&&".join(self.common_config.cuts)
-            if self.common_config.blind and self.process_config[file_handle.process].type == "Data":
+            if self.common_config.blind and self.process_configs[file_handle.process].type == "Data":
                 if len(selection_cuts) != 0:
                     selection_cuts += " && "
                 selection_cuts += " !({:s})".format(" && ".join(self.common_config.blind))
@@ -85,17 +85,23 @@ class BasePlotter(object):
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
-            if not self.process_config[file_handle.process].type == "Data":
+            process_config = find_process_config(file_handle.process, self.process_configs)
+            if process_config is None:
+                _logger.error("Could not find process config for {:s}".format(file_handle.process))
+                return None
+
+            if not process_config.type == "Data":
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
                                                                             file_handle.get_number_of_total_events())
                 HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
+
         return hist
 
     def merge_histograms(self):
         def merge(histograms):
-            for process, process_config in self.process_config.iteritems():
+            for process, process_config in self.process_configs.iteritems():
                 if not hasattr(process_config, "subprocesses"):
                     continue
                 for sub_process in process_config.subprocesses:
@@ -144,7 +150,8 @@ class BasePlotter(object):
     def fetch_histograms(self, file_handle, plot_config):
         if "data" in file_handle.process.lower() and (plot_config.no_data or self.common_config.no_data):
             return
-        return file_handle.process, self.retrieve_histogram(file_handle, plot_config)
+        tmp = self.retrieve_histogram(file_handle, plot_config)
+        return file_handle.process, tmp
 
     def read_histograms(self, plot_config):
         histograms = mp.ThreadPool(min(self.nfile_handles,
@@ -153,6 +160,7 @@ class BasePlotter(object):
         return plot_config, histograms
 
     def categorise_histograms(self, plot_config, histograms):
+        _logger.debug("categorising {:d} histograms".format(len(histograms)))
         for process, hist in histograms:
             try:
                 if process not in self.histograms[plot_config].keys():
@@ -173,18 +181,23 @@ class BasePlotter(object):
     def make_plots(self):
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
                                                                                        self.plot_configs)
+
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
+        #workaround due to missing worker node communication of regex process parsing
+        for hist_set in self.histograms.values():
+            for process_name in hist_set.keys():
+                _ = find_process_config(process_name, self.process_configs)
         if self.common_config.merge:
             self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             if self.common_config.normalise or plot_config.normalise:
                 HT.normalise(data)
             if self.common_config.outline == "hist" and not plot_config.is_multidimensional:
-                canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_config)
+                canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_configs)
             elif self.common_config.outline == "stack" and not plot_config.is_multidimensional:
-                canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_config)
+                canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_configs)
                 stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
                 self.statistical_uncertainty_hist = ST.get_statistical_uncertainty_from_stack(stack)
                 #todo: temporary fix
@@ -192,7 +205,7 @@ class BasePlotter(object):
                 plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                                   color=ROOT.kBlack)
                 PT.add_histogram_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
-                self.process_config[plot_config_stat_unc.name] = plot_config_stat_unc
+                self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
             elif plot_config.is_multidimensional:
                 self.make_multidimensional_plot(plot_config, data)
                 continue
@@ -200,11 +213,11 @@ class BasePlotter(object):
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
             FM.decorate_canvas(canvas, self.common_config, plot_config)
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_config)
+            FM.add_legend_to_canvas(canvas, process_configs=self.process_configs)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
-                signal_hist = merge_objects_by_process_type(canvas, self.process_config, "Signal")
-                background_hist = merge_objects_by_process_type(canvas, self.process_config, "Background")
+                signal_hist = merge_objects_by_process_type(canvas, self.process_configs, "Signal")
+                background_hist = merge_objects_by_process_type(canvas, self.process_configs, "Background")
                 significance_hist = ST.get_significance(signal_hist, background_hist)
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
             self.output_handle.register_object(canvas)

@@ -45,6 +45,10 @@ class ProcessConfig(object):
             tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
         return tmp
 
+    def add_subprocess(self, subprocess_name):
+        self.subprocesses.append(subprocess_name)
+        return ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+
 
 def parse_and_build_plot_config(config_file):
     try:
@@ -145,3 +149,21 @@ def get_histogram_definition(plot_config):
                                                                                          plot_config.dist))
         raise InvalidInputError("Invalid plot configuration")
     return hist
+
+
+def find_process_config(process_name, process_configs):
+    if process_name in process_configs:
+        return process_configs[process_name]
+    regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
+                                              any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
+                           process_configs.iteritems()))
+    for process_config in regex_configs.values():
+        for sub_process in process_config.subprocesses:
+            if not sub_process.startswith("re."):
+                continue
+            match = re.match(sub_process.replace("re.", ""), process_name)
+            if not match:
+                continue
+            process_configs[match.group()] = process_config.add_subprocess(match.group())
+            return process_configs[match.group()]
+    return None
