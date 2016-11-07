@@ -258,6 +258,9 @@ def add_legend_to_canvas(canvas, **kwargs):
         stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
     for plot_obj in plot_objects:
+        if "stat.unc" in plot_obj.GetName() and plot_obj != plot_objects[-1]:
+            plot_objects.append(plot_obj)
+            continue
         if "process_configs" in kwargs:
             label = kwargs["process_configs"][plot_obj.GetName().split("_")[-1]].label
         if "labels" in kwargs:
