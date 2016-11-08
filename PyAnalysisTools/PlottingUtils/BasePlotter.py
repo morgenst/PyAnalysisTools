@@ -48,6 +48,7 @@ class BasePlotter(object):
         self.statistical_uncertainty_hist = None
         self.histograms = {}
         self.initialise()
+        self.event_yields = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.common_config.make_plot_book, **kwargs)
 
     def parse_plot_config(self):
@@ -65,6 +66,13 @@ class BasePlotter(object):
     def initialise(self):
         self.parse_plot_config()
         self.ncpu = min(self.ncpu, len(self.plot_configs))
+
+    def read_cutflows(self):
+        for file_handle in self.file_handles:
+            if file_handle.process in self.event_yields:
+                self.event_yields[file_handle.process] += file_handle.get_number_of_total_events()
+            else:
+                self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
 
     def retrieve_histogram(self, file_handle, plot_config):
         file_handle.open()
@@ -90,10 +98,6 @@ class BasePlotter(object):
                 _logger.error("Could not find process config for {:s}".format(file_handle.process))
                 return None
 
-            if not process_config.type == "Data":
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
-                                                                            file_handle.get_number_of_total_events())
-                HT.scale(hist, cross_section_weight)
         except Exception as e:
             raise e
 
@@ -159,6 +163,14 @@ class BasePlotter(object):
                                                                             plot_config=plot_config), self.file_handles)
         return plot_config, histograms
 
+    def apply_lumi_weights(self):
+        for hist_set in self.histograms.values():
+            for process, hist in hist_set.iteritems():
+                if "data" in process:
+                    continue
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_yields[process])
+                HT.scale(hist, cross_section_weight)
+
     def categorise_histograms(self, plot_config, histograms):
         _logger.debug("categorising {:d} histograms".format(len(histograms)))
         for process, hist in histograms:
@@ -179,12 +191,14 @@ class BasePlotter(object):
             self.output_handle.register_object(canvas)
 
     def make_plots(self):
+        self.read_cutflows()
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
                                                                                        self.plot_configs)
 
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
+        self.apply_lumi_weights()
         #workaround due to missing worker node communication of regex process parsing
         for hist_set in self.histograms.values():
             for process_name in hist_set.keys():
