@@ -25,7 +25,11 @@ def plot_hist(hist, plot_config, y_max=None):
         getattr(hist, "Set" + style_setter + "Color")(color)
     if y_max:
         FM.set_maximum_y(hist, y_max)
-        canvas.Update()
+    if hasattr(plot_config, "ymin"):
+        FM.set_minimum_y(hist, plot_config.ymin)
+    if hasattr(plot_config, "ymax"):
+        FM.set_maximum_y(hist, plot_config.ymax)
+    canvas.Update()
     return canvas
 
 
@@ -68,8 +72,6 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
     if common_config is not None and common_config.ordering is not None:
         sorted(hist_defs, key=lambda k: common_config.ordering.index(k[0]))
-    print hist_defs
-    exit(1)
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
