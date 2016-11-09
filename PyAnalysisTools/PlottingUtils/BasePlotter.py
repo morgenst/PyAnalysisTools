@@ -121,6 +121,9 @@ class BasePlotter(object):
             merge(histograms)
 
     def calculate_ratios(self, hists, plot_config):
+        if not "Data" in hists:
+            _logger.error("Ratio requested but no data found")
+            raise InvalidInputError("Missing data")
         ratio = hists["Data"].Clone("ratio_%s" % plot_config.dist)
         mc = None
         for key, hist in hists.iteritems():
@@ -131,11 +134,14 @@ class BasePlotter(object):
                 continue
             mc.Add(hist)
         ratio.Divide(mc)
-        plot_config.name = "ratio_" + plot_config.name
-        plot_config.ytitle = "data/MC"
+        if hasattr(self.common_config, "ratio_config"):
+            plot_config = self.common_config.ratio_config
+        else:
+            plot_config.name = "ratio_" + plot_config.name
+            plot_config.ytitle = "data/MC"
         if "unit" in plot_config.__dict__.keys():
             plot_config.__dict__.pop("unit")
-        plot_config.draw = "Marker"
+            plot_config.draw = "Marker"
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         if self.statistical_uncertainty_hist:
             plot_config_stat_unc_ratio = copy.copy(plot_config)
@@ -206,6 +212,7 @@ class BasePlotter(object):
         if self.common_config.merge:
             self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
+            data = {k: v for k, v in data.iteritems() if v}
             if self.common_config.normalise or plot_config.normalise:
                 HT.normalise(data)
             if self.common_config.outline == "hist" and not plot_config.is_multidimensional:
@@ -239,6 +246,9 @@ class BasePlotter(object):
                 if plot_config.no_data or self.common_config.no_data or plot_config.is_multidimensional:
                     continue
                 if self.common_config.ratio:
-                    canvas_ratio = self.calculate_ratios(data, plot_config)
-                    canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
-                    self.output_handle.register_object(canvas_combined)
+                    try:
+                        canvas_ratio = self.calculate_ratios(data, plot_config)
+                        canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                        self.output_handle.register_object(canvas_combined)
+                    except InvalidInputError:
+                        pass
