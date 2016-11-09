@@ -172,7 +172,7 @@ class BasePlotter(object):
     def apply_lumi_weights(self):
         for hist_set in self.histograms.values():
             for process, hist in hist_set.iteritems():
-                if "data" in process:
+                if "data" in process.lower():
                     continue
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
