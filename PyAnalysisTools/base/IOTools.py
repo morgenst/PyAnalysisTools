@@ -72,7 +72,7 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
     def build_buckets(file_list):
         limit = 2. * 1024. * 1024. * 1024.
         if sum(map(os.path.getsize, file_list)) < limit:
-            return file_list
+            return [file_list]
         bucket_list = []
         tmp = []
         summed_file_size = 0.
