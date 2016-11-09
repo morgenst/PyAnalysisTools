@@ -24,8 +24,16 @@ class PlotConfig(object):
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
         for k,v in kwargs.iteritems():
+            if k == "ratio_config":
+                self.set_ratio_config(**v)
+                continue
             setattr(self, k.lower(), v)
         self.auto_decorate()
+
+    def set_ratio_config(self, **kwargs):
+        kwargs.setdefault("name", "ratio")
+        kwargs.setdefault("dist", "ratio")
+        self.ratio_config = PlotConfig(**kwargs)
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
