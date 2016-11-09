@@ -149,8 +149,7 @@ class BasePlotter(object):
             plot_config_stat_unc_ratio.style = 1001
             plot_config_stat_unc_ratio.draw = "E2"
             plot_config_stat_unc_ratio.logy = False
-            statistical_uncertainty_ratio = self.statistical_uncertainty_hist.Clone("stat.unc.ratio")
-            statistical_uncertainty_ratio.Divide(mc)
+            statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(self.statistical_uncertainty_hist)
             canvas = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
             PT.add_histogram_to_canvas(canvas, ratio, plot_config)
         else:
