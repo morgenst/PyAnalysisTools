@@ -44,6 +44,15 @@ class ProcessConfig(object):
     def __init__(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
+        self.transform_type()
+
+    def transform_type(self):
+        if "data" in self.type.lower():
+            self.is_data = True
+            self.is_mc = False
+        else:
+            self.is_data = False
+            self.is_mc = True
 
     def retrieve_subprocess_config(self):
         tmp = {}

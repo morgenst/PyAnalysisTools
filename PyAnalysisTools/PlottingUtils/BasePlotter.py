@@ -195,6 +195,45 @@ class BasePlotter(object):
             FM.decorate_canvas(canvas, self.common_config, plot_config)
             self.output_handle.register_object(canvas)
 
+    def cut_based_normalise(self, cut):
+        event_yields = {}
+        for file_handle in self.file_handles:
+            cutflow = file_handle.get_object_by_name("Nominal/cutflow_BaseSelection")
+            process_config = find_process_config(file_handle.process, self.process_configs)
+            if process_config is None:
+                continue
+            process = None
+            if process_config.is_data:
+                process = "data"
+                cross_section_weight = 1.
+            elif process_config.is_mc and not hasattr(process_config, "is_signal"):
+                process = "mc"
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(file_handle.process, self.lumi,
+                                                                            self.event_yields[file_handle.process])
+            else:
+                continue
+            i_bin = HT.read_bin_from_label(cutflow, cut)
+            if process in event_yields:
+                event_yields[process] += cutflow.GetBinContent(i_bin) * cross_section_weight
+            else:
+                event_yields[process] = cutflow.GetBinContent(i_bin) * cross_section_weight
+        if event_yields["mc"] > 0.:
+            scale_factor = event_yields["data"] / event_yields["mc"]
+        else:
+            scale_factor = 0.
+        _logger.debug("Calculated scale factor {:.2f} after cut {:s}".format(scale_factor, cut))
+        for hist_set in self.histograms.values():
+            for process_name, hist in hist_set.iteritems():
+                process_config = find_process_config(process_name, self.process_configs)
+                if process_config is None:
+                    _logger.error("Could not find process config for {:s}".format(process_name))
+                    continue
+                if not process_config.is_mc or hasattr(process_config, "is_signal"):
+                    continue
+                print hist.GetName(), hist.Integral()
+                HT.scale(hist, scale_factor)
+                print hist.GetName(), hist.Integral()
+
     def make_plots(self):
         self.read_cutflows()
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
@@ -204,6 +243,8 @@ class BasePlotter(object):
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
         self.apply_lumi_weights()
+        if hasattr(self.common_config, "normalise_after_cut"):
+            self.cut_based_normalise(self.common_config.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
         for hist_set in self.histograms.values():
             for process_name in hist_set.keys():

@@ -93,3 +93,14 @@ def _normalise_1d_hist(hist):
         return hist
     hist.Scale(1. / integral)
     return hist
+
+
+def read_bin_from_label(hist, label):
+    labels = [hist.GetXaxis().GetBinLabel(i) for i in range(hist.GetNbinsX() + 1)]
+    matched_labels = filter(lambda l: re.search(label, l) is not None, labels)
+    if len(matched_labels) == 0:
+        _logger.error("Could not find label matching {:s} in {:s}".format(label, hist.GetName()))
+        return None
+    if len(matched_labels) > 1:
+        _logger.warning("Found multiple matches for label {:s} in {:s}".format(label, hist.GetName()))
+    return labels.index(matched_labels[0])
