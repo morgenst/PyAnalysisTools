@@ -80,7 +80,7 @@ def parallel_merge_wrapper(dict_element, output_path, prefix, merge_dir=None, fo
     process, input_file_list = dict_element
     if merge_dir is not None:
         merge_dir = os.path.join(merge_dir, process)
-    merge_files(input_file_list, output_path, prefix + "{:s}.root".format(process), merge_dir, force)
+    merge_files(input_file_list, output_path, prefix + "{:s}".format(process), merge_dir, force)
 
 
 def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=False):
