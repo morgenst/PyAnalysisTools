@@ -1,6 +1,8 @@
 import ROOT
 import os
 from subprocess import check_call
+from functools import partial
+from multiprocessing import Pool
 from PyAnalysisTools.base.ShellUtils import move, remove_directory, make_dirs
 
 
@@ -66,6 +68,19 @@ class Writer:
     def set_directory(self, directory):
         self.__check_and_create_directory(directory)
         self.dir = directory
+
+
+def parallel_merge(data, output_path, prefix, merge_dir=None, force=False):
+    pool = Pool(processes=min(10, len(data)))
+    pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
+                     merge_dir=merge_dir, force=force), data.items())
+
+
+def parallel_merge_wrapper(dict_element, output_path, prefix, merge_dir=None, force=False):
+    process, input_file_list = dict_element
+    if merge_dir is not None:
+        merge_dir = os.path.join(merge_dir, process)
+    merge_files(input_file_list, output_path, prefix + "{:s}.root".format(process), merge_dir, force)
 
 
 def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=False):
