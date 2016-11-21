@@ -68,14 +68,11 @@ class OutputFileHandle(SysOutputHandle):
         self.objects = dict()
         self.attached = False
         self.overload = overload
-        # todo: refactor using kwargs setdefault
+        kwargs.setdefault("output_file_name", "output.root")
         self.output_file_name = kwargs["output_file_name"]
         self.output_file = None
         kwargs.setdefault("make_plotbook", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
-
-    def __del__(self):
-        self._write_and_close()
 
     def attach_file(self):
         if not self.attached:
@@ -115,7 +112,7 @@ class OutputFileHandle(SysOutputHandle):
         for plot_bucket in ratio_plots:
             self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio")
 
-    def _write_and_close(self):
+    def write_and_close(self):
         if self.enable_make_plot_book:
             self.make_plot_book()
         self.attach_file()
