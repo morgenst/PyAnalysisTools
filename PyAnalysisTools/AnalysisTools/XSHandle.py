@@ -8,6 +8,8 @@ class Dataset(object):
         kwargs.setdefault("is_mc", False)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
+        if "cross_section" in kwargs and "*" in str(kwargs["cross_section"]):
+            self.cross_section = eval(kwargs["cross_section"])
 
 
 class XSInfo(object):
