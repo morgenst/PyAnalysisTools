@@ -20,9 +20,11 @@ class PlotConfig(object):
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("weight", False)
         kwargs.setdefault("blind", None)
+        kwargs.setdefault("legend_options", None)
         kwargs.setdefault("make_plot_book", False)
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
+        kwargs.setdefault("y_min", 0.)
         for k,v in kwargs.iteritems():
             if k == "ratio_config":
                 self.set_ratio_config(**v)

@@ -29,6 +29,8 @@ def plot_hist(hist, plot_config, y_max=None):
         FM.set_minimum_y(hist, plot_config.ymin)
     if hasattr(plot_config, "ymax"):
         FM.set_maximum_y(hist, plot_config.ymax)
+    if hasattr(plot_config, "logy") and plot_config.logy:
+        canvas.SetLogy()
     canvas.Update()
     return canvas
 
@@ -90,6 +92,7 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
         if color is not None:
             getattr(hist, "Set" + style_setter + "Color")(color)
         if is_first:
+            FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)
             if hasattr(plot_config, "logy") and plot_config.logy:
                 hist.SetMinimum(0.0001)
@@ -214,15 +217,6 @@ def add_signal_to_stack(canvas, signal, signal_strength=1., overlay=False, stack
         if overlay:
             process.Add(clone)
         process.Draw("histsames")
-
-
-# def add_hist_to_canvas(canvas, hist, plot_options=None, draw_options=None):
-#     canvas.cd()
-#     if plot_options is not None:
-#         plot_options.configure(hist)
-#     if draw_options is None:
-#         draw_options = 'hist'
-#     hist.Draw(draw_options + 'sames')
 
 
 def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, name=None, title=''):
