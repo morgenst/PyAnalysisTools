@@ -5,7 +5,7 @@ import pathos.multiprocessing as mp
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
-    get_histogram_definition, find_process_config
+    get_histogram_definition, find_process_config, merge_plot_configs
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
@@ -25,8 +25,8 @@ class BasePlotter(object):
         if "input_files" not in kwargs:
             _logger.error("No input files provided")
             raise  InvalidInputError("No input files")
-        if "plot_config_file" not in kwargs:
-            _logger.error("No plot config file provided. Nothing to parse")
+        if "plot_config_files" not in kwargs:
+            _logger.error("No plot config files provided. Nothing to parse")
             raise InvalidInputError("No plot config file")
         if "process_config_file" not in kwargs:
             _logger.warning("No process config file provided. Unable to read process specific options.")
@@ -53,7 +53,10 @@ class BasePlotter(object):
 
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
-        self.plot_configs, self.common_config = parse_and_build_plot_config(self.plot_config_file)
+        unmerged_plot_configs = []
+        for plot_config_file in self.plot_config_files:
+            unmerged_plot_configs.append(parse_and_build_plot_config(plot_config_file))
+        self.plot_config, self.common_config = merge_plot_configs(unmerged_plot_configs)
         if not hasattr(self, "lumi"):
             self.lumi = self.common_config.lumi
 
@@ -65,7 +68,7 @@ class BasePlotter(object):
 
     def initialise(self):
         self.parse_plot_config()
-        self.ncpu = min(self.ncpu, len(self.plot_configs))
+        self.ncpu = min(self.ncpu, len(self.plot_config))
 
     def read_cutflows(self):
         for file_handle in self.file_handles:
@@ -230,14 +233,12 @@ class BasePlotter(object):
                     continue
                 if not process_config.is_mc or hasattr(process_config, "is_signal"):
                     continue
-                print hist.GetName(), hist.Integral()
                 HT.scale(hist, scale_factor)
-                print hist.GetName(), hist.Integral()
 
     def make_plots(self):
         self.read_cutflows()
-        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
-                                                                                       self.plot_configs)
+        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_config))).map(self.read_histograms,
+                                                                                       self.plot_config)
 
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
@@ -274,7 +275,10 @@ class BasePlotter(object):
                 _logger.error("Unsupported outline option %s" % self.common_config.outline)
                 raise InvalidInputError("Unsupported outline option")
             FM.decorate_canvas(canvas, self.common_config, plot_config)
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_configs)
+            if plot_config.legend_options is not None:
+                FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
+            else:
+                FM.add_legend_to_canvas(canvas, process_configs=self.process_configs)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
                 signal_hist = merge_objects_by_process_type(canvas, self.process_configs, "Signal")
@@ -292,3 +296,5 @@ class BasePlotter(object):
                         self.output_handle.register_object(canvas_combined)
                     except InvalidInputError:
                         pass
+        self.output_handle.write_and_close()
+

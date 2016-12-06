@@ -41,6 +41,16 @@ class PlotConfig(object):
         if hasattr(self, "dist") and self.dist:
             self.is_multidimensional = True if ":" in self.dist else False
 
+    def _merge(self, other):
+        print "call merge"
+        for attr, val in other.__dict__.iteritems():
+            if not hasattr(self, attr):
+                setattr(self, attr, val)
+                continue
+            if getattr(self, attr) != val:
+                _logger.warn("Different settings for attrinute {:s} in common configs: {:s} vs. {:s}".format(attr, val,
+                                                                                                             getattr(self, attr)))
+
 
 class ProcessConfig(object):
     def __init__(self, **kwargs):
@@ -94,6 +104,19 @@ def parse_and_build_process_config(process_config_file):
     except Exception as e:
         print e
         raise e
+
+
+def merge_plot_configs(plot_configs):
+    merged_plot_config = None
+    merged_common_config = None
+    for plot_config, common_config in plot_configs:
+        if merged_plot_config is None:
+            merged_plot_config = plot_config
+            merged_common_config = common_config
+            continue
+        merged_plot_config += plot_config
+        merged_common_config._merge(common_config)
+    return merged_plot_config, merged_common_config
 
 
 def _parse_draw_option(plot_config, process_config):
