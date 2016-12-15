@@ -77,7 +77,8 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
-        if hasattr(common_config, "ignore_style") and not common_config.ignore_style:
+        if not (common_config is not None and common_config.is_set_to_value("ignore_style", True)) and \
+                plot_config.is_set_to_value("ignore_style", False):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
             draw_option = "hist"
@@ -95,8 +96,14 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
             FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)
             if hasattr(plot_config, "logy") and plot_config.logy:
-                hist.SetMinimum(0.0001)
+                if hasattr(plot_config, "ymin"):
+                    hist.SetMinimum(plot_config.ymin)
+                else:
+                    hist.SetMinimum(0.0001)
+                if hasattr(plot_config, "ymax"):
+                    hist.SetMaximum(plot_config.ymax)
                 canvas.SetLogy()
+            format_hist(hist, plot_config)
             canvas.Update()
         is_first = False
     return canvas
