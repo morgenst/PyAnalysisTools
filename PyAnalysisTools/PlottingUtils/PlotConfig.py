@@ -32,9 +32,15 @@ class PlotConfig(object):
             setattr(self, k.lower(), v)
         self.auto_decorate()
 
+    def is_set_to_value(self, attr, value):
+        if not hasattr(self, attr):
+            return False
+        return getattr(self, attr) == value
+
     def set_ratio_config(self, **kwargs):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")
+        kwargs.setdefault("ignore_style", False)
         self.ratio_config = PlotConfig(**kwargs)
 
     def auto_decorate(self):
