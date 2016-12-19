@@ -183,7 +183,8 @@ def plot_stack(hists, plot_config, common_config=None, process_configs=None):
         add_data_to_stack(canvas, *data)
         max_y = max(max_y, 1.1 * data[1].GetMaximum())
     FM.set_maximum_y(stack, max_y)
-
+    if hasattr(plot_config, "ymin"):
+        FM.set_minimum_y(stack, plot_config.ymin)
     if hasattr(plot_config, "logy") and plot_config.logy:
         stack.SetMinimum(0.1)
         canvas.SetLogy()

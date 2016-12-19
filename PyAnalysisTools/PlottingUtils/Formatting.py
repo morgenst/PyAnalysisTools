@@ -69,7 +69,8 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     t.SetTextSize(size)
     t.SetTextAngle(angle)
     t.SetTextFont(font)
-    t.SetTextColor(color)
+    if color is not None:
+        t.SetTextColor(color)
     t.SetNDC(ndc)
     return t
 
@@ -197,7 +198,7 @@ def get_min_y(graph_obj):
 
 
 def get_max_y(graph_obj):
-    if isinstance(graph_obj, ROOT.TH1):
+    if isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.THStack):
         return graph_obj.GetMaximum()
     if isinstance(graph_obj, ROOT.TEfficiency):
         return graph_obj.GetPaintedGraph().GetMaximum()
@@ -251,6 +252,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         return legend_option
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
+    legend.SetTextSize(0.025)
     plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
     stacks = get_objects_from_canvas_by_type(canvas, "THStack")
     stacked_objects = None
