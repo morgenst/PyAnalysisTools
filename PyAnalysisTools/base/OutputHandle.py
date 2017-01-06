@@ -10,8 +10,8 @@ from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
 class SysOutputHandle(object):
     def __init__(self, **kwargs):
         if "output_dir" not in kwargs:
-            _logger.error("No output directory provied")
-            raise InvalidInputError("Missing output directory")
+            _logger.warning("No output directory provied")
+            kwargs.setdefault("output_dir", "./")
         kwargs.setdefault("sub_dir_name", "output")
         self.time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
         self.base_output_dir = kwargs["output_dir"]
@@ -20,11 +20,13 @@ class SysOutputHandle(object):
 
     def resolve_output_dir(self, **kwargs):
         output_dir = kwargs["output_dir"]
+        if output_dir is None:
+            output_dir = "./"
         if os.path.islink(output_dir):
             output_dir = os.readlink(output_dir)
         if re.search(r"([0-9]{8}_[0-9]{2}-[0-9]{2}-[0-9]{2})$", output_dir):
             return output_dir
-        return os.path.join(kwargs["output_dir"], "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
+        return os.path.join(output_dir, "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
 
     def _set_latest_link(self, link):
         if os.path.exists(link):
@@ -127,4 +129,7 @@ class OutputFileHandle(SysOutputHandle):
 
     def register_object(self, obj, tdir=""):
         _logger.debug("Adding object %s" % obj.GetName())
-        self.objects[tdir + obj.GetName()] = obj.Clone(obj.GetName() + "_clone")
+        if isinstance(obj, ROOT.TTree):
+            self.objects[tdir + obj.GetName()] = obj.CloneTree()
+        else:
+            self.objects[tdir + obj.GetName()] = obj.Clone(obj.GetName() + "_clone")
