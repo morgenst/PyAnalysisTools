@@ -17,7 +17,7 @@ def resolve_path_from_symbolic_links(symbolic_link, relative_path):
     def is_symbolic_link(path):
         return os.path.islink(path)
     
-    if symbolic_link is None:
+    if symbolic_link is None or relative_path is None:
         return relative_path
     if os.path.isabs(relative_path):
         return relative_path
