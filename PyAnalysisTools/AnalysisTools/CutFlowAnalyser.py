@@ -18,6 +18,7 @@ class CutflowAnalyser(object):
         kwargs.setdefault("lumi", None)
         kwargs.setdefault("process_config", None)
         kwargs.setdefault("no_merge", False)
+        kwargs.setdefault("raw", False)
         self.file_list = kwargs["file_list"]
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
@@ -31,6 +32,7 @@ class CutflowAnalyser(object):
         self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.event_numbers = dict()
         self.process_config = None
+        self.raw = kwargs["raw"]
         self.merge = True if not kwargs["no_merge"] else False
         if kwargs["process_config"] is not None:
             self.process_config = parse_and_build_process_config(kwargs["process_config"])
@@ -89,15 +91,26 @@ class CutflowAnalyser(object):
         return lumi_weight
 
     def _analyse_cutflow(self, cutflow_hist, raw_cutflow_hist, process=None):
-        parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
-                                 cutflow_hist.GetBinContent(b),
+        if not self.raw:
+            parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
+                                     cutflow_hist.GetBinContent(b),
                                  #raw_cutflow_hist.GetBinContent(b),
                                  cutflow_hist.GetBinError(b),
                                  #raw_cutflow_hist.GetBinError(b),
                                  -1.,
-                                 -1.) for b in range(0, cutflow_hist.GetNbinsX() + 1)],
+                                 -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
                                dtype=[("cut", "S100"), ("yield", "f4"), #("yield_raw", "f4"),
                                        ("yield_unc", "f4"),
+                                      ("eff", float),
+                                      ("eff_total", float)])  # todo: array dtype for string not a good choice
+        else:
+            parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
+                                     raw_cutflow_hist.GetBinContent(b),
+                                     raw_cutflow_hist.GetBinError(b),
+                                     -1.,
+                                     -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
+                               dtype=[("cut", "S100"), ("yield_raw", "f4"),
+                                       ("yield_unc_raw", "f4"),
                                       ("eff", float),
                                       ("eff_total", float)])  # todo: array dtype for string not a good choice
 
@@ -108,21 +121,23 @@ class CutflowAnalyser(object):
         for systematic in self.systematics:
             for process in self.cutflows[systematic].keys():
                 for cutflow in self.cutflows[systematic][process].values():
-                    CutflowAnalyser.calculate_cut_efficiency(cutflow)
+                    self.calculate_cut_efficiency(cutflow)
 
-    @staticmethod
-    def calculate_cut_efficiency(cutflow):
+    def calculate_cut_efficiency(self, cutflow):
+        yield_str = "yield"
+        if self.raw:
+            yield_str = "yield_raw"
         for i in range(len(cutflow["cut"])):
             if i == 0:
                 cutflow[i]["eff"] = 100.
                 cutflow[i]["eff_total"] = 100.
                 continue
-            if cutflow[i-1]["yield"] != 0.:
-                cutflow[i]["eff"] = round(100.0*cutflow[i]["yield"]/cutflow[i-1]["yield"], 3)
+            if cutflow[i-1][yield_str] != 0.:
+                cutflow[i]["eff"] = round(100.0*cutflow[i][yield_str]/cutflow[i-1][yield_str], 3)
             else:
                 cutflow[i]["eff"] = -1.
-            if cutflow[0]["yield"] != 0.:
-                cutflow[i]["eff_total"] = round(100.0*cutflow[i]["yield"]/cutflow[0]["yield"], 3)
+            if cutflow[0][yield_str] != 0.:
+                cutflow[i]["eff_total"] = round(100.0*cutflow[i][yield_str]/cutflow[0][yield_str], 3)
             else:
                 cutflow[i]["eff_total"] = -1.
 
@@ -143,21 +158,26 @@ class CutflowAnalyser(object):
                                                               [cutflow_tmp[n] for n in cutflow_tmp.dtype.names[1:]])
             self.cutflow_tables= {k: tabulate(v.transpose(), headers=self.cutflows[systematic].keys()) for k, v in cutflow_tables.iteritems()}
 
-    @staticmethod
-    def stringify(cutflow):
+    def stringify(self, cutflow):
         def format_yield(value, uncertainty):
             if value > 10000.:
                 return "{:.3e} +- {:.3e}".format(value, uncertainty)
             else:
                 return "{:.2f} +- {:.2f}".format(value, uncertainty)
 
-        cutflow = np.array([(cutflow[i]["cut"],
-                             format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-                             #"%.2f +- %.2f" % (cutflow[i]["yield_raw"], cutflow[i]["yield_raw_unc"]),
-                             cutflow[i]["eff"],
-                             cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                           dtype=[("cut", "S100"), ("yield", "S100"), ("eff", float), ("eff_total", float)])
-                           #dtype=[("cut", "S100"), ("yield", "S100"), ("yield_raw", "S100"), ("eff", float), ("eff_total", float)])
+        if not self.raw:
+            cutflow = np.array([(cutflow[i]["cut"],
+                                 format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
+                                 cutflow[i]["eff"],
+                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+                               dtype=[("cut", "S100"), ("yield", "S100"), ("eff", float), ("eff_total", float)])
+        else:
+            cutflow = np.array([(cutflow[i]["cut"],
+                                 format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
+                                 cutflow[i]["eff"],
+                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff", float), ("eff_total", float)])
+
         return cutflow
 
     def print_cutflow_table(self):
