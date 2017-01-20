@@ -26,8 +26,6 @@ def _rebin_hist(hist, factor):
         binning = array('d', factor)
         _logger.debug('rebin histogram %s asymmetrically' % (hist.GetName()))
         hist = __rebin_asymmetric_1d_hist(hist, len(factor), binning)
-        hist.Draw()
-        raw_input()
     else:
         raise InvalidInputError('Invalid binning: ' + str(factor))
     return hist
@@ -50,7 +48,6 @@ def _rebin_1d_hist(hist, factor):
 
 
 def __rebin_asymmetric_1d_hist(hist, n_bins, bins):
-    print "rebinning hist with ", bins
     hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
     return hist.Rebin(n_bins - 1, hist.GetName(), bins)
 
