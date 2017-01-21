@@ -10,6 +10,13 @@ def retrieve_new_canvas(name, title, size_x=800, size_y=600):
     return ROOT.TCanvas(name, title, size_x, size_y)
 
 
+def plot_obj(hist, plot_config, **kwargs):
+    if isinstance(hist, ROOT.TH1):
+        return plot_hist(hist, plot_config, kwargs["y_max"])
+    if isinstance(hist, ROOT.TEfficiency):
+        return plot_graph(hist, plot_config, **kwargs)
+
+
 def plot_hist(hist, plot_config, y_max=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
@@ -279,13 +286,20 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     if not canvas or not ratio:
         raise InvalidInputError("Either canvas or ratio not provided.")
     y_frac = 0.25
-    try:
-        hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1F")[0]
-    except IndexError:
+    print object_handle.get_objects_from_canvas(ratio)
+    if isinstance(ratio, ROOT.TCanvas):
         try:
-            hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1D")[0]
+            hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1F")[0]
         except IndexError:
-            hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraph")[0]
+            try:
+                hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1D")[0]
+            except IndexError:
+                try:
+                    hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraph")[0]
+                except IndexError:
+                    hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraphAsymmErrors")[0]
+    else:
+        hratio = ratio
     if name is None:
         name = canvas.GetName() + "_ratio"
     c = retrieve_new_canvas(name, title)
