@@ -255,6 +255,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend.SetTextSize(0.025)
     plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
     stacks = get_objects_from_canvas_by_type(canvas, "THStack")
+    plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
     stacked_objects = None
     if len(stacks) is not 0:
         stacked_objects = stacks[0].GetHists()
