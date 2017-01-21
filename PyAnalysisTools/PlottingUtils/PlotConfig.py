@@ -134,7 +134,7 @@ def _parse_draw_option(plot_config, process_config):
     return draw_option
 
 
-def get_draw_option_as_root_str(plot_config, process_config = None):
+def get_draw_option_as_root_str(plot_config, process_config=None):
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
         draw_option = "p"
@@ -143,7 +143,7 @@ def get_draw_option_as_root_str(plot_config, process_config = None):
     return draw_option
 
 
-def get_style_setters_and_values(plot_config, process_config = None):
+def get_style_setters_and_values(plot_config, process_config=None):
     def transform_color(color):
         if isinstance(color, str):
             offset = 0
