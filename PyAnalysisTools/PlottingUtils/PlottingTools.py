@@ -55,6 +55,8 @@ def fetch_process_config(process, process_config):
 def format(obj, plot_config):
     if isinstance(obj, ROOT.TH1):
         return format_hist(obj, plot_config)
+    if isinstance(obj, ROOT.TGraphAsymmErrors):
+        return format_hist(obj, plot_config)
     if isinstance(obj, ROOT.TEfficiency):
         return format_tefficiency(obj, plot_config)
 
@@ -137,6 +139,13 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     return canvas
 
 
+def add_object_to_canvas(canvas, obj, plot_config):
+    if isinstance(obj, ROOT.TH1):
+        add_histogram_to_canvas(canvas, obj, plot_config)
+    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
+        add_graph_to_canvas(canvas, obj, plot_config)
+
+
 def add_histogram_to_canvas(canvas, hist, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
@@ -164,15 +173,17 @@ def plot_graph(graph, plot_config=None, **kwargs):
     return canvas
 
 
-def add_graph_to_canvas(canvas, graph, plot_options=None, draw_options=None):
+def add_graph_to_canvas(canvas, graph, plot_config):
     canvas.cd()
-    #if plot_options is not None:
-    #    plot_options.configure(graph)
-    if draw_options is None:
-        draw_options = 'psame'
-    if not draw_options.endswith('same'):
-        draw_options += 'same'
-    graph.Draw(draw_options)
+    draw_option = get_draw_option_as_root_str(plot_config)
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
+    print graph, style_setter, style_attr
+    if style_attr is not None:
+        getattr(graph, "Set" + style_setter + "Style")(style_attr)
+    if color is not None:
+        getattr(graph, "Set" + style_setter + "Color")(color)
+    graph.Draw("psame")
+    canvas.Update()
 
 
 def apply_ordering(hist_defs, ordering):
@@ -286,7 +297,6 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     if not canvas or not ratio:
         raise InvalidInputError("Either canvas or ratio not provided.")
     y_frac = 0.25
-    print object_handle.get_objects_from_canvas(ratio)
     if isinstance(ratio, ROOT.TCanvas):
         try:
             hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1F")[0]
