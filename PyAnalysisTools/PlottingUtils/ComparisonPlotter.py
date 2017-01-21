@@ -31,7 +31,7 @@ class ComparisonReader(object):
             _logger.debug("Using SingleFileMultiReader instance")
             return SingleFileMultiDistReader(self.input_files, plot_config)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_file:
-            _logger.debug("Using SingleFileMultiReader instance")
+            _logger.debug("Using MultiFileSingleDistReader instance")
             return MultiFileSingleDistReader(self.reference_file, self.input_files, plot_config)
 
     def get_data(self):
@@ -136,12 +136,12 @@ class ComparisonPlotter(object):
         ratio_graph = reference.GetPaintedGraph().Clone("ratio_"+hist.GetName())
         nbins = ratio_graph.GetN()
         for b in range(nbins):
-            eff_compare = hist.GetEfficiency(b)
-            eff_ratio = hist.GetEfficiency(b)
-            if eff_ratio == 0.:
+            eff_compare = hist.GetEfficiency(b+1)
+            eff_reference = reference.GetEfficiency(b+1)
+            if eff_reference == 0.:
                 ratio = 0.
             else:
-                ratio = eff_compare/eff_ratio
+                ratio = eff_compare/eff_reference
             x = ROOT.Double(0.)
             y = ROOT.Double(0.)
             ratio_graph.GetPoint(b, x, y)
@@ -151,7 +151,9 @@ class ComparisonPlotter(object):
     @staticmethod
     def calculate_ratio(hist, reference):
         if isinstance(reference, ROOT.TEfficiency):
-            return ComparisonPlotter.calculate_efficiency_ratio(hist, reference)
+            ratio_graph = ComparisonPlotter.calculate_efficiency_ratio(hist, reference)
+            FM.set_title_y(ratio_graph, "ratio")
+            return ratio_graph
         ratio_hist = hist.Clone("ratio_" + hist.GetName())
         ratio_hist.Divide(reference)
         FM.set_title_y(ratio_hist, "ratio")
@@ -162,7 +164,13 @@ class ComparisonPlotter(object):
         if not isinstance(reference, ROOT.TEfficiency):
             ratio_plot_config.xtitle = reference.GetXaxis().GetTitle()
         else:
+            c = ROOT.TCanvas("C", "C")
+            c.cd()
+            reference.Draw("ap")
             ratio_plot_config.xtitle = reference.GetPaintedGraph().GetXaxis().GetTitle()
+            ratio_plot_config.ytitle = "ratio"
+            index = ROOT.gROOT.GetListOfCanvases().IndexOf(c)
+            ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         if not isinstance(reference, ROOT.TEfficiency):
             canvas = PT.plot_histograms(ratios, ratio_plot_config)
@@ -182,11 +190,22 @@ class ComparisonPlotter(object):
         y_max = None
         if not isinstance(reference_hist, ROOT.TEfficiency):
             y_max = 1.1 * max([item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()])
+        else:
+            ctmp = ROOT.TCanvas("ctmp", "ctmp")
+            ctmp.cd()
+            reference_hist.Draw("ap")
+            ROOT.gPad.Update()
+            reference_hist.GetPaintedGraph().GetXaxis().GetTitle()
+            plot_config.xtitle = reference_hist.GetPaintedGraph().GetXaxis().GetTitle()
+            plot_config.ytitle = reference_hist.GetPaintedGraph().GetYaxis().GetTitle()
+            index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
+            ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         canvas = PT.plot_obj(reference_hist, plot_config, y_max=y_max)
         for hist in hists:
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
             plot_config.color = self.color_palette[hists.index(hist)]
-            PT.add_histogram_to_canvas(canvas, hist, plot_config)
+            #PT.add_histogram_to_canvas(canvas, hist, plot_config)
+            PT.add_object_to_canvas(canvas, hist, plot_config)
         FM.decorate_canvas(canvas, self.common_config)
         labels = ["reference"] + [""] * len(hists)
         if hasattr(self.common_config, "labels") and not hasattr(plot_config, "labels"):
