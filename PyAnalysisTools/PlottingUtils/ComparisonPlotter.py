@@ -216,7 +216,7 @@ class ComparisonPlotter(object):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
-        FM.add_legend_to_canvas(canvas, labels=labels, xl=0.3, xh=0.5)
+        FM.add_legend_to_canvas(canvas, labels=labels, **plot_config.legend_options)
         if self.common_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
         canvas_ratio = self.calculate_ratios(hists, reference_hist)
