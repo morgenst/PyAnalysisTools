@@ -177,7 +177,6 @@ def add_graph_to_canvas(canvas, graph, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
     style_setter, style_attr, color = get_style_setters_and_values(plot_config)
-    print graph, style_setter, style_attr
     if style_attr is not None:
         getattr(graph, "Set" + style_setter + "Style")(style_attr)
     if color is not None:
