@@ -70,8 +70,8 @@ class Writer:
         self.dir = directory
 
 
-def parallel_merge(data, output_path, prefix, merge_dir=None, force=False):
-    pool = Pool(processes=min(10, len(data)))
+def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, ncpu=10):
+    pool = Pool(processes=min(ncpu, len(data)))
     pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
                      merge_dir=merge_dir, force=force), data.items())
 
