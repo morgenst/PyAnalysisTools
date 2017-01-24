@@ -138,7 +138,9 @@ class ComparisonPlotter(object):
         for b in range(nbins):
             eff_compare = hist.GetEfficiency(b+1)
             eff_reference = reference.GetEfficiency(b+1)
-            if eff_reference == 0.:
+            if eff_reference == 0. and eff_compare == 0.:
+                ratio = 1.
+            elif eff_reference == 0. and eff_compare != 0.:
                 ratio = 0.
             else:
                 ratio = eff_compare/eff_reference
