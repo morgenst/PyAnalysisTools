@@ -12,12 +12,30 @@ def retrieve_new_canvas(name, title, size_x=800, size_y=600):
 
 def plot_obj(hist, plot_config, **kwargs):
     if isinstance(hist, ROOT.TH1):
-        return plot_hist(hist, plot_config, kwargs["y_max"])
+        return plot_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TEfficiency):
         return plot_graph(hist, plot_config, **kwargs)
 
 
-def plot_hist(hist, plot_config, y_max=None):
+def plot_objects(objects, plot_config, common_config=None, process_configs=None):
+    if len(objects) == 0:
+        _logger.warning("Requested plot objects with zero objects")
+        return
+    if isinstance(objects.values()[0], ROOT.TH1):
+        return plot_histograms(objects, plot_config, common_config, process_configs)
+    _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects[0])))
+
+
+def add_object_to_canvas(canvas, obj, plot_config):
+    if isinstance(obj, ROOT.TH1):
+        add_histogram_to_canvas(canvas, obj, plot_config)
+    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
+        add_graph_to_canvas(canvas, obj, plot_config)
+
+
+def plot_hist(hist, plot_config, **kwargs):
+    kwargs.setdefault("y_max", None)
+    ymax = kwargs["y_max"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
@@ -30,8 +48,8 @@ def plot_hist(hist, plot_config, y_max=None):
         getattr(hist, "Set"+style_setter+"Style")(style_attr)
     if color is not None:
         getattr(hist, "Set" + style_setter + "Color")(color)
-    if y_max:
-        FM.set_maximum_y(hist, y_max)
+    if ymax:
+        FM.set_maximum_y(hist, ymax)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(hist, plot_config.ymin)
     if hasattr(plot_config, "ymax"):
@@ -139,13 +157,6 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     return canvas
 
 
-def add_object_to_canvas(canvas, obj, plot_config):
-    if isinstance(obj, ROOT.TH1):
-        add_histogram_to_canvas(canvas, obj, plot_config)
-    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
-        add_graph_to_canvas(canvas, obj, plot_config)
-
-
 def add_histogram_to_canvas(canvas, hist, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
@@ -192,7 +203,18 @@ def apply_ordering(hist_defs, ordering):
     return sorted(hist_defs, key=lambda k: ordering.index(k[0]))
 
 
-def plot_stack(hists, plot_config, common_config=None, process_configs=None):
+def plot_stack(hists, plot_config, **kwargs):
+    """
+    Plot THStack
+    :param hists: histogram list to be stacked
+    :param plot_config:
+    :param kwargs:
+    :return:
+    """
+    kwargs.setdefault("common_config", None)
+    kwargs.setdefault("process_configs", None)
+    common_config = kwargs["common_config"]
+    process_configs = kwargs["process_configs"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.Clear()
     canvas.cd()
