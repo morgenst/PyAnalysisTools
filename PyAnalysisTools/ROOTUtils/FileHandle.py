@@ -36,6 +36,7 @@ class FileHandle(object):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("path", "./")
         kwargs.setdefault("cwd", "None")
+        kwargs.setdefault("open_option", "READ")
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
@@ -43,6 +44,7 @@ class FileHandle(object):
         self.dataset_info = None
         if "dataset_info" in kwargs:
             self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
+        self.open_option = kwargs["open_option"]
         self.tfile = None
         self.open()
         self.year = None
@@ -54,16 +56,27 @@ class FileHandle(object):
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
         if self.tfile is not None and self.tfile.IsOpen():
             return
-        self.tfile = TFile.Open(os.path.join(self.path, self.file_name), 'READ')
+        self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
+
+    def close(self):
+        self.tfile.Close()
 
     def parse_process(self):
         process_name = self.file_name.split("-")[-1].split(".")[0]
         process_name = re.sub(r"(\_\d)$", "", process_name)
         if "data" in process_name:
-            self.year, _, self.period = process_name.split("_")[0:3]
-            return ".".join([self.year, self.period])
+            try:
+                self.year, _, self.period = process_name.split("_")[0:3]
+                return ".".join([self.year, self.period])
+            except ValueError:
+                _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
+                return "Data"
         if self.dataset_info is not None:
-            tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
+            try:
+                tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
+            except ValueError:
+                tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
+                             self.dataset_info.values())
             if len(tmp) == 1:
                 return tmp[0].process_name
         if process_name.isdigit():
@@ -78,14 +91,17 @@ class FileHandle(object):
         except Exception as e:
             print e.msg()
 
-    def get_objects(self):
+    def get_objects(self, tdirectory=None):
         objects = []
-        for obj in self.tfile.GetListOfKeys():
-            objects.append(self.tfile.Get(obj.GetName()))
+        tdir = self.tfile
+        if tdirectory is not None:
+            tdir = self.get_directory(tdirectory)
+        for obj in tdir.GetListOfKeys():
+            objects.append(tdir.Get(obj.GetName()))
         return objects
 
-    def get_objects_by_type(self, typename):
-        obj = self.get_objects()
+    def get_objects_by_type(self, typename, tdirectory = None):
+        obj = self.get_objects(tdirectory)
         obj = filter(lambda t: t.InheritsFrom(typename), obj)
         return obj
 
