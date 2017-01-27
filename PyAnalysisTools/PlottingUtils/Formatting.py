@@ -4,7 +4,7 @@ import numpy as np
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
 
 
 def load_atlas_style():
@@ -265,7 +265,7 @@ def add_legend_to_canvas(canvas, **kwargs):
             plot_objects.append(plot_obj)
             continue
         if "process_configs" in kwargs:
-            label = kwargs["process_configs"][plot_obj.GetName().split("_")[-1]].label
+            label = find_process_config(plot_obj.GetName().split("_")[-1],kwargs["process_configs"]).label
         if "labels" in kwargs:
             label = kwargs["labels"][plot_objects.index(plot_obj)]
         is_stacked = False
