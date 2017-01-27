@@ -174,6 +174,9 @@ class BasePlotter(object):
     def apply_lumi_weights(self):
         for hist_set in self.histograms.values():
             for process, hist in hist_set.iteritems():
+                if hist is None:
+                    _logger.error("Histogram for process {:s} is None".format(process))
+                    continue
                 if "data" in process.lower():
                     continue
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_yields[process])
@@ -192,7 +195,7 @@ class BasePlotter(object):
 
     def make_multidimensional_plot(self, plot_config, data):
         for process, histogram in data.iteritems():
-            canvas = PT.plot_hist(histogram, plot_config)
+            canvas = PT.plot_obj(histogram, plot_config)
             canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
             canvas.SetRightMargin(0.15)
             FM.decorate_canvas(canvas, self.common_config, plot_config)
@@ -256,10 +259,9 @@ class BasePlotter(object):
             data = {k: v for k, v in data.iteritems() if v}
             if self.common_config.normalise or plot_config.normalise:
                 HT.normalise(data)
-            if self.common_config.outline == "hist" and not plot_config.is_multidimensional:
-                canvas = PT.plot_histograms(data, plot_config, self.common_config, self.process_configs)
-            elif self.common_config.outline == "stack" and not plot_config.is_multidimensional:
-                canvas = PT.plot_stack(data, plot_config, self.common_config, self.process_configs)
+            if self.common_config.outline == "stack" and not plot_config.is_multidimensional:
+                canvas = PT.plot_stack(data, plot_config=plot_config, common_config=self.common_config,
+                                       process_configs=self.process_configs)
                 stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
                 self.statistical_uncertainty_hist = ST.get_statistical_uncertainty_from_stack(stack)
                 #todo: temporary fix
@@ -272,8 +274,8 @@ class BasePlotter(object):
                 self.make_multidimensional_plot(plot_config, data)
                 continue
             else:
-                _logger.error("Unsupported outline option %s" % self.common_config.outline)
-                raise InvalidInputError("Unsupported outline option")
+                canvas = PT.plot_objects(data, plot_config, common_config=self.common_config,
+                                         process_configs=self.process_configs)
             FM.decorate_canvas(canvas, self.common_config, plot_config)
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
