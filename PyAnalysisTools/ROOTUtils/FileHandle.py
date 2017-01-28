@@ -100,7 +100,7 @@ class FileHandle(object):
             objects.append(tdir.Get(obj.GetName()))
         return objects
 
-    def get_objects_by_type(self, typename, tdirectory = None):
+    def get_objects_by_type(self, typename, tdirectory=None):
         obj = self.get_objects(tdirectory)
         obj = filter(lambda t: t.InheritsFrom(typename), obj)
         return obj
@@ -134,7 +134,8 @@ class FileHandle(object):
                 raise e
         obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
-            raise ValueError("Object " + obj_name + " does not exist in file " + os.path.join(self.path, self.file_name))
+            raise ValueError("Object " + obj_name + " does not exist in file " + os.path.join(self.path,
+                                                                                              self.file_name))
         return obj
 
     def get_number_of_total_events(self):
@@ -147,7 +148,8 @@ class FileHandle(object):
 
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
         tree = self.get_object_by_name(tree_name, tdirectory)
-        _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name, tree.GetEntries()))
+        _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name,
+                                                                             tree.GetEntries()))
         if cut_string is None:
             cut_string = ""
         if weight:
@@ -157,10 +159,10 @@ class FileHandle(object):
                 cut_string = "%s * (%s)" % (weight, cut_string)
 
         n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
-        _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." %(n_selected_events,
-                                                                                          tree_name,
-                                                                                          var_name,
-                                                                                          cut_string))
+        _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." % (n_selected_events,
+                                                                                           tree_name,
+                                                                                           var_name,
+                                                                                           cut_string))
         if n_selected_events != hist.GetEntries():
             _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
                           "initialised after histogram definition has been received")
