@@ -39,10 +39,10 @@ def plot_hist(hist, plot_config, **kwargs):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
-    hist = format_hist(hist, plot_config)
     process_config = None
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+    hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
     if style_attr is not None:
         getattr(hist, "Set"+style_setter+"Style")(style_attr)
@@ -62,7 +62,7 @@ def plot_hist(hist, plot_config, **kwargs):
 
 # todo: memoise
 def fetch_process_config(process, process_config):
-    if process is None:
+    if process is None or process_config is None:
         return None
     if process not in process_config:
         _logger.warning("Could not find process %s in process config" % process)
@@ -70,7 +70,7 @@ def fetch_process_config(process, process_config):
     return process_config[process]
 
 
-def format(obj, plot_config):
+def format_obj(obj, plot_config):
     if isinstance(obj, ROOT.TH1):
         return format_hist(obj, plot_config)
     if isinstance(obj, ROOT.TGraphAsymmErrors):
@@ -107,7 +107,7 @@ def format_hist(hist, plot_config):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
     if hasattr(plot_config, "rebin"):
-        HT.rebin(hist, plot_config.rebin)
+        hist = HT.rebin(hist, plot_config.rebin)
     return hist
 
 
@@ -161,6 +161,7 @@ def add_histogram_to_canvas(canvas, hist, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
     style_setter, style_attr, color = get_style_setters_and_values(plot_config)
+    hist = format_obj(hist, plot_config)
     if style_attr is not None:
         getattr(hist, "Set" + style_setter + "Style")(style_attr)
     if color is not None:
@@ -179,7 +180,7 @@ def plot_graph(graph, plot_config=None, **kwargs):
     graph.Draw("ap")
     ROOT.SetOwnership(graph, False)
     if plot_config:
-        graph = format(graph, plot_config)
+        graph = format_obj(graph, plot_config)
     canvas.Update()
     return canvas
 
