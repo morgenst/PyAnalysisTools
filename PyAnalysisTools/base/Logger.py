@@ -1,6 +1,3 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import logging
 
 
