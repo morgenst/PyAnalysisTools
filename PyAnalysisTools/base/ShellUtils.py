@@ -16,16 +16,18 @@ def make_dirs(path):
 def resolve_path_from_symbolic_links(symbolic_link, relative_path):
     def is_symbolic_link(path):
         return os.path.islink(path)
-    
     if symbolic_link is None or relative_path is None:
         return relative_path
     if os.path.isabs(relative_path):
         return relative_path
+    if not symbolic_link.endswith("/"):
+        symbolic_link += "/"
     top_level_dir = symbolic_link.split("/")
     for n in range(1, len(top_level_dir)):
-        if is_symbolic_link("/".join(top_level_dir[:-n])): 
+        if is_symbolic_link("/".join(top_level_dir[:-n])):
             return os.path.abspath(os.path.join(symbolic_link, relative_path))
     return relative_path
+
 
 def move(src, dest):
     try:
@@ -48,7 +50,10 @@ def remove_directory(path, safe=False):
         except OSError:
             raise
     else:
-        shutil.rmtree(path)
+        try:
+            shutil.rmtree(path)
+        except OSError as e:
+            raise e
 
 
 def source(script_name):
