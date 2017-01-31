@@ -27,9 +27,6 @@ class YAMLLoader(object):
         except yaml.YAMLError as e:
             _logger.error("Failed to load yaml file %s" % file_name)
             raise e
-        except Exception as e:
-            _logger.error("Unexpected error for %s" % file_name)
-            raise e
 
 
 class YAMLDumper(object):

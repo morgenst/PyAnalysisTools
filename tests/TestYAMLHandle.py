@@ -14,11 +14,20 @@ class TestYAMLLoader(unittest.TestCase):
         self.test_file.close()
 
     def test_parsing(self):
-        result = self.loader.read_yaml("yaml_loader.yml")
+        result = YL.read_yaml("yaml_loader.yml")
         self.assertEqual(result, self.data)
 
     def test_io_exception(self):
-        self.assertRaises(IOError, self.loader.read_yaml, "non_existing_file")
+        self.assertRaises(IOError, YL.read_yaml, "non_existing_file")
+
+    def test_invalid_input_file(self):
+        test_file = open("invalid_yaml_file.yml", "w+")
+        print >> test_file, "foo:--:\nsome invalid input"
+        test_file.close()
+        self.assertRaises(Exception, YL.read_yaml, "invalid_yaml_file.yml")
+
+    def test_accept_None(self):
+        self.assertEqual(None, YL.read_yaml(None, True))
 
 
 class TestYAMLDumper(unittest.TestCase):
@@ -28,5 +37,8 @@ class TestYAMLDumper(unittest.TestCase):
         self.test_file_name = "yaml_dumper.yml"
 
     def test_dump_dict(self):
-        YD().dump_yaml(self.data, self.test_file_name)
+        YD.dump_yaml(self.data, self.test_file_name)
         self.assertTrue(os.path.exists(self.test_file_name))
+
+    def test_dump_failure(self):
+        self.assertRaises(Exception, YD.dump_yaml, "foo:--:\nsome invalid input", "/usr/bin/test.yml")
