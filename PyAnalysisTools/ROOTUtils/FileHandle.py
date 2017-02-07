@@ -42,7 +42,7 @@ class FileHandle(object):
         self.absFName = os.path.join(self.path, self.file_name)
         #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
-        if "dataset_info" in kwargs:
+        if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
             self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
         self.open_option = kwargs["open_option"]
         self.tfile = None
@@ -157,7 +157,6 @@ class FileHandle(object):
                 cut_string = weight
             else:
                 cut_string = "%s * (%s)" % (weight, cut_string)
-
         n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
         _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." % (n_selected_events,
                                                                                            tree_name,
