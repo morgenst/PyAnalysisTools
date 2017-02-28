@@ -69,7 +69,6 @@ class SingleFileMultiDistReader(ComparisonReader):
         self.file_handle = FileHandle(file_name=input_files)
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
-        #super(SingleFileMultiDistReader, self).__init__(**kwargs)
 
     def get_data(self):
         try:
@@ -184,8 +183,6 @@ class ComparisonPlotter(object):
         hists = data[1]
         y_max = None
         if not isinstance(reference_hist, ROOT.TEfficiency):
-            print reference_hist, hists
-            print [item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()], max([item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()])
             y_max = 1.3 * max([item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()])
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
@@ -197,11 +194,9 @@ class ComparisonPlotter(object):
             plot_config.ytitle = reference_hist.GetPaintedGraph().GetYaxis().GetTitle()
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
-        print "plot obj ", y_max
         canvas = PT.plot_obj(reference_hist, plot_config, y_max=y_max)
 
         for hist in hists:
-            print "hist ", hist
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
             plot_config.color = self.color_palette[hists.index(hist)]
             PT.add_object_to_canvas(canvas, hist, plot_config)
@@ -220,7 +215,8 @@ class ComparisonPlotter(object):
         FM.add_legend_to_canvas(canvas, labels=labels, **plot_config.legend_options)
         if self.common_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
-        canvas.SaveAs("foo.pdf")
+        if hasattr(self.common_config, "ratio_config"):
+            plot_config = self.common_config.ratio_config
         plot_config.name = "ratio_" + plot_config.name
         canvas_ratio = RatioPlotter(reference=reference_hist, compare=hists, plot_config=plot_config).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
