@@ -6,7 +6,7 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 
@@ -32,7 +32,7 @@ class ComparisonReader(object):
     def get_instance(self, plot_config):
         if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref"):# and hasattr(plot_config, "processes"):
             _logger.debug("Using SingleFileMultiReader instance")
-            return SingleFileMultiDistReader(self.input_files, plot_config)
+            return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_file:
             _logger.debug("Using MultiFileSingleDistReader instance")
             return MultiFileSingleDistReader(self.reference_file, self.input_files, plot_config)
@@ -44,9 +44,23 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
+    def make_plot(self, file_handle, plot_config):
+        hist = get_histogram_definition(plot_config)
+        hist.SetName(hist.GetName() + file_handle.process)
+        try:
+            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, None,
+                                                    tdirectory="Nominal")
+            hist.SetName(hist.GetName() + "_" + file_handle.process)
+            _logger.debug("try to access config for process %s" % file_handle.process)
+        except Exception as e:
+            raise e
+        return hist
+
 
 class SingleFileMultiDistReader(ComparisonReader):
-    def __init__(self, input_files, plot_config):
+    def __init__(self, **kwargs):
+        input_files = kwargs["input_files"]
+        plot_config = kwargs["plot_config"]
         if isinstance(input_files, list):
             if len(input_files) > 1:
                 _logger.error("Privided {:d} input files for single file reader. "
@@ -54,16 +68,27 @@ class SingleFileMultiDistReader(ComparisonReader):
             input_files = input_files[0]
         self.file_handle = FileHandle(file_name=input_files)
         self.plot_config = plot_config
+        self.tree_name = kwargs["tree_name"]
+        #super(SingleFileMultiDistReader, self).__init__(**kwargs)
 
     def get_data(self):
-        reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref)
-        compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist)
-        if hasattr(self.plot_config, "retrieve_by") and self.plot_config.retrieve_by == "type":
-            reference = get_objects_from_canvas_by_type(reference_canvas, "TH1F")[0]
-            compare = get_objects_from_canvas_by_type(compare_canvas, "TH1F")
-        else:
-            reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])[0]
-            compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
+        try:
+            reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref, tdirectory="Nominal")
+            compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist, tdirectory="Nominal")
+            if hasattr(self.plot_config, "retrieve_by") and self.plot_config.retrieve_by == "type":
+                reference = get_objects_from_canvas_by_type(reference_canvas, "TH1F")[0]
+                compare = get_objects_from_canvas_by_type(compare_canvas, "TH1F")
+            else:
+                reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])[0]
+                compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
+        except ValueError:
+            plot_config_ref = copy(self.plot_config)
+            plot_config_ref.name = plot_config_ref.name+"_reference"
+            plot_config_ref.dist = self.plot_config.dist_ref
+            reference = self.make_plot(self.file_handle, plot_config_ref)
+            compare = [self.make_plot(self.file_handle, self.plot_config)]
+            reference.SetDirectory(0)
+            map(lambda obj: obj.SetDirectory(0), compare)
         return reference, compare
 
 
@@ -148,7 +173,6 @@ class ComparisonPlotter(object):
         else:
             _logger.warning("Unsuppored type %s for colors in common_config" % type(self.common_config.colors[0]))
 
-
     def make_comparison_plots(self):
         data = self.getter.get_data()
         for plot_config, hists in data.iteritems():
@@ -160,6 +184,7 @@ class ComparisonPlotter(object):
         hists = data[1]
         y_max = None
         if not isinstance(reference_hist, ROOT.TEfficiency):
+            print reference_hist, hists
             print [item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()], max([item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()])
             y_max = 1.3 * max([item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()])
         else:
@@ -174,7 +199,6 @@ class ComparisonPlotter(object):
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         print "plot obj ", y_max
         canvas = PT.plot_obj(reference_hist, plot_config, y_max=y_max)
-        canvas.SaveAs("foo.pdf")
 
         for hist in hists:
             print "hist ", hist
@@ -196,17 +220,9 @@ class ComparisonPlotter(object):
         FM.add_legend_to_canvas(canvas, labels=labels, **plot_config.legend_options)
         if self.common_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
+        canvas.SaveAs("foo.pdf")
+        plot_config.name = "ratio_" + plot_config.name
         canvas_ratio = RatioPlotter(reference=reference_hist, compare=hists, plot_config=plot_config).make_ratio_plot()
-        #canvas_ratio = self.calculate_ratios(hists, reference_hist)
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)
-
-    def compare_objects(self):
-        print "obsolete"
-        pass
-        self.parse_config()
-        if hasattr(self.common_config, "colors"):
-            self.update_color_palette()
-        for plot_config in self.plot_configs:
-            self.make_comparison_plot(plot_config)
