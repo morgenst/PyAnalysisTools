@@ -72,19 +72,19 @@ def scale(hist, weight):
     hist.Scale(weight)
 
 
-def normalise(histograms):
+def normalise(histograms, range = [-1, -1]):
     if type(histograms) == dict:
         for h in histograms.keys():
-            histograms[h] = _normalise_1d_hist(histograms[h])
+            histograms[h] = _normalise_1d_hist(histograms[h], range)
     elif type(histograms) == list:
         for h in histograms:
-            h = _normalise_1d_hist(h)
+            h = _normalise_1d_hist(h, range)
     else:
-        histograms = _normalise_1d_hist(histograms)
+        histograms = _normalise_1d_hist(histograms, range)
 
 
-def _normalise_1d_hist(hist):
-    integral = hist.Integral()
+def _normalise_1d_hist(hist, range = [-1, -1]):
+    integral = hist.Integral(*range)
     if integral == 0:
         return hist
     hist.Scale(1. / integral)
