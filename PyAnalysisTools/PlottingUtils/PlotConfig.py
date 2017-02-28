@@ -200,6 +200,8 @@ def get_histogram_definition(plot_config):
 
 
 def find_process_config(process_name, process_configs):
+    if process_configs is None:
+        return None
     if process_name in process_configs:
         return process_configs[process_name]
     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
