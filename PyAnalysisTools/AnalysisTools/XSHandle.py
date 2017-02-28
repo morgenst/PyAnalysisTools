@@ -1,5 +1,5 @@
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
-from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base import _logger, InvalidInputError
 
 
 class Dataset(object):
@@ -47,6 +47,21 @@ class XSHandle(object):
         if hasattr(xs_info, "kfactor"):
             xs_scale_factor *= xs_info.kfactor
         return xs_scale_factor
+
+    def retrieve_xs_info(self, process):
+        if self.invalid:
+            raise InvalidInputError("Invalid config of XSHandle")
+        xsec, filter_eff, kfactor = None, 1., 1.
+        if process not in self.cross_sections:
+            _logger.error("Could not found process %s in cross section configuration" % process)
+            return xsec, filter_eff, kfactor
+        xs_info = self.cross_sections[process]
+        xsec = float(xs_info.xsec)
+        if hasattr(xs_info, "filtereff"):
+            filter_eff = xs_info.filtereff
+        if hasattr(xs_info, "kfactor"):
+            kfactor = xs_info.kfactor
+        return xsec, filter_eff, kfactor
 
     def get_lumi_scale_factor(self, process, lumi, mc_events):
         return self.get_xs_scale_factor(process) * lumi * 1000. * 1000. / mc_events
