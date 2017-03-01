@@ -134,12 +134,18 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
-        if common_config is None or common_config.ignore_style:
+        #todo: might break something upstream
+        # if common_config is None or common_config.ignore_style:
+        #     style_setter = "Line"
+        if common_config is not None and common_config.ignore_style:
             style_setter = "Line"
         if style_attr is not None and not common_config.ignore_style:
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
-            getattr(hist, "Set" + style_setter + "Color")(color)
+            hist_color = color
+            if isinstance(color, list):
+                hist_color = color[hists.index(hist)]
+            getattr(hist, "Set" + style_setter + "Color")(hist_color)
         if is_first:
             FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)

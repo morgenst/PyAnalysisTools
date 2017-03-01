@@ -6,7 +6,8 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition, \
+    expand_plot_config
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 
@@ -81,11 +82,12 @@ class SingleFileMultiDistReader(ComparisonReader):
                 reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])[0]
                 compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
         except ValueError:
-            plot_config_ref = copy(self.plot_config)
+            plot_configs = expand_plot_config(self.plot_config)
+            plot_config_ref = copy(plot_configs[0])
             plot_config_ref.name = plot_config_ref.name+"_reference"
             plot_config_ref.dist = self.plot_config.dist_ref
             reference = self.make_plot(self.file_handle, plot_config_ref)
-            compare = [self.make_plot(self.file_handle, self.plot_config)]
+            compare = [self.make_plot(self.file_handle, plot_config) for plot_config in plot_configs]
             reference.SetDirectory(0)
             map(lambda obj: obj.SetDirectory(0), compare)
         return reference, compare

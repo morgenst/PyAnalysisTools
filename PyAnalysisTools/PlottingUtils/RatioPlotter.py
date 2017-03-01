@@ -2,6 +2,7 @@ import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils.HistTools import get_colors
 
 
 class RatioCalculator(object):
@@ -54,6 +55,7 @@ class RatioPlotter(object):
             raise InvalidInputError("Missing reference")
         self.reference = kwargs["reference"]
         self.plot_config = kwargs["plot_config"]
+        self.compare = kwargs["compare"]
         self.ratio_calculator = RatioCalculator(**kwargs)
 
     def make_ratio_plot(self):
@@ -65,6 +67,9 @@ class RatioPlotter(object):
 
     def make_ratio_histogram(self, ratios):
         self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+        if len(self.compare) > 1:
+            colors = get_colors(self.compare)
+            self.plot_config.color = colors
         return PT.plot_histograms(ratios, self.plot_config)
 
     def make_ratio_tefficiency(self, ratios):

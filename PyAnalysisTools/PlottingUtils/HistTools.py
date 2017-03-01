@@ -72,19 +72,19 @@ def scale(hist, weight):
     hist.Scale(weight)
 
 
-def normalise(histograms, range = [-1, -1]):
+def normalise(histograms, integration_range=[-1, -1]):
     if type(histograms) == dict:
         for h in histograms.keys():
-            histograms[h] = _normalise_1d_hist(histograms[h], range)
+            histograms[h] = _normalise_1d_hist(histograms[h], integration_range)
     elif type(histograms) == list:
         for h in histograms:
-            h = _normalise_1d_hist(h, range)
+            h = _normalise_1d_hist(h, integration_range)
     else:
-        histograms = _normalise_1d_hist(histograms, range)
+        histograms = _normalise_1d_hist(histograms, integration_range)
 
 
-def _normalise_1d_hist(hist, range = [-1, -1]):
-    integral = hist.Integral(*range)
+def _normalise_1d_hist(hist, integration_range=[-1, -1]):
+    integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
     hist.Scale(1. / integral)
@@ -100,3 +100,12 @@ def read_bin_from_label(hist, label):
     if len(matched_labels) > 1:
         _logger.warning("Found multiple matches for label {:s} in {:s}".format(label, hist.GetName()))
     return labels.index(matched_labels[0])
+
+
+def get_colors(hists):
+    def get_color():
+        draw_option = hist.GetDrawOption()
+        #todo: refactor this part as information parsing is implemented in PlotConfig
+        if "hist" in draw_option.lower():
+            return hist.GetLineColor()
+    return [get_color() for hist in hists]

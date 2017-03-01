@@ -1,5 +1,6 @@
 import ROOT
 import re
+from copy import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -48,7 +49,6 @@ class PlotConfig(object):
             self.is_multidimensional = True if ":" in self.dist else False
 
     def _merge(self, other):
-        print "call merge"
         for attr, val in other.__dict__.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
@@ -84,6 +84,17 @@ class ProcessConfig(object):
         self.subprocesses.append(subprocess_name)
         return ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
 
+
+def expand_plot_config(plot_config):
+    if not isinstance(plot_config.dist, list):
+        _logger.debug("tried to expand plot config with single distribution")
+        return [plot_config]
+    plot_configs = []
+    for dist in plot_config.dist:
+        tmp_config = copy(plot_config)
+        tmp_config.dist = dist
+        plot_configs.append(tmp_config)
+    return plot_configs
 
 def parse_and_build_plot_config(config_file):
     try:
