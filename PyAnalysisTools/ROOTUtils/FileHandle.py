@@ -49,7 +49,8 @@ class FileHandle(object):
         self.open()
         self.year = None
         self.period = None
-        self.process = self.parse_process()
+        if not "ignore_process_name" in kwargs:
+            self.process = self.parse_process()
 
     def open(self):
         if not os.path.exists(self.absFName):
@@ -62,26 +63,31 @@ class FileHandle(object):
         self.tfile.Close()
 
     def parse_process(self):
+        def analyse_process_name():
+            if "data" in process_name:
+                try:
+                    self.year, _, self.period = process_name.split("_")[0:3]
+                    return ".".join([self.year, self.period])
+                except ValueError:
+                    _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
+                    return "Data"
+            if self.dataset_info is not None:
+                try:
+                    tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
+                except ValueError:
+                    tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
+                                 self.dataset_info.values())
+                if len(tmp) == 1:
+                    return tmp[0].process_name
+            if process_name.isdigit():
+                return "Data"
         process_name = self.file_name.split("-")[-1].split(".")[0]
         process_name = re.sub(r"(\_\d)$", "", process_name)
-        if "data" in process_name:
-            try:
-                self.year, _, self.period = process_name.split("_")[0:3]
-                return ".".join([self.year, self.period])
-            except ValueError:
-                _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
-                return "Data"
-        if self.dataset_info is not None:
-            try:
-                tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
-            except ValueError:
-                tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
-                             self.dataset_info.values())
-            if len(tmp) == 1:
-                return tmp[0].process_name
-        if process_name.isdigit():
-            return "Data"
-        return process_name
+        analysed_process_name = analyse_process_name()
+        if analysed_process_name is None:
+            process_name = self.file_name.split("/")[-2]
+            analysed_process_name = analyse_process_name()
+        return analysed_process_name
 
     def get_directory(self, directory):
         if directory is None:
