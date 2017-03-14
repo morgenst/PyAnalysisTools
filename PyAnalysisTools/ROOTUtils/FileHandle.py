@@ -37,6 +37,7 @@ class FileHandle(object):
         kwargs.setdefault("path", "./")
         kwargs.setdefault("cwd", "None")
         kwargs.setdefault("open_option", "READ")
+        kwargs.setdefault("switch_off_process_name_anlaysis", False)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
@@ -50,7 +51,7 @@ class FileHandle(object):
         self.year = None
         self.period = None
         if not "ignore_process_name" in kwargs:
-            self.process = self.parse_process()
+            self.process = self.parse_process(kwargs["switch_off_process_name_anlysis"])
 
     def open(self):
         if not os.path.exists(self.absFName):
@@ -62,7 +63,7 @@ class FileHandle(object):
     def close(self):
         self.tfile.Close()
 
-    def parse_process(self):
+    def parse_process(self, switch_off_analysis=False):
         def analyse_process_name():
             if "data" in process_name:
                 try:
@@ -82,6 +83,8 @@ class FileHandle(object):
             if process_name.isdigit():
                 return "Data"
         process_name = self.file_name.split("-")[-1].split(".")[0]
+        if switch_off_analysis:
+            return process_name
         process_name = re.sub(r"(\_\d)$", "", process_name)
         analysed_process_name = analyse_process_name()
         if analysed_process_name is None:
