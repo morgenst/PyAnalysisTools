@@ -26,10 +26,14 @@ class PlotConfig(object):
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
         kwargs.setdefault("y_min", 0.)
+        kwargs.setdefault("ymin", 0.)
         for k,v in kwargs.iteritems():
+            if k == "y_min" or k == "ymax":
+                _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config":
                 self.set_ratio_config(**v)
                 continue
+
             setattr(self, k.lower(), v)
         self.auto_decorate()
 

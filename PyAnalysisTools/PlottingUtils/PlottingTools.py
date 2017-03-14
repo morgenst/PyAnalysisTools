@@ -49,6 +49,7 @@ def plot_hist(hist, plot_config, **kwargs):
     if color is not None:
         getattr(hist, "Set" + style_setter + "Color")(color)
     if ymax:
+        _logger.info("Deprecated. Use plot_config.ymax")
         FM.set_maximum_y(hist, ymax)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(hist, plot_config.ymin)
@@ -108,6 +109,14 @@ def format_hist(hist, plot_config):
     FM.set_title_y(hist, ytitle)
     if hasattr(plot_config, "rebin"):
         hist = HT.rebin(hist, plot_config.rebin)
+        yscale = 1.1
+        if hasattr(plot_config, "yscale"):
+            yscale = yscale
+        ymax = yscale*hist.GetMaximum()
+        if hasattr(plot_config, "ymax"):
+            plot_config.ymax = max(plot_config.ymax, ymax)
+        else:
+            plot_config.ymax = ymax
     return hist
 
 
@@ -335,7 +344,10 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
                 try:
                     hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraph")[0]
                 except IndexError:
-                    hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraphAsymmErrors")[0]
+                    try:
+                        hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraphAsymmErrors")[0]
+                    except IndexError:
+                        hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TEfficiency")[0]
     else:
         hratio = ratio
     if name is None:
@@ -351,6 +363,8 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     pad2.SetBottomMargin(0.1)
     pad2.Draw()
     pad1.cd()
+    object_handle.get_objects_from_canvas(canvas)
+
     try:
         stack = object_handle.get_objects_from_canvas_by_type(canvas, "THStack")[0]
         stack.GetXaxis().SetTitleSize(0)
