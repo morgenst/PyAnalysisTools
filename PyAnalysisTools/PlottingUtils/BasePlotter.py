@@ -1,12 +1,10 @@
 import ROOT
 import copy
-import dill
 import pathos.multiprocessing as mp
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition, find_process_config, merge_plot_configs
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -96,6 +94,8 @@ class BasePlotter(object):
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
+            if self.process_configs is None:
+                return hist
             process_config = find_process_config(file_handle.process, self.process_configs)
             if process_config is None:
                 _logger.error("Could not find process config for {:s}".format(file_handle.process))
@@ -242,7 +242,6 @@ class BasePlotter(object):
         self.read_cutflows()
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_config))).map(self.read_histograms,
                                                                                        self.plot_config)
-
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
@@ -250,15 +249,16 @@ class BasePlotter(object):
         if hasattr(self.common_config, "normalise_after_cut"):
             self.cut_based_normalise(self.common_config.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
-        for hist_set in self.histograms.values():
-            for process_name in hist_set.keys():
-                _ = find_process_config(process_name, self.process_configs)
-        if self.common_config.merge:
-            self.merge_histograms()
+        if not self.process_configs is None:
+            for hist_set in self.histograms.values():
+                for process_name in hist_set.keys():
+                    _ = find_process_config(process_name, self.process_configs)
+            if self.common_config.merge:
+                self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             data = {k: v for k, v in data.iteritems() if v}
             if self.common_config.normalise or plot_config.normalise:
-                HT.normalise(data)
+                HT.normalise(data, integration_range=[0, -1])
             if self.common_config.outline == "stack" and not plot_config.is_multidimensional:
                 canvas = PT.plot_stack(data, plot_config=plot_config, common_config=self.common_config,
                                        process_configs=self.process_configs)
@@ -268,7 +268,7 @@ class BasePlotter(object):
                 self.statistical_uncertainty_hist.SetMarkerStyle(1)
                 plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                                   color=ROOT.kBlack)
-                PT.add_histogram_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
+                PT.add_object_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
                 self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
             elif plot_config.is_multidimensional:
                 self.make_multidimensional_plot(plot_config, data)
