@@ -36,13 +36,19 @@ def decorate_canvas(canvas, common_config, plot_config=None):
 def set_title_x(obj, title):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
-    obj.GetXaxis().SetTitle(title)
+    try:
+        obj.GetXaxis().SetTitle(title)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
 
 
 def set_title_y(obj, title):
     if not hasattr(obj, "GetYaxis"):
         raise TypeError
-    obj.GetYaxis().SetTitle(title)
+    try:
+        obj.GetYaxis().SetTitle(title)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
 
 
 def set_style_options(obj, style):
@@ -218,7 +224,7 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
 def auto_scale_y_axis(canvas, offset=1.1):
     graph_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
     max_y = 1.1 * max([graph_obj.GetMaximum() for graph_obj in graph_objects])
-    draw_options = [graph_objects.GetDrawOption() for graph_obj in graph_objects]
+    draw_options = [graph_obj.GetDrawOption() for graph_obj in graph_objects]
     first_index = draw_options.index(filter(lambda draw_option: draw_option.count("same") == 0)[0])
     first_graph_obj = graph_objects[first_index]
     set_maximum_y(first_graph_obj, max_y)
@@ -248,7 +254,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         if re.match(r"e\d", draw_option.lower()):
             legend_option += "F"
         if not legend_option:
-            _logger.error("Unable to parse legend option from " % draw_option)
+            _logger.error("Unable to parse legend option from {:s}".format(draw_option))
         return legend_option
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
@@ -261,16 +267,19 @@ def add_legend_to_canvas(canvas, **kwargs):
         stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
     for plot_obj in plot_objects:
+        label = None
         if "stat.unc" in plot_obj.GetName() and plot_obj != plot_objects[-1]:
             plot_objects.append(plot_obj)
             continue
-        if "process_configs" in kwargs:
+        if "process_configs" in kwargs and kwargs["process_configs"] is not None:
             label = find_process_config(plot_obj.GetName().split("_")[-1],kwargs["process_configs"]).label
         if "labels" in kwargs:
             label = kwargs["labels"][plot_objects.index(plot_obj)]
         is_stacked = False
         if stacked_objects and plot_obj in stacked_objects:
             is_stacked = True
+        if label is None:
+            continue
         legend.AddEntry(plot_obj, label, convert_draw_option())
     canvas.cd()
     legend.Draw("sames")
