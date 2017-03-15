@@ -37,7 +37,7 @@ class FileHandle(object):
         kwargs.setdefault("path", "./")
         kwargs.setdefault("cwd", "None")
         kwargs.setdefault("open_option", "READ")
-        kwargs.setdefault("switch_off_process_name_anlaysis", False)
+        kwargs.setdefault("switch_off_process_name_analysis", False)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
@@ -51,7 +51,7 @@ class FileHandle(object):
         self.year = None
         self.period = None
         if not "ignore_process_name" in kwargs:
-            self.process = self.parse_process(kwargs["switch_off_process_name_anlysis"])
+            self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
 
     def open(self):
         if not os.path.exists(self.absFName):
