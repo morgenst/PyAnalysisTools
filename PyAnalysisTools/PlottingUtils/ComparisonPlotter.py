@@ -26,6 +26,9 @@ class ComparisonReader(object):
         self.input_files = kwargs["input_files"]
         self.reference_file = kwargs["reference_file"]
         self.tree_name = kwargs["tree_name"]
+        for opt, val in kwargs.iteritems():
+            if not hasattr(self, opt):
+                setattr(self, opt, val)
 
     def parse_config(self):
         self.plot_configs, self.common_config = parse_and_build_plot_config(self.config_file)
@@ -36,8 +39,7 @@ class ComparisonReader(object):
             return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_file:
             _logger.debug("Using MultiFileSingleDistReader instance")
-            return MultiFileSingleDistReader(reference_file=self.reference_file, input_files=self.input_files,
-                                             plot_config=plot_config, tree_name=self.tree_name)
+            return MultiFileSingleDistReader(plot_config=plot_config, **self.__dict__)
 
     def get_data(self):
         data = {}
@@ -46,11 +48,13 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    def make_plot(self, file_handle, plot_config, use_plot_config_name=False):
+    def make_plot(self, file_handle, plot_config, tree_name=None, use_plot_config_name=False):
         hist = get_histogram_definition(plot_config)
         hist.SetName(hist.GetName() + file_handle.process)
+        if tree_name is None:
+            tree_name = self.tree_name
         try:
-            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, None,
+            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, None,
                                                     tdirectory="Nominal")
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
@@ -85,7 +89,7 @@ class SingleFileMultiDistReader(ComparisonReader):
         except ValueError:
             plot_configs = expand_plot_config(self.plot_config)
             plot_config_ref = copy(plot_configs[0])
-            plot_config_ref.name = plot_config_ref.name+"_reference"
+            plot_config_ref.name += "_reference"
             plot_config_ref.dist = self.plot_config.dist_ref
             reference = self.make_plot(self.file_handle, plot_config_ref)
             compare = [self.make_plot(self.file_handle, plot_config) for plot_config in plot_configs]
@@ -110,10 +114,13 @@ class MultiFileSingleDistReader(ComparisonReader):
         reference_file = kwargs["reference_file"]
         input_files = kwargs["input_files"]
         plot_config = kwargs["plot_config"]
-        self.reference_file_handle = FileHandle(file_name=reference_file, switch_off_process_name_anlysis=True)
-        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_anlysis=True) for fn in input_files]
+        self.reference_file_handle = FileHandle(file_name=reference_file, switch_off_process_name_analysis=True)
+        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
+        self.reference_tree_name = copy(self.tree_name)
+        if "reference_tree_name" in kwargs and not kwargs["reference_tree_name"] is None:
+            self.reference_tree_name = kwargs["reference_tree_name"]
 
     def get_data(self):
         try:
@@ -127,8 +134,8 @@ class MultiFileSingleDistReader(ComparisonReader):
             compare = get_objects_from_canvas_by_type(compare_canvas, obj_type)
         except ValueError:
             plot_config_ref = copy(self.plot_config)
-            plot_config_ref.name = plot_config_ref.name + "_reference"
-            reference = self.make_plot(self.reference_file_handle, plot_config_ref)
+            plot_config_ref.name += "_reference"
+            reference = self.make_plot(self.reference_file_handle, plot_config_ref, self.reference_tree_name)
             compare = [self.make_plot(file_handle, self.plot_config) for file_handle in self.file_handles]
             reference.SetDirectory(0)
             map(lambda obj: obj.SetDirectory(0), compare)
@@ -157,7 +164,6 @@ class ComparisonPlotter(object):
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
-
         self.analyse_plot_config()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, common_config=self.common_config, **kwargs)
 

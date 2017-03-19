@@ -21,7 +21,7 @@ class PlotConfig(object):
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("weight", False)
         kwargs.setdefault("blind", None)
-        kwargs.setdefault("legend_options", None)
+        kwargs.setdefault("legend_options", dict())
         kwargs.setdefault("make_plot_book", False)
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
@@ -99,6 +99,7 @@ def expand_plot_config(plot_config):
         tmp_config.dist = dist
         plot_configs.append(tmp_config)
     return plot_configs
+
 
 def parse_and_build_plot_config(config_file):
     try:
