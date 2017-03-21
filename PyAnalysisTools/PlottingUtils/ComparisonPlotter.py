@@ -20,11 +20,11 @@ class ComparisonReader(object):
         if not "input_files" in kwargs:
             _logger.error("No input file provided")
             raise InvalidInputError("Missing input files")
-        kwargs.setdefault("reference_file", None)
+        kwargs.setdefault("reference_files", None)
         self.plot_configs = kwargs["plot_configs"]
         self.common_config = kwargs["common_config"]
         self.input_files = kwargs["input_files"]
-        self.reference_file = kwargs["reference_file"]
+        self.reference_files = kwargs["reference_files"]
         self.tree_name = kwargs["tree_name"]
         for opt, val in kwargs.iteritems():
             if not hasattr(self, opt):
@@ -37,7 +37,7 @@ class ComparisonReader(object):
         if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref"):# and hasattr(plot_config, "processes"):
             _logger.debug("Using SingleFileMultiReader instance")
             return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
-        if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_file:
+        if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_files:
             _logger.debug("Using MultiFileSingleDistReader instance")
             return MultiFileSingleDistReader(plot_config=plot_config, **self.__dict__)
 
@@ -48,7 +48,7 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    def make_plot(self, file_handle, plot_config, tree_name=None, use_plot_config_name=False):
+    def make_plot(self, file_handle, plot_config, tree_name=None):
         hist = get_histogram_definition(plot_config)
         hist.SetName(hist.GetName() + file_handle.process)
         if tree_name is None:
@@ -111,10 +111,11 @@ class MultiFileSingleDistReader(ComparisonReader):
     Read same distribitionS from reference and input files
     """
     def __init__(self, **kwargs):
-        reference_file = kwargs["reference_file"]
+        reference_files = kwargs["reference_files"]
         input_files = kwargs["input_files"]
         plot_config = kwargs["plot_config"]
-        self.reference_file_handle = FileHandle(file_name=reference_file, switch_off_process_name_analysis=True)
+        self.reference_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True)
+                                       for fn in reference_files]
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
@@ -124,20 +125,23 @@ class MultiFileSingleDistReader(ComparisonReader):
 
     def get_data(self):
         try:
-            reference_canvas = self.reference_file_handle.get_object_by_name(self.plot_config.dist)
+            reference_canvases = [file_handle.get_object_by_name(self.plot_config.dist)
+                                  for file_handle in self.reference_file_handles]
             #todo: generalise to arbitrary number of compare inputs
             #todo: generalise to type given by plot config
             compare_canvas = self.file_handles[0].get_object_by_name(self.plot_config.dist)
             if hasattr(self.plot_config, "retrieve_by") and "type" in self.plot_config.retrieve_by:
                 obj_type = self.plot_config.retrieve_by.replace("type:", "")
-            reference = get_objects_from_canvas_by_type(reference_canvas, obj_type)[0]
+            reference = [get_objects_from_canvas_by_type(reference_canvas, obj_type)[0]
+                         for reference_canvas in reference_canvases]
             compare = get_objects_from_canvas_by_type(compare_canvas, obj_type)
         except ValueError:
             plot_config_ref = copy(self.plot_config)
             plot_config_ref.name += "_reference"
-            reference = self.make_plot(self.reference_file_handle, plot_config_ref, self.reference_tree_name)
+            reference = [self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
+                         file_handle in self.reference_file_handles]
             compare = [self.make_plot(file_handle, self.plot_config) for file_handle in self.file_handles]
-            reference.SetDirectory(0)
+            map(lambda obj: obj.SetDirectory(0), reference)
             map(lambda obj: obj.SetDirectory(0), compare)
         return reference, compare
 
@@ -200,29 +204,34 @@ class ComparisonPlotter(object):
         self.output_handle.write_and_close()
 
     def make_comparison_plot(self, plot_config, data):
-        reference_hist = data[0]
+        reference_hists = data[0]
         hists = data[1]
         y_max = None
-        if not isinstance(reference_hist, ROOT.TEfficiency):
+        if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
-            ymax = yscale * max([item.GetMaximum() for item in hists] + [reference_hist.GetMaximum()])
+            ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
             plot_config.yscale = yscale
             plot_config.ymax = ymax
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
             ctmp.cd()
-            reference_hist.Draw("ap")
+            reference_hists.Draw("ap")
             ROOT.gPad.Update()
-            reference_hist.GetPaintedGraph().GetXaxis().GetTitle()
-            plot_config.xtitle = reference_hist.GetPaintedGraph().GetXaxis().GetTitle()
-            plot_config.ytitle = reference_hist.GetPaintedGraph().GetYaxis().GetTitle()
+            reference_hists.GetPaintedGraph().GetXaxis().GetTitle()
+            plot_config.xtitle = reference_hists.GetPaintedGraph().GetXaxis().GetTitle()
+            plot_config.ytitle = reference_hists.GetPaintedGraph().GetYaxis().GetTitle()
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
-        canvas = PT.plot_obj(reference_hist, plot_config)
-
+        canvas = PT.plot_obj(reference_hists[0], plot_config)
+        for hist in reference_hists[1:]:
+            PT.add_object_to_canvas(canvas, hist, plot_config)
         for hist in hists:
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
-            plot_config.color = self.color_palette[hists.index(hist)]
+            try:
+                plot_config.color = self.color_palette[hists.index(hist)]
+            except IndexError:
+                _logger.warning("Run of colors in palette. Using black as default")
+                plot_config.color = ROOT.kBlack
             PT.add_object_to_canvas(canvas, hist, plot_config)
         canvas.Modified()
         canvas.Update()
@@ -242,7 +251,8 @@ class ComparisonPlotter(object):
         if hasattr(self.common_config, "ratio_config"):
             plot_config = self.common_config.ratio_config
         plot_config.name = "ratio_" + plot_config.name
-        canvas_ratio = RatioPlotter(reference=reference_hist, compare=hists, plot_config=plot_config).make_ratio_plot()
+        canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
+                                    plot_config=plot_config).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)
