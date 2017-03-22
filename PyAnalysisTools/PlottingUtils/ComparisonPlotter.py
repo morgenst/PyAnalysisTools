@@ -7,7 +7,7 @@ from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition, \
-    expand_plot_config
+    expand_plot_config, parse_and_build_process_config, find_process_config
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, get_objects_from_canvas
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 
@@ -21,6 +21,8 @@ class ComparisonReader(object):
             _logger.error("No input file provided")
             raise InvalidInputError("Missing input files")
         kwargs.setdefault("reference_files", None)
+        kwargs.setdefault("reference_dataset_info", None)
+        kwargs.setdefault("dataset_info", None)
         self.plot_configs = kwargs["plot_configs"]
         self.common_config = kwargs["common_config"]
         self.input_files = kwargs["input_files"]
@@ -29,6 +31,11 @@ class ComparisonReader(object):
         for opt, val in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, val)
+        if hasattr(self, "merge_file") and not hasattr(self, "reference_merge_file"):
+            self.reference_merge_file = self.merge_file
+        if hasattr(self, "merge_file"):
+            self.process_configs = self.parse_process_config(self.merge_file)
+            self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
     def parse_config(self):
         self.plot_configs, self.common_config = parse_and_build_plot_config(self.config_file)
@@ -61,6 +68,31 @@ class ComparisonReader(object):
         except Exception as e:
             raise e
         return hist
+
+    @staticmethod
+    def merge_histograms(histograms, process_configs):
+        for process, process_config in process_configs.iteritems():
+            if not hasattr(process_config, "subprocesses"):
+                continue
+            for sub_process in process_config.subprocesses:
+                if sub_process not in histograms.keys():
+                    continue
+                if process not in histograms.keys():
+                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
+                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
+                else:
+                    histograms[process].Add(histograms[sub_process])
+                histograms.pop(sub_process)
+        for process in histograms.keys():
+            histograms[find_process_config(process, process_configs).label] = histograms.pop(process)
+
+
+    @staticmethod
+    def parse_process_config(process_config_file):
+        if process_config_file is None:
+            return None
+        process_config = parse_and_build_process_config(process_config_file)
+        return process_config
 
 
 class SingleFileMultiDistReader(ComparisonReader):
@@ -114,14 +146,19 @@ class MultiFileSingleDistReader(ComparisonReader):
         reference_files = kwargs["reference_files"]
         input_files = kwargs["input_files"]
         plot_config = kwargs["plot_config"]
-        self.reference_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True)
+        self.reference_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=False,
+                                                  dataset_info=kwargs["reference_dataset_info"])
                                        for fn in reference_files]
-        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
+        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=False,
+                                        dataset_info=kwargs["dataset_info"]) for fn in input_files]
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
         self.reference_tree_name = copy(self.tree_name)
         if "reference_tree_name" in kwargs and not kwargs["reference_tree_name"] is None:
             self.reference_tree_name = kwargs["reference_tree_name"]
+        for opt, value in kwargs.iteritems():
+            if not hasattr(self, opt):
+                setattr(self, opt, value)
 
     def get_data(self):
         try:
@@ -138,11 +175,20 @@ class MultiFileSingleDistReader(ComparisonReader):
         except ValueError:
             plot_config_ref = copy(self.plot_config)
             plot_config_ref.name += "_reference"
-            reference = [self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
-                         file_handle in self.reference_file_handles]
-            compare = [self.make_plot(file_handle, self.plot_config) for file_handle in self.file_handles]
-            map(lambda obj: obj.SetDirectory(0), reference)
-            map(lambda obj: obj.SetDirectory(0), compare)
+            reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
+                         file_handle in self.reference_file_handles}
+            compare = {file_handle.process: self.make_plot(file_handle, self.plot_config)
+                       for file_handle in self.file_handles}
+
+            if hasattr(self, "process_configs"):
+                ComparisonReader.merge_histograms(reference, self.reference_process_configs)
+                ComparisonReader.merge_histograms(compare, self.process_configs)
+            if isinstance(reference, dict):
+                map(lambda obj: obj.SetDirectory(0), reference.values())
+                map(lambda obj: obj.SetDirectory(0), compare.values())
+            else:
+                map(lambda obj: obj.SetDirectory(0), reference)
+                map(lambda obj: obj.SetDirectory(0), compare)
         return reference, compare
 
 
@@ -206,6 +252,13 @@ class ComparisonPlotter(object):
     def make_comparison_plot(self, plot_config, data):
         reference_hists = data[0]
         hists = data[1]
+        labels = None
+        if isinstance(reference_hists, dict):
+            reference_hists_dict = copy(reference_hists)
+            hists_dict = copy(hists)
+            reference_hists = reference_hists.values()
+            hists = hists.values()
+            labels = reference_hists_dict.keys() + hists_dict.keys()
         y_max = None
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
@@ -236,7 +289,8 @@ class ComparisonPlotter(object):
         canvas.Modified()
         canvas.Update()
         FM.decorate_canvas(canvas, self.common_config)
-        labels = ["reference"] + [""] * len(hists)
+        if labels is None:
+            labels = ["reference"] + [""] * len(hists)
         if hasattr(self.common_config, "labels") and not hasattr(plot_config, "labels"):
             labels = self.common_config.labels
         if hasattr(plot_config, "labels"):
