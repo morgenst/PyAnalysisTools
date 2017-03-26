@@ -72,17 +72,20 @@ class SingleFileMultiDistReader(ComparisonReader):
                 _logger.error("Privided {:d} input files for single file reader. "
                               "Using just first".format(len(input_files)))
             input_files = input_files[0]
-        self.file_handle = FileHandle(file_name=input_files)
+        self.file_handle = FileHandle(file_name=input_files, switch_off_process_name_analysis=True)
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
 
     def get_data(self):
         try:
-            reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref, tdirectory="Nominal")
-            compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist, tdirectory="Nominal")
-            if hasattr(self.plot_config, "retrieve_by") and self.plot_config.retrieve_by == "type":
-                reference = get_objects_from_canvas_by_type(reference_canvas, "TH1F")[0]
-                compare = get_objects_from_canvas_by_type(compare_canvas, "TH1F")
+            print self.plot_config.dist_ref
+            print self.plot_config.dist
+            reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref)#, tdirectory="Nominal")
+            compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist)#, tdirectory="Nominal")
+            if hasattr(self.plot_config, "retrieve_by") and "type" in self.plot_config.retrieve_by:
+                object_type = self.plot_config.retrieve_by.split(":")[-1]
+                reference = get_objects_from_canvas_by_type(reference_canvas, object_type)[0]
+                compare = get_objects_from_canvas_by_type(compare_canvas, object_type)
             else:
                 reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])[0]
                 compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
@@ -125,13 +128,14 @@ class MultiFileSingleDistReader(ComparisonReader):
     def get_data(self):
         try:
             reference_canvas = self.reference_file_handle.get_object_by_name(self.plot_config.dist)
-            #todo: generalise to arbitrary number of compare inputs
             #todo: generalise to type given by plot config
-            compare_canvas = self.file_handles[0].get_object_by_name(self.plot_config.dist)
+            compare_canvas = [file_handle.get_object_by_name(self.plot_config.dist) for file_handle in self.file_handles]
             if hasattr(self.plot_config, "retrieve_by") and "type" in self.plot_config.retrieve_by:
                 obj_type = self.plot_config.retrieve_by.replace("type:", "")
             reference = get_objects_from_canvas_by_type(reference_canvas, obj_type)[0]
-            compare = get_objects_from_canvas_by_type(compare_canvas, obj_type)
+            compare = []
+            for canvas in compare_canvas:
+                compare += get_objects_from_canvas_by_type(canvas, obj_type)
         except ValueError:
             plot_config_ref = copy(self.plot_config)
             plot_config_ref.name += "_reference"
