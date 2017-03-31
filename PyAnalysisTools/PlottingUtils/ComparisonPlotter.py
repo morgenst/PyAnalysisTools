@@ -167,10 +167,11 @@ class MultiFileSingleDistReader(ComparisonReader):
             #todo: generalise to arbitrary number of compare inputs
             #todo: generalise to type given by plot config
             compare_canvas = self.file_handles[0].get_object_by_name(self.plot_config.dist)
+            obj_type = "TH1F"
             if hasattr(self.plot_config, "retrieve_by") and "type" in self.plot_config.retrieve_by:
                 obj_type = self.plot_config.retrieve_by.replace("type:", "")
             reference = [get_objects_from_canvas_by_type(reference_canvas, obj_type)[0]
-                         for reference_canvas in reference_canvases]
+                             for reference_canvas in reference_canvases]
             compare = get_objects_from_canvas_by_type(compare_canvas, obj_type)
         except ValueError:
             plot_config_ref = copy(self.plot_config)
@@ -224,11 +225,13 @@ class ComparisonPlotter(object):
         pc = next((pc for pc in self.plot_configs if pc.name == "parse_from_file"), None)
         if pc is None:
             return
-        if not hasattr(self, "reference_file"):
+        if not hasattr(self, "reference_files"):
             _logger.error("Request to parse plot configs from file, but no reference file given. Breaking up!")
             exit(0)
-        file_handle = FileHandle(file_name=self.reference_file)
-        objects = file_handle.get_objects_by_type("TCanvas")
+        file_handles = [FileHandle(file_name=reference_file) for reference_file in self.reference_files]
+        objects = []
+        for file_handle in file_handles:
+            objects += file_handle.get_objects_by_type("TCanvas")
         self.plot_configs.remove(pc)
         for obj in objects:
             new_pc = copy(pc)
@@ -268,11 +271,11 @@ class ComparisonPlotter(object):
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
             ctmp.cd()
-            reference_hists.Draw("ap")
+            reference_hists[0].Draw("ap")
             ROOT.gPad.Update()
-            reference_hists.GetPaintedGraph().GetXaxis().GetTitle()
-            plot_config.xtitle = reference_hists.GetPaintedGraph().GetXaxis().GetTitle()
-            plot_config.ytitle = reference_hists.GetPaintedGraph().GetYaxis().GetTitle()
+            reference_hists[0].GetPaintedGraph().GetXaxis().GetTitle()
+            plot_config.xtitle = reference_hists[0].GetPaintedGraph().GetXaxis().GetTitle()
+            plot_config.ytitle = reference_hists[0].GetPaintedGraph().GetYaxis().GetTitle()
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         canvas = PT.plot_obj(reference_hists[0], plot_config)
