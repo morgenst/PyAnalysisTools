@@ -141,6 +141,17 @@ def merge_plot_configs(plot_configs):
     return merged_plot_config, merged_common_config
 
 
+def propagate_common_config(common_config, plot_configs):
+    def integrate(plot_config, attr, value):
+        if hasattr(plot_config, attr):
+            return
+        setattr(plot_config, attr, value)
+
+    for attr, value in common_config.__dict__.iteritems():
+        for plot_config in plot_configs:
+            integrate(plot_config, attr, value)
+
+
 def _parse_draw_option(plot_config, process_config):
     draw_option = "Hist"
     if hasattr(plot_config, "draw"):

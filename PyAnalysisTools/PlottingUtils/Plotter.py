@@ -5,6 +5,7 @@ from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition, find_process_config, merge_plot_configs
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -18,7 +19,7 @@ from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
 
-class Plotter(object):
+class Plotter(BasePlotter):
     def __init__(self, **kwargs):
         if "input_files" not in kwargs:
             _logger.error("No input files provided")
@@ -36,36 +37,21 @@ class Plotter(object):
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", True)
         kwargs.setdefault("output_file_name", "plots.root")
-        for k,v in kwargs.iteritems():
+        super(Plotter, self).__init__(**kwargs)
+
+        for k, v in kwargs.iteritems():
             setattr(self, k, v)
         set_batch_mode(kwargs["batch"])
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
-        self.process_configs = self.parse_process_config()
         FM.load_atlas_style()
         self.statistical_uncertainty_hist = None
         self.histograms = {}
-        self.initialise()
         self.event_yields = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.common_config.make_plot_book, **kwargs)
-
-    def parse_plot_config(self):
-        _logger.debug("Try to parse plot config file")
-        unmerged_plot_configs = []
-        for plot_config_file in self.plot_config_files:
-            unmerged_plot_configs.append(parse_and_build_plot_config(plot_config_file))
-        self.plot_config, self.common_config = merge_plot_configs(unmerged_plot_configs)
-        if not hasattr(self, "lumi"):
-            self.lumi = self.common_config.lumi
-
-    def parse_process_config(self):
-        if self.process_config_file is None:
-            return None
-        process_config = parse_and_build_process_config(self.process_config_file)
-        return process_config
+        self.initialise()
 
     def initialise(self):
-        self.parse_plot_config()
         self.ncpu = min(self.ncpu, len(self.plot_config))
 
     def read_cutflows(self):

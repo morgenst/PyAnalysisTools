@@ -24,4 +24,4 @@ class BasePlotter(object):
         self.plot_config, self.common_config = merge_plot_configs(unmerged_plot_configs)
         if not hasattr(self, "lumi"):
             self.lumi = self.common_config.lumi
-        propagate_common_config(self.common_config, self.plot_config)
+
