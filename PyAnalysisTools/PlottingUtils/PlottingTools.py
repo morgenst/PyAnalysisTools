@@ -203,12 +203,15 @@ def plot_graph(graph, plot_config=None, **kwargs):
 def add_graph_to_canvas(canvas, graph, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
+    if not "same" in draw_option:
+        draw_option += "same"
     style_setter, style_attr, color = get_style_setters_and_values(plot_config)
     if style_attr is not None:
         getattr(graph, "Set" + style_setter + "Style")(style_attr)
     if color is not None:
         getattr(graph, "Set" + style_setter + "Color")(color)
-    graph.Draw("psame")
+    graph.Draw(draw_option)
+    ROOT.SetOwnership(graph, False)
     canvas.Update()
 
 
