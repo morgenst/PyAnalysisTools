@@ -1,6 +1,6 @@
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
-    get_histogram_definition, find_process_config, merge_plot_configs
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config,\
+    merge_plot_configs, propagate_common_config
 
 
 class BasePlotter(object):
@@ -24,3 +24,4 @@ class BasePlotter(object):
         self.plot_config, self.common_config = merge_plot_configs(unmerged_plot_configs)
         if not hasattr(self, "lumi"):
             self.lumi = self.common_config.lumi
+        propagate_common_config(self.common_config, self.plot_config)
