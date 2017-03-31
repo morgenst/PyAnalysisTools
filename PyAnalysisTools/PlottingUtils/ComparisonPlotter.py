@@ -166,13 +166,15 @@ class MultiFileSingleDistReader(ComparisonReader):
                                   for file_handle in self.reference_file_handles]
             #todo: generalise to arbitrary number of compare inputs
             #todo: generalise to type given by plot config
-            compare_canvas = self.file_handles[0].get_object_by_name(self.plot_config.dist)
+            compare_canvases = [file_handle.get_object_by_name(self.plot_config.dist)
+                              for file_handle in self.file_handles]
             obj_type = "TH1F"
             if hasattr(self.plot_config, "retrieve_by") and "type" in self.plot_config.retrieve_by:
                 obj_type = self.plot_config.retrieve_by.replace("type:", "")
             reference = [get_objects_from_canvas_by_type(reference_canvas, obj_type)[0]
-                             for reference_canvas in reference_canvases]
-            compare = get_objects_from_canvas_by_type(compare_canvas, obj_type)
+                         for reference_canvas in reference_canvases]
+            compare = [get_objects_from_canvas_by_type(compare_canvas, obj_type)[0]
+                       for compare_canvas in compare_canvases]
         except ValueError:
             plot_config_ref = copy(self.plot_config)
             plot_config_ref.name += "_reference"
