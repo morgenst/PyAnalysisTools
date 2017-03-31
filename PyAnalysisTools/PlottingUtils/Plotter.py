@@ -107,7 +107,8 @@ class Plotter(BasePlotter):
                         histograms[process].Add(histograms[sub_process])
                     histograms.pop(sub_process)
         for plot_config, histograms in self.histograms.iteritems():
-            merge(histograms)
+            if plot_config.merge:
+                merge(histograms)
 
     def calculate_ratios(self, hists, plot_config):
         if not "Data" in hists:
@@ -123,8 +124,8 @@ class Plotter(BasePlotter):
                 continue
             mc.Add(hist)
         ratio.Divide(mc)
-        if hasattr(self.common_config, "ratio_config"):
-            plot_config = self.common_config.ratio_config
+        if hasattr(self.plot_config, "ratio_config"):
+            plot_config = self.plot_config.ratio_config
         else:
             plot_config.name = "ratio_" + plot_config.name
             plot_config.ytitle = "data/MC"
@@ -146,7 +147,7 @@ class Plotter(BasePlotter):
         return canvas
 
     def fetch_histograms(self, file_handle, plot_config):
-        if "data" in file_handle.process.lower() and (plot_config.no_data or self.common_config.no_data):
+        if "data" in file_handle.process.lower() and plot_config.no_data:
             return
         tmp = self.retrieve_histogram(file_handle, plot_config)
         return file_handle.process, tmp
@@ -184,7 +185,7 @@ class Plotter(BasePlotter):
             canvas = PT.plot_obj(histogram, plot_config)
             canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
             canvas.SetRightMargin(0.15)
-            FM.decorate_canvas(canvas, self.common_config, plot_config)
+            FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas)
 
     def cut_based_normalise(self, cut):
@@ -232,15 +233,14 @@ class Plotter(BasePlotter):
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
         self.apply_lumi_weights()
-        if hasattr(self.common_config, "normalise_after_cut"):
-            self.cut_based_normalise(self.common_config.normalise_after_cut)
+        if hasattr(self.plot_config, "normalise_after_cut"):
+            self.cut_based_normalise(self.plot_config.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
         if not self.process_configs is None:
             for hist_set in self.histograms.values():
                 for process_name in hist_set.keys():
                     _ = find_process_config(process_name, self.process_configs)
-            if self.common_config.merge:
-                self.merge_histograms()
+            self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             data = {k: v for k, v in data.iteritems() if v}
             if self.common_config.normalise or plot_config.normalise:
@@ -262,7 +262,7 @@ class Plotter(BasePlotter):
             else:
                 canvas = PT.plot_objects(data, plot_config, common_config=self.common_config,
                                          process_configs=self.process_configs)
-            FM.decorate_canvas(canvas, self.common_config, plot_config)
+            FM.decorate_canvas(canvas, plot_config)
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
             else:
