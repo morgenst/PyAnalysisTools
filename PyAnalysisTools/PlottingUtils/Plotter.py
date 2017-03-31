@@ -18,7 +18,7 @@ from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
 
-class BasePlotter(object):
+class Plotter(object):
     def __init__(self, **kwargs):
         if "input_files" not in kwargs:
             _logger.error("No input files provided")
