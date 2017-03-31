@@ -260,8 +260,7 @@ class Plotter(BasePlotter):
                 self.make_multidimensional_plot(plot_config, data)
                 continue
             else:
-                canvas = PT.plot_objects(data, plot_config, common_config=self.common_config,
-                                         process_configs=self.process_configs)
+                canvas = PT.plot_objects(data, plot_config, process_configs=self.process_configs)
             FM.decorate_canvas(canvas, plot_config)
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
