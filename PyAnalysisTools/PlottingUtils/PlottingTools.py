@@ -230,9 +230,7 @@ def plot_stack(hists, plot_config, **kwargs):
     :param kwargs:
     :return:
     """
-    kwargs.setdefault("common_config", None)
     kwargs.setdefault("process_configs", None)
-    common_config = kwargs["common_config"]
     process_configs = kwargs["process_configs"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.Clear()
@@ -245,8 +243,8 @@ def plot_stack(hists, plot_config, **kwargs):
     stack = ROOT.THStack('hs', '')
     ROOT.SetOwnership(stack, False)
     data = None
-    if common_config is not None and common_config.ordering is not None:
-        hist_defs = apply_ordering(hist_defs, common_config.ordering)
+    if plot_config.ordering is not None:
+        hist_defs = apply_ordering(hist_defs, plot_config.ordering)
     for process, hist in hist_defs:
         if process == "Data":
             data = (process, hist)

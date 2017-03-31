@@ -27,6 +27,7 @@ class PlotConfig(object):
         kwargs.setdefault("ordering", None)
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
+        kwargs.setdefault("logy", False)
         for k,v in kwargs.iteritems():
             if k == "y_min" or k == "ymax":
                 _logger.info("Deprecated. Use ymin or ymax")
@@ -47,6 +48,10 @@ class PlotConfig(object):
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
         self.ratio_config = PlotConfig(**kwargs)
+
+    @staticmethod
+    def get_overwritable_options():
+        return ["outline", "make_plot_book", "no_data", "draw"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
@@ -143,7 +148,7 @@ def merge_plot_configs(plot_configs):
 
 def propagate_common_config(common_config, plot_configs):
     def integrate(plot_config, attr, value):
-        if hasattr(plot_config, attr):
+        if hasattr(plot_config, attr) and not attr in PlotConfig.get_overwritable_options():
             return
         setattr(plot_config, attr, value)
 

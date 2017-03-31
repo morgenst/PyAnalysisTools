@@ -243,10 +243,10 @@ class Plotter(BasePlotter):
             self.merge_histograms()
         for plot_config, data in self.histograms.iteritems():
             data = {k: v for k, v in data.iteritems() if v}
-            if self.common_config.normalise or plot_config.normalise:
+            if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])
-            if self.common_config.outline == "stack" and not plot_config.is_multidimensional:
-                canvas = PT.plot_stack(data, plot_config=plot_config, common_config=self.common_config,
+            if plot_config.outline == "stack" and not plot_config.is_multidimensional:
+                canvas = PT.plot_stack(data, plot_config=plot_config,
                                        process_configs=self.process_configs)
                 stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
                 self.statistical_uncertainty_hist = ST.get_statistical_uncertainty_from_stack(stack)
