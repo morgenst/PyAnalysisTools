@@ -21,7 +21,7 @@ class BasePlotter(object):
         unmerged_plot_configs = []
         for plot_config_file in self.plot_config_files:
             unmerged_plot_configs.append(parse_and_build_plot_config(plot_config_file))
-        self.plot_config, self.common_config = merge_plot_configs(unmerged_plot_configs)
+        self.plot_config, common_config = merge_plot_configs(unmerged_plot_configs)
         if not hasattr(self, "lumi"):
-            self.lumi = self.common_config.lumi
-        propagate_common_config(self.common_config, self.plot_config)
+            self.lumi = common_config.lumi
+        propagate_common_config(common_config, self.plot_config)
