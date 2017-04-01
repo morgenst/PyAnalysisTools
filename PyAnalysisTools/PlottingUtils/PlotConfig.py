@@ -148,7 +148,12 @@ def merge_plot_configs(plot_configs):
 
 def propagate_common_config(common_config, plot_configs):
     def integrate(plot_config, attr, value):
-        if hasattr(plot_config, attr) and not attr in PlotConfig.get_overwritable_options():
+        if attr == "weight":
+            if plot_config.weight is not None and not plot_config.weight.lower() == "none":
+                plot_config.weight += " * {:s}".format(value)
+            else:
+                plot_config.weight = value
+        if hasattr(plot_config, attr) and attr not in PlotConfig.get_overwritable_options():
             return
         setattr(plot_config, attr, value)
 

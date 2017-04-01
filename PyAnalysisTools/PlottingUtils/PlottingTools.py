@@ -160,12 +160,15 @@ def plot_histograms(hists, plot_config, process_configs=None):
             FM.set_maximum_y(hist, max_y)
             if plot_config.logy:
                 if hasattr(plot_config, "ymin"):
-                    hist.SetMinimum(max(0.001, plot_config.ymin))
+                    hist.SetMinimum(max(1., plot_config.ymin))
                 else:
                     hist.SetMinimum(0.0001)
-                if hasattr(plot_config, "ymax"):
-                    hist.SetMaximum(plot_config.ymax)
                 canvas.SetLogy()
+
+                if hasattr(plot_config, "ymax"):
+                    print "setting max to: ", plot_config.ymax
+                    hist.SetMaximum(plot_config.ymax)
+                    print hist.GetMinimum()
             format_hist(hist, plot_config)
             canvas.Update()
         is_first = False

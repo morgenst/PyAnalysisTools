@@ -48,7 +48,7 @@ class Plotter(BasePlotter):
         self.statistical_uncertainty_hist = None
         self.histograms = {}
         self.event_yields = {}
-        self.output_handle = OutputFileHandle(make_plotbook=self.common_config.make_plot_book, **kwargs)
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_config[0].make_plot_book, **kwargs)
         self.initialise()
 
     def initialise(self):
@@ -68,14 +68,14 @@ class Plotter(BasePlotter):
         try:
             weight = None
             selection_cuts = ""
-            if self.common_config.weight and plot_config.weight is not None:
-                weight = self.common_config.weight
-            if self.common_config.cuts:
-                selection_cuts += "&&".join(self.common_config.cuts)
-            if self.common_config.blind and self.process_configs[file_handle.process].type == "Data":
+            if plot_config.weight is not None:
+                weight = plot_config.weight
+            if plot_config.cuts:
+                selection_cuts += "&&".join(plot_config.cuts)
+            if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
                 if len(selection_cuts) != 0:
                     selection_cuts += " && "
-                selection_cuts += " !({:s})".format(" && ".join(self.common_config.blind))
+                selection_cuts += " !({:s})".format(" && ".join(plot_config.blind))
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                     tdirectory=self.systematics, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
@@ -132,6 +132,7 @@ class Plotter(BasePlotter):
         if "unit" in plot_config.__dict__.keys():
             plot_config.__dict__.pop("unit")
             plot_config.draw = "Marker"
+        plot_config.logy = False
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         if self.statistical_uncertainty_hist:
             plot_config_stat_unc_ratio = copy.copy(plot_config)
@@ -273,10 +274,10 @@ class Plotter(BasePlotter):
                 significance_hist = ST.get_significance(signal_hist, background_hist)
                 canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
             self.output_handle.register_object(canvas)
-            if hasattr(plot_config, "ratio") or hasattr(self.common_config, "ratio"):
-                if plot_config.no_data or self.common_config.no_data or plot_config.is_multidimensional:
+            if hasattr(plot_config, "ratio"):
+                if plot_config.no_data or plot_config.is_multidimensional:
                     continue
-                if self.common_config.ratio:
+                if plot_config.ratio:
                     try:
                         canvas_ratio = self.calculate_ratios(data, plot_config)
                         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
