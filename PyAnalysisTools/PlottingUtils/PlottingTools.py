@@ -17,12 +17,12 @@ def plot_obj(hist, plot_config, **kwargs):
         return plot_graph(hist, plot_config, **kwargs)
 
 
-def plot_objects(objects, plot_config, common_config=None, process_configs=None):
+def plot_objects(objects, plot_config, process_configs=None):
     if len(objects) == 0:
         _logger.warning("Requested plot objects with zero objects")
         return
     if isinstance(objects.values()[0], ROOT.TH1):
-        return plot_histograms(objects, plot_config, common_config, process_configs)
+        return plot_histograms(objects, plot_config, process_configs)
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects[0])))
 
 
@@ -120,7 +120,7 @@ def format_hist(hist, plot_config):
     return hist
 
 
-def plot_histograms(hists, plot_config, common_config=None, process_configs=None):
+def plot_histograms(hists, plot_config, process_configs=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     is_first = True
@@ -129,12 +129,12 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
     max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
-    if common_config is not None and common_config.ordering is not None:
-        sorted(hist_defs, key=lambda k: common_config.ordering.index(k[0]))
+    if plot_config.ordering is not None:
+        sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
-        if not (common_config is not None and common_config.is_set_to_value("ignore_style", True)) and \
+        if not (plot_config.is_set_to_value("ignore_style", True)) and \
                 plot_config.is_set_to_value("ignore_style", False):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
@@ -146,9 +146,9 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
         #todo: might break something upstream
         # if common_config is None or common_config.ignore_style:
         #     style_setter = "Line"
-        if common_config is not None and common_config.ignore_style:
+        if plot_config.ignore_style:
             style_setter = "Line"
-        if style_attr is not None and not common_config.ignore_style:
+        if style_attr is not None and not plot_config.ignore_style:
             getattr(hist, "Set"+style_setter+"Style")(style_attr)
         if color is not None:
             hist_color = color
@@ -158,14 +158,15 @@ def plot_histograms(hists, plot_config, common_config=None, process_configs=None
         if is_first:
             FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)
-            if hasattr(plot_config, "logy") and plot_config.logy:
+            if plot_config.logy:
                 if hasattr(plot_config, "ymin"):
-                    hist.SetMinimum(plot_config.ymin)
+                    hist.SetMinimum(max(1., plot_config.ymin))
                 else:
                     hist.SetMinimum(0.0001)
+                canvas.SetLogy()
+
                 if hasattr(plot_config, "ymax"):
                     hist.SetMaximum(plot_config.ymax)
-                canvas.SetLogy()
             format_hist(hist, plot_config)
             canvas.Update()
         is_first = False
@@ -203,12 +204,15 @@ def plot_graph(graph, plot_config=None, **kwargs):
 def add_graph_to_canvas(canvas, graph, plot_config):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
+    if not "same" in draw_option:
+        draw_option += "same"
     style_setter, style_attr, color = get_style_setters_and_values(plot_config)
     if style_attr is not None:
         getattr(graph, "Set" + style_setter + "Style")(style_attr)
     if color is not None:
         getattr(graph, "Set" + style_setter + "Color")(color)
-    graph.Draw("psame")
+    graph.Draw(draw_option)
+    ROOT.SetOwnership(graph, False)
     canvas.Update()
 
 
@@ -227,9 +231,7 @@ def plot_stack(hists, plot_config, **kwargs):
     :param kwargs:
     :return:
     """
-    kwargs.setdefault("common_config", None)
     kwargs.setdefault("process_configs", None)
-    common_config = kwargs["common_config"]
     process_configs = kwargs["process_configs"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.Clear()
@@ -242,8 +244,8 @@ def plot_stack(hists, plot_config, **kwargs):
     stack = ROOT.THStack('hs', '')
     ROOT.SetOwnership(stack, False)
     data = None
-    if common_config is not None and common_config.ordering is not None:
-        hist_defs = apply_ordering(hist_defs, common_config.ordering)
+    if plot_config.ordering is not None:
+        hist_defs = apply_ordering(hist_defs, plot_config.ordering)
     for process, hist in hist_defs:
         if process == "Data":
             data = (process, hist)

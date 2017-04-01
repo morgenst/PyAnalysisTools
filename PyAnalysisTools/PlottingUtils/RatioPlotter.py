@@ -80,4 +80,11 @@ class RatioPlotter(object):
         self.plot_config.ytitle = "ratio"
         index = ROOT.gROOT.GetListOfCanvases().IndexOf(c)
         ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
-        return PT.plot_graph(ratios[0], self.plot_config)
+        ratio_canvas = PT.plot_graph(ratios[0], self.plot_config)
+        if len(self.compare) > 1:
+            colors = get_colors(self.compare)
+            self.plot_config.color = colors
+        for ratio in ratios[1:]:
+            self.plot_config.color = ROOT.kBlue
+            PT.add_graph_to_canvas(ratio_canvas, ratio, self.plot_config)
+        return ratio_canvas
