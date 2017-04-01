@@ -18,7 +18,6 @@ class RatioCalculator(object):
         ratios = []
         if isinstance(self.compare, list):
             for obj in self.compare:
-                print "append ratio ", obj
                 ratios.append(getattr(self, calc_func)(obj))
         else:
             ratios.append(getattr(self, calc_func)(self.compare))
@@ -82,6 +81,9 @@ class RatioPlotter(object):
         index = ROOT.gROOT.GetListOfCanvases().IndexOf(c)
         ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         ratio_canvas = PT.plot_graph(ratios[0], self.plot_config)
+        if len(self.compare) > 1:
+            colors = get_colors(self.compare)
+            self.plot_config.color = colors
         for ratio in ratios[1:]:
             self.plot_config.color = ROOT.kBlue
             PT.add_graph_to_canvas(ratio_canvas, ratio, self.plot_config)

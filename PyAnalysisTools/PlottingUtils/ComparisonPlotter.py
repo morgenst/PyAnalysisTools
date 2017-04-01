@@ -3,6 +3,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
 from copy import copy
 from PyAnalysisTools.PlottingUtils import set_batch_mode
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
@@ -14,17 +15,17 @@ from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 
 class ComparisonReader(object):
     def __init__(self, **kwargs):
-        if not "config_file" in kwargs:
-            _logger.error("No config file provided")
-            raise InvalidInputError("Missing config")
+        # if not "config_file" in kwargs:
+        #     _logger.error("No config file provided")
+        #     raise InvalidInputError("Missing config")
         if not "input_files" in kwargs:
             _logger.error("No input file provided")
             raise InvalidInputError("Missing input files")
         kwargs.setdefault("reference_files", None)
         kwargs.setdefault("reference_dataset_info", None)
         kwargs.setdefault("dataset_info", None)
-        self.plot_configs = kwargs["plot_configs"]
-        self.common_config = kwargs["common_config"]
+        #self.plot_configs = kwargs["plot_configs"]
+        #self.common_config = kwargs["common_config"]
         self.input_files = kwargs["input_files"]
         self.reference_files = kwargs["reference_files"]
         self.tree_name = kwargs["tree_name"]
@@ -37,8 +38,8 @@ class ComparisonReader(object):
             self.process_configs = self.parse_process_config(self.merge_file)
             self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
-    def parse_config(self):
-        self.plot_configs, self.common_config = parse_and_build_plot_config(self.config_file)
+    # def parse_config(self):
+    #     self.plot_configs, self.common_config = parse_and_build_plot_config(self.config_file)
 
     def get_instance(self, plot_config):
         if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref"):# and hasattr(plot_config, "processes"):
@@ -195,12 +196,12 @@ class MultiFileSingleDistReader(ComparisonReader):
         return reference, compare
 
 
-class ComparisonPlotter(object):
+class ComparisonPlotter(BasePlotter):
     def __init__(self, **kwargs):
         if not "input_files" in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("Missing input files")
-        if not "config_file" in kwargs:
+        if not "plot_config_files" in kwargs:
             _logger.error("No config file provided")
             raise InvalidInputError("Missing config")
         if not "output_dir" in kwargs:
@@ -208,9 +209,10 @@ class ComparisonPlotter(object):
         kwargs.setdefault("batch", True)
         kwargs.setdefault("tree_name", None)
         kwargs.setdefault("output_dir", "./")
+        kwargs.setdefault("process_config_file", None)
         set_batch_mode(kwargs["batch"])
+        super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
-        self.config_file = kwargs["config_file"]
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
                               ROOT.kRed+3, ROOT.kGreen-2]
@@ -219,10 +221,7 @@ class ComparisonPlotter(object):
             if not hasattr(self, attr):
                 setattr(self, attr, value)
         self.analyse_plot_config()
-        self.getter = ComparisonReader(plot_configs=self.plot_configs, common_config=self.common_config, **kwargs)
-
-    def parse_config(self):
-        self.plot_configs, self.common_config = parse_and_build_plot_config(self.config_file)
+        self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
 
     def analyse_plot_config(self):
         pc = next((pc for pc in self.plot_configs if pc.name == "parse_from_file"), None)
@@ -294,22 +293,22 @@ class ComparisonPlotter(object):
             PT.add_object_to_canvas(canvas, hist, plot_config)
         canvas.Modified()
         canvas.Update()
-        FM.decorate_canvas(canvas, self.common_config)
+        FM.decorate_canvas(canvas, plot_config)
         if labels is None:
             labels = ["reference"] + [""] * len(hists)
-        if hasattr(self.common_config, "labels") and not hasattr(plot_config, "labels"):
-            labels = self.common_config.labels
+        if hasattr(plot_config, "labels"):
+            labels = plot_config.labels
         if hasattr(plot_config, "labels"):
             labels = plot_config.labels
         if len(labels) != len(hists) + 1:
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
-                                                                                               len(hists) + 1))
+                                                                                                len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
         FM.add_legend_to_canvas(canvas, labels=labels, **plot_config.legend_options)
-        if self.common_config.stat_box:
+        if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
-        if hasattr(self.common_config, "ratio_config"):
-            plot_config = self.common_config.ratio_config
+        if hasattr(plot_config, "ratio_config"):
+            plot_config = plot_config.ratio_config
         plot_config.name = "ratio_" + plot_config.name
         canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
                                     plot_config=plot_config).make_ratio_plot()
