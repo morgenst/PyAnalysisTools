@@ -1,4 +1,5 @@
 import re
+import ROOT
 from array import array
 from PyAnalysisTools.base import InvalidInputError, _logger
 
@@ -105,6 +106,8 @@ def read_bin_from_label(hist, label):
 def get_colors(hists):
     def get_color():
         draw_option = hist.GetDrawOption()
+        if isinstance(hist, ROOT.TEfficiency):
+            return hist.GetPaintedGraph().GetLineColor()
         #todo: refactor this part as information parsing is implemented in PlotConfig
         if "hist" in draw_option.lower():
             return hist.GetLineColor()

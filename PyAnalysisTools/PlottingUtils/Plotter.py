@@ -48,11 +48,11 @@ class Plotter(BasePlotter):
         self.statistical_uncertainty_hist = None
         self.histograms = {}
         self.event_yields = {}
-        self.output_handle = OutputFileHandle(make_plotbook=self.plot_config[0].make_plot_book, **kwargs)
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.initialise()
 
     def initialise(self):
-        self.ncpu = min(self.ncpu, len(self.plot_config))
+        self.ncpu = min(self.ncpu, len(self.plot_configs))
 
     def read_cutflows(self):
         for file_handle in self.file_handles:
@@ -124,8 +124,8 @@ class Plotter(BasePlotter):
                 continue
             mc.Add(hist)
         ratio.Divide(mc)
-        if hasattr(self.plot_config, "ratio_config"):
-            plot_config = self.plot_config.ratio_config
+        if hasattr(self.plot_configs, "ratio_config"):
+            plot_config = self.plot_configs.ratio_config
         else:
             plot_config.name = "ratio_" + plot_config.name
             plot_config.ytitle = "data/MC"
@@ -228,14 +228,14 @@ class Plotter(BasePlotter):
 
     def make_plots(self):
         self.read_cutflows()
-        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_config))).map(self.read_histograms,
-                                                                                       self.plot_config)
+        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
+                                                                                       self.plot_configs)
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
         self.apply_lumi_weights()
-        if hasattr(self.plot_config, "normalise_after_cut"):
-            self.cut_based_normalise(self.plot_config.normalise_after_cut)
+        if hasattr(self.plot_configs, "normalise_after_cut"):
+            self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
         if not self.process_configs is None:
             for hist_set in self.histograms.values():

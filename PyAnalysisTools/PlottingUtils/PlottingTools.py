@@ -166,9 +166,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
                 canvas.SetLogy()
 
                 if hasattr(plot_config, "ymax"):
-                    print "setting max to: ", plot_config.ymax
                     hist.SetMaximum(plot_config.ymax)
-                    print hist.GetMinimum()
             format_hist(hist, plot_config)
             canvas.Update()
         is_first = False
