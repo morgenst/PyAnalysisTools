@@ -110,6 +110,7 @@ class Plotter(BasePlotter):
             if plot_config.merge:
                 merge(histograms)
 
+    #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
         if not "Data" in hists:
             _logger.error("Ratio requested but no data found")
@@ -124,8 +125,8 @@ class Plotter(BasePlotter):
                 continue
             mc.Add(hist)
         ratio.Divide(mc)
-        if hasattr(self.plot_configs, "ratio_config"):
-            plot_config = self.plot_configs.ratio_config
+        if hasattr(plot_config, "ratio_config"):
+            plot_config = plot_config.ratio_config
         else:
             plot_config.name = "ratio_" + plot_config.name
             plot_config.ytitle = "data/MC"
@@ -133,6 +134,7 @@ class Plotter(BasePlotter):
             plot_config.__dict__.pop("unit")
             plot_config.draw = "Marker"
         plot_config.logy = False
+
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         if self.statistical_uncertainty_hist:
             plot_config_stat_unc_ratio = copy.copy(plot_config)

@@ -29,7 +29,7 @@ class PlotConfig(object):
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("logy", False)
         for k,v in kwargs.iteritems():
-            if k == "y_min" or k == "ymax":
+            if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config":
                 self.set_ratio_config(**v)
