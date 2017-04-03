@@ -44,6 +44,7 @@ def plot_hist(hist, plot_config, **kwargs):
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
+    hist.SetMarkerSize(0.7)
     if style_attr is not None:
         getattr(hist, "Set"+style_setter+"Style")(style_attr)
     if color is not None:
