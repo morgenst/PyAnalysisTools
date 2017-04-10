@@ -1,6 +1,5 @@
 import re
 import ROOT
-import numpy as np
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
@@ -260,6 +259,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     ROOT.SetOwnership(legend, False)
     legend.SetTextSize(0.025)
     plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
+    plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
     stacks = get_objects_from_canvas_by_type(canvas, "THStack")
     plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
     stacked_objects = None
@@ -272,7 +272,7 @@ def add_legend_to_canvas(canvas, **kwargs):
             plot_objects.append(plot_obj)
             continue
         if "process_configs" in kwargs and kwargs["process_configs"] is not None:
-            label = find_process_config(plot_obj.GetName().split("_")[-1],kwargs["process_configs"]).label
+            label = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"]).label
         if "labels" in kwargs:
             label = kwargs["labels"][plot_objects.index(plot_obj)]
         is_stacked = False
