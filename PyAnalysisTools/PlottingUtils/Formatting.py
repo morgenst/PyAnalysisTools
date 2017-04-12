@@ -163,6 +163,9 @@ def set_maximum(graph_obj, maximum, axis='y'):
 
 
 def set_maximum_y(graph_obj, maximum):
+    if isinstance(graph_obj, ROOT.THStack):
+        graph_obj.SetMaximum(maximum)
+        return
     minimum = get_min_y(graph_obj)
     set_range_y(graph_obj, minimum, maximum)
 
@@ -180,6 +183,9 @@ def set_minimum(graph_obj, minimum, axis='y'):
 
 
 def set_minimum_y(graph_obj, minimum):
+    if isinstance(graph_obj, ROOT.THStack):
+        graph_obj.SetMinimum(minimum)
+        return
     maximum = get_max_y(graph_obj)
     set_range_y(graph_obj, minimum, maximum)
 
