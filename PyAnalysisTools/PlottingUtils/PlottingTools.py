@@ -11,6 +11,8 @@ def retrieve_new_canvas(name, title, size_x=800, size_y=600):
 
 
 def plot_obj(hist, plot_config, **kwargs):
+    if isinstance(hist, ROOT.TH2):
+        return plot_2d_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TH1):
         return plot_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TEfficiency):
@@ -44,6 +46,7 @@ def plot_hist(hist, plot_config, **kwargs):
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
+    hist.SetMarkerSize(0.7)
     if style_attr is not None:
         getattr(hist, "Set"+style_setter+"Style")(style_attr)
     if color is not None:
@@ -58,6 +61,18 @@ def plot_hist(hist, plot_config, **kwargs):
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
     canvas.Update()
+    return canvas
+
+
+def plot_2d_hist(hist, plot_config, **kwargs):
+    title = ""
+    if hasattr(plot_config, "title"):
+        title = plot_config.title
+    canvas = retrieve_new_canvas(plot_config.name, title)
+    canvas.cd()
+    ROOT.SetOwnership(hist, False)
+    hist.Draw(plot_config.draw_option)
+    canvas.SetRightMargin(0.1)
     return canvas
 
 

@@ -28,8 +28,8 @@ class PlotConfig(object):
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("logy", False)
-        for k,v in kwargs.iteritems():
-            if k == "y_min" or k == "ymax":
+        for k, v in kwargs.iteritems():
+            if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config":
                 self.set_ratio_config(**v)
@@ -51,7 +51,7 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw"]
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:

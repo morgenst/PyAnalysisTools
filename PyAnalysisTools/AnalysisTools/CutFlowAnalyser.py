@@ -9,6 +9,7 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_con
 from numpy.lib.recfunctions import rec_append_fields
 import ROOT
 
+
 class CutflowAnalyser(object):
     """
     Cutflow analyser
