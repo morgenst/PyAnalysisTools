@@ -54,3 +54,7 @@ def get_statistical_uncertainty_ratio(stat_unc_hist):
         else:
             stat_unc_hist_ratio.SetBinError(b, 0.)
     return stat_unc_hist_ratio
+
+
+def get_KS(reference, compare):
+    return reference.KolmogorovTest(compare)

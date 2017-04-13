@@ -11,6 +11,8 @@ def retrieve_new_canvas(name, title, size_x=800, size_y=600):
 
 
 def plot_obj(hist, plot_config, **kwargs):
+    if isinstance(hist, ROOT.TH2):
+        return plot_2d_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TH1):
         return plot_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TEfficiency):
@@ -59,6 +61,18 @@ def plot_hist(hist, plot_config, **kwargs):
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
     canvas.Update()
+    return canvas
+
+
+def plot_2d_hist(hist, plot_config, **kwargs):
+    title = ""
+    if hasattr(plot_config, "title"):
+        title = plot_config.title
+    canvas = retrieve_new_canvas(plot_config.name, title)
+    canvas.cd()
+    ROOT.SetOwnership(hist, False)
+    hist.Draw(plot_config.draw_option)
+    canvas.SetRightMargin(0.1)
     return canvas
 
 
