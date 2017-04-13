@@ -32,10 +32,12 @@ class Plotter(BasePlotter):
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("systematics", None)
+        kwargs.setdefault("systematics", "Nominal")
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", True)
+        kwargs.setdefault("ncpu", 1)
+        kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         super(Plotter, self).__init__(**kwargs)
 
