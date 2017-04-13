@@ -3,7 +3,7 @@ import re
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
-from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links
+from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
 
 
 _memoized = {}
@@ -37,6 +37,7 @@ class FileHandle(object):
         kwargs.setdefault("path", "./")
         kwargs.setdefault("cwd", "None")
         kwargs.setdefault("open_option", "READ")
+        kwargs.setdefault("run_dir", None)
         kwargs.setdefault("switch_off_process_name_analysis", False)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
@@ -47,6 +48,8 @@ class FileHandle(object):
             self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
         self.open_option = kwargs["open_option"]
         self.tfile = None
+        self.initial_file_name = None
+        self.run_dir = kwargs["run_dir"]
         self.open()
         self.year = None
         self.period = None
@@ -58,10 +61,23 @@ class FileHandle(object):
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
         if self.tfile is not None and self.tfile.IsOpen():
             return
+        if self.open_option.lower() == "update" and self.run_dir is not None:
+            self.initial_file_name = self.file_name
+            copy_dir = os.path.join(self.run_dir, self.file_name.split("/")[-2])
+            make_dirs(copy_dir)
+            self.file_name = os.path.join(copy_dir, self.file_name.split("/")[-1])
+            move(self.initial_file_name, self.file_name)
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
+    def __del__(self):
+        self.close()
+
     def close(self):
+        if self.tfile is None or not self.tfile.IsOpen():
+            return
         self.tfile.Close()
+        if self.initial_file_name is not None:
+            move(self.file_name, self.initial_file_name)
 
     def parse_process(self, switch_off_analysis=False):
         def analyse_process_name():
