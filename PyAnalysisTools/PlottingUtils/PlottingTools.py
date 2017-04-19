@@ -194,7 +194,15 @@ def plot_graph(graph, plot_config=None, **kwargs):
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
+    draw_option = "ap"
     graph.Draw("ap")
+    if not "same" in draw_option:
+        draw_option += "same"
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
+    if style_attr is not None:
+        getattr(graph, "Set" + style_setter + "Style")(style_attr)
+    if color is not None:
+        getattr(graph, "Set" + style_setter + "Color")(color)
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)

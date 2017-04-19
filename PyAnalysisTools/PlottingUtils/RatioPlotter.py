@@ -75,16 +75,19 @@ class RatioPlotter(object):
     def make_ratio_tefficiency(self, ratios):
         c = ROOT.TCanvas("C", "C")
         c.cd()
+        colors = None
+        if len(self.compare) > 1:
+            colors = get_colors(self.compare)
         self.reference.Draw("ap")
         self.plot_config.xtitle = self.reference.GetPaintedGraph().GetXaxis().GetTitle()
         self.plot_config.ytitle = "ratio"
         index = ROOT.gROOT.GetListOfCanvases().IndexOf(c)
         ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
+        if colors is not None:
+            self.plot_config.color = colors[0]
         ratio_canvas = PT.plot_graph(ratios[0], self.plot_config)
-        if len(self.compare) > 1:
-            colors = get_colors(self.compare)
-            self.plot_config.color = colors
         for ratio in ratios[1:]:
-            self.plot_config.color = ROOT.kBlue
+            if colors is not None:
+                self.plot_config.color = colors[ratios.index(ratio)]
             PT.add_graph_to_canvas(ratio_canvas, ratio, self.plot_config)
         return ratio_canvas

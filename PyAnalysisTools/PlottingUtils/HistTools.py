@@ -107,7 +107,7 @@ def get_colors(hists):
     def get_color():
         draw_option = hist.GetDrawOption()
         if isinstance(hist, ROOT.TEfficiency):
-            return hist.GetPaintedGraph().GetLineColor()
+            return max(hist.GetPaintedGraph().GetLineColor(), hist.GetPaintedGraph().GetMarkerColor())
         #todo: refactor this part as information parsing is implemented in PlotConfig
         if "hist" in draw_option.lower():
             return hist.GetLineColor()

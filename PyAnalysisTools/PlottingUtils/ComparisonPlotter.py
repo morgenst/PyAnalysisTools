@@ -309,7 +309,6 @@ class ComparisonPlotter(BasePlotter):
         if hasattr(plot_config, "ratio_config"):
             plot_config = plot_config.ratio_config
         plot_config.name = "ratio_" + plot_config.name
-        print "making ratio canvas"
         canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
                                     plot_config=plot_config).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
