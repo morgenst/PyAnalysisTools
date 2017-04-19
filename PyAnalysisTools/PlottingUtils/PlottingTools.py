@@ -1,4 +1,5 @@
 import ROOT
+from operator import itemgetter
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -168,7 +169,10 @@ def plot_histograms(hists, plot_config, process_configs=None):
         if color is not None:
             hist_color = color
             if isinstance(color, list):
-                hist_color = color[hists.index(hist)]
+                if isinstance(hists, list):
+                    hist_color = color[hists.index(hist)]
+                elif isinstance(hists, dict):
+                    hist_color = map(itemgetter(1), hist_defs).index(hist)
             getattr(hist, "Set" + style_setter + "Color")(hist_color)
         if is_first:
             FM.set_minimum_y(hist, plot_config.y_min)
