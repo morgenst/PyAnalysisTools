@@ -5,7 +5,7 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config
 from numpy.lib.recfunctions import rec_append_fields
 import ROOT
 
@@ -48,6 +48,9 @@ class CutflowAnalyser(object):
     def analyse_cutflow(self):
         self.apply_cross_section_weight()
         if self.process_config is not None and self.merge:
+            for hist_set in self.cutflow_hists.values():
+                for process_name in hist_set.keys():
+                    _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms(self.cutflow_hists)
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
@@ -183,7 +186,7 @@ class CutflowAnalyser(object):
 
     def print_cutflow_table(self):
         for selection, cutflow in self.cutflow_tables.iteritems():
-            if not selection == "BaseSelection":
+            if not selection == "MMMM":
                 continue
             print
             print "Cutflow for region %s" % selection
