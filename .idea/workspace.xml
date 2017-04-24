@@ -4,7 +4,6 @@
     <list default="true" id="165a8440-d2da-41b0-9212-e2f4d30f2d44" name="Default" comment="Implement correlation plots&#10;&#10;Resolve MMPP-753&#10;&#10;* add correlation plots from TMVA">
       <change type="NEW" beforePath="" afterPath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeCalculator.py" />
       <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/.name" afterPath="" />
-      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/PyAnalysisTools.iml" afterPath="" />
       <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/dictionaries/marcusmorgenstern.xml" afterPath="" />
       <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/encodings.xml" afterPath="" />
       <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/misc.xml" afterPath="" />
@@ -81,7 +80,7 @@
       <file leaf-file-name="Plotter.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="3465">
+            <state relative-caret-position="3735">
               <caret line="249" column="61" lean-forward="false" selection-start-line="248" selection-start-column="12" selection-end-line="249" selection-end-column="61" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
@@ -93,7 +92,7 @@
       <file leaf-file-name="StatisticsTools.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="840">
+            <state relative-caret-position="885">
               <caret line="59" column="43" lean-forward="false" selection-start-line="59" selection-start-column="43" selection-end-line="59" selection-end-column="43" />
               <folding>
                 <element signature="e#0#21#0" expanded="true" />
@@ -106,7 +105,7 @@
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="278">
-              <caret line="210" column="45" lean-forward="true" selection-start-line="210" selection-start-column="45" selection-end-line="210" selection-end-column="45" />
+              <caret line="210" column="45" lean-forward="false" selection-start-line="210" selection-start-column="45" selection-end-line="210" selection-end-column="45" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
               </folding>
@@ -117,53 +116,10 @@
       <file leaf-file-name="PlotConfig.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="735">
+            <state relative-caret-position="795">
               <caret line="53" column="74" lean-forward="false" selection-start-line="53" selection-start-column="74" selection-end-line="53" selection-end-column="74" />
               <folding>
                 <element signature="e#0#11#0" expanded="true" />
-                <marker date="1493047465000" expanded="true" signature="186:2689" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2083:2206" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2236:2689" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2289:2689" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2329:2395" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2438:2689" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2720:3607" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2754:2864" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2895:3075" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="2935:2998" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="3012:3075" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="3118:3397" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="3445:3607" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="3646:3990" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="3693:3800" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="3856:3966" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="4038:4565" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="4047:4524" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="4624:5171" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="4633:5112" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5139:5171" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5211:5624" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5325:5572" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5364:5479" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5684:6276" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5729:6127" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="5758:5973" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="6187:6276" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="6331:6556" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="6625:6830" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="6900:8111" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="6932:7231" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="6967:7210" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="7779:7884" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="8033:8068" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="8156:9156" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="8391:8566" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="8591:8846" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="8863:9140" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="8953:9076" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="9214:10056" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="9643:10040" ph="..." />
-                <marker date="1493047465000" expanded="true" signature="9699:10040" ph="..." />
               </folding>
             </state>
           </provider>
@@ -314,8 +270,8 @@
       <foldersAlwaysOnTop value="true" />
     </navigator>
     <panes>
-      <pane id="Scope" />
       <pane id="Scratches" />
+      <pane id="Scope" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -1270,7 +1226,7 @@
     <layout>
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.17552084" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32892805" sideWeight="0.49030694" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.165183" sideWeight="0.50277776" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.1305638" sideWeight="0.50277776" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32892805" sideWeight="0.60258484" order="2" side_tool="false" content_ui="tabs" />
       <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.26616916" sideWeight="0.46944445" order="7" side_tool="false" content_ui="tabs" />
@@ -1639,7 +1595,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="840">
+        <state relative-caret-position="885">
           <caret line="59" column="43" lean-forward="false" selection-start-line="59" selection-start-column="43" selection-end-line="59" selection-end-column="43" />
           <folding>
             <element signature="e#0#21#0" expanded="true" />
@@ -1689,7 +1645,7 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3465">
+        <state relative-caret-position="3735">
           <caret line="249" column="61" lean-forward="false" selection-start-line="248" selection-start-column="12" selection-end-line="249" selection-end-column="61" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
@@ -1699,53 +1655,10 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="735">
+        <state relative-caret-position="795">
           <caret line="53" column="74" lean-forward="false" selection-start-line="53" selection-start-column="74" selection-end-line="53" selection-end-column="74" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
-            <marker date="1493047465000" expanded="true" signature="186:2689" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2083:2206" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2236:2689" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2289:2689" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2329:2395" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2438:2689" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2720:3607" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2754:2864" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2895:3075" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="2935:2998" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="3012:3075" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="3118:3397" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="3445:3607" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="3646:3990" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="3693:3800" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="3856:3966" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="4038:4565" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="4047:4524" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="4624:5171" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="4633:5112" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5139:5171" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5211:5624" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5325:5572" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5364:5479" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5684:6276" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5729:6127" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="5758:5973" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="6187:6276" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="6331:6556" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="6625:6830" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="6900:8111" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="6932:7231" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="6967:7210" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="7779:7884" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="8033:8068" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="8156:9156" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="8391:8566" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="8591:8846" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="8863:9140" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="8953:9076" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="9214:10056" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="9643:10040" ph="..." />
-            <marker date="1493047465000" expanded="true" signature="9699:10040" ph="..." />
           </folding>
         </state>
       </provider>
@@ -1753,7 +1666,7 @@
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="278">
-          <caret line="210" column="45" lean-forward="true" selection-start-line="210" selection-start-column="45" selection-end-line="210" selection-end-column="45" />
+          <caret line="210" column="45" lean-forward="false" selection-start-line="210" selection-start-column="45" selection-end-line="210" selection-end-column="45" />
           <folding>
             <element signature="e#0#11#0" expanded="true" />
           </folding>
