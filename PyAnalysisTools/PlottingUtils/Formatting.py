@@ -195,6 +195,7 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
     elif isinstance(graph_obj, ROOT.TH1):
+        graph_obj.SetMaximum(maximum)
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
@@ -254,7 +255,7 @@ def add_legend_to_canvas(canvas, **kwargs):
                 legend_option += "F"
         if "l" in draw_option:
             legend_option += "L"
-        if "p" in draw_option:
+        if "p" in draw_option or "E" in draw_option:
             legend_option += "P"
         if re.match(r"e\d", draw_option.lower()):
             legend_option += "F"

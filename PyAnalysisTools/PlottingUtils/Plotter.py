@@ -32,10 +32,12 @@ class Plotter(BasePlotter):
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("systematics", None)
+        kwargs.setdefault("systematics", "Nominal")
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", True)
+        kwargs.setdefault("ncpu", 1)
+        kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         super(Plotter, self).__init__(**kwargs)
 
@@ -71,6 +73,11 @@ class Plotter(BasePlotter):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.cuts:
+                mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
+                for mc_cut in mc_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
+                    if not "data" in file_handle.process:
+                        selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
                 if len(selection_cuts) != 0:
@@ -175,6 +182,9 @@ class Plotter(BasePlotter):
     def categorise_histograms(self, plot_config, histograms):
         _logger.debug("categorising {:d} histograms".format(len(histograms)))
         for process, hist in histograms:
+            if hist is None:
+                _logger.warning("hist for process {:s} is None".format(process))
+                continue
             try:
                 if process not in self.histograms[plot_config].keys():
                     self.histograms[plot_config][process] = hist
