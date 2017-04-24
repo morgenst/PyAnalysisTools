@@ -1,6 +1,3 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import unittest
 import numpy as np
 from ROOT import TFile
@@ -27,7 +24,7 @@ class TestCutFlowAnalyser(unittest.TestCase):
         self.ca.make_cutflow_table()
 
     def test_read_cutflow_default_name(self):
-        self.ca.read_cutflow()
+        self.ca.read_cutflows()
         #self.assertEqual(self.ca.cutflow_hists, )
 
     def test_execution(self):

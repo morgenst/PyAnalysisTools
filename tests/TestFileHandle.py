@@ -1,6 +1,3 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import unittest
 
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
@@ -42,3 +39,4 @@ class TestFileHandle(unittest.TestCase):
         self.handle.open()
         with self.assertRaises(ValueError):
             obj = self.handle.get_object_by_name("DRTr-1s_residualDose")
+

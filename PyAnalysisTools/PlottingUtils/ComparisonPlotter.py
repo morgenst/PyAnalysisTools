@@ -105,7 +105,7 @@ class SingleFileMultiDistReader(ComparisonReader):
                 _logger.error("Privided {:d} input files for single file reader. "
                               "Using just first".format(len(input_files)))
             input_files = input_files[0]
-        self.file_handle = FileHandle(file_name=input_files)
+        self.file_handle = FileHandle(file_name=input_files, switch_off_process_name_analysis=True)
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
 
@@ -216,7 +216,6 @@ class ComparisonPlotter(BasePlotter):
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
                               ROOT.kRed+3, ROOT.kGreen-2]
-        self.parse_config()
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
