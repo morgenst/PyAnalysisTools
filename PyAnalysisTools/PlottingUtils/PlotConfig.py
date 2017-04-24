@@ -129,7 +129,6 @@ def parse_and_build_process_config(process_config_file):
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
-        print e
         raise e
 
 
@@ -175,6 +174,8 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
         draw_option = "p"
+    elif draw_option == "MarkerError":
+        draw_option = "E"
     elif draw_option == "Line":
         draw_option = "l"
     return draw_option
@@ -207,7 +208,7 @@ def get_style_setters_and_values(plot_config, process_config=None):
             style_setter = "Fill"
         else:
             style_setter = "Line"
-    elif draw_option.lower() == "marker":
+    elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
         style_setter = "Marker"
     elif draw_option.lower() == "line":
         style_setter = "Line"

@@ -71,8 +71,10 @@ def plot_2d_hist(hist, plot_config, **kwargs):
         title = plot_config.title
     canvas = retrieve_new_canvas(plot_config.name, title)
     canvas.cd()
+    hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
     hist.Draw(plot_config.draw_option)
+
     canvas.SetRightMargin(0.1)
     return canvas
 
@@ -172,7 +174,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
                 if isinstance(hists, list):
                     hist_color = color[hists.index(hist)]
                 elif isinstance(hists, dict):
-                    hist_color = map(itemgetter(1), hist_defs).index(hist)
+                    hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
             getattr(hist, "Set" + style_setter + "Color")(hist_color)
         if is_first:
             FM.set_minimum_y(hist, plot_config.y_min)
@@ -298,12 +300,13 @@ def plot_stack(hists, plot_config, **kwargs):
     return canvas
 
 
-def add_data_to_stack(canvas, process, data, blind=None):
+def add_data_to_stack(canvas, data, plot_config=None, blind=None):
     if blind:
         blind_data(data, blind)
     canvas.cd()
     ROOT.SetOwnership(data, False)
-    data.Draw("psames")
+    data = format_hist(data, plot_config)
+    data.Draw("Esames")
 
 
 def blind_data(data, blind):
