@@ -85,13 +85,12 @@ class MuonFakeEstimator(object):
             for plot_config, hists in data.iteritems():
                 data_hists[jet_bin][plot_config] = hists["Data"]
                 data_hists[jet_bin][plot_config].Add(hists["Prompt"], -1.0)
-                if plot_config.rebin is not None:
+                if hasattr(plot_config, "rebin") and plot_config.rebin is not None:
                     data_hists[jet_bin][plot_config] = HT.rebin(data_hists[jet_bin][plot_config], plot_config.rebin)
         return data_hists
 
     @staticmethod
     def calculate_fake_factor(numerator, denominator, name):
-        print numerator.GetNbinsX()
         fake_factor = numerator.Clone(name)
         fake_factor.Divide(denominator)
         return fake_factor
@@ -128,6 +127,7 @@ class MuonFakeEstimator(object):
             fake_factor_hist = self.calculate_fake_factor(numerator_pt.values()[0], denominator_pt.values()[0],
                                                           "fake_factor_pt_eta_{:d}_jets".format(n_jet))
             canvas = PT.plot_2d_hist(fake_factor_hist, plot_config)
+            fake_factor_hist.GetZaxis().SetRangeUser(0., 1.)
             FT.decorate_canvas(canvas, plot_config)
             self.plotter.output_handle.register_object(canvas)
 
