@@ -186,8 +186,8 @@ def plot_histograms(hists, plot_config, process_configs=None):
                     hist.SetMinimum(0.0001)
                 canvas.SetLogy()
 
-                if hasattr(plot_config, "ymax"):
-                    hist.SetMaximum(plot_config.ymax)
+            if hasattr(plot_config, "ymax"):
+                hist.SetMaximum(plot_config.ymax)
             format_hist(hist, plot_config)
             canvas.Update()
         is_first = False
