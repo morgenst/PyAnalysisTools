@@ -181,7 +181,7 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
     return draw_option
 
 
-def get_style_setters_and_values(plot_config, process_config=None):
+def get_style_setters_and_values(plot_config, process_config=None, index=None):
     def transform_color(color):
         if isinstance(color, str):
             offset = 0
@@ -197,6 +197,8 @@ def get_style_setters_and_values(plot_config, process_config=None):
     draw_option = _parse_draw_option(plot_config, process_config)
     if hasattr(process_config, "style"):
         style_attr = process_config.style
+    if hasattr(plot_config, "styles") and index is not None:
+        style_attr = plot_config.styles[index]
     if hasattr(plot_config, "style"):
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
