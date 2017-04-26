@@ -25,22 +25,24 @@ class MuonFakeEstimator(object):
         self.jet_binned_histograms = {}
         self.histograms = {}
 
-    def get_plots(self, dist, relation_op):
+    def get_plots(self, dist, relation_op, enable_dr=True):
         plot_config_base = filter(lambda pc: pc.name == dist, self.plot_config)[0]
         hists = {}
-        #todo: update jet_n cut selection only jets with dR > 0.3
         for n_jet in range(3):
             plot_config = copy(plot_config_base)
-            #plot_config.cuts = ["jet_n=={:d}".format(n_jet)]
+            jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
-                cut = ["(Sum$(muon_jet_dr > 0.3) {:s} {:d}) && muon_d0sig > 3 && muon_isolGradient==1".format(relation_op, n_jet)]
+                cut = ["({:s} {:s} {:d}) && muon_d0sig > 3 && muon_isolGradient==1".format(jet_selector,
+                                                                                           relation_op, n_jet)]
                 cut.append("MC:(muon_truth_mother_pdg==12 || muon_truth_mother_pdg==13)")
             elif "denominator" in dist:
-                cut = ["(Sum$(fake_muon_jet_dr > 0.3) {:s} {:d}) && fake_muon_d0sig > 3 && fake_muon_isolGradient==0".format(relation_op, n_jet)]
+                cut = ["({:s} {:s} {:d}) && fake_muon_d0sig > 3 && fake_muon_isolGradient==0".format(jet_selector.replace("muon", "fake_muon"),
+                                                                                                     relation_op, n_jet)]
                 cut.append("MC:(fake_muon_truth_mother_pdg==12 || fake_muon_truth_mother_pdg==13)")
             plot_config.cuts = cut
             suffix = "eq" if relation_op == "==" else "geq"
-            name = "{:s}_{:s}{:d}_jets".format(dist, suffix, n_jet)
+            jet_selector_name = "" if not enable_dr else "_dR0.3"
+            name = "{:s}_{:s}{:d}_jets{:s}".format(dist, suffix, n_jet, jet_selector_name)
             plot_config.name = name
             numerator_hists = mp.ThreadPool(min(self.ncpu, 1)).map(self.plotter.read_histograms, [plot_config])
             for plot_config, histograms in numerator_hists:
@@ -78,6 +80,10 @@ class MuonFakeEstimator(object):
         self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("numerator_pt", ">="))
         self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt", "=="))
         self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt", ">="))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("numerator_pt", "==", False))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("numerator_pt", ">=", False))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt", "==", False))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt", ">=", False))
         for jet_bin, hist_set in self.histograms.iteritems():
             self.make_plot(hist_set.values(), hist_set.keys()[0])
 
@@ -102,21 +108,24 @@ class MuonFakeEstimator(object):
         fake_factors = {}
         data_histograms = self.subtract_prompt()
         ordering = []
-        for n_jet in range(3):
-            for op in ["eq", "geq"]:
-                numerator_name = "numerator_pt_{:s}{:d}_jets".format(op, n_jet)
-                numerator_pt = data_histograms[numerator_name]
-                denominator_pt = data_histograms["denominator_pt_{:s}{:d}_jets".format(op, n_jet)]
-                ff_name = numerator_name.replace("numerator", "ff")
-                fake_factors[ff_name] = self.calculate_fake_factor(numerator_pt.values()[0], denominator_pt.values()[0],
-                                                                   "fake_factor_pt_{:s}{:d}_jets".format(op, n_jet))
-                ordering.append(ff_name)
+        for jet_selector in ["_dR0.3", ""]:
+            for n_jet in range(3):
+                for op in ["eq", "geq"]:
+                    numerator_name = "numerator_pt_{:s}{:d}_jets{:s}".format(op, n_jet, jet_selector)
+                    numerator_pt = data_histograms[numerator_name]
+                    denominator_pt = data_histograms[numerator_name.replace("numerator", "denominator")]
+                    ff_name = numerator_name.replace("numerator", "ff")
+                    fake_factors[ff_name] = self.calculate_fake_factor(numerator_pt.values()[0], denominator_pt.values()[0],
+                                                                       ff_name)
+                    ordering.append(ff_name)
         plot_config = PlotConfig(draw="MarkerError", color=[ROOT.kBlack, ROOT.kRed, ROOT.kBlue, ROOT.kGreen,
-                                                            ROOT.kCyan, ROOT.kGray], name="fake_factor_pt",
+                                                            ROOT.kCyan, ROOT.kGray] * 2, name="fake_factor_pt",
                                  watermark="Internal", xtitle="p_{T} [GeV]", ytitle="Fake factor", ordering=ordering,
-                                 ymin=0., ymax=1.)
+                                 ymin=0., ymax=1., styles=[20] * int(len(fake_factors) / 2) + [21]*int(len(fake_factors) / 2))
         canvas = PT.plot_objects(fake_factors, plot_config)
-        labels = ["=0 jet", ">= 0 jet", "=1 jet", ">=1 jet", "=2 jet", ">=2 jet"]
+        labels = ["=0 jet (dR > 0.3)", ">= 0 jet (dR > 0.3)", "=1 jet (dR > 0.3)", ">=1 jet (dR > 0.3)",
+                  "=2 jet (dR > 0.3)", ">=2 jet  (dR > 0.3)", "=0 jet", ">= 0 jet", "=1 jet", ">=1 jet", "=2 jet",
+                  ">=2 jet"]
         FT.add_legend_to_canvas(canvas, labels=labels)
         FT.decorate_canvas(canvas, plot_config)
         self.plotter.output_handle.register_object(canvas)
@@ -144,5 +153,5 @@ class MuonFakeEstimator(object):
     def run(self):
         self.plot_jet_bins()
         self.plot_fake_factors()
-        self.plot_fake_factors_2D()
+        #self.plot_fake_factors_2D()
         self.plotter.output_handle.write_and_close()

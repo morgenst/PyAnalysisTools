@@ -150,6 +150,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
     if plot_config.ordering is not None:
         sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
+        index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
         if not (plot_config.is_set_to_value("ignore_style", True)) and \
@@ -157,7 +158,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
             draw_option = "hist"
-        style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+        style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
