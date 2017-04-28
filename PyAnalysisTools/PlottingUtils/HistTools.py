@@ -53,6 +53,11 @@ def __rebin_asymmetric_1d_hist(hist, n_bins, bins):
     return hist.Rebin(n_bins - 1, hist.GetName(), bins)
 
 
+def __rebin_asymmetric_2d_hist(hist, n_binsx, bins_x):
+    hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
+    return hist.Rebin(n_binsx - 1, hist.GetName(), bins_x)
+
+
 def merge_overflow_bins(hists, x_max=None):
     if type(hists) == dict:
         for item in hists.values():

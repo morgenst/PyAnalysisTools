@@ -125,6 +125,9 @@ def format_hist(hist, plot_config):
     if hasattr(plot_config, "unit"):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
+    if isinstance(hist, ROOT.TH2):
+        if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
+            hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "rebin"):
         hist = HT.rebin(hist, plot_config.rebin)
         yscale = 1.1
@@ -277,7 +280,8 @@ def plot_stack(hists, plot_config, **kwargs):
     if plot_config.ordering is not None:
         hist_defs = apply_ordering(hist_defs, plot_config.ordering)
     for process, hist in hist_defs:
-        if process == "Data":
+        if "data" in process.lower():
+            #todo: problem if two distinct data sets
             data = (process, hist)
             continue
         hist = format_hist(hist, plot_config)
@@ -290,7 +294,7 @@ def plot_stack(hists, plot_config, **kwargs):
     format_hist(stack, plot_config)
     max_y = 1.1 * stack.GetMaximum()
     if data is not None:
-        add_data_to_stack(canvas, *data)
+        add_data_to_stack(canvas, data[1], plot_config)
         max_y = max(max_y, 1.1 * data[1].GetMaximum())
     FM.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
