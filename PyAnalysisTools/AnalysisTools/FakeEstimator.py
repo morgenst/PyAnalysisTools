@@ -55,7 +55,6 @@ class MuonFakeEstimator(object):
                     _ = find_process_config(process_name, self.plotter.process_configs)
             self.plotter.merge_histograms()
             hists[name] = self.plotter.histograms
-
         return hists
 
     def make_plot(self, hists, plot_config):
@@ -135,23 +134,29 @@ class MuonFakeEstimator(object):
         self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("numerator_pt_eta", ">="))
         self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt_eta", "=="))
         self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt_eta", ">="))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("numerator_pt_eta", "==", False))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("numerator_pt_eta", ">=", False))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt_eta", "==", False))
+        self.histograms = Utilities.merge_dictionaries(self.histograms, self.get_plots("denominator_pt_eta", ">=", False))
         data_histograms = self.subtract_prompt()
-        for n_jet in range(3):
-            for op in ["eq", "geq"]:
-                plot_config = PlotConfig(name="fake_factor_pt_eta_{:s}{:d}_jets".format(op, n_jet), draw_option="COLZ",
-                                         xtitle="p_{T} [GeV]", ytitle="#eta", ztitle="fake factor", watermark="Internal")
-                numerator_pt = data_histograms["numerator_pt_eta_{:s}{:d}_jets".format(op, n_jet)]
-                denominator_pt = data_histograms["denominator_pt_eta_{:s}{:d}_jets".format(op, n_jet)]
+        for jet_selector in ["_dR0.3", ""]:
+            for n_jet in range(3):
+                for op in ["eq", "geq"]:
+                    name = "fake_factor_pt_eta_{:s}{:d}_jets{:s}".format(op, n_jet, jet_selector)
+                    plot_config = PlotConfig(name=name, draw_option="COLZ",
+                                             xtitle="p_{T} [GeV]", ytitle="#eta", ztitle="fake factor", watermark="Internal")
+                    numerator_pt = data_histograms[name.replace("fake_factor", "numerator")]
+                    denominator_pt = data_histograms[name.replace("fake_factor", "denominator")]
 
-                fake_factor_hist = self.calculate_fake_factor(numerator_pt.values()[0], denominator_pt.values()[0],
-                                                              "fake_factor_pt_eta_{:s}{:d}_jets".format(op, n_jet))
-                canvas = PT.plot_2d_hist(fake_factor_hist, plot_config)
-                fake_factor_hist.GetZaxis().SetRangeUser(0., 1.)
-                FT.decorate_canvas(canvas, plot_config)
+                    fake_factor_hist = self.calculate_fake_factor(numerator_pt.values()[0], denominator_pt.values()[0],
+                                                                  name)
+                    canvas = PT.plot_2d_hist(fake_factor_hist, plot_config)
+                    fake_factor_hist.GetZaxis().SetRangeUser(0., 1.)
+                    FT.decorate_canvas(canvas, plot_config)
                 self.plotter.output_handle.register_object(canvas)
 
     def run(self):
         self.plot_jet_bins()
         self.plot_fake_factors()
-        #self.plot_fake_factors_2D()
+        self.plot_fake_factors_2D()
         self.plotter.output_handle.write_and_close()

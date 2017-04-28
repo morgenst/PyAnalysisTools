@@ -1,5 +1,6 @@
 import ROOT
 import re
+from array import array
 from copy import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
@@ -226,8 +227,12 @@ def get_histogram_definition(plot_config):
     if dimension == 0:
         hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
     elif dimension == 1:
-        hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
-                         plot_config.ybins, plot_config.ymin, plot_config.ymax)
+        if isinstance(plot_config.xbins, list):
+            hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) -1, array("d", plot_config.xbins),
+                             plot_config.ybins, plot_config.ymin, plot_config.ymax)
+        else:
+            hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
+                             plot_config.ybins, plot_config.ymin, plot_config.ymax)
     elif dimension == 2:
         hist = ROOT.TH3F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
                          plot_config.ybins, plot_config.ymin, plot_config.ymax,
