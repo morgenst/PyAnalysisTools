@@ -39,6 +39,13 @@ def recursive_glob(path, pattern):
     return matches
 
 
+def check_required_args(*args, **kwargs):
+    for arg in args:
+        if arg not in kwargs:
+            return arg
+    return None
+
+
 class Cleaner(object):
     def __init__(self, **kwargs):
         if "base_path" not in kwargs:
