@@ -38,11 +38,11 @@ class Plotter(BasePlotter):
         kwargs.setdefault("batch", True)
         kwargs.setdefault("output_file_name", "plots.root")
         super(Plotter, self).__init__(**kwargs)
-
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         set_batch_mode(kwargs["batch"])
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
+        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
+                             for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         FM.load_atlas_style()
         self.statistical_uncertainty_hist = None
