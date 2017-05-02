@@ -74,8 +74,9 @@ def plot_2d_hist(hist, plot_config, **kwargs):
     hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
     hist.Draw(plot_config.draw_option)
-
-    canvas.SetRightMargin(0.1)
+    canvas.SetRightMargin(0.2)
+    canvas.Modified()
+    canvas.Update()
     return canvas
 
 
@@ -126,6 +127,8 @@ def format_hist(hist, plot_config):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
     if isinstance(hist, ROOT.TH2):
+        if hasattr(plot_config, "ztitle"):
+            hist.GetZaxis().SetTitle(plot_config.ztitle)
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "rebin"):
@@ -181,6 +184,10 @@ def plot_histograms(hists, plot_config, process_configs=None):
                     hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
             getattr(hist, "Set" + style_setter + "Color")(hist_color)
         if is_first:
+            if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
+                print "set margin"
+                exit(0)
+                canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)
             if plot_config.logy:
