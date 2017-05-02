@@ -185,8 +185,6 @@ def plot_histograms(hists, plot_config, process_configs=None):
             getattr(hist, "Set" + style_setter + "Color")(hist_color)
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
-                print "set margin"
-                exit(0)
                 canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)
