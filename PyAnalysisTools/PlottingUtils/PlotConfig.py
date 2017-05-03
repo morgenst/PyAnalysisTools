@@ -1,5 +1,6 @@
 import ROOT
 import re
+from array import array
 from copy import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
@@ -129,7 +130,6 @@ def parse_and_build_process_config(process_config_file):
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
-        print e
         raise e
 
 
@@ -175,12 +175,14 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
         draw_option = "p"
+    elif draw_option == "MarkerError":
+        draw_option = "E"
     elif draw_option == "Line":
         draw_option = "l"
     return draw_option
 
 
-def get_style_setters_and_values(plot_config, process_config=None):
+def get_style_setters_and_values(plot_config, process_config=None, index=None):
     def transform_color(color):
         if isinstance(color, str):
             offset = 0
@@ -196,6 +198,8 @@ def get_style_setters_and_values(plot_config, process_config=None):
     draw_option = _parse_draw_option(plot_config, process_config)
     if hasattr(process_config, "style"):
         style_attr = process_config.style
+    if hasattr(plot_config, "styles") and index is not None:
+        style_attr = plot_config.styles[index]
     if hasattr(plot_config, "style"):
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
@@ -207,7 +211,7 @@ def get_style_setters_and_values(plot_config, process_config=None):
             style_setter = "Fill"
         else:
             style_setter = "Line"
-    elif draw_option.lower() == "marker":
+    elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
         style_setter = "Marker"
     elif draw_option.lower() == "line":
         style_setter = "Line"
@@ -223,8 +227,12 @@ def get_histogram_definition(plot_config):
     if dimension == 0:
         hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
     elif dimension == 1:
-        hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
-                         plot_config.ybins, plot_config.ymin, plot_config.ymax)
+        if isinstance(plot_config.xbins, list):
+            hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) -1, array("d", plot_config.xbins),
+                             plot_config.ybins, plot_config.ymin, plot_config.ymax)
+        else:
+            hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
+                             plot_config.ybins, plot_config.ymin, plot_config.ymax)
     elif dimension == 2:
         hist = ROOT.TH3F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
                          plot_config.ybins, plot_config.ymin, plot_config.ymax,

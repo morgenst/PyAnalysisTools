@@ -7,25 +7,20 @@ from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition, \
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
     expand_plot_config, parse_and_build_process_config, find_process_config
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, get_objects_from_canvas
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 
 
 class ComparisonReader(object):
     def __init__(self, **kwargs):
-        # if not "config_file" in kwargs:
-        #     _logger.error("No config file provided")
-        #     raise InvalidInputError("Missing config")
-        if not "input_files" in kwargs:
+        if "input_files" not in kwargs:
             _logger.error("No input file provided")
             raise InvalidInputError("Missing input files")
         kwargs.setdefault("reference_files", None)
         kwargs.setdefault("reference_dataset_info", None)
         kwargs.setdefault("dataset_info", None)
-        #self.plot_configs = kwargs["plot_configs"]
-        #self.common_config = kwargs["common_config"]
         self.input_files = kwargs["input_files"]
         self.reference_files = kwargs["reference_files"]
         self.tree_name = kwargs["tree_name"]
@@ -38,11 +33,8 @@ class ComparisonReader(object):
             self.process_configs = self.parse_process_config(self.merge_file)
             self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
-    # def parse_config(self):
-    #     self.plot_configs, self.common_config = parse_and_build_plot_config(self.config_file)
-
     def get_instance(self, plot_config):
-        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref"):# and hasattr(plot_config, "processes"):
+        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref"):
             _logger.debug("Using SingleFileMultiReader instance")
             return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_files:

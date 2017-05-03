@@ -1,4 +1,5 @@
 import ROOT
+from operator import itemgetter
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -70,9 +71,12 @@ def plot_2d_hist(hist, plot_config, **kwargs):
         title = plot_config.title
     canvas = retrieve_new_canvas(plot_config.name, title)
     canvas.cd()
+    hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
     hist.Draw(plot_config.draw_option)
-    canvas.SetRightMargin(0.1)
+    canvas.SetRightMargin(0.2)
+    canvas.Modified()
+    canvas.Update()
     return canvas
 
 
@@ -122,6 +126,11 @@ def format_hist(hist, plot_config):
     if hasattr(plot_config, "unit"):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
+    if isinstance(hist, ROOT.TH2):
+        if hasattr(plot_config, "ztitle"):
+            hist.GetZaxis().SetTitle(plot_config.ztitle)
+        if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
+            hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "rebin"):
         hist = HT.rebin(hist, plot_config.rebin)
         yscale = 1.1
@@ -147,6 +156,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
     if plot_config.ordering is not None:
         sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
+        index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
         if not (plot_config.is_set_to_value("ignore_style", True)) and \
@@ -154,7 +164,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
             draw_option = "hist"
-        style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+        style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
@@ -168,9 +178,14 @@ def plot_histograms(hists, plot_config, process_configs=None):
         if color is not None:
             hist_color = color
             if isinstance(color, list):
-                hist_color = color[hists.index(hist)]
+                if isinstance(hists, list):
+                    hist_color = color[hists.index(hist)]
+                elif isinstance(hists, dict):
+                    hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
             getattr(hist, "Set" + style_setter + "Color")(hist_color)
         if is_first:
+            if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
+                canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.y_min)
             FM.set_maximum_y(hist, max_y)
             if plot_config.logy:
@@ -180,8 +195,8 @@ def plot_histograms(hists, plot_config, process_configs=None):
                     hist.SetMinimum(0.0001)
                 canvas.SetLogy()
 
-                if hasattr(plot_config, "ymax"):
-                    hist.SetMaximum(plot_config.ymax)
+            if hasattr(plot_config, "ymax"):
+                hist.SetMaximum(plot_config.ymax)
             format_hist(hist, plot_config)
             canvas.Update()
         is_first = False
@@ -270,7 +285,8 @@ def plot_stack(hists, plot_config, **kwargs):
     if plot_config.ordering is not None:
         hist_defs = apply_ordering(hist_defs, plot_config.ordering)
     for process, hist in hist_defs:
-        if process == "Data":
+        if "data" in process.lower():
+            #todo: problem if two distinct data sets
             data = (process, hist)
             continue
         hist = format_hist(hist, plot_config)
@@ -283,7 +299,7 @@ def plot_stack(hists, plot_config, **kwargs):
     format_hist(stack, plot_config)
     max_y = 1.1 * stack.GetMaximum()
     if data is not None:
-        add_data_to_stack(canvas, *data)
+        add_data_to_stack(canvas, data[1], plot_config)
         max_y = max(max_y, 1.1 * data[1].GetMaximum())
     FM.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
@@ -294,12 +310,13 @@ def plot_stack(hists, plot_config, **kwargs):
     return canvas
 
 
-def add_data_to_stack(canvas, process, data, blind=None):
+def add_data_to_stack(canvas, data, plot_config=None, blind=None):
     if blind:
         blind_data(data, blind)
     canvas.cd()
     ROOT.SetOwnership(data, False)
-    data.Draw("psames")
+    data = format_hist(data, plot_config)
+    data.Draw("Esames")
 
 
 def blind_data(data, blind):

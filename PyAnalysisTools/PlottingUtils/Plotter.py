@@ -11,6 +11,7 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils import RatioPlotter as RP
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import merge_objects_by_process_type
@@ -32,17 +33,19 @@ class Plotter(BasePlotter):
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("systematics", None)
+        kwargs.setdefault("systematics", "Nominal")
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("batch", True)
+        kwargs.setdefault("ncpu", 1)
+        kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         super(Plotter, self).__init__(**kwargs)
-
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         set_batch_mode(kwargs["batch"])
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
+        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
+                             for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         FM.load_atlas_style()
         self.statistical_uncertainty_hist = None
@@ -71,6 +74,11 @@ class Plotter(BasePlotter):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.cuts:
+                mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
+                for mc_cut in mc_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
+                    if not "data" in file_handle.process:
+                        selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
                 if len(selection_cuts) != 0:
@@ -175,6 +183,9 @@ class Plotter(BasePlotter):
     def categorise_histograms(self, plot_config, histograms):
         _logger.debug("categorising {:d} histograms".format(len(histograms)))
         for process, hist in histograms:
+            if hist is None:
+                _logger.warning("hist for process {:s} is None".format(process))
+                continue
             try:
                 if process not in self.histograms[plot_config].keys():
                     self.histograms[plot_config][process] = hist
@@ -280,11 +291,34 @@ class Plotter(BasePlotter):
                 if plot_config.no_data or plot_config.is_multidimensional:
                     continue
                 if plot_config.ratio:
-                    try:
-                        canvas_ratio = self.calculate_ratios(data, plot_config)
-                        canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
-                        self.output_handle.register_object(canvas_combined)
-                    except InvalidInputError:
-                        pass
+                    mc_total = None
+                    for key, hist in data.iteritems():
+                        if key == "Data":
+                            continue
+                        if mc_total is None:
+                            mc_total = hist.Clone("mc_total_%s" % plot_config.dist)
+                            continue
+                        mc_total.Add(hist)
+                    ratio_plot_config = copy.copy(plot_config)
+                    ratio_plot_config.name = "ratio_" + plot_config.name
+                    ratio_plot_config.ytitle = "ratio"
+                    ratio_plotter = RP.RatioPlotter(reference=data["Data"], compare=mc_total,
+                                                    plot_config=ratio_plot_config)
+                    canvas_ratio = ratio_plotter.make_ratio_plot()
+                    if self.statistical_uncertainty_hist:
+                        plot_config_stat_unc_ratio = copy.copy(ratio_plot_config)
+                        plot_config_stat_unc_ratio.name = ratio_plot_config.name.replace("ratio", "stat_unc")
+                        plot_config_stat_unc_ratio.color = ROOT.kYellow
+                        plot_config_stat_unc_ratio.style = 1001
+                        plot_config_stat_unc_ratio.draw = "E2"
+                        plot_config_stat_unc_ratio.logy = False
+                        statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(
+                            self.statistical_uncertainty_hist)
+                        ratio_hist = get_objects_from_canvas_by_type(canvas_ratio, "TH1F")[0]
+                        canvas_ratio = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
+                        PT.add_histogram_to_canvas(canvas_ratio, ratio_hist, plot_config)
+                    canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                    self.output_handle.register_object(canvas_combined)
         self.output_handle.write_and_close()
+
 
