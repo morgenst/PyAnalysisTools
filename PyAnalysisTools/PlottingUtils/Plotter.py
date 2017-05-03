@@ -11,6 +11,7 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils import RatioPlotter as RP
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import merge_objects_by_process_type
@@ -290,11 +291,34 @@ class Plotter(BasePlotter):
                 if plot_config.no_data or plot_config.is_multidimensional:
                     continue
                 if plot_config.ratio:
-                    try:
-                        canvas_ratio = self.calculate_ratios(data, plot_config)
-                        canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
-                        self.output_handle.register_object(canvas_combined)
-                    except InvalidInputError:
-                        pass
+                    mc_total = None
+                    for key, hist in data.iteritems():
+                        if key == "Data":
+                            continue
+                        if mc_total is None:
+                            mc_total = hist.Clone("mc_total_%s" % plot_config.dist)
+                            continue
+                        mc_total.Add(hist)
+                    ratio_plot_config = copy.copy(plot_config)
+                    ratio_plot_config.name = "ratio_" + plot_config.name
+                    ratio_plot_config.ytitle = "ratio"
+                    ratio_plotter = RP.RatioPlotter(reference=data["Data"], compare=mc_total,
+                                                    plot_config=ratio_plot_config)
+                    canvas_ratio = ratio_plotter.make_ratio_plot()
+                    if self.statistical_uncertainty_hist:
+                        plot_config_stat_unc_ratio = copy.copy(ratio_plot_config)
+                        plot_config_stat_unc_ratio.name = ratio_plot_config.name.replace("ratio", "stat_unc")
+                        plot_config_stat_unc_ratio.color = ROOT.kYellow
+                        plot_config_stat_unc_ratio.style = 1001
+                        plot_config_stat_unc_ratio.draw = "E2"
+                        plot_config_stat_unc_ratio.logy = False
+                        statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(
+                            self.statistical_uncertainty_hist)
+                        ratio_hist = get_objects_from_canvas_by_type(canvas_ratio, "TH1F")[0]
+                        canvas_ratio = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
+                        PT.add_histogram_to_canvas(canvas_ratio, ratio_hist, plot_config)
+                    canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                    self.output_handle.register_object(canvas_combined)
         self.output_handle.write_and_close()
+
 

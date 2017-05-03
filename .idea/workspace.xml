@@ -1,9 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="AnalysisUIOptions">
-    <option name="SCOPE_TYPE" value="8" />
-    <option name="CUSTOM_SCOPE_NAME" value="Project Files" />
-  </component>
   <component name="ChangeListManager">
     <list default="true" id="66d4797c-2916-4b43-8b4a-f3c46ea3d7cd" name="Default" comment="implement raw cutflow support">
       <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/PyAnalysisTools.iml" afterPath="" />
@@ -17,7 +13,7 @@
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/RatioPlotter.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/RatioPlotter.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/setup.sh" afterPath="$PROJECT_DIR$/setup.sh" />
     </list>
-    <ignored path="PyAnalysisTools.iws" />
+    <ignored path="ROOTCompare.iws" />
     <ignored path=".idea/workspace.xml" />
     <ignored path=".idea/dataSources.local.xml" />
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -28,29 +24,38 @@
     <option name="LAST_RESOLUTION" value="IGNORE" />
   </component>
   <component name="CoverageDataManager">
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestBasePlotter.coverage" NAME="Unittests in TestBasePlotter Coverage Results" MODIFIED="1485465118033" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestBaseUtilities.coverage" NAME="Unittests in TestBaseUtilities Coverage Results" MODIFIED="1485817672444" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestBaseShellUtils.coverage" NAME="Unittests in TestBaseShellUtils Coverage Results" MODIFIED="1490733788753" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_tests.coverage" NAME="Unittests in TestBaseUtilities Coverage Results" MODIFIED="1485465293010" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestYAMLHandle.coverage" NAME="Unittests in TestYAMLHandle Coverage Results" MODIFIED="1485877674487" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Nosetests_in_TestBaseUtilities.coverage" NAME="Nosetests in TestBaseUtilities Coverage Results" MODIFIED="1485262497905" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Nosetests_in_tests.coverage" NAME="Nosetests in tests Coverage Results" MODIFIED="1485464948423" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
-    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestBaseLogger.coverage" NAME="Unittests in TestBaseLogger Coverage Results" MODIFIED="1485872600197" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestCutFlowAnalyser_test_analyse_cutflow.coverage" NAME="Unittest TestCutFlowAnalyser.test_analyse_cutflow Coverage Results" MODIFIED="1464340248266" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AnalysisTools/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestCutFlowAnalyser.coverage" NAME="Unittests in TestCutFlowAnalyser Coverage Results" MODIFIED="1464347703511" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AnalysisTools/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_scale_hist.coverage" NAME="Unittest TestFormatting.test_scale_hist Coverage Results" MODIFIED="1464360652359" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_marker_style_misspell.coverage" NAME="Unittest TestFormatting.test_set_marker_style_misspell Coverage Results" MODIFIED="1464274570314" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_normalise.coverage" NAME="Unittest TestFormatting.test_normalise Coverage Results" MODIFIED="1464359051474" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_xtitle_hist_2d.coverage" NAME="Unittest TestFormatting.test_set_xtitle_hist_2d Coverage Results" MODIFIED="1464273278943" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestLogger.coverage" NAME="Unittests in TestLogger Coverage Results" MODIFIED="1464357381257" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_normalise_list.coverage" NAME="Unittest TestFormatting.test_normalise_list Coverage Results" MODIFIED="1464359134701" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_line_style_1d.coverage" NAME="Unittest TestFormatting.test_set_line_style_1d Coverage Results" MODIFIED="1464274809942" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestCutFlowAnalyser__1_.coverage" NAME="Unittests in TestCutFlowAnalyser (1) Coverage Results" MODIFIED="1464356277129" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_style_invalid_config.coverage" NAME="Unittest TestFormatting.test_set_style_invalid_config Coverage Results" MODIFIED="1464273921300" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestHistTools.coverage" NAME="Unittests in TestHistTools Coverage Results" MODIFIED="1464360682903" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_make_text.coverage" NAME="Unittest TestFormatting.test_make_text Coverage Results" MODIFIED="1464611796368" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_style_invalid_config_option.coverage" NAME="Unittest TestFormatting.test_set_style_invalid_config_option Coverage Results" MODIFIED="1464274409492" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_range_hist_min_only.coverage" NAME="Unittest TestFormatting.test_set_range_hist_min_only Coverage Results" MODIFIED="1464610042702" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_test.coverage" NAME="Unittests in test Coverage Results" MODIFIED="1464271481782" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/ROOTUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_test_formatting.coverage" NAME="Unittests in test_formatting Coverage Results" MODIFIED="1464273267594" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestFormatting__1_.coverage" NAME="Unittests in TestFormatting (1) Coverage Results" MODIFIED="1464610138694" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestCutFlowAnalyser_test_execution.coverage" NAME="Unittest TestCutFlowAnalyser.test_execution Coverage Results" MODIFIED="1464348237184" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AnalysisTools/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittests_in_TestFormatting.coverage" NAME="Unittests in TestFormatting Coverage Results" MODIFIED="1464358845486" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_xtitle.coverage" NAME="Unittest TestFormatting.test_set_xtitle Coverage Results" MODIFIED="1464272658807" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$PrepareInputs.coverage" NAME="PrepareInputs Coverage Results" MODIFIED="1464275903938" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/AnalysisTools/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_xtitle_invalid_object.coverage" NAME="Unittest TestFormatting.test_set_xtitle_invalid_object Coverage Results" MODIFIED="1464272832258" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestCutFlowAnalyser_test_non_existing_file.coverage" NAME="Unittest TestCutFlowAnalyser.test_non_existing_file Coverage Results" MODIFIED="1464356355813" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/tests" />
+    <SUITE FILE_PATH="coverage/PyAnalysisTools$Unittest_TestFormatting_test_set_marker_style_1d.coverage" NAME="Unittest TestFormatting.test_set_marker_style_1d Coverage Results" MODIFIED="1464274451067" SOURCE_PROVIDER="com.intellij.coverage.DefaultCoverageFileProvider" RUNNER="coverage.py" COVERAGE_BY_TEST_ENABLED="true" COVERAGE_TRACING_ENABLED="false" WORKING_DIRECTORY="$PROJECT_DIR$/PlottingUtils/test" />
   </component>
   <component name="CreatePatchCommitExecutor">
     <option name="PATCH_PATH" value="" />
   </component>
-  <component name="DatabaseView">
-    <option name="GROUP_SCHEMA" value="true" />
-    <option name="GROUP_CONTENTS" value="false" />
-    <option name="SORT_POSITIONED" value="false" />
-    <option name="SHOW_TABLE_DETAILS" value="true" />
-    <option name="SHOW_EMPTY_GROUPS" value="false" />
-    <option name="AUTO_SCROLL_FROM_SOURCE" value="false" />
-  </component>
   <component name="ExecutionTargetManager" SELECTED_TARGET="default_target" />
   <component name="FavoritesManager">
-    <favorites_list name="PyAnalysisTools" />
+    <favorites_list name="ROOTCompare" />
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
@@ -182,11 +187,6 @@
       <find>norm</find>
       <find>plot_</find>
       <find>re.</find>
-      <find>get_o</find>
-      <find>copy</find>
-      <find>graph</find>
-      <find>ratio_</find>
-      <find>ex</find>
       <find>exit</find>
       <find>39</find>
       <find>rebin</find>
@@ -203,6 +203,14 @@
       <find>fet</find>
       <find>merge</find>
     </findStrings>
+    <replaceStrings>
+      <replace>GetXmax</replace>
+      <replace>GetMaximum()</replace>
+    </replaceStrings>
+  </component>
+  <component name="Git.Rebase.Settings">
+    <option name="SHOW_REMOTE_BRANCHES" value="true" />
+    <option name="ONTO" value="refs/remotes/origin/master" />
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
@@ -215,12 +223,33 @@
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
-        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/EfficiencyCalculator.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/CorrelationPlotter.py" />
+        <option value="$PROJECT_DIR$/FileComparator.py" />
+        <option value="$PROJECT_DIR$/compare.py" />
+        <option value="$PROJECT_DIR$/ROOTFileComparator/compare.py" />
+        <option value="$PROJECT_DIR$/PlottingUtils/Plotter.py" />
+        <option value="$PROJECT_DIR$/ROOTUtils/Utils.py" />
+        <option value="$PROJECT_DIR$/ROOTUtils/test/testFileHandle.py" />
+        <option value="$PROJECT_DIR$/ROOTFileComparator/FileComparator.py" />
+        <option value="$PROJECT_DIR$/ROOTUtils/test/testObjectHandle.py" />
+        <option value="$PROJECT_DIR$/ROOTUtils/ObjectHandle.py" />
+        <option value="$PROJECT_DIR$/ROOTUtils/test/TestFileCreator.py" />
+        <option value="$PROJECT_DIR$/AnalysisTools/test/PrepareInputs.py" />
+        <option value="$PROJECT_DIR$/PlottingUtils/test/test_formatting.py" />
         <option value="$PROJECT_DIR$/.gitignore" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/AtlasStyle/AtlasStyle.C" />
+        <option value="$PROJECT_DIR$/ROOTUtils/FileHandle.py" />
+        <option value="$PROJECT_DIR$/AnalysisTools/test/TestCutFlowAnalyser.py" />
+        <option value="$PROJECT_DIR$/AnalysisTools/CutFlowAnalyser.py" />
+        <option value="$PROJECT_DIR$/base/Logger.py" />
+        <option value="$PROJECT_DIR$/base/__init__.py" />
+        <option value="$PROJECT_DIR$/PlottingUtils/Formatting.py" />
+        <option value="$PROJECT_DIR$/README.md" />
+        <option value="$PROJECT_DIR$/run_scripts/analyse_cutflow.py" />
+        <option value="$PROJECT_DIR$/tests/TestCutFlowAnalyser.py" />
+        <option value="$PROJECT_DIR$/tests/TestLogger.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/base/Logger.py" />
+        <option value="$PROJECT_DIR$/tests/HistTools.py" />
+        <option value="$PROJECT_DIR$/tests/TestHistTools.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/base/__init__.py" />
-        <option value="$PROJECT_DIR$/run_scripts/download_eos.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/__init__.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/Utils.py" />
         <option value="$PROJECT_DIR$/README.md" />
@@ -251,7 +280,6 @@
         <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/XSHandle.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/ObjectHandle.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py" />
-        <option value="$PROJECT_DIR$/setup.sh" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/base/Utilities.py" />
@@ -281,6 +309,9 @@
           <State>
             <id />
           </State>
+          <State>
+            <id>Python</id>
+          </State>
         </expanded-state>
         <selected-state>
           <State>
@@ -290,6 +321,7 @@
       </profile-state>
     </entry>
   </component>
+  <component name="ProjectLevelVcsManager" settingsEditedManually="true" />
   <component name="ProjectView">
     <navigator currentView="ProjectPane" proportions="" version="1">
       <flattenPackages />
@@ -347,7 +379,7 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
-              <option name="myItemId" value="tests" />
+              <option name="myItemId" value="run_scripts" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
           </PATH>
@@ -383,7 +415,7 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
-              <option name="myItemId" value="PyAnalysisTools" />
+              <option name="myItemId" value="ROOTUtils" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
@@ -462,7 +494,7 @@
     </panes>
   </component>
   <component name="PropertiesComponent">
-    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PyActiveSdkModuleConfigurable" />
+    <property name="settings.editor.selected.configurable" value="com.jetbrains.python.configuration.PythonContentEntriesConfigurable" />
     <property name="last_opened_file_path" value="$PROJECT_DIR$" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="js.eslint.eslintPackage" value="" />
@@ -480,8 +512,8 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python tests.Unittests in TestBasePlotter">
-    <configuration default="false" name="Unittests in TestBasePlotter" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+  <component name="RunManager" selected="Python tests.Unittest TestFormatting.test_make_text">
+    <configuration default="false" name="Unittest TestFormatting.test_scale_hist" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs />
@@ -492,7 +524,81 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="PyAnalysisTools" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestBasePlotter.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestFormatting.py" />
+      <option name="CLASS_NAME" value="TestFormatting" />
+      <option name="METHOD_NAME" value="test_scale_hist" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_METHOD" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="PUREUNITTEST" value="true" />
+      <option name="PARAMS" value="" />
+      <option name="USE_PARAM" value="false" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="_new_pattern" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_legacyInformationCopiedToNew" value="true" />
+      <option name="_new_target" value="&quot;.&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method />
+    </configuration>
+    <configuration default="false" name="Unittests in TestHistTools" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="PyAnalysisTools" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestHistTools.py" />
+      <option name="CLASS_NAME" value="TestHistTools" />
+      <option name="METHOD_NAME" value="" />
+      <option name="FOLDER_NAME" value="" />
+      <option name="TEST_TYPE" value="TEST_CLASS" />
+      <option name="PATTERN" value="" />
+      <option name="USE_PATTERN" value="false" />
+      <option name="PUREUNITTEST" value="true" />
+      <option name="PARAMS" value="" />
+      <option name="USE_PARAM" value="false" />
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="_new_pattern" value="&quot;&quot;" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_legacyInformationCopiedToNew" value="true" />
+      <option name="_new_target" value="&quot;tests.TestHistTools.TestHistTools&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
+      <method />
+    </configuration>
+    <configuration default="false" name="Unittests in TestFormatting (1)" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs />
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="PyAnalysisTools" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestFormatting.py" />
       <option name="CLASS_NAME" value="" />
       <option name="METHOD_NAME" value="" />
       <option name="FOLDER_NAME" value="" />
@@ -514,11 +620,11 @@
       <option name="_new_pattern" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
       <option name="_new_legacyInformationCopiedToNew" value="true" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/TestBasePlotter.py&quot;" />
+      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/TestFormatting.py&quot;" />
       <option name="_new_targetType" value="&quot;PATH&quot;" />
       <method />
     </configuration>
-    <configuration default="false" name="Unittests in TestBaseUtilities" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+    <configuration default="false" name="Unittest TestFormatting.test_set_range_hist_min_only" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs />
@@ -529,48 +635,11 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="PyAnalysisTools" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestBaseUtilities.py" />
-      <option name="CLASS_NAME" value="" />
-      <option name="METHOD_NAME" value="" />
-      <option name="FOLDER_NAME" value="$PROJECT_DIR$/tests" />
-      <option name="TEST_TYPE" value="TEST_SCRIPT" />
-      <option name="PATTERN" value="TestBaseUtilities*" />
-      <option name="USE_PATTERN" value="true" />
-      <option name="PUREUNITTEST" value="true" />
-      <option name="PARAMS" value="" />
-      <option name="USE_PARAM" value="false" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="_new_pattern" value="&quot;TestBaseUtilities*&quot;" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_legacyInformationCopiedToNew" value="true" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/TestBaseUtilities.py&quot;" />
-      <option name="_new_targetType" value="&quot;PATH&quot;" />
-      <method />
-    </configuration>
-    <configuration default="false" name="Unittests in TestBaseLogger" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestBaseLogger.py" />
-      <option name="CLASS_NAME" value="" />
-      <option name="METHOD_NAME" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestFormatting.py" />
+      <option name="CLASS_NAME" value="TestFormatting" />
+      <option name="METHOD_NAME" value="test_set_range_hist_min_only" />
       <option name="FOLDER_NAME" value="" />
-      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="TEST_TYPE" value="TEST_METHOD" />
       <option name="PATTERN" value="" />
       <option name="USE_PATTERN" value="false" />
       <option name="PUREUNITTEST" value="true" />
@@ -588,11 +657,11 @@
       <option name="_new_pattern" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
       <option name="_new_legacyInformationCopiedToNew" value="true" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/TestBaseLogger.py&quot;" />
-      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <option name="_new_target" value="&quot;tests.TestFormatting.TestFormatting.test_set_range_hist_min_only&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method />
     </configuration>
-    <configuration default="false" name="Unittests in TestYAMLHandle" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
+    <configuration default="false" name="Unittest TestFormatting.test_make_text" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
       <envs />
@@ -603,11 +672,11 @@
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="PyAnalysisTools" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestYAMLHandle.py" />
-      <option name="CLASS_NAME" value="" />
-      <option name="METHOD_NAME" value="" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestFormatting.py" />
+      <option name="CLASS_NAME" value="TestFormatting" />
+      <option name="METHOD_NAME" value="test_make_text" />
       <option name="FOLDER_NAME" value="" />
-      <option name="TEST_TYPE" value="TEST_SCRIPT" />
+      <option name="TEST_TYPE" value="TEST_METHOD" />
       <option name="PATTERN" value="" />
       <option name="USE_PATTERN" value="false" />
       <option name="PUREUNITTEST" value="true" />
@@ -625,45 +694,8 @@
       <option name="_new_pattern" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
       <option name="_new_legacyInformationCopiedToNew" value="true" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/TestYAMLHandle.py&quot;" />
-      <option name="_new_targetType" value="&quot;PATH&quot;" />
-      <method />
-    </configuration>
-    <configuration default="false" name="Unittests in TestBaseShellUtils" type="tests" factoryName="Unittests" temporary="true" nameIsGenerated="true">
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/tests/TestBaseShellUtils.py" />
-      <option name="CLASS_NAME" value="" />
-      <option name="METHOD_NAME" value="" />
-      <option name="FOLDER_NAME" value="" />
-      <option name="TEST_TYPE" value="TEST_SCRIPT" />
-      <option name="PATTERN" value="" />
-      <option name="USE_PATTERN" value="false" />
-      <option name="PUREUNITTEST" value="true" />
-      <option name="PARAMS" value="" />
-      <option name="USE_PARAM" value="false" />
-      <option name="INTERPRETER_OPTIONS" value="" />
-      <option name="PARENT_ENVS" value="true" />
-      <envs />
-      <option name="SDK_HOME" value="" />
-      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/tests" />
-      <option name="IS_MODULE_SDK" value="true" />
-      <option name="ADD_CONTENT_ROOTS" value="true" />
-      <option name="ADD_SOURCE_ROOTS" value="true" />
-      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
-      <option name="_new_pattern" value="&quot;&quot;" />
-      <option name="_new_additionalArguments" value="&quot;&quot;" />
-      <option name="_new_legacyInformationCopiedToNew" value="true" />
-      <option name="_new_target" value="&quot;$PROJECT_DIR$/tests/TestBaseShellUtils.py&quot;" />
-      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <option name="_new_target" value="&quot;tests.TestFormatting.TestFormatting.test_make_text&quot;" />
+      <option name="_new_targetType" value="&quot;PYTHON&quot;" />
       <method />
     </configuration>
     <configuration default="true" type="BashConfigurationType" factoryName="Bash">
@@ -746,10 +778,11 @@
       <option name="PARENT_ENVS" value="true" />
       <envs>
         <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="PYTHONPATH" value="/Users/marcusmorgenstern/software/root_v6.04.00/lib/root" />
       </envs>
       <option name="SDK_HOME" value="" />
       <option name="WORKING_DIRECTORY" value="" />
-      <option name="IS_MODULE_SDK" value="false" />
+      <option name="IS_MODULE_SDK" value="true" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
       <module name="PyAnalysisTools" />
@@ -798,7 +831,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
+      <module name="ROOTCompare" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="" />
       <option name="CLASS_NAME" value="" />
@@ -818,7 +851,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
+      <module name="ROOTCompare" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="_new_regexPattern" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
@@ -835,7 +868,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
+      <module name="ROOTCompare" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
       <option name="_new_target" value="&quot;.&quot;" />
@@ -851,7 +884,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
+      <module name="ROOTCompare" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="_new_keywords" value="&quot;&quot;" />
       <option name="_new_additionalArguments" value="&quot;&quot;" />
@@ -859,20 +892,60 @@
       <option name="_new_targetType" value="&quot;PATH&quot;" />
       <method />
     </configuration>
-    <list size="5">
-      <item index="0" class="java.lang.String" itemvalue="Python tests.Unittests in TestBasePlotter" />
-      <item index="1" class="java.lang.String" itemvalue="Python tests.Unittests in TestBaseUtilities" />
-      <item index="2" class="java.lang.String" itemvalue="Python tests.Unittests in TestBaseLogger" />
-      <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestYAMLHandle" />
-      <item index="4" class="java.lang.String" itemvalue="Python tests.Unittests in TestBaseShellUtils" />
+    <configuration default="false" name="compare" type="PythonConfigurationType" factoryName="Python">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+        <env name="PYTHONPATH" value="/Users/marcusmorgenstern/software/root_v6.04.00/lib/root" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/ROOTFileComparator" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="PyAnalysisTools" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/ROOTFileComparator/compare.py" />
+      <option name="PARAMETERS" value="foo bar -o out" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+      <method />
+    </configuration>
+    <configuration default="false" name="Unittests in test" type="tests" factoryName="Unittests" nameIsGenerated="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONPATH" value="/Users/marcusmorgenstern/software/root_v6.04.00/lib/root" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$/ROOTUtils/test" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="PyAnalysisTools" />
+      <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
+      <option name="_new_additionalArguments" value="&quot;&quot;" />
+      <option name="_new_target" value="&quot;.&quot;" />
+      <option name="_new_targetType" value="&quot;PATH&quot;" />
+      <method />
+    </configuration>
+    <list size="7">
+      <item index="0" class="java.lang.String" itemvalue="Python.compare" />
+      <item index="1" class="java.lang.String" itemvalue="Python tests.Unittests in test" />
+      <item index="2" class="java.lang.String" itemvalue="Python tests.Unittest TestFormatting.test_scale_hist" />
+      <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestHistTools" />
+      <item index="4" class="java.lang.String" itemvalue="Python tests.Unittests in TestFormatting (1)" />
+      <item index="5" class="java.lang.String" itemvalue="Python tests.Unittest TestFormatting.test_set_range_hist_min_only" />
+      <item index="6" class="java.lang.String" itemvalue="Python tests.Unittest TestFormatting.test_make_text" />
     </list>
     <recent_temporary>
       <list size="5">
-        <item index="0" class="java.lang.String" itemvalue="Python tests.Unittests in TestBaseShellUtils" />
-        <item index="1" class="java.lang.String" itemvalue="Python tests.Unittests in TestYAMLHandle" />
-        <item index="2" class="java.lang.String" itemvalue="Python tests.Unittests in TestBaseLogger" />
-        <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestBaseUtilities" />
-        <item index="4" class="java.lang.String" itemvalue="Python tests.Unittests in TestBasePlotter" />
+        <item index="0" class="java.lang.String" itemvalue="Python tests.Unittest TestFormatting.test_make_text" />
+        <item index="1" class="java.lang.String" itemvalue="Python tests.Unittests in TestFormatting (1)" />
+        <item index="2" class="java.lang.String" itemvalue="Python tests.Unittest TestFormatting.test_set_range_hist_min_only" />
+        <item index="3" class="java.lang.String" itemvalue="Python tests.Unittests in TestHistTools" />
+        <item index="4" class="java.lang.String" itemvalue="Python tests.Unittest TestFormatting.test_scale_hist" />
       </list>
     </recent_temporary>
     <configuration default="true" type="tests" factoryName="Attests">
@@ -884,7 +957,7 @@
       <option name="IS_MODULE_SDK" value="false" />
       <option name="ADD_CONTENT_ROOTS" value="true" />
       <option name="ADD_SOURCE_ROOTS" value="true" />
-      <module name="PyAnalysisTools" />
+      <module name="ROOTCompare" />
       <EXTENSION ID="PythonCoverageRunConfigurationExtension" enabled="false" sample_coverage="true" runner="coverage.py" />
       <option name="SCRIPT_NAME" value="" />
       <option name="CLASS_NAME" value="" />
@@ -904,270 +977,270 @@
   </component>
   <component name="TaskManager">
     <task active="true" id="Default" summary="Default task">
-      <changelist id="66d4797c-2916-4b43-8b4a-f3c46ea3d7cd" name="Default" comment="" />
-      <created>1470907493623</created>
+      <changelist id="165a8440-d2da-41b0-9212-e2f4d30f2d44" name="Default" comment="" />
+      <created>1447321754344</created>
       <option name="number" value="Default" />
       <option name="presentableId" value="Default" />
-      <updated>1470907493623</updated>
+      <updated>1447321754344</updated>
     </task>
     <task id="LOCAL-00123" summary="implement axis title setting for TEfficiency">
       <created>1484903594698</created>
       <option name="number" value="00123" />
       <option name="presentableId" value="LOCAL-00123" />
       <option name="project" value="LOCAL" />
-      <updated>1484903594699</updated>
+      <updated>1452616583727</updated>
     </task>
-    <task id="LOCAL-00124" summary="bugfix asymmetric binning">
-      <created>1484908106742</created>
-      <option name="number" value="00124" />
-      <option name="presentableId" value="LOCAL-00124" />
+    <task id="LOCAL-00006" summary="add base package">
+      <created>1464273939918</created>
+      <option name="number" value="00006" />
+      <option name="presentableId" value="LOCAL-00006" />
       <option name="project" value="LOCAL" />
-      <updated>1484908106742</updated>
+      <updated>1464273939918</updated>
     </task>
-    <task id="LOCAL-00125" summary="remove debug statements">
-      <created>1484908180282</created>
-      <option name="number" value="00125" />
-      <option name="presentableId" value="LOCAL-00125" />
+    <task id="LOCAL-00007" summary="implement axis titles&#10;implement marker style">
+      <created>1464274609818</created>
+      <option name="number" value="00007" />
+      <option name="presentableId" value="LOCAL-00007" />
       <option name="project" value="LOCAL" />
-      <updated>1484908180282</updated>
+      <updated>1464274609818</updated>
     </task>
-    <task id="LOCAL-00126" summary="add TGraphAsymmErrors for ratios">
-      <created>1484997430066</created>
-      <option name="number" value="00126" />
-      <option name="presentableId" value="LOCAL-00126" />
+    <task id="LOCAL-00008" summary="add cutflow test file&#10;add prepare inputs">
+      <created>1464276869267</created>
+      <option name="number" value="00008" />
+      <option name="presentableId" value="LOCAL-00008" />
       <option name="project" value="LOCAL" />
-      <updated>1484997430067</updated>
+      <updated>1464276869267</updated>
     </task>
-    <task id="LOCAL-00127" summary="add TEfficiency ratio calculation">
-      <created>1484997450409</created>
-      <option name="number" value="00127" />
-      <option name="presentableId" value="LOCAL-00127" />
+    <task id="LOCAL-00009" summary="add .gitignore">
+      <created>1464277526606</created>
+      <option name="number" value="00009" />
+      <option name="presentableId" value="LOCAL-00009" />
       <option name="project" value="LOCAL" />
-      <updated>1484997450409</updated>
+      <updated>1464277526606</updated>
     </task>
-    <task id="LOCAL-00128" summary="add new reader&#10;implement TEfficiency handling">
-      <created>1485033428307</created>
-      <option name="number" value="00128" />
-      <option name="presentableId" value="LOCAL-00128" />
+    <task id="LOCAL-00010" summary="implement rebinning">
+      <created>1464355458560</created>
+      <option name="number" value="00010" />
+      <option name="presentableId" value="LOCAL-00010" />
       <option name="project" value="LOCAL" />
-      <updated>1485033428307</updated>
+      <updated>1464355458560</updated>
     </task>
-    <task id="LOCAL-00129" summary="extract interface functions">
-      <created>1485033445431</created>
-      <option name="number" value="00129" />
-      <option name="presentableId" value="LOCAL-00129" />
+    <task id="LOCAL-00011" summary="refactor package structure">
+      <created>1464356071541</created>
+      <option name="number" value="00011" />
+      <option name="presentableId" value="LOCAL-00011" />
       <option name="project" value="LOCAL" />
-      <updated>1485033445432</updated>
+      <updated>1464356071541</updated>
     </task>
-    <task id="LOCAL-00130" summary="add TEfficiency for legend">
-      <created>1485033636981</created>
-      <option name="number" value="00130" />
-      <option name="presentableId" value="LOCAL-00130" />
+    <task id="LOCAL-00012" summary="add some test cases&#10;">
+      <created>1464357403627</created>
+      <option name="number" value="00012" />
+      <option name="presentableId" value="LOCAL-00012" />
       <option name="project" value="LOCAL" />
-      <updated>1485033636981</updated>
+      <updated>1464357403627</updated>
     </task>
-    <task id="LOCAL-00131" summary="style fixes">
-      <created>1485033663272</created>
-      <option name="number" value="00131" />
-      <option name="presentableId" value="LOCAL-00131" />
+    <task id="LOCAL-00013" summary="bugfix input file">
+      <created>1464358870877</created>
+      <option name="number" value="00013" />
+      <option name="presentableId" value="LOCAL-00013" />
       <option name="project" value="LOCAL" />
-      <updated>1485033663272</updated>
+      <updated>1464358870877</updated>
     </task>
-    <task id="LOCAL-00132" summary="implement legend option forwarding">
-      <created>1485187046518</created>
-      <option name="number" value="00132" />
-      <option name="presentableId" value="LOCAL-00132" />
+    <task id="LOCAL-00014" summary="extract HistTools">
+      <created>1464361583466</created>
+      <option name="number" value="00014" />
+      <option name="presentableId" value="LOCAL-00014" />
       <option name="project" value="LOCAL" />
-      <updated>1485187046518</updated>
+      <updated>1464361583466</updated>
     </task>
-    <task id="LOCAL-00133" summary="remove debug statement">
-      <created>1485187081306</created>
-      <option name="number" value="00133" />
-      <option name="presentableId" value="LOCAL-00133" />
+    <task id="LOCAL-00015" summary="add functionality">
+      <created>1465147527582</created>
+      <option name="number" value="00015" />
+      <option name="presentableId" value="LOCAL-00015" />
       <option name="project" value="LOCAL" />
-      <updated>1485187081306</updated>
+      <updated>1465147527582</updated>
     </task>
-    <task id="LOCAL-00134" summary="bugfix ratio calculation for num/denom = 0">
-      <created>1485250528280</created>
-      <option name="number" value="00134" />
-      <option name="presentableId" value="LOCAL-00134" />
+    <task id="LOCAL-00016" summary="add lumi text">
+      <created>1465148696193</created>
+      <option name="number" value="00016" />
+      <option name="presentableId" value="LOCAL-00016" />
       <option name="project" value="LOCAL" />
-      <updated>1485250528280</updated>
+      <updated>1465148696193</updated>
     </task>
-    <task id="LOCAL-00135" summary="implement ncpu option">
-      <created>1485259335335</created>
-      <option name="number" value="00135" />
-      <option name="presentableId" value="LOCAL-00135" />
+    <task id="LOCAL-00017" summary="commit all changes before rebase">
+      <created>1465160609400</created>
+      <option name="number" value="00017" />
+      <option name="presentableId" value="LOCAL-00017" />
       <option name="project" value="LOCAL" />
-      <updated>1485259335336</updated>
+      <updated>1465160609400</updated>
     </task>
-    <task id="LOCAL-00136" summary="bugfix element access">
-      <created>1485511962630</created>
-      <option name="number" value="00136" />
-      <option name="presentableId" value="LOCAL-00136" />
+    <task id="LOCAL-00018" summary="Multi reference support&#10;&#10;Relates to MMPP-724&#10;&#10;* implement support of multiple reference histograms">
+      <created>1490094998150</created>
+      <option name="number" value="00018" />
+      <option name="presentableId" value="LOCAL-00018" />
       <option name="project" value="LOCAL" />
-      <updated>1485511962630</updated>
+      <updated>1490094998150</updated>
     </task>
-    <task id="LOCAL-00137" summary="implement open file option">
-      <created>1485535520324</created>
-      <option name="number" value="00137" />
-      <option name="presentableId" value="LOCAL-00137" />
+    <task id="LOCAL-00019" summary="Multi process merging&#10;&#10;Resolve MMPP-714&#10;* implement merging of processes for MultiFile reader">
+      <created>1490221139203</created>
+      <option name="number" value="00019" />
+      <option name="presentableId" value="LOCAL-00019" />
       <option name="project" value="LOCAL" />
-      <updated>1485535520324</updated>
+      <updated>1490221139203</updated>
     </task>
-    <task id="LOCAL-00138" summary="update to new plotting interface">
-      <created>1485535550897</created>
-      <option name="number" value="00138" />
-      <option name="presentableId" value="LOCAL-00138" />
+    <task id="LOCAL-00020" summary="Multiple reference files compare&#10;&#10;Resolve MMPP-724&#10;&#10;* extend reference file to list of reference files">
+      <created>1490950782612</created>
+      <option name="number" value="00020" />
+      <option name="presentableId" value="LOCAL-00020" />
       <option name="project" value="LOCAL" />
-      <updated>1485535550897</updated>
+      <updated>1490950782612</updated>
     </task>
-    <task id="LOCAL-00139" summary="update label finding">
-      <created>1485535599533</created>
-      <option name="number" value="00139" />
-      <option name="presentableId" value="LOCAL-00139" />
+    <task id="LOCAL-00021" summary="Multi ratio fix&#10;&#10;Resolve MMPP-739&#10;&#10;* implement plotting of multiple ratios&#10;* bugfix add_graph_to_canvas (draw_option and ownership)">
+      <created>1490957531219</created>
+      <option name="number" value="00021" />
+      <option name="presentableId" value="LOCAL-00021" />
       <option name="project" value="LOCAL" />
-      <updated>1485535599533</updated>
+      <updated>1490957531219</updated>
     </task>
-    <task id="LOCAL-00140" summary="style fixes">
-      <created>1485609407172</created>
-      <option name="number" value="00140" />
-      <option name="presentableId" value="LOCAL-00140" />
+    <task id="LOCAL-00022" summary="renamed BasePlotter to Plotter">
+      <created>1490962429986</created>
+      <option name="number" value="00022" />
+      <option name="presentableId" value="LOCAL-00022" />
       <option name="project" value="LOCAL" />
-      <updated>1485609407172</updated>
+      <updated>1490962429986</updated>
     </task>
-    <task id="LOCAL-00141" summary="init commit pf RatioPlotter&#10;update ComparisonPlotter to new RatioPlotter">
-      <created>1485786965739</created>
-      <option name="number" value="00141" />
-      <option name="presentableId" value="LOCAL-00141" />
+    <task id="LOCAL-00023" summary="extract BasePlotter class for initialisation&#10;&#10;Relates to MMPP-462">
+      <created>1490963597618</created>
+      <option name="number" value="00023" />
+      <option name="presentableId" value="LOCAL-00023" />
       <option name="project" value="LOCAL" />
-      <updated>1485786965739</updated>
+      <updated>1490963597618</updated>
     </task>
-    <task id="LOCAL-00142" summary="add formatting calls&#10;extract common plot interface functions">
-      <created>1485787369567</created>
-      <option name="number" value="00142" />
-      <option name="presentableId" value="LOCAL-00142" />
+    <task id="LOCAL-00024" summary="implement integration of common config into plot config&#10;&#10;Relates to MMPP-462">
+      <created>1490964066105</created>
+      <option name="number" value="00024" />
+      <option name="presentableId" value="LOCAL-00024" />
       <option name="project" value="LOCAL" />
-      <updated>1485787369567</updated>
+      <updated>1490964066105</updated>
     </task>
-    <task id="LOCAL-00143" summary="clean up&#10;add test cases">
-      <created>1485872656622</created>
-      <option name="number" value="00143" />
-      <option name="presentableId" value="LOCAL-00143" />
+    <task id="LOCAL-00025" summary="add changes in other files&#10;&#10;Relates to MMPP-462">
+      <created>1490964091184</created>
+      <option name="number" value="00025" />
+      <option name="presentableId" value="LOCAL-00025" />
       <option name="project" value="LOCAL" />
-      <updated>1485872656622</updated>
+      <updated>1490964091184</updated>
     </task>
-    <task id="LOCAL-00144" summary="add tests for YAMLHandle">
-      <created>1485877701195</created>
-      <option name="number" value="00144" />
-      <option name="presentableId" value="LOCAL-00144" />
+    <task id="LOCAL-00026" summary="start cleaning up common config usage&#10;&#10;Relates to MMPP-462">
+      <created>1490964539270</created>
+      <option name="number" value="00026" />
+      <option name="presentableId" value="LOCAL-00026" />
       <option name="project" value="LOCAL" />
-      <updated>1485877701196</updated>
+      <updated>1490964539270</updated>
     </task>
-    <task id="LOCAL-00145" summary="implement tests for ShellUtils">
-      <created>1485897392228</created>
-      <option name="number" value="00145" />
-      <option name="presentableId" value="LOCAL-00145" />
+    <task id="LOCAL-00027" summary="start cleaning up common config usage&#10;&#10;Relates to MMPP-462">
+      <created>1490964556581</created>
+      <option name="number" value="00027" />
+      <option name="presentableId" value="LOCAL-00027" />
       <option name="project" value="LOCAL" />
-      <updated>1485897392228</updated>
+      <updated>1490964556581</updated>
     </task>
-    <task id="LOCAL-00146" summary="init">
-      <created>1485903803686</created>
-      <option name="number" value="00146" />
-      <option name="presentableId" value="LOCAL-00146" />
+    <task id="LOCAL-00028" summary="update stack plotting w/o common config&#10;&#10;Relates to MMPP-462">
+      <created>1490966474500</created>
+      <option name="number" value="00028" />
+      <option name="presentableId" value="LOCAL-00028" />
       <option name="project" value="LOCAL" />
-      <updated>1485903803686</updated>
+      <updated>1490966474500</updated>
     </task>
-    <task id="LOCAL-00147" summary="style fixes">
-      <created>1485940351667</created>
-      <option name="number" value="00147" />
-      <option name="presentableId" value="LOCAL-00147" />
+    <task id="LOCAL-00029" summary="update hist plotting w/o common config&#10;&#10;Relates to MMPP-462">
+      <created>1490967137951</created>
+      <option name="number" value="00029" />
+      <option name="presentableId" value="LOCAL-00029" />
       <option name="project" value="LOCAL" />
-      <updated>1485940351668</updated>
+      <updated>1490967137951</updated>
     </task>
-    <task id="LOCAL-00148" summary="fix MC process parsing">
-      <created>1486486243593</created>
-      <option name="number" value="00148" />
-      <option name="presentableId" value="LOCAL-00148" />
+    <task id="LOCAL-00030" summary="update ratio plotting w/o common config&#10;&#10;Relates to MMPP-462&#10;&#10;* plot book option parsed from first plot config">
+      <created>1491040011357</created>
+      <option name="number" value="00030" />
+      <option name="presentableId" value="LOCAL-00030" />
       <option name="project" value="LOCAL" />
-      <updated>1486486243594</updated>
+      <updated>1491040011357</updated>
     </task>
-    <task id="LOCAL-00149" summary="implement comparison from TTree for SingleFileMultiFile reader">
-      <created>1488288911817</created>
-      <option name="number" value="00149" />
-      <option name="presentableId" value="LOCAL-00149" />
+    <task id="LOCAL-00031" summary="remove common config from member variables&#10;&#10;Relates to MMPP-462">
+      <created>1491040088028</created>
+      <option name="number" value="00031" />
+      <option name="presentableId" value="LOCAL-00031" />
       <option name="project" value="LOCAL" />
-      <updated>1488288911817</updated>
+      <updated>1491040088028</updated>
     </task>
-    <task id="LOCAL-00150" summary="implement ratio config">
-      <created>1488293950448</created>
-      <option name="number" value="00150" />
-      <option name="presentableId" value="LOCAL-00150" />
+    <task id="LOCAL-00032" summary="Common config merging&#10;&#10;Resolve MMPP-462&#10;&#10;* implement integration of common config into plot config&#10;* fix color parsing for TEfficiency ratios">
+      <created>1491051101531</created>
+      <option name="number" value="00032" />
+      <option name="presentableId" value="LOCAL-00032" />
       <option name="project" value="LOCAL" />
-      <updated>1488293950448</updated>
+      <updated>1491051101531</updated>
     </task>
-    <task id="LOCAL-00151" summary="implement normalisation in range">
-      <created>1488293998878</created>
-      <option name="number" value="00151" />
-      <option name="presentableId" value="LOCAL-00151" />
+    <task id="LOCAL-00033" summary="Pep8 style fix">
+      <created>1491149252605</created>
+      <option name="number" value="00033" />
+      <option name="presentableId" value="LOCAL-00033" />
       <option name="project" value="LOCAL" />
-      <updated>1488293998878</updated>
+      <updated>1491149252605</updated>
     </task>
-    <task id="LOCAL-00152" summary="extract retrieve xs info">
-      <created>1488294031587</created>
-      <option name="number" value="00152" />
-      <option name="presentableId" value="LOCAL-00152" />
+    <task id="LOCAL-00034" summary="fix ratio scale">
+      <created>1491233976508</created>
+      <option name="number" value="00034" />
+      <option name="presentableId" value="LOCAL-00034" />
       <option name="project" value="LOCAL" />
-      <updated>1488294031587</updated>
+      <updated>1491233976508</updated>
     </task>
-    <task id="LOCAL-00153" summary="catch missing process_configs">
-      <created>1488294061859</created>
-      <option name="number" value="00153" />
-      <option name="presentableId" value="LOCAL-00153" />
+    <task id="LOCAL-00035" summary="load pathos on romanescu&#10;&#10;Resolve MMPP-752">
+      <created>1491493474561</created>
+      <option name="number" value="00035" />
+      <option name="presentableId" value="LOCAL-00035" />
       <option name="project" value="LOCAL" />
-      <updated>1488294061859</updated>
+      <updated>1491493474561</updated>
     </task>
-    <task id="LOCAL-00154" summary="implement multi distribution support for SingleFileMultiDist comparison&#10;&#10;MMPP-670&#10;* implement parsing of multiple dists&#10;* implement colored ratios for mutliple dists&#10;* minor style changes">
-      <created>1488377610527</created>
-      <option name="number" value="00154" />
-      <option name="presentableId" value="LOCAL-00154" />
+    <task id="LOCAL-00036" summary="implement BDT analyser&#10;&#10;Resolve MMPP-762&#10;&#10;* add overtraining evaluation&#10;* add parsing legend from TH1D">
+      <created>1491824341944</created>
+      <option name="number" value="00036" />
+      <option name="presentableId" value="LOCAL-00036" />
       <option name="project" value="LOCAL" />
-      <updated>1488377610528</updated>
+      <updated>1491824341944</updated>
     </task>
-    <task id="LOCAL-00155" summary="Process parsing&#10;&#10;Fixes MMPP-702&#10;&#10;* add option to parse process name from directory&#10;* refactoring of process extraction&#10;* add option to ignore process name">
-      <created>1489095559090</created>
-      <option name="number" value="00155" />
-      <option name="presentableId" value="LOCAL-00155" />
+    <task id="LOCAL-00037" summary="fix THStack y axis setting&#10;&#10;Resolve MMPP-776&#10;&#10;* cannot retrieve maximum from THStack again">
+      <created>1491993106199</created>
+      <option name="number" value="00037" />
+      <option name="presentableId" value="LOCAL-00037" />
       <option name="project" value="LOCAL" />
-      <updated>1489095559090</updated>
+      <updated>1491993106199</updated>
     </task>
-    <task id="LOCAL-00156" summary="Add comparision for multiple files from tree&#10;Resolve MMPP-667&#10;* add drawing from tree&#10;* resolve ymax issue for rebinned histograms&#10;* y_min, y_max became deprecated, replaced by ymin and ymax">
-      <created>1489532074528</created>
-      <option name="number" value="00156" />
-      <option name="presentableId" value="LOCAL-00156" />
+    <task id="LOCAL-00038" summary="Implement ordering&#10;&#10;Relates to MMPP-778&#10;&#10;* add ordering to overwritable options">
+      <created>1491994547814</created>
+      <option name="number" value="00038" />
+      <option name="presentableId" value="LOCAL-00038" />
       <option name="project" value="LOCAL" />
-      <updated>1489532074528</updated>
+      <updated>1491994547814</updated>
     </task>
-    <task id="LOCAL-00157" summary="add option to switch off process analysis">
-      <created>1489534209844</created>
-      <option name="number" value="00157" />
-      <option name="presentableId" value="LOCAL-00157" />
+    <task id="LOCAL-00039" summary="Implement correlation plots&#10;&#10;Resolve MMPP-753&#10;&#10;* add correlation plots from TMVA&#10;* implement 2D hist plotting&#10;* implement Kolmogorov test">
+      <created>1492071228579</created>
+      <option name="number" value="00039" />
+      <option name="presentableId" value="LOCAL-00039" />
       <option name="project" value="LOCAL" />
-      <updated>1489534209844</updated>
+      <updated>1492071228579</updated>
     </task>
-    <task id="LOCAL-00158" summary="add None filter">
-      <created>1489534266281</created>
-      <option name="number" value="00158" />
-      <option name="presentableId" value="LOCAL-00158" />
+    <task id="LOCAL-00040" summary="implement option to move files for updating">
+      <created>1492097838449</created>
+      <option name="number" value="00040" />
+      <option name="presentableId" value="LOCAL-00040" />
       <option name="project" value="LOCAL" />
-      <updated>1489534266281</updated>
+      <updated>1492097838449</updated>
     </task>
-    <task id="LOCAL-00159" summary="capture reference exception for axes">
-      <created>1489534295346</created>
-      <option name="number" value="00159" />
-      <option name="presentableId" value="LOCAL-00159" />
+    <task id="LOCAL-00041" summary="Implement normalisation &#10;&#10;Relates to MMPP-664&#10;&#10;* allow overwrite for normalisation&#10;* add application of normalisation">
+      <created>1492124368320</created>
+      <option name="number" value="00041" />
+      <option name="presentableId" value="LOCAL-00041" />
       <option name="project" value="LOCAL" />
-      <updated>1489534295346</updated>
+      <updated>1492124368320</updated>
     </task>
     <task id="LOCAL-00160" summary="Minor updates&#10;&#10;* add integration range for normalisation&#10;* adapt for generalisation of plotting functions">
       <created>1489534378645</created>
@@ -1257,35 +1330,35 @@
     <servers />
   </component>
   <component name="TestHistory">
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 08m 22s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_make_text - 2016.05.30 at 14h 36m 22s.xml">
+      <configuration name="Unittest TestFormatting.test_make_text" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 09m 11s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_make_text - 2016.05.30 at 14h 37m 28s.xml">
+      <configuration name="Unittest TestFormatting.test_make_text" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 11m 20s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 13h 59m 20s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 11m 28s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 14h 00m 54s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 11m 58s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 14h 01m 14s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 12m 58s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 14h 02m 01s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 14m 54s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 14h 03m 30s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 15m 28s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 14h 03m 59s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.01.31 at 22h 15m 31s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittest_TestFormatting_test_set_range_hist_min_only - 2016.05.30 at 14h 07m 44s.xml">
+      <configuration name="Unittest TestFormatting.test_set_range_hist_min_only" configurationId="tests" />
     </history-entry>
-    <history-entry file="Unittests_in_TestBaseShellUtils - 2017.03.28 at 22h 43m 12s.xml">
-      <configuration name="Unittests in TestBaseShellUtils" configurationId="tests" />
+    <history-entry file="Unittests_in_TestFormatting_(1) - 2016.05.30 at 14h 09m 14s.xml">
+      <configuration name="Unittests in TestFormatting (1)" configurationId="tests" />
     </history-entry>
   </component>
   <component name="TodoView">
@@ -1313,13 +1386,13 @@
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
-      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
+      <window_info id="Data View" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Cvs" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="4" side_tool="false" content_ui="tabs" />
       <window_info id="Messages" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Message" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
-      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
+      <window_info id="Commander" active="false" anchor="right" auto_hide="false" internal_type="SLIDING" type="SLIDING" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="0" side_tool="false" content_ui="tabs" />
       <window_info id="Inspection" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="5" side_tool="false" content_ui="tabs" />
-      <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3298611" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
+      <window_info id="Coverage" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.32956383" sideWeight="0.5" order="3" side_tool="true" content_ui="tabs" />
       <window_info id="Hierarchy" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="2" side_tool="false" content_ui="combo" />
       <window_info id="Inspection Results" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.329602" sideWeight="0.5" order="8" side_tool="false" content_ui="tabs" />
       <window_info id="Ant Build" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
@@ -1368,38 +1441,35 @@
     <option name="LAST_COMMIT_MESSAGE" value="add newline" />
   </component>
   <component name="XDebuggerManager">
-    <breakpoint-manager>
-      <option name="time" value="1" />
-    </breakpoint-manager>
+    <breakpoint-manager />
     <watches-manager />
   </component>
   <component name="editorHistoryManager">
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/EfficiencyCalculator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="180">
-          <caret line="10" column="35" lean-forward="false" selection-start-line="10" selection-start-column="35" selection-end-line="10" selection-end-column="35" />
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/.gitignore">
+    <entry file="file://$PROJECT_DIR$/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="6" column="0" lean-forward="false" selection-start-line="6" selection-start-column="0" selection-end-line="6" selection-end-column="0" />
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/AtlasStyle/AtlasStyle.C">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="851">
-          <caret line="81" column="2" lean-forward="false" selection-start-line="81" selection-start-column="2" selection-end-line="81" selection-end-column="2" />
+        <state relative-caret-position="0">
+          <caret line="10" column="19" lean-forward="false" selection-start-line="10" selection-start-column="19" selection-end-line="10" selection-end-column="19" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/README.md" />
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py">
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTFileComparator/compare.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="765">
-          <caret line="54" column="47" lean-forward="false" selection-start-line="54" selection-start-column="47" selection-end-line="54" selection-end-column="47" />
+        <state relative-caret-position="0">
+          <caret line="16" column="32" lean-forward="false" selection-start-line="16" selection-start-column="32" selection-end-line="16" selection-end-column="32" />
         </state>
       </provider>
     </entry>
@@ -1412,15 +1482,15 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="810">
-          <caret line="59" column="25" lean-forward="false" selection-start-line="59" selection-start-column="25" selection-end-line="59" selection-end-column="25" />
+        <state relative-caret-position="195">
+          <caret line="16" column="32" lean-forward="false" selection-start-line="16" selection-start-column="32" selection-end-line="16" selection-end-column="32" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/../ELMultiLep/macros/fetch_dataset_info.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="521">
-          <caret line="47" column="43" lean-forward="false" selection-start-line="47" selection-start-column="27" selection-end-line="47" selection-end-column="43" />
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
         </state>
       </provider>
     </entry>
@@ -1431,177 +1501,177 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools_conflict-20170124-131039.py" />
-    <entry file="file://$PROJECT_DIR$/tests/TestBaseLogger.py">
+    <entry file="file://$PROJECT_DIR$/tests/TestFileCreator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="390">
-          <caret line="26" column="51" lean-forward="false" selection-start-line="26" selection-start-column="51" selection-end-line="26" selection-end-column="51" />
+        <state relative-caret-position="375">
+          <caret line="27" column="0" lean-forward="false" selection-start-line="27" selection-start-column="0" selection-end-line="27" selection-end-column="0" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tests/invalid_yaml_file.yml" />
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/YAMLHandle.py">
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/Utils.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="152">
-          <caret line="14" column="23" lean-forward="true" selection-start-line="14" selection-start-column="23" selection-end-line="14" selection-end-column="23" />
+        <state relative-caret-position="90">
+          <caret line="6" column="8" lean-forward="false" selection-start-line="6" selection-start-column="8" selection-end-line="6" selection-end-column="8" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/tests/TestYAMLHandle.py">
+    <entry file="file://$PROJECT_DIR$/.gitignore">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="182">
-          <caret line="25" column="23" lean-forward="true" selection-start-line="25" selection-start-column="23" selection-end-line="25" selection-end-column="23" />
+        <state relative-caret-position="0">
+          <caret line="0" column="6" lean-forward="false" selection-start-line="0" selection-start-column="6" selection-end-line="0" selection-end-column="6" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/Logger.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="255">
-          <caret line="17" column="37" lean-forward="true" selection-start-line="25" selection-start-column="15" selection-end-line="25" selection-end-column="66" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tests/TestBaseShellUtils.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="420">
-          <caret line="28" column="67" lean-forward="false" selection-start-line="28" selection-start-column="67" selection-end-line="28" selection-end-column="67" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tests/TestBaseUtilities.py">
+    <entry file="file://$PROJECT_DIR$/tests/PrepareInputs.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="120">
-          <caret line="8" column="32" lean-forward="true" selection-start-line="8" selection-start-column="32" selection-end-line="8" selection-end-column="32" />
+          <caret line="8" column="55" lean-forward="false" selection-start-line="8" selection-start-column="55" selection-end-line="8" selection-end-column="55" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/IOTools.py">
+    <entry file="file://$PROJECT_DIR$/tests/TestObjectHandle.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="-495">
-          <caret line="18" column="0" lean-forward="true" selection-start-line="18" selection-start-column="0" selection-end-line="18" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file:///soft/root/6.08.02/lib/JsMVA/Factory.py" />
-    <entry file="file://$PROJECT_DIR$/run_scripts/get_dataset_size.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="105">
-          <caret line="11" column="0" lean-forward="false" selection-start-line="11" selection-start-column="0" selection-end-line="11" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Formatting.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3300">
-          <caret line="226" column="29" lean-forward="false" selection-start-line="226" selection-start-column="29" selection-end-line="226" selection-end-column="29" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file:///soft/root/6.08.02/lib/JsMVA/__init__.py" />
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="1" column="0" lean-forward="true" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
+        <state relative-caret-position="360">
+          <caret line="29" column="14" lean-forward="false" selection-start-line="29" selection-start-column="14" selection-end-line="29" selection-end-column="14" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="1" column="0" lean-forward="true" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tests/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="1" column="0" lean-forward="true" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="7" column="0" lean-forward="false" selection-start-line="7" selection-start-column="0" selection-end-line="7" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="30">
-          <caret line="2" column="0" lean-forward="false" selection-start-line="2" selection-start-column="0" selection-end-line="2" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/__init__.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="15">
-          <caret line="1" column="0" lean-forward="false" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/tests/TestCutFlowAnalyser.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/ShellUtils.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="413">
-          <caret line="32" column="8" lean-forward="true" selection-start-line="32" selection-start-column="8" selection-end-line="32" selection-end-column="8" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/run_scripts/download_eos.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="792">
-          <caret line="49" column="54" lean-forward="false" selection-start-line="49" selection-start-column="25" selection-end-line="49" selection-end-column="54" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/ObjectHandle.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="324">
-          <caret line="19" column="34" lean-forward="false" selection-start-line="19" selection-start-column="34" selection-end-line="19" selection-end-column="34" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/RatioPlotter.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="868">
-          <caret line="69" column="0" lean-forward="false" selection-start-line="69" selection-start-column="0" selection-end-line="69" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/setup.sh">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="105">
-          <caret line="7" column="38" lean-forward="true" selection-start-line="7" selection-start-column="38" selection-end-line="7" selection-end-column="38" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/tests/TestFileHandle.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="345">
-          <caret line="25" column="35" lean-forward="true" selection-start-line="25" selection-start-column="35" selection-end-line="25" selection-end-column="35" />
+        <state relative-caret-position="-105">
+          <caret line="4" column="10" lean-forward="false" selection-start-line="4" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py">
+    <entry file="file://$PROJECT_DIR$/README.md">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1080">
-          <caret line="75" column="4" lean-forward="false" selection-start-line="75" selection-start-column="4" selection-end-line="75" selection-end-column="4" />
-          <folding />
+        <state relative-caret-position="30">
+          <caret line="2" column="100" lean-forward="false" selection-start-line="2" selection-start-column="100" selection-end-line="2" selection-end-column="100" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/TestFormatting.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="482">
+          <caret line="120" column="0" lean-forward="false" selection-start-line="120" selection-start-column="0" selection-end-line="120" selection-end-column="0" />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/tests/TestHistTools.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="285">
-          <caret line="21" column="57" lean-forward="false" selection-start-line="21" selection-start-column="57" selection-end-line="21" selection-end-column="57" />
+        <state relative-caret-position="90">
+          <caret line="8" column="11" lean-forward="false" selection-start-line="8" selection-start-column="11" selection-end-line="8" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="30">
+          <caret line="3" column="0" lean-forward="false" selection-start-line="3" selection-start-column="0" selection-end-line="3" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/TestCutFlowAnalyser.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="450">
+          <caret line="35" column="14" lean-forward="false" selection-start-line="35" selection-start-column="14" selection-end-line="35" selection-end-column="14" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/tests/TestLogger.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="330">
+          <caret line="22" column="0" lean-forward="false" selection-start-line="22" selection-start-column="0" selection-end-line="22" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/__init__.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="15">
+          <caret line="1" column="0" lean-forward="false" selection-start-line="1" selection-start-column="0" selection-end-line="1" selection-end-column="45" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/run_scripts/analyse_cutflow.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="56" lean-forward="false" selection-start-line="5" selection-start-column="56" selection-end-line="5" selection-end-column="56" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/run_scripts/synchronise.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/run_scripts/get_dataset_size.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="0">
+          <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/run_scripts/download_eos.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="70">
+          <caret line="46" column="0" lean-forward="true" selection-start-line="46" selection-start-column="0" selection-end-line="46" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/ObjectHandle.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="165">
+          <caret line="11" column="0" lean-forward="true" selection-start-line="11" selection-start-column="0" selection-end-line="11" selection-end-column="0" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeCalculator.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="30">
+          <caret line="2" column="12" lean-forward="false" selection-start-line="2" selection-start-column="12" selection-end-line="2" selection-end-column="12" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/setup.sh">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="345">
+          <caret line="25" column="52" lean-forward="false" selection-start-line="25" selection-start-column="52" selection-end-line="25" selection-end-column="52" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/IOTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="40" lean-forward="false" selection-start-line="5" selection-start-column="40" selection-end-line="5" selection-end-column="40" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/Logger.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="255">
+          <caret line="17" column="26" lean-forward="false" selection-start-line="17" selection-start-column="26" selection-end-line="17" selection-end-column="26" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="885">
+          <caret line="59" column="43" lean-forward="false" selection-start-line="59" selection-start-column="43" selection-end-line="59" selection-end-column="43" />
+          <folding>
+            <element signature="e#0#21#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
@@ -1612,7 +1682,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py">
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="405">
           <caret line="29" column="52" lean-forward="false" selection-start-line="29" selection-start-column="52" selection-end-line="29" selection-end-column="52" />
@@ -1678,7 +1748,7 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py">
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Formatting.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="413">
           <caret line="96" column="0" lean-forward="true" selection-start-line="96" selection-start-column="0" selection-end-line="96" selection-end-column="0" />
@@ -1717,6 +1787,36 @@
         <state relative-caret-position="168">
           <caret line="91" column="0" lean-forward="true" selection-start-line="91" selection-start-column="0" selection-end-line="91" selection-end-column="0" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="3735">
+          <caret line="249" column="61" lean-forward="false" selection-start-line="248" selection-start-column="12" selection-end-line="249" selection-end-column="61" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="795">
+          <caret line="53" column="74" lean-forward="false" selection-start-line="53" selection-start-column="74" selection-end-line="53" selection-end-column="74" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="278">
+          <caret line="210" column="45" lean-forward="false" selection-start-line="210" selection-start-column="45" selection-end-line="210" selection-end-column="45" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>
