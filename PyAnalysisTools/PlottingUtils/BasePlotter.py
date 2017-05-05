@@ -1,16 +1,22 @@
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config,\
     merge_plot_configs, propagate_common_config
+from PyAnalysisTools.PlottingUtils import Formatting as FM
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 
 
 class BasePlotter(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("batch", True)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
+        set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         #todo: temporary assignment for naming collision in Plotter and ComparisionPlotter
         self.plot_config = self.plot_configs
+        self.load_atlas_style()
+        self.event_yields = {}
 
     def parse_process_config(self):
         if self.process_config_file is None:
@@ -28,3 +34,14 @@ class BasePlotter(object):
             self.lumi = common_config.lumi
         if common_config is not None:
             propagate_common_config(common_config, self.plot_configs)
+
+    @staticmethod
+    def load_atlas_style():
+        FM.load_atlas_style()
+
+    def read_cutflows(self):
+        for file_handle in self.file_handles:
+            if file_handle.process in self.event_yields:
+                self.event_yields[file_handle.process] += file_handle.get_number_of_total_events()
+            else:
+                self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
