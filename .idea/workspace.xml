@@ -5,17 +5,12 @@
     <option name="CUSTOM_SCOPE_NAME" value="Project Files" />
   </component>
   <component name="ChangeListManager">
-    <list default="true" id="66d4797c-2916-4b43-8b4a-f3c46ea3d7cd" name="Default" comment="implement raw cutflow support">
-      <change type="DELETED" beforePath="$PROJECT_DIR$/.idea/PyAnalysisTools.iml" afterPath="" />
+    <list default="true" id="66d4797c-2916-4b43-8b4a-f3c46ea3d7cd" name="Default" comment="Muon fake estimator&#10;&#10;Relates to MMPP-649&#10;&#10;*">
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/.idea/workspace.xml" afterPath="$PROJECT_DIR$/.idea/workspace.xml" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/CutFlowAnalyser.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/CutFlowAnalyser.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeEstimator.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeEstimator.py" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py" />
       <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/RatioPlotter.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/RatioPlotter.py" />
-      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/setup.sh" afterPath="$PROJECT_DIR$/setup.sh" />
+      <change type="MODIFICATION" beforePath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py" afterPath="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py" />
     </list>
     <ignored path="PyAnalysisTools.iws" />
     <ignored path=".idea/workspace.xml" />
@@ -54,67 +49,24 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="CutFlowAnalyser.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/CutFlowAnalyser.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="40">
-              <caret line="42" column="64" lean-forward="true" selection-start-line="42" selection-start-column="64" selection-end-line="42" selection-end-column="64" />
-              <folding>
-                <element signature="e#0#18#0" expanded="true" />
-              </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
       <file leaf-file-name="Plotter.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="90">
-              <caret line="6" column="49" lean-forward="false" selection-start-line="6" selection-start-column="30" selection-end-line="6" selection-end-column="49" />
+            <state relative-caret-position="135">
+              <caret line="9" column="26" lean-forward="false" selection-start-line="9" selection-start-column="0" selection-end-line="10" selection-end-column="0" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="OutputHandle.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/OutputHandle.py">
+      <file leaf-file-name="TriggerAnalysisTools.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="165">
-              <caret line="17" column="19" lean-forward="true" selection-start-line="17" selection-start-column="19" selection-end-line="17" selection-end-column="19" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="PlotConfig.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="668">
-              <caret line="238" column="4" lean-forward="false" selection-start-line="238" selection-start-column="4" selection-end-line="238" selection-end-column="4" />
+            <state relative-caret-position="382">
+              <caret line="112" column="39" lean-forward="true" selection-start-line="112" selection-start-column="39" selection-end-line="112" selection-end-column="39" />
               <folding>
-                <marker date="1492119035000" expanded="true" signature="220:1240" ph="..." />
-                <marker date="1492119035000" expanded="true" signature="2051:2053" ph="..." />
+                <element signature="e#0#11#0" expanded="true" />
               </folding>
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="ComparisonPlotter.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="413">
-              <caret line="96" column="0" lean-forward="true" selection-start-line="96" selection-start-column="0" selection-end-line="96" selection-end-column="0" />
-              <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="FakeEstimator.py" pinned="false" current-in-tab="true">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeEstimator.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="168">
-              <caret line="91" column="0" lean-forward="true" selection-start-line="91" selection-start-column="0" selection-end-line="91" selection-end-column="0" />
-              <folding />
             </state>
           </provider>
         </entry>
@@ -122,18 +74,30 @@
       <file leaf-file-name="FileHandle.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/FileHandle.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="232">
-              <caret line="177" column="30" lean-forward="true" selection-start-line="177" selection-start-column="30" selection-end-line="177" selection-end-column="30" />
+            <state relative-caret-position="-48">
+              <caret line="35" column="8" lean-forward="false" selection-start-line="35" selection-start-column="8" selection-end-line="35" selection-end-column="8" />
               <folding />
             </state>
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="CorrelationPlotter.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/CorrelationPlotter.py">
+      <file leaf-file-name="BasePlotter.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="181">
-              <caret line="28" column="8" lean-forward="false" selection-start-line="28" selection-start-column="8" selection-end-line="28" selection-end-column="8" />
+            <state relative-caret-position="75">
+              <caret line="5" column="0" lean-forward="true" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
+              <folding>
+                <element signature="e#0#59#0" expanded="true" />
+              </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="HistTools.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="649">
+              <caret line="119" column="0" lean-forward="false" selection-start-line="119" selection-start-column="0" selection-end-line="119" selection-end-column="0" />
               <folding />
             </state>
           </provider>
@@ -142,21 +106,9 @@
       <file leaf-file-name="PlottingTools.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="405">
-              <caret line="73" column="39" lean-forward="true" selection-start-line="73" selection-start-column="39" selection-end-line="73" selection-end-column="39" />
+            <state relative-caret-position="109">
+              <caret line="279" column="33" lean-forward="true" selection-start-line="279" selection-start-column="33" selection-end-line="279" selection-end-column="33" />
               <folding />
-            </state>
-          </provider>
-        </entry>
-      </file>
-      <file leaf-file-name="Utilities.py" pinned="false" current-in-tab="false">
-        <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/Utilities.py">
-          <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="75">
-              <caret line="11" column="28" lean-forward="false" selection-start-line="11" selection-start-column="28" selection-end-line="11" selection-end-column="28" />
-              <folding>
-                <marker date="1492186476000" expanded="true" signature="290:324" ph="..." />
-              </folding>
             </state>
           </provider>
         </entry>
@@ -172,43 +124,43 @@
   </component>
   <component name="FindInProjectRecents">
     <findStrings>
-      <find>retrie</find>
-      <find>46</find>
-      <find>try to access config for process</find>
-      <find>prin</find>
-      <find>batch</find>
-      <find>format_o</find>
-      <find>normal</find>
-      <find>norm</find>
-      <find>plot_</find>
-      <find>re.</find>
-      <find>get_o</find>
-      <find>copy</find>
-      <find>graph</find>
-      <find>ratio_</find>
-      <find>ex</find>
-      <find>exit</find>
-      <find>39</find>
-      <find>rebin</find>
-      <find>print</find>
-      <find>color</find>
-      <find>53</find>
-      <find>lumi</find>
-      <find>nfile_</find>
       <find>sy</find>
       <find>no_data</find>
       <find>exi</find>
       <find>canvas</find>
       <find>merg</find>
       <find>fet</find>
+      <find>stack</find>
+      <find>max</find>
+      <find>lumi</find>
+      <find>get_hi</find>
+      <find>stat</find>
+      <find>set_maxim</find>
+      <find>lege</find>
+      <find>legend.</find>
+      <find>MMMM</find>
+      <find>2d</find>
+      <find>text</find>
+      <find>hist_</find>
+      <find>pri</find>
+      <find>prin</find>
+      <find>print</find>
+      <find>Nom</find>
+      <find>exit</find>
       <find>merge</find>
+      <find>process_</find>
+      <find>event_yields</find>
+      <find>read</find>
+      <find>decora</find>
+      <find>FM</find>
+      <find>batch</find>
     </findStrings>
   </component>
   <component name="Git.Settings">
     <option name="RECENT_GIT_ROOT_PATH" value="$PROJECT_DIR$" />
     <option name="RECENT_BRANCH_BY_REPOSITORY">
       <map>
-        <entry key="$PROJECT_DIR$" value="master" />
+        <entry key="$PROJECT_DIR$" value="MMPP-881_2Dbinning" />
       </map>
     </option>
   </component>
@@ -224,8 +176,6 @@
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/__init__.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/Utils.py" />
         <option value="$PROJECT_DIR$/README.md" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/Utilities.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/base/OutputHandle.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/base/IOTools.py" />
@@ -240,26 +190,28 @@
         <option value="$PROJECT_DIR$/PyAnalysisTools/base/ShellUtils.py" />
         <option value="$PROJECT_DIR$/tests/TestBaseShellUtils.py" />
         <option value="$PROJECT_DIR$/run_scripts/get_dataset_size.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Formatting.py" />
         <option value="$PROJECT_DIR$/tests/TestCutFlowAnalyser.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/__init__.py" />
         <option value="$PROJECT_DIR$/tests/__init__.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/__init__.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/__init__.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/RatioPlotter.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/XSHandle.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/ObjectHandle.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py" />
         <option value="$PROJECT_DIR$/setup.sh" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/ComparisonPlotter.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/base/Utilities.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Formatting.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/CutFlowAnalyser.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/FileHandle.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/XSHandle.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/base/Utilities.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeEstimator.py" />
         <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py" />
-        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/CutFlowAnalyser.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py" />
+        <option value="$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py" />
       </list>
     </option>
   </component>
@@ -306,7 +258,6 @@
     </navigator>
     <panes>
       <pane id="Scope" />
-      <pane id="Scratches" />
       <pane id="ProjectPane">
         <subPane>
           <PATH>
@@ -431,6 +382,32 @@
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
             <PATH_ELEMENT>
+              <option name="myItemId" value="PlottingUtils" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="AtlasStyle" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+          </PATH>
+          <PATH>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="PyAnalysisToolsDevML" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewProjectNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="PyAnalysisToolsDevML" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.ProjectViewModuleNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="PyAnalysisTools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
+              <option name="myItemId" value="PyAnalysisTools" />
+              <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
+            </PATH_ELEMENT>
+            <PATH_ELEMENT>
               <option name="myItemId" value="base" />
               <option name="myItemType" value="com.intellij.ide.projectView.impl.nodes.PsiDirectoryNode" />
             </PATH_ELEMENT>
@@ -459,6 +436,7 @@
           </PATH>
         </subPane>
       </pane>
+      <pane id="Scratches" />
     </panes>
   </component>
   <component name="PropertiesComponent">
@@ -910,62 +888,6 @@
       <option name="presentableId" value="Default" />
       <updated>1470907493623</updated>
     </task>
-    <task id="LOCAL-00123" summary="implement axis title setting for TEfficiency">
-      <created>1484903594698</created>
-      <option name="number" value="00123" />
-      <option name="presentableId" value="LOCAL-00123" />
-      <option name="project" value="LOCAL" />
-      <updated>1484903594699</updated>
-    </task>
-    <task id="LOCAL-00124" summary="bugfix asymmetric binning">
-      <created>1484908106742</created>
-      <option name="number" value="00124" />
-      <option name="presentableId" value="LOCAL-00124" />
-      <option name="project" value="LOCAL" />
-      <updated>1484908106742</updated>
-    </task>
-    <task id="LOCAL-00125" summary="remove debug statements">
-      <created>1484908180282</created>
-      <option name="number" value="00125" />
-      <option name="presentableId" value="LOCAL-00125" />
-      <option name="project" value="LOCAL" />
-      <updated>1484908180282</updated>
-    </task>
-    <task id="LOCAL-00126" summary="add TGraphAsymmErrors for ratios">
-      <created>1484997430066</created>
-      <option name="number" value="00126" />
-      <option name="presentableId" value="LOCAL-00126" />
-      <option name="project" value="LOCAL" />
-      <updated>1484997430067</updated>
-    </task>
-    <task id="LOCAL-00127" summary="add TEfficiency ratio calculation">
-      <created>1484997450409</created>
-      <option name="number" value="00127" />
-      <option name="presentableId" value="LOCAL-00127" />
-      <option name="project" value="LOCAL" />
-      <updated>1484997450409</updated>
-    </task>
-    <task id="LOCAL-00128" summary="add new reader&#10;implement TEfficiency handling">
-      <created>1485033428307</created>
-      <option name="number" value="00128" />
-      <option name="presentableId" value="LOCAL-00128" />
-      <option name="project" value="LOCAL" />
-      <updated>1485033428307</updated>
-    </task>
-    <task id="LOCAL-00129" summary="extract interface functions">
-      <created>1485033445431</created>
-      <option name="number" value="00129" />
-      <option name="presentableId" value="LOCAL-00129" />
-      <option name="project" value="LOCAL" />
-      <updated>1485033445432</updated>
-    </task>
-    <task id="LOCAL-00130" summary="add TEfficiency for legend">
-      <created>1485033636981</created>
-      <option name="number" value="00130" />
-      <option name="presentableId" value="LOCAL-00130" />
-      <option name="project" value="LOCAL" />
-      <updated>1485033636981</updated>
-    </task>
     <task id="LOCAL-00131" summary="style fixes">
       <created>1485033663272</created>
       <option name="number" value="00131" />
@@ -1253,7 +1175,63 @@
       <option name="project" value="LOCAL" />
       <updated>1492507690191</updated>
     </task>
-    <option name="localTasksCounter" value="172" />
+    <task id="LOCAL-00172" summary="implement fake factor calculation&#10;&#9;&#9;&#9;&#10;Relates to MMPP-649&#10;&#9;&#9;&#9;&#10;* implement plots for fake estimation&#10;* catch common_config before propagation&#10;* add formatting for TH2&#10;* autload pathos">
+      <created>1492645031549</created>
+      <option name="number" value="00172" />
+      <option name="presentableId" value="LOCAL-00172" />
+      <option name="project" value="LOCAL" />
+      <updated>1492645031550</updated>
+    </task>
+    <task id="LOCAL-00173" summary="Muon fake estimator&#10;&#10;Relates to MMPP-649&#10;&#10;* implement MC only cut&#10;* remove None check in categorisation&#10;* add error marker parsing&#10;* add 2D formatting&#10;* add check for existing common_config&#10;* implement jet binned histograms and selection">
+      <created>1493048159298</created>
+      <option name="number" value="00173" />
+      <option name="presentableId" value="LOCAL-00173" />
+      <option name="project" value="LOCAL" />
+      <updated>1493048159298</updated>
+    </task>
+    <task id="LOCAL-00174" summary="Muon fake estimator&#10;&#10;Relates to MMPP-649&#10;&#10;* bugfix rebin check&#10;* fixed z-axis range">
+      <created>1493050900869</created>
+      <option name="number" value="00174" />
+      <option name="presentableId" value="LOCAL-00174" />
+      <option name="project" value="LOCAL" />
+      <updated>1493050900869</updated>
+    </task>
+    <task id="LOCAL-00175" summary="Jet bins in muon fake estimator&#10;&#10;Resolves to MMPP-808&#10;&#10;* add greater-equal jet bins&#10;* fix ymax application for plot_histograms&#10;* update PYTHONPATH">
+      <created>1493135631631</created>
+      <option name="number" value="00175" />
+      <option name="presentableId" value="LOCAL-00175" />
+      <option name="project" value="LOCAL" />
+      <updated>1493135631631</updated>
+    </task>
+    <task id="LOCAL-00176" summary="Fake estimation w/o dR requirement&#10;&#10;Resolve MMPP-809&#10;&#10;* add ff w/o dR cut on jets&#10;* add styles option&#10;* implement indexing">
+      <created>1493245471286</created>
+      <option name="number" value="00176" />
+      <option name="presentableId" value="LOCAL-00176" />
+      <option name="project" value="LOCAL" />
+      <updated>1493245471286</updated>
+    </task>
+    <task id="LOCAL-00177" summary="2D histogram support update&#10;&#10;Relates to MMPP-811&#10;&#10;* implement asymmetric 2D binning&#10;* 2D rebin option&#10;* add 2D fake factors w/o dR requirement">
+      <created>1493385925510</created>
+      <option name="number" value="00177" />
+      <option name="presentableId" value="LOCAL-00177" />
+      <option name="project" value="LOCAL" />
+      <updated>1493385925511</updated>
+    </task>
+    <task id="LOCAL-00178" summary="Add z-axis title&#10;&#10;Resolve MMPP-787&#10;&#10;* add z-axis title&#10;* set right margin for TH2">
+      <created>1493767780352</created>
+      <option name="number" value="00178" />
+      <option name="presentableId" value="LOCAL-00178" />
+      <option name="project" value="LOCAL" />
+      <updated>1493767780352</updated>
+    </task>
+    <task id="LOCAL-00179" summary="fix debug">
+      <created>1493767902202</created>
+      <option name="number" value="00179" />
+      <option name="presentableId" value="LOCAL-00179" />
+      <option name="project" value="LOCAL" />
+      <updated>1493767902202</updated>
+    </task>
+    <option name="localTasksCounter" value="180" />
     <servers />
   </component>
   <component name="TestHistory">
@@ -1302,14 +1280,14 @@
     <editor active="true" />
     <layout>
       <window_info id="TODO" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.329602" sideWeight="0.5" order="6" side_tool="false" content_ui="tabs" />
-      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.41345203" sideWeight="0.5046875" order="7" side_tool="true" content_ui="tabs" />
+      <window_info id="Event Log" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2205737" sideWeight="0.5104167" order="7" side_tool="true" content_ui="tabs" />
       <window_info id="Run" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.3283582" sideWeight="0.5" order="2" side_tool="false" content_ui="tabs" />
-      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.41417912" sideWeight="0.49444443" order="7" side_tool="false" content_ui="tabs" />
+      <window_info id="Version Control" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.41417912" sideWeight="0.49166667" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Python Console" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Terminal" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="7" side_tool="false" content_ui="tabs" />
       <window_info id="Project" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.18645833" sideWeight="0.5" order="0" side_tool="false" content_ui="combo" />
       <window_info id="Database" active="false" anchor="right" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
-      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.41345203" sideWeight="0.4953125" order="1" side_tool="false" content_ui="tabs" />
+      <window_info id="Find" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="true" show_stripe_button="true" weight="0.2205737" sideWeight="0.48958334" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Structure" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.25" sideWeight="0.5" order="1" side_tool="false" content_ui="tabs" />
       <window_info id="Debug" active="false" anchor="bottom" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.4" sideWeight="0.5" order="3" side_tool="false" content_ui="tabs" />
       <window_info id="Favorites" active="false" anchor="left" auto_hide="false" internal_type="DOCKED" type="DOCKED" visible="false" show_stripe_button="true" weight="0.33" sideWeight="0.5" order="2" side_tool="true" content_ui="tabs" />
@@ -1340,15 +1318,6 @@
     <option name="myLimit" value="2678400000" />
   </component>
   <component name="VcsManagerConfiguration">
-    <MESSAGE value="fix MC process parsing" />
-    <MESSAGE value="implement comparison from TTree for SingleFileMultiFile reader" />
-    <MESSAGE value="implement ratio config" />
-    <MESSAGE value="implement normalisation in range" />
-    <MESSAGE value="extract retrieve xs info" />
-    <MESSAGE value="catch missing process_configs" />
-    <MESSAGE value="implement multi distribution support for SingleFileMultiDist comparison&#10;&#10;MMPP-670&#10;* implement parsing of multiple dists&#10;* implement colored ratios for mutliple dists&#10;* minor style changes" />
-    <MESSAGE value="Process parsing&#10;&#10;Fixes MMPP-702&#10;&#10;* add option to parse process name from directory&#10;* refactoring of process extraction&#10;* add option to ignore process name" />
-    <MESSAGE value="Add comparision for multiple files from tree&#10;Resolve MMPP-667&#10;* add drawing from tree&#10;* resolve ymax issue for rebinned histograms&#10;* y_min, y_max became deprecated, replaced by ymin and ymax" />
     <MESSAGE value="add option to switch off process analysis" />
     <MESSAGE value="add None filter" />
     <MESSAGE value="capture reference exception for axes" />
@@ -1365,7 +1334,16 @@
     <MESSAGE value="init commit" />
     <MESSAGE value="remove untracked files" />
     <MESSAGE value="add newline" />
-    <option name="LAST_COMMIT_MESSAGE" value="add newline" />
+    <MESSAGE value="implement fake factor calculation&#10;&#10;Relates to MMPP-649&#10;&#10;* implement plots for fake estimation&#10;* catch common_config before propagation&#10;* add formatting for TH2&#10;* autload pathos" />
+    <MESSAGE value="implement fake factor calculation&#10;&#9;&#9;&#9;&#10;Relates to MMPP-649&#10;&#9;&#9;&#9;&#10;* implement plots for fake estimation&#10;* catch common_config before propagation&#10;* add formatting for TH2&#10;* autload pathos" />
+    <MESSAGE value="Muon fake estimator&#10;&#10;Relates to MMPP-649&#10;&#10;* implement MC only cut&#10;* remove None check in categorisation&#10;* add error marker parsing&#10;* add 2D formatting&#10;* add check for existing common_config&#10;* implement jet binned histograms and selection" />
+    <MESSAGE value="Muon fake estimator&#10;&#10;Relates to MMPP-649&#10;&#10;* bugfix rebin check&#10;* fixed z-axis range" />
+    <MESSAGE value="Jet bins in muon fake estimator&#10;&#10;Resolves to MMPP-808&#10;&#10;* add greater-equal jet bins&#10;* fix ymax application for plot_histograms&#10;* update PYTHONPATH" />
+    <MESSAGE value="Fake estimation w/o dR requirement&#10;&#10;Resolve MMPP-809&#10;&#10;* add ff w/o dR cut on jets&#10;* add styles option&#10;* implement indexing" />
+    <MESSAGE value="2D histogram support update&#10;&#10;Relates to MMPP-811&#10;&#10;* implement asymmetric 2D binning&#10;* 2D rebin option&#10;* add 2D fake factors w/o dR requirement" />
+    <MESSAGE value="Add z-axis title&#10;&#10;Resolve MMPP-787&#10;&#10;* add z-axis title&#10;* set right margin for TH2" />
+    <MESSAGE value="fix debug" />
+    <option name="LAST_COMMIT_MESSAGE" value="fix debug" />
   </component>
   <component name="XDebuggerManager">
     <breakpoint-manager>
@@ -1388,32 +1366,11 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/AtlasStyle/AtlasStyle.C">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="851">
-          <caret line="81" column="2" lean-forward="false" selection-start-line="81" selection-start-column="2" selection-end-line="81" selection-end-column="2" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/README.md" />
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="765">
-          <caret line="54" column="47" lean-forward="false" selection-start-line="54" selection-start-column="47" selection-end-line="54" selection-end-column="47" />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/__init__.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="0">
           <caret line="0" column="0" lean-forward="false" selection-start-line="0" selection-start-column="0" selection-end-line="0" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="810">
-          <caret line="59" column="25" lean-forward="false" selection-start-line="59" selection-start-column="25" selection-end-line="59" selection-end-column="25" />
         </state>
       </provider>
     </entry>
@@ -1487,13 +1444,6 @@
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="105">
           <caret line="11" column="0" lean-forward="false" selection-start-line="11" selection-start-column="0" selection-end-line="11" selection-end-column="0" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Formatting.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="3300">
-          <caret line="226" column="29" lean-forward="false" selection-start-line="226" selection-start-column="29" selection-end-line="226" selection-end-column="29" />
         </state>
       </provider>
     </entry>
@@ -1589,33 +1539,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="1080">
-          <caret line="75" column="4" lean-forward="false" selection-start-line="75" selection-start-column="4" selection-end-line="75" selection-end-column="4" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/tests/TestHistTools.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="285">
           <caret line="21" column="57" lean-forward="false" selection-start-line="21" selection-start-column="57" selection-end-line="21" selection-end-column="57" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/XSHandle.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="480">
-          <caret line="33" column="10" lean-forward="false" selection-start-line="33" selection-start-column="10" selection-end-line="33" selection-end-column="10" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="405">
-          <caret line="29" column="52" lean-forward="false" selection-start-line="29" selection-start-column="52" selection-end-line="29" selection-end-column="52" />
         </state>
       </provider>
     </entry>
@@ -1626,55 +1553,10 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/Utilities.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="75">
-          <caret line="11" column="28" lean-forward="false" selection-start-line="11" selection-start-column="28" selection-end-line="11" selection-end-column="28" />
-          <folding>
-            <marker date="1492186476000" expanded="true" signature="290:324" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/Utilities.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="120">
           <caret line="8" column="21" lean-forward="false" selection-start-line="8" selection-start-column="21" selection-end-line="8" selection-end-column="21" />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="668">
-          <caret line="238" column="4" lean-forward="false" selection-start-line="238" selection-start-column="4" selection-end-line="238" selection-end-column="4" />
-          <folding>
-            <marker date="1492119035000" expanded="true" signature="220:1240" ph="..." />
-            <marker date="1492119035000" expanded="true" signature="2051:2053" ph="..." />
-          </folding>
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/OutputHandle.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="165">
-          <caret line="17" column="19" lean-forward="true" selection-start-line="17" selection-start-column="19" selection-end-line="17" selection-end-column="19" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/FileHandle.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="232">
-          <caret line="177" column="30" lean-forward="true" selection-start-line="177" selection-start-column="30" selection-end-line="177" selection-end-column="30" />
-          <folding />
-        </state>
-      </provider>
-    </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/CorrelationPlotter.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="181">
-          <caret line="28" column="8" lean-forward="false" selection-start-line="28" selection-start-column="8" selection-end-line="28" selection-end-column="8" />
-          <folding />
         </state>
       </provider>
     </entry>
@@ -1686,37 +1568,142 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py">
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/CorrelationPlotter.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="405">
-          <caret line="73" column="39" lean-forward="true" selection-start-line="73" selection-start-column="39" selection-end-line="73" selection-end-column="39" />
-          <folding />
+        <state relative-caret-position="181">
+          <caret line="28" column="8" lean-forward="false" selection-start-line="28" selection-start-column="8" selection-end-line="28" selection-end-column="8" />
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py">
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/OutputHandle.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="90">
-          <caret line="6" column="49" lean-forward="false" selection-start-line="6" selection-start-column="30" selection-end-line="6" selection-end-column="49" />
+        <state relative-caret-position="165">
+          <caret line="17" column="19" lean-forward="true" selection-start-line="17" selection-start-column="19" selection-end-line="17" selection-end-column="19" />
           <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/CutFlowAnalyser.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="40">
-          <caret line="42" column="64" lean-forward="true" selection-start-line="42" selection-start-column="64" selection-end-line="42" selection-end-column="64" />
+        <state relative-caret-position="172">
+          <caret line="188" column="46" lean-forward="false" selection-start-line="188" selection-start-column="46" selection-end-line="188" selection-end-column="46" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/StatisticsTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="237">
+          <caret line="39" column="0" lean-forward="false" selection-start-line="39" selection-start-column="0" selection-end-line="39" selection-end-column="0" />
           <folding>
-            <element signature="e#0#18#0" expanded="true" />
+            <marker date="1493326275000" expanded="true" signature="1511:1558" ph="..." />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/AtlasStyle/AtlasStyle.C">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="1163">
+          <caret line="81" column="11" lean-forward="false" selection-start-line="81" selection-start-column="10" selection-end-line="81" selection-end-column="11" />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/XSHandle.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="480">
+          <caret line="33" column="64" lean-forward="false" selection-start-line="33" selection-start-column="64" selection-end-line="33" selection-end-column="64" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/base/Utilities.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="11" column="0" lean-forward="false" selection-start-line="11" selection-start-column="0" selection-end-line="11" selection-end-column="0" />
+          <folding>
+            <marker date="1493383844000" expanded="true" signature="290:324" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Formatting.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="79">
+          <caret line="70" column="13" lean-forward="false" selection-start-line="70" selection-start-column="4" selection-end-line="70" selection-end-column="13" />
+          <folding />
         </state>
       </provider>
     </entry>
     <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/FakeEstimator.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="168">
-          <caret line="91" column="0" lean-forward="true" selection-start-line="91" selection-start-column="0" selection-end-line="91" selection-end-column="0" />
+        <state relative-caret-position="349">
+          <caret line="136" column="117" lean-forward="false" selection-start-line="136" selection-start-column="117" selection-end-line="136" selection-end-column="117" />
+          <folding>
+            <element signature="e#0#11#0" expanded="false" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/ROOTUtils/FileHandle.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="-48">
+          <caret line="35" column="8" lean-forward="false" selection-start-line="35" selection-start-column="8" selection-end-line="35" selection-end-column="8" />
           <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/HistTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="649">
+          <caret line="119" column="0" lean-forward="false" selection-start-line="119" selection-start-column="0" selection-end-line="119" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlotConfig.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="418">
+          <caret line="246" column="4" lean-forward="false" selection-start-line="246" selection-start-column="4" selection-end-line="246" selection-end-column="4" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+            <marker date="1493376205000" expanded="true" signature="244:1264" ph="..." />
+            <marker date="1493376205000" expanded="true" signature="2075:2077" ph="..." />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/PlottingTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="109">
+          <caret line="279" column="33" lean-forward="true" selection-start-line="279" selection-start-column="33" selection-end-line="279" selection-end-column="33" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/BasePlotter.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="75">
+          <caret line="5" column="0" lean-forward="true" selection-start-line="5" selection-start-column="0" selection-end-line="5" selection-end-column="0" />
+          <folding>
+            <element signature="e#0#59#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/PlottingUtils/Plotter.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="135">
+          <caret line="9" column="26" lean-forward="false" selection-start-line="9" selection-start-column="0" selection-end-line="10" selection-end-column="0" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/PyAnalysisTools/AnalysisTools/TriggerAnalysisTools.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="382">
+          <caret line="112" column="39" lean-forward="true" selection-start-line="112" selection-start-column="39" selection-end-line="112" selection-end-column="39" />
+          <folding>
+            <element signature="e#0#11#0" expanded="true" />
+          </folding>
         </state>
       </provider>
     </entry>

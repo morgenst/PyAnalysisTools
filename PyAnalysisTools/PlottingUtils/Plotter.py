@@ -7,7 +7,6 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config
     get_histogram_definition, find_process_config, merge_plot_configs
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
@@ -35,7 +34,6 @@ class Plotter(BasePlotter):
         kwargs.setdefault("systematics", "Nominal")
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("batch", True)
         kwargs.setdefault("ncpu", 1)
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
@@ -43,25 +41,15 @@ class Plotter(BasePlotter):
 
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
-        set_batch_mode(kwargs["batch"])
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
-        FM.load_atlas_style()
         self.statistical_uncertainty_hist = None
         self.histograms = {}
-        self.event_yields = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.initialise()
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
-
-    def read_cutflows(self):
-        for file_handle in self.file_handles:
-            if file_handle.process in self.event_yields:
-                self.event_yields[file_handle.process] += file_handle.get_number_of_total_events()
-            else:
-                self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
 
     def retrieve_histogram(self, file_handle, plot_config):
         file_handle.open()
@@ -99,23 +87,25 @@ class Plotter(BasePlotter):
 
         return hist
 
-    def merge_histograms(self):
-        def merge(histograms):
-            for process, process_config in self.process_configs.iteritems():
-                if not hasattr(process_config, "subprocesses"):
+    @staticmethod
+    def merge(histograms, process_configs):
+        for process, process_config in process_configs.iteritems():
+            if not hasattr(process_config, "subprocesses"):
+                continue
+            for sub_process in process_config.subprocesses:
+                if sub_process not in histograms.keys():
                     continue
-                for sub_process in process_config.subprocesses:
-                    if sub_process not in histograms.keys():
-                        continue
-                    if process not in histograms.keys():
-                        new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
-                        histograms[process] = histograms[sub_process].Clone(new_hist_name)
-                    else:
-                        histograms[process].Add(histograms[sub_process])
-                    histograms.pop(sub_process)
+                if process not in histograms.keys():
+                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
+                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
+                else:
+                    histograms[process].Add(histograms[sub_process])
+                histograms.pop(sub_process)
+
+    def merge_histograms(self):
         for plot_config, histograms in self.histograms.iteritems():
             if plot_config.merge:
-                merge(histograms)
+                self.merge(histograms, self.process_configs)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -176,7 +166,8 @@ class Plotter(BasePlotter):
                     continue
                 if "data" in process.lower():
                     continue
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_yields[process])
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi,
+                                                                            self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
 
     def categorise_histograms(self, plot_config, histograms):
@@ -249,7 +240,7 @@ class Plotter(BasePlotter):
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
-        if not self.process_configs is None:
+        if self.process_configs is not None:
             for hist_set in self.histograms.values():
                 for process_name in hist_set.keys():
                     _ = find_process_config(process_name, self.process_configs)
