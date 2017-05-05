@@ -56,6 +56,10 @@ class RatioPlotter(object):
         self.reference = kwargs["reference"]
         self.plot_config = kwargs["plot_config"]
         self.compare = kwargs["compare"]
+        if not isinstance(self.compare, list):
+            self.compare = [self.compare]
+        if not self.plot_config.name.startswith("ratio"):
+            self.plot_config.name = "ratio_" + self.plot_config.name
         self.ratio_calculator = RatioCalculator(**kwargs)
 
     def make_ratio_plot(self):
@@ -70,6 +74,7 @@ class RatioPlotter(object):
         if len(self.compare) > 1:
             colors = get_colors(self.compare)
             self.plot_config.color = colors
+        self.plot_config.ordering = None
         return PT.plot_histograms(ratios, self.plot_config)
 
     def make_ratio_tefficiency(self, ratios):
