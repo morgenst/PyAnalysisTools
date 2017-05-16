@@ -103,13 +103,13 @@ class SingleFileMultiDistReader(ComparisonReader):
 
     def get_data(self):
         try:
-            reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref, tdirectory="Nominal")
-            compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist, tdirectory="Nominal")
+            reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref)
+            compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist)
             if hasattr(self.plot_config, "retrieve_by") and self.plot_config.retrieve_by == "type":
-                reference = get_objects_from_canvas_by_type(reference_canvas, "TH1F")[0]
+                reference = get_objects_from_canvas_by_type(reference_canvas, "TH1F")
                 compare = get_objects_from_canvas_by_type(compare_canvas, "TH1F")
             else:
-                reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])[0]
+                reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])
                 compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
         except ValueError:
             plot_configs = expand_plot_config(self.plot_config)
