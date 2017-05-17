@@ -377,25 +377,17 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         raise InvalidInputError("Either canvas or ratio not provided.")
     y_frac = 0.25
     if isinstance(ratio, ROOT.TCanvas):
+        supported_types = ["TH1F", "TH1D", "TGraph", "TGraphAsymmErrors", "TEfficiency"]
         try:
-            hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1F")[0]
-        except IndexError:
-            try:
-                hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TH1D")[0]
-            except IndexError:
-                try:
-                    hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraph")[0]
-                except IndexError:
-                    try:
-                        hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TGraphAsymmErrors")[0]
-                    except IndexError:
-                        hratio = object_handle.get_objects_from_canvas_by_type(ratio, "TEfficiency")[0]
+            hratio = object_handle.get_objects_from_canvas_by_type(ratio, supported_types)[0]
+        except:
+            _logger.error("Could not find any supported hist type in canvas ", ratio.GetName())
+            exit(0)
     else:
         hratio = ratio
     if name is None:
         name = canvas.GetName() + "_ratio"
     c = retrieve_new_canvas(name, title)
-    #ROOT.SetOwnership(c, False)
     c.Draw()
     pad1 = ROOT.TPad("pad1", "top pad", 0.0, y_frac, 1., 1.)
     pad1.SetBottomMargin(0.05)

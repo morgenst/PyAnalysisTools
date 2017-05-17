@@ -11,7 +11,10 @@ def get_objects_from_canvas(canvas):
 def get_objects_from_canvas_by_type(canvas, typename):
     obj = get_objects_from_canvas(canvas)
     obj = filter(lambda o: o is not None, obj)
-    obj = filter(lambda o: o.InheritsFrom(typename), obj)
+    if isinstance(typename, list):
+        obj = filter(lambda o: any(o.InheritsFrom(t) for t in typename), obj)
+    else:
+        obj = filter(lambda o: o.InheritsFrom(typename), obj)
     return obj
 
 
