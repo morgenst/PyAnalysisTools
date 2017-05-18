@@ -37,7 +37,7 @@ def add_object_to_canvas(canvas, obj, plot_config):
 
 
 def plot_hist(hist, plot_config, **kwargs):
-    kwargs.setdefault("y_max", None)
+    kwargs.setdefault("y_max", 1.1 * hist.GetMaximum())
     ymax = kwargs["y_max"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
