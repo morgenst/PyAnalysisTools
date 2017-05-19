@@ -36,7 +36,7 @@ class CutflowAnalyser(object):
         self.raw = kwargs["raw"]
         self.merge = True if not kwargs["no_merge"] else False
         if kwargs["process_config"] is not None:
-            self.process_config = parse_and_build_process_config(kwargs["process_config"])
+            self.process_configs = parse_and_build_process_config(kwargs["process_config"])
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -47,10 +47,9 @@ class CutflowAnalyser(object):
 
     def analyse_cutflow(self):
         self.apply_cross_section_weight()
-        if self.process_config is not None and self.merge:
-            for hist_set in self.cutflow_hists.values():
-                for process_name in hist_set.keys():
-                    _ = find_process_config(process_name, self.process_configs)
+        if self.process_configs is not None and self.merge:
+            for process_name in self.cutflow_hists.keys():
+                _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms(self.cutflow_hists)
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
@@ -65,7 +64,7 @@ class CutflowAnalyser(object):
 
     def merge_histograms(self, hist_dict):
         def merge(histograms):
-            for process, process_config in self.process_config.iteritems():
+            for process, process_config in self.process_configs.iteritems():
                 if not hasattr(process_config, "subprocesses"):
                     continue
                 for sub_process in process_config.subprocesses:
@@ -83,7 +82,6 @@ class CutflowAnalyser(object):
                             else:
                                 histograms[process][systematic][selection].Add(histograms[sub_process][systematic][selection].Clone(new_hist_name))
                     histograms.pop(sub_process)
-
         merge(hist_dict)
 
     def get_cross_section_weight(self, process):
@@ -165,28 +163,32 @@ class CutflowAnalyser(object):
     def stringify(self, cutflow):
         def format_yield(value, uncertainty):
             if value > 10000.:
-                return "{:.3e} +- {:.3e}".format(value, uncertainty)
+                return "{:.3e}".format(value)
             else:
-                return "{:.2f} +- {:.2f}".format(value, uncertainty)
+                return "{:.2f}".format(value)
+            # if value > 10000.:
+            #     return "{:.3e} +- {:.3e}".format(value, uncertainty)
+            # else:
+            #     return "{:.2f} +- {:.2f}".format(value, uncertainty)
 
         if not self.raw:
             cutflow = np.array([(cutflow[i]["cut"],
                                  format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-                                 cutflow[i]["eff"],
+                                 #cutflow[i]["eff"],
                                  cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield", "S100"), ("eff", float), ("eff_total", float)])
+                               dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)]) #("eff", float),
         else:
             cutflow = np.array([(cutflow[i]["cut"],
                                  format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-                                 cutflow[i]["eff"],
+                                 #cutflow[i]["eff"],
                                  cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff", float), ("eff_total", float)])
+                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)]) #("eff", float),
 
         return cutflow
 
     def print_cutflow_table(self):
         for selection, cutflow in self.cutflow_tables.iteritems():
-            if not selection == "MMMM":
+            if not selection == "BaseSelection":
                 continue
             print
             print "Cutflow for region %s" % selection
