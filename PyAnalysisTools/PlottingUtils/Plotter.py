@@ -42,7 +42,6 @@ class Plotter(BasePlotter):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
-        set_batch_mode(kwargs["batch"])
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
                              for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
