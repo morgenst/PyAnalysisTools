@@ -1,4 +1,5 @@
 import ROOT
+from collections import defaultdict
 from operator import itemgetter
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -275,7 +276,7 @@ def plot_stack(hists, plot_config, **kwargs):
     canvas.Clear()
     canvas.cd()
     is_first = True
-    if isinstance(hists, dict):
+    if isinstance(hists, dict) or isinstance(hists, defaultdict):
         hist_defs = hists.items()
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
