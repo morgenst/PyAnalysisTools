@@ -7,14 +7,14 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 
 class BasePlotter(object):
     def __init__(self, **kwargs):
+        self.plot_configs = None
+        self.lumi = None
         kwargs.setdefault("batch", True)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
-        #todo: temporary assignment for naming collision in Plotter and ComparisionPlotter
-        self.plot_config = self.plot_configs
         self.load_atlas_style()
         self.event_yields = {}
 
