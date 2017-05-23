@@ -51,6 +51,7 @@ class CutflowAnalyser(object):
             for process_name in self.cutflow_hists.keys():
                 _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms(self.cutflow_hists)
+        self.calculate_sm_total()
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
             for process in self.cutflow_hists.keys():
@@ -83,6 +84,21 @@ class CutflowAnalyser(object):
                                 histograms[process][systematic][selection].Add(histograms[sub_process][systematic][selection].Clone(new_hist_name))
                     histograms.pop(sub_process)
         merge(hist_dict)
+
+    def calculate_sm_total(self):
+        sm_total_cutflows = {}
+        for process, systematics in self.cutflow_hists.iteritems():
+            if "data" in process.lower():
+                continue
+            for systematic, regions in systematics.iteritems():
+                if systematic not in sm_total_cutflows.keys():
+                    sm_total_cutflows[systematic] = {}
+                for region, cutflow_hist in regions.iteritems():
+                    if region not in sm_total_cutflows[systematic].keys():
+                        sm_total_cutflows[systematic][region] = cutflow_hist.Clone()
+                        continue
+                    sm_total_cutflows[systematic][region].Add(cutflow_hist)
+        self.cutflow_hists["SMTotal"] = sm_total_cutflows
 
     def get_cross_section_weight(self, process):
         if self.lumi is None or "data" in process.lower():
