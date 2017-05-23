@@ -159,7 +159,7 @@ class MuonFakeEstimator(object):
                     FT.decorate_canvas(canvas, plot_config)
                 self.plotter.output_handle.register_object(canvas)
 
-    def run(self, bjet=False):
+    def run(self):
         self.plot_jet_bins()
         self.plot_fake_factors()
         self.plot_fake_factors_2D()
