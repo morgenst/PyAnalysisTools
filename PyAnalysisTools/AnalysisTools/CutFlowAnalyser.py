@@ -1,13 +1,16 @@
 import numpy as np
+import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
+import PyAnalysisTools.PlottingUtils.Formatting as Ft
 from tabulate import tabulate
+from collections import defaultdict
 from PyAnalysisTools.base import _logger
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from numpy.lib.recfunctions import rec_append_fields
-import ROOT
 
 
 class CutflowAnalyser(object):
@@ -20,6 +23,7 @@ class CutflowAnalyser(object):
         kwargs.setdefault("process_config", None)
         kwargs.setdefault("no_merge", False)
         kwargs.setdefault("raw", False)
+        kwargs.setdefault("output_dir", None)
         self.file_list = kwargs["file_list"]
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
@@ -35,6 +39,8 @@ class CutflowAnalyser(object):
         self.process_config = None
         self.raw = kwargs["raw"]
         self.merge = True if not kwargs["no_merge"] else False
+        if kwargs["output_dir"] is not None:
+            self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         if kwargs["process_config"] is not None:
             self.process_configs = parse_and_build_process_config(kwargs["process_config"])
 
@@ -237,7 +243,30 @@ class CutflowAnalyser(object):
         for file_name in self.file_list:
             self.load_cutflows(file_name)
 
+    def plot_cutflow(self):
+        set_batch_mode(True)
+        flipped = defaultdict(lambda: defaultdict(dict))
+        for process, systematics in self.cutflow_hists.items():
+            for systematic, cutflows in systematics.items():
+                if "smtotal" in process.lower():
+                    continue
+                for region, cutflow_hist in cutflows.items():
+                    flipped[systematic][region][process] = cutflow_hist
+        plot_config = PlotConfig(name=None, dist=None, ytitle="Events", logy=True)
+        for region in flipped['Nominal'].keys():
+            plot_config.name = "{:s}_cutflow".format(region)
+            cutflow_hists = {process: hist for process, hist in flipped["Nominal"][region].iteritems()
+            if "smtotal" not in process.lower()}
+            for process, cutflow_hist in cutflow_hists.iteritems():
+                cutflow_hist.SetName("{:s}_{:s}".format(cutflow_hist.GetName(), process))
+            cutflow_canvas = Pt.plot_stack(cutflow_hists, plot_config, process_configs=self.process_configs)
+            Ft.add_legend_to_canvas(cutflow_canvas, process_configs=self.process_configs)
+            self.output_handle.register_object(cutflow_canvas)
+        self.output_handle.write_and_close()
+
     def execute(self):
         self.read_cutflows()
         self.analyse_cutflow()
         self.make_cutflow_tables()
+        if hasattr(self, "output_handle"):
+            self.plot_cutflow()
