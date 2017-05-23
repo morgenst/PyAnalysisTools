@@ -24,13 +24,17 @@ class MuonFakeEstimator(object):
         self.plotter.read_cutflows()
         self.jet_binned_histograms = {}
         self.histograms = {}
+        self.enable_bjets = kwargs["enable_bjets"]
 
     def get_plots(self, dist, relation_op, enable_dr=True):
         plot_config_base = filter(lambda pc: pc.name == dist, self.plot_config)[0]
         hists = {}
         for n_jet in range(3):
             plot_config = copy(plot_config_base)
-            jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
+            if self.enable_bjets:
+                jet_selector = "Sum$(muon_bjet_dr > 0.3)" if enable_dr else "jet_n"
+            else:
+                jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
                 cut = ["({:s} {:s} {:d}) && muon_d0sig > 3 && muon_isolGradient==1".format(jet_selector,
                                                                                            relation_op, n_jet)]
