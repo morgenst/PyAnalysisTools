@@ -291,9 +291,12 @@ class Plotter(BasePlotter):
                             mc_total = hist.Clone("mc_total_%s" % plot_config.dist)
                             continue
                         mc_total.Add(hist)
-                    ratio_plot_config = copy.copy(plot_config)
-                    ratio_plot_config.name = "ratio_" + plot_config.name
-                    ratio_plot_config.ytitle = "ratio"
+                    if hasattr(plot_config, "ratio_config"):
+                        ratio_plot_config = plot_config.ratio_config
+                    else:
+                        ratio_plot_config = copy.copy(plot_config)
+                        ratio_plot_config.name = "ratio_" + plot_config.name
+                        ratio_plot_config.ytitle = "ratio"
                     ratio_plotter = RP.RatioPlotter(reference=data["Data"], compare=mc_total,
                                                     plot_config=ratio_plot_config)
                     canvas_ratio = ratio_plotter.make_ratio_plot()
@@ -308,7 +311,7 @@ class Plotter(BasePlotter):
                             self.statistical_uncertainty_hist)
                         ratio_hist = get_objects_from_canvas_by_type(canvas_ratio, "TH1F")[0]
                         canvas_ratio = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
-                        PT.add_histogram_to_canvas(canvas_ratio, ratio_hist, plot_config)
+                        PT.add_histogram_to_canvas(canvas_ratio, ratio_hist, ratio_plot_config)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
                     self.output_handle.register_object(canvas_combined)
         self.output_handle.write_and_close()

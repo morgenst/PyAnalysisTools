@@ -386,6 +386,7 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
             exit(0)
     else:
         hratio = ratio
+
     if name is None:
         name = canvas.GetName() + "_ratio"
     c = retrieve_new_canvas(name, title)
@@ -399,7 +400,6 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     pad2.Draw()
     pad1.cd()
     object_handle.get_objects_from_canvas(canvas)
-
     try:
         stack = object_handle.get_objects_from_canvas_by_type(canvas, "THStack")[0]
         stack.GetXaxis().SetTitleSize(0)
@@ -412,19 +412,20 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         except IndexError:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
     canvas.DrawClonePad()
+
     pad2.cd()
     hratio.GetYaxis().SetNdivisions(505)
     hratio.GetXaxis().SetNdivisions(505)
     scale = 1. / y_frac - 1.5
     reset_frame_text(hratio)
     scale_frame_text(hratio, scale)
+
     ratio.Update()
     ratio.SetBottomMargin(0.4)
     ratio.DrawClonePad()
     xlow = pad2.GetUxmin()
     xup = pad2.GetUxmax()
     line = ROOT.TLine(xlow, 1, xup, 1)
-    #ROOT.SetOwnership(line, False)
     line.Draw('same')
     pad2.Update()
     c.line = line
