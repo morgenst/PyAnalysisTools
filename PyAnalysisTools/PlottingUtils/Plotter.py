@@ -225,7 +225,6 @@ class Plotter(BasePlotter):
                         ratio_plot_config = copy.copy(plot_config)
                         ratio_plot_config.name = "ratio_" + plot_config.name
                         ratio_plot_config.ytitle = "ratio"
-
                     ratio_plotter = RP.RatioPlotter(reference=data["Data"], compare=mc_total,
                                                     plot_config=ratio_plot_config)
                     canvas_ratio = ratio_plotter.make_ratio_plot()
@@ -244,4 +243,3 @@ class Plotter(BasePlotter):
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
                     self.output_handle.register_object(canvas_combined)
         self.output_handle.write_and_close()
-

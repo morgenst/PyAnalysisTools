@@ -5,14 +5,17 @@ from itertools import chain
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.HistTools as HT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
+from PyAnalysisTools.AnalysisTools.EfficiencyCalculator import EfficiencyCalculator as ec
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import find_branches_matching_pattern
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, get_histogram_definition
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
 
 class TriggerFlattener(object):
@@ -145,3 +148,92 @@ class TriggerAcceptancePlotter(BasePlotter):
             return tmp
         data = dict((file_handle.process, parse_trigger_info(file_handle)) for file_handle in self.file_handles)
         return data
+
+
+class TriggerEfficiencyAnalyser(BasePlotter):
+    def __init__(self, **kwargs):
+        if not "tree_name" in kwargs:
+            raise InvalidInputError("No tree name provided")
+        self.file_list = kwargs["input_files"]
+        self.tree_name = kwargs["tree_name"]
+        self.file_handles = [FileHandle(file_name=file_name) for file_name in self.file_list]
+        self.calculator = ec()
+        super(TriggerEfficiencyAnalyser, self).__init__(**kwargs)
+        self.output_handle = OutputFileHandle(**kwargs)
+        self.config = yl.read_yaml(kwargs["config_file"])
+        self.denominators = {}
+        self.efficiencies = {}
+
+    def get_denominators(self, plot_config):
+        if plot_config.dist not in self.denominators:
+            hist = get_histogram_definition(plot_config)
+            cut_string = ""
+            if hasattr(plot_config, "cut"):
+                cut_string = plot_config.cut
+            self.denominators[plot_config.dist] = dict((file_handle.process,
+                                             file_handle.fetch_and_link_hist_to_tree(self.tree_name,
+                                                                                 hist,
+                                                                                 plot_config.dist,
+                                                                                 cut_string=cut_string,
+                                                                                 tdirectory="Nominal")) for file_handle in self.file_handles)
+        return self.denominators[plot_config.dist]
+
+    def get_efficiency(self, trigger_name, plot_config):
+        denominators = self.get_denominators(plot_config)
+        numerator_plot_config = copy(plot_config)
+        numerator_plot_config.dist = numerator_plot_config.numerator.replace("replace", trigger_name)
+        numerator_plot_config.name = numerator_plot_config.numerator.replace("replace", trigger_name).split()[0]
+
+        hist = get_histogram_definition(numerator_plot_config)
+        cut_string = ""
+        if hasattr(plot_config, "cut"):
+            cut_string = plot_config.cut.replace(plot_config.dist, numerator_plot_config.dist)
+        dependency = plot_config.name.split("_")[-1]
+        numerators = dict((file_handle.process,
+                       file_handle.fetch_and_link_hist_to_tree(self.tree_name,
+                                                               hist,
+                                                               numerator_plot_config.dist,
+                                                               cut_string=cut_string,
+                                                               tdirectory="Nominal")) for file_handle in self.file_handles)
+        efficiencies = dict((process, self.calculator.calculate_efficiency(numerators[process],
+                                                                           denominators[process],
+                                                                           name="eff_{:s}_{:s}_{:s}".format(process,
+                                                                                                            trigger_name,
+                                                                                                            dependency)))
+                            for process in numerators.keys())
+        print "plot: ", dependency
+        canvas = PT.plot_objects(efficiencies, plot_config)
+        # if "dr" in plot_config.name:
+        #     self.fit_efficiency(canvas)
+        return canvas
+
+    def fit_efficiency(self, canvas):
+        efficiency_graphs = get_objects_from_canvas_by_type(canvas, "TEfficiency")
+        fit_func = ROOT.TF1("fermi", "[3] / ([0] + [3] *[4]) * ( [0] / (exp(-[1] * x + [2]) + [3])) + [4]", 0., 0.3)
+        fit_func.SetParameters(1, 10, 0., 0., 0.)
+        fit_func.SetParLimits(0, -5., 20.)
+        fit_func.SetParLimits(1, -100., 100.)
+        fit_func.SetParLimits(2, -10., 10.)
+        fit_func.SetParLimits(3, -10., 10.)
+        fit_func.SetParLimits(4, -10., 10.)
+        # print efficiency_graphs
+        # a = ROOT.RooRealVar("a", "", 1, 5., 20, )
+        # b = ROOT.RooRealVar("b", "", 10., -100., 100.)
+        # c = ROOT.RooRealVar("c", "", 0., -10., 10.)
+        # d = ROOT.RooRealVar("d", "", 0., -10., 10.)
+        # e = ROOT.RooRealVar("e", "", 0., -10., 10.)
+        # dr = ROOT.RooRealVar("dr", "#Delta R", 0., 0.3)
+        # fermi = ROOT.RooGenericPdf("fermi", "fermi function", "d / (a + d *e) * ( a / (exp(-B * dr + c) + d)) + e",
+        # #ROOT.RooArgSet(dr, a, b, c, d, e))
+        # data = ROOT.RooDataHist("efficiency", "", )
+        for teff in efficiency_graphs:
+            teff.Fit(fit_func)
+            fit_func.Draw("L same")
+
+    def get_efficiencies(self):
+        for plot_config in self.plot_configs:
+            for trigger_name in self.config["triggers"]:
+                canvas = self.get_efficiency(trigger_name, plot_config)
+                self.efficiencies[trigger_name] = canvas
+                self.output_handle.register_object(canvas)
+        self.output_handle.write_and_close()

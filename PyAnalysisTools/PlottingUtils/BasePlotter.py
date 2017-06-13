@@ -11,14 +11,15 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config
 
 class BasePlotter(object):
     def __init__(self, **kwargs):
+        self.plot_configs = None
+        self.lumi = None
         kwargs.setdefault("batch", True)
+        kwargs.setdefault("process_config_file", None)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
-        #todo: temporary assignment for naming collision in Plotter and ComparisionPlotter
-        self.plot_config = self.plot_configs
         self.load_atlas_style()
         self.event_yields = {}
 
@@ -34,7 +35,7 @@ class BasePlotter(object):
         for plot_config_file in self.plot_config_files:
             unmerged_plot_configs.append(parse_and_build_plot_config(plot_config_file))
         self.plot_configs, common_config = merge_plot_configs(unmerged_plot_configs)
-        if not hasattr(self, "lumi") and hasattr(common_config, "lumi"):
+        if self.lumi is None and hasattr(common_config, "lumi"):
             self.lumi = common_config.lumi
         if common_config is not None:
             propagate_common_config(common_config, self.plot_configs)
