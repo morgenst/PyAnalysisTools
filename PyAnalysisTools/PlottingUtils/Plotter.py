@@ -5,7 +5,6 @@ from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
@@ -43,9 +42,6 @@ class Plotter(BasePlotter):
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"]) for input_file in self.input_files]
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
-                             for input_file in self.input_files]
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.statistical_uncertainty_hist = None
         self.histograms = {}
@@ -156,7 +152,8 @@ class Plotter(BasePlotter):
 
     def make_plots(self):
         self.read_cutflows()
-        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms, file_handles=self.file_handles),
+        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
+                                                                                               file_handles=self.file_handles),
                                                                                        self.plot_configs)
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
