@@ -27,7 +27,9 @@ def plot_objects(objects, plot_config, process_configs=None):
         return
     if isinstance(objects.values()[0], ROOT.TH1):
         return plot_histograms(objects, plot_config, process_configs)
-    _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects[0])))
+    if isinstance(objects.values()[0], ROOT.TEfficiency):
+        return plot_graphs(objects.values(), plot_config)
+    _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
 
 def add_object_to_canvas(canvas, obj, plot_config):
@@ -117,6 +119,13 @@ def format_tefficiency(obj, plot_config):
     if xtitle is None:
         xtitle = ""
     obj.SetTitle(";{:s};{:s}".format(xtitle, ytitle))
+    print  plot_config.xmin, plot_config.xmax
+    if plot_config.xmin is not None and plot_config.xmax is not None:
+        ROOT.gPad.Update()
+        print obj, obj.GetPaintedGraph(), plot_config.xmin, plot_config.xmax
+        obj.GetPaintedGraph().GetXaxis().SetRangeUser(plot_config.xmin, plot_config.xmax)
+        obj.GetPaintedGraph().Set(0)
+    print "obj: ", obj.GetPaintedGraph().GetXaxis().GetXmin(), obj.GetPaintedGraph().GetXaxis().GetXmax()
     return obj
 
 
@@ -143,6 +152,13 @@ def format_hist(hist, plot_config):
         else:
             plot_config.ymax = ymax
     return hist
+
+
+def plot_graphs(graphs, plot_config):
+    canvas = plot_graph(graphs[0], plot_config)
+    for graph in graphs[1:]:
+        add_graph_to_canvas(canvas, graph, plot_config)
+    return canvas
 
 
 def plot_histograms(hists, plot_config, process_configs=None):
@@ -234,9 +250,11 @@ def plot_graph(graph, plot_config=None, **kwargs):
     if color is not None:
         getattr(graph, "Set" + style_setter + "Color")(color)
     ROOT.SetOwnership(graph, False)
+    print graph.GetName(), plot_config
     if plot_config:
         graph = format_obj(graph, plot_config)
     canvas.Update()
+    print graph.GetPaintedGraph().GetXaxis().GetXmin(),  graph.GetPaintedGraph().GetXaxis().GetXmax()
     return canvas
 
 
