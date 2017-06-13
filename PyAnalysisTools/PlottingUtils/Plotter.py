@@ -3,8 +3,7 @@ import copy
 import pathos.multiprocessing as mp
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
-    get_histogram_definition, find_process_config, merge_plot_configs
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -14,6 +13,7 @@ from PyAnalysisTools.PlottingUtils import RatioPlotter as RP
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import merge_objects_by_process_type
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyser
 from PyAnalysisTools.AnalysisTools import StatisticsTools as ST
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
@@ -38,6 +38,8 @@ class Plotter(BasePlotter):
         kwargs.setdefault("ncpu", 1)
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
+        kwargs.setdefault("enable_systematics", False)
+
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
@@ -48,66 +50,13 @@ class Plotter(BasePlotter):
         self.statistical_uncertainty_hist = None
         self.histograms = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
+        self.systematics_analyser = None
         self.initialise()
+        if kwargs["enable_systematics"]:
+            self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
-
-    def retrieve_histogram(self, file_handle, plot_config):
-        file_handle.open()
-        hist = get_histogram_definition(plot_config)
-        hist.SetName(hist.GetName() + file_handle.process)
-        try:
-            weight = None
-            selection_cuts = ""
-            if plot_config.weight is not None:
-                weight = plot_config.weight
-            if plot_config.cuts:
-                mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
-                for mc_cut in mc_cuts:
-                    plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
-                    if not "data" in file_handle.process:
-                        selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
-                selection_cuts += "&&".join(plot_config.cuts)
-            if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
-                if len(selection_cuts) != 0:
-                    selection_cuts += " && "
-                selection_cuts += " !({:s})".format(" && ".join(plot_config.blind))
-            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
-                                                    tdirectory=self.systematics, weight=weight)
-            hist.SetName(hist.GetName() + "_" + file_handle.process)
-            _logger.debug("try to access config for process %s" % file_handle.process)
-            if self.process_configs is None:
-                return hist
-            process_config = find_process_config(file_handle.process, self.process_configs)
-            if process_config is None:
-                _logger.error("Could not find process config for {:s}".format(file_handle.process))
-                return None
-
-        except Exception as e:
-            raise e
-
-        return hist
-
-    @staticmethod
-    def merge(histograms, process_configs):
-        for process, process_config in process_configs.iteritems():
-            if not hasattr(process_config, "subprocesses"):
-                continue
-            for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
-                    continue
-                if process not in histograms.keys():
-                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
-                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
-                else:
-                    histograms[process].Add(histograms[sub_process])
-                histograms.pop(sub_process)
-
-    def merge_histograms(self):
-        for plot_config, histograms in self.histograms.iteritems():
-            if plot_config.merge:
-                self.merge(histograms, self.process_configs)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -148,18 +97,6 @@ class Plotter(BasePlotter):
             canvas = PT.plot_hist(ratio, plot_config)
         return canvas
 
-    def fetch_histograms(self, file_handle, plot_config):
-        if "data" in file_handle.process.lower() and plot_config.no_data:
-            return
-        tmp = self.retrieve_histogram(file_handle, plot_config)
-        return file_handle.process, tmp
-
-    def read_histograms(self, plot_config):
-        histograms = mp.ThreadPool(min(self.nfile_handles,
-                                       len(self.file_handles))).map(partial(self.fetch_histograms,
-                                                                            plot_config=plot_config), self.file_handles)
-        return plot_config, histograms
-
     def apply_lumi_weights(self):
         for hist_set in self.histograms.values():
             for process, hist in hist_set.iteritems():
@@ -171,20 +108,6 @@ class Plotter(BasePlotter):
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi,
                                                                             self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
-
-    def categorise_histograms(self, plot_config, histograms):
-        _logger.debug("categorising {:d} histograms".format(len(histograms)))
-        for process, hist in histograms:
-            if hist is None:
-                _logger.warning("hist for process {:s} is None".format(process))
-                continue
-            try:
-                if process not in self.histograms[plot_config].keys():
-                    self.histograms[plot_config][process] = hist
-                else:
-                    self.histograms[plot_config][process].Add(hist)
-            except KeyError:
-                self.histograms[plot_config] = {process: hist}
 
     def make_multidimensional_plot(self, plot_config, data):
         for process, histogram in data.iteritems():
@@ -233,7 +156,7 @@ class Plotter(BasePlotter):
 
     def make_plots(self):
         self.read_cutflows()
-        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(self.read_histograms,
+        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms, file_handles=self.file_handles),
                                                                                        self.plot_configs)
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
@@ -247,6 +170,11 @@ class Plotter(BasePlotter):
                 for process_name in hist_set.keys():
                     _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms()
+        if self.systematics_analyser is not None:
+            self.systematics_analyser.retrieve_sys_hists(self.file_handles)
+            self.systematics_analyser.calculate_variations(self.histograms)
+            self.systematics_analyser.retrieve_total_systematics()
+
         for plot_config, data in self.histograms.iteritems():
             data = {k: v for k, v in data.iteritems() if v}
             if plot_config.normalise:
