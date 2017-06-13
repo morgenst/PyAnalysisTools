@@ -70,7 +70,7 @@ class BDTAnalyser(object):
         linear_corr_coeff_signal = file_handle.get_object_by_name("CorrelationMatrixS")
         linear_corr_coeff_background = file_handle.get_object_by_name("CorrelationMatrixB")
         plot_config = PC(name="linear_corr_coeff_signal_{:d}".format(index), title="signal", dist=None,
-                         draw_option="COLZTEXT")
+                         draw_option="COLZTEXT", ytitle="", ztitle="lin. correlation [%]")
         canvas_corr_coeff_signal = PT.plot_obj(linear_corr_coeff_signal, plot_config)
         plot_config.title = "background"
         plot_config.name = plot_config.name.replace("signal", "background")
@@ -83,7 +83,14 @@ class BDTAnalyser(object):
                                                                           "InputVariables_Id/CorrelationPlots")
         plot_config_corr = PC(name="correlation_hist", dist=None, draw_option="COLZ", watermark="Internal")
         for hist in correlation_hists_signal:
-            plot_config_corr.name = "corr_" + "_".join(hist.GetName().split("_")[1:-2]) + "_signal_{:d}".format(index)
+            variable_info = hist.GetName().split("_")[1:-2]
+            plot_config_corr.name = "corr_" + "_".join(variable_info) + "_signal_{:d}".format(index)
+            split_index = variable_info.index("vs")
+            variable_x = "_".join(variable_info[:split_index])
+            variable_y = "_".join(variable_info[split_index+1:])
+            plot_config_corr.xtitle = variable_x
+            plot_config_corr.ytitle = variable_y
+            plot_config_corr.ztitle = "Entries"
             canvas = PT.plot_obj(hist, plot_config_corr)
             FM.decorate_canvas(canvas, plot_config_corr)
             self.output_handle.register_object(canvas)
