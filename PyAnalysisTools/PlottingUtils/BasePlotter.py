@@ -1,6 +1,7 @@
 import pathos.multiprocessing as mp
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config,\
     merge_plot_configs, propagate_common_config
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -22,6 +23,8 @@ class BasePlotter(object):
         self.parse_plot_config()
         self.load_atlas_style()
         self.event_yields = {}
+        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
+                             for input_file in self.input_files]
 
     def parse_process_config(self):
         if self.process_config_file is None:
@@ -56,6 +59,13 @@ class BasePlotter(object):
             return
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
         return file_handle.process, tmp
+
+    def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
+        if "data" in file_handle.process.lower() and plot_config.no_data:
+            return
+        hist = file_handle.get_object_by_name("{:s}/{:s}".format(self.tree_name, plot_config.dist), systematic)
+        hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+        return file_handle.process, hist
 
     def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal"):
         file_handle.open()
@@ -94,10 +104,16 @@ class BasePlotter(object):
         return hist
 
     def read_histograms(self, plot_config, file_handles, systematic="Nominal"):
-        histograms = mp.ThreadPool(min(self.nfile_handles,
-                                       len(file_handles))).map(partial(self.fetch_histograms,
-                                                                       plot_config=plot_config,
-                                                                       systematic="Nominal"), file_handles)
+        if not self.read_hist:
+            histograms = mp.ThreadPool(min(self.nfile_handles,
+                                           len(file_handles))).map(partial(self.fetch_histograms,
+                                                                           plot_config=plot_config,
+                                                                           systematic="Nominal"), file_handles)
+        else:
+            histograms = mp.ThreadPool(min(self.nfile_handles,
+                                           len(file_handles))).map(partial(self.fetch_plain_histograms,
+                                                                           plot_config=plot_config,
+                                                                           systematic="Nominal"), file_handles)
         return plot_config, histograms
 
     def categorise_histograms(self, plot_config, histograms):
