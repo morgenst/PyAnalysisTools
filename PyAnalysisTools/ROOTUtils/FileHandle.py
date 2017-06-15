@@ -151,6 +151,7 @@ class FileHandle(object):
         return branch_names
 
     def get_object_by_name(self, obj_name, tdirectory=None):
+        self.open()
         tdir = self.tfile
         if tdirectory:
             try:
