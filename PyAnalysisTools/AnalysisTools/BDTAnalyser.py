@@ -16,6 +16,9 @@ class BDTAnalyser(object):
         kwargs.setdefault("output_path", "./")
         self.file_handles = [FileHandle(file_name=file_name) for file_name in kwargs["input_files"]]
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_path"])
+        for arg, val in kwargs.iteritems():
+            if not hasattr(self, arg):
+                setattr(self, arg, val)
         ROOT.gROOT.SetBatch(True)
 
     def analyse(self):
@@ -99,3 +102,25 @@ class BDTAnalyser(object):
             canvas = PT.plot_obj(hist, plot_config_corr)
             FM.decorate_canvas(canvas, plot_config_corr)
             self.output_handle.register_object(canvas)
+
+    def fit_score(self):
+        bdt_score = ROOT.RooRealVar("BDTScore", "BDTScore", -1., 1.)
+        tree = self.file_handles[0].get_object_by_name(self.tree_name, "Nominal")
+        p0 = ROOT.RooRealVar("p0", "p0", 1, 0., 10.)
+        p1 = ROOT.RooRealVar("p1", "p1", 1, 0., 10.)
+        p2 = ROOT.RooRealVar("p2", "p2", 1, 0., 10.)
+        p3 = ROOT.RooRealVar("p3", "p3", 1, 0., 10.)
+        p4 = ROOT.RooRealVar("p4", "p4", 1, 0., 10.)
+        genpdf = ROOT.RooGenericPdf("genpdf", "genpdf",
+                                    "p0 + p1 * exp(bdt_score*p2)  + p3 * abs(x)^(bdt_score*p4)",
+                                    ROOT.RooArgList(bdt_score, p0, p1, p2, p3, p4))
+        data = ROOT.RooDataSet("data", "BDT_170526", tree, ROOT.RooArgSet(bdt_score))
+        frame = bdt_score.frame()
+        data.plotOn(frame, ROOT.RooFit.Binning(25))
+        genpdf.fitTo(data)
+        canvas = ROOT.TCanvas("c", "c", 800, 600)
+        canvas.cd()
+        frame.Draw()
+        genpdf.plotOn(frame)
+        self.output_handle.register_object(canvas)
+        self.output_handle.write_and_close()
