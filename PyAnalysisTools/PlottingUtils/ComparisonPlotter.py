@@ -67,7 +67,7 @@ class ComparisonReader(object):
         return hist
 
     @staticmethod
-    def merge_histograms(histograms, process_configs):
+    def merge_histograms(histograms, process_configs, ):
         for process, process_config in process_configs.iteritems():
             if not hasattr(process_config, "subprocesses"):
                 continue
@@ -80,8 +80,9 @@ class ComparisonReader(object):
                 else:
                     histograms[process].Add(histograms[sub_process])
                 histograms.pop(sub_process)
+
         for process in histograms.keys():
-            histograms[find_process_config(process, process_configs).label] = histograms.pop(process)
+            histograms[find_process_config(process, process_configs)] = histograms.pop(process)
 
 
     @staticmethod
@@ -161,6 +162,11 @@ class MultiFileMultiDistReader(ComparisonReader):
         else:
             map(lambda obj: obj.SetDirectory(0), reference)
             map(lambda obj: obj.SetDirectory(0), compare)
+        if hasattr(plot_config_ref, "process_ref"):
+            reference = dict(filter(lambda item: item[0].name in plot_config_ref.process_ref, reference.iteritems()))
+        if hasattr(self.plot_config, "process_comp"):
+            compare = dict(filter(lambda item: item[0].name in self.plot_config.process_comp, compare.iteritems()))
+
         return reference, compare
 
 
@@ -289,12 +295,12 @@ class ComparisonPlotter(BasePlotter):
             hists = hists.values()
             labels = reference_hists_dict.keys() + hists_dict.keys()
         y_max = None
-        print reference_hists
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
             ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
             plot_config.yscale = yscale
-            plot_config.ymax = ymax
+            if not hasattr(plot_config, "normalise"):
+                plot_config.ymax = ymax
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
             ctmp.cd()

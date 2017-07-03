@@ -205,7 +205,7 @@ class TriggerEfficiencyAnalyser(BasePlotter):
                                                                                                             dependency)))
                             for process in numerators.keys())
         if not isinstance(numerators.values()[0], ROOT.TH2F):
-            canvas = PT.plot_object(efficiencies, plot_config)
+            canvas = PT.plot_objects(efficiencies, plot_config)
         else:
             plot_config.name = efficiencies.values()[0].GetName()
             canvas = PT.plot_obj(efficiencies.values()[0], plot_config)
