@@ -17,6 +17,7 @@ class BasePlotter(object):
         kwargs.setdefault("batch", True)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
+        kwargs.setdefault("read_hist", False)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
