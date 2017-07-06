@@ -90,6 +90,8 @@ def normalise(histograms, integration_range=[-1, -1]):
 
 
 def _normalise_1d_hist(hist, integration_range=[-1, -1]):
+    if isinstance(hist, ROOT.THStack):
+        return hist
     integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
