@@ -188,23 +188,29 @@ class TriggerEfficiencyAnalyser(BasePlotter):
         cut_string = ""
         if hasattr(plot_config, "cut"):
             cut_string = plot_config.cut.replace(plot_config.dist, numerator_plot_config.dist)
-        dependency = plot_config.name.split("_")[-1]
         numerators = dict((file_handle.process,
                        file_handle.fetch_and_link_hist_to_tree(self.tree_name,
                                                                hist,
                                                                numerator_plot_config.dist,
                                                                cut_string=cut_string,
                                                                tdirectory="Nominal")) for file_handle in self.file_handles)
+        if not isinstance(numerators.values()[0], ROOT.TH2F):
+            dependency = plot_config.name.split("_")[-1]
+        else:
+            dependency = "QetavsPt"
         efficiencies = dict((process, self.calculator.calculate_efficiency(numerators[process],
                                                                            denominators[process],
                                                                            name="eff_{:s}_{:s}_{:s}".format(process,
                                                                                                             trigger_name,
                                                                                                             dependency)))
                             for process in numerators.keys())
-        print "plot: ", dependency
-        canvas = PT.plot_objects(efficiencies, plot_config)
-        # if "dr" in plot_config.name:
-        #     self.fit_efficiency(canvas)
+        if not isinstance(numerators.values()[0], ROOT.TH2F):
+            canvas = PT.plot_objects(efficiencies, plot_config)
+        else:
+            plot_config.name = efficiencies.values()[0].GetName()
+            canvas = PT.plot_obj(efficiencies.values()[0], plot_config)
+        if "dr" in plot_config.name:
+            self.fit_efficiency(canvas)
         return canvas
 
     def fit_efficiency(self, canvas):

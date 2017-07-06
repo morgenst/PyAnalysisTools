@@ -20,7 +20,7 @@ class ComparisonReader(object):
             raise InvalidInputError("Missing input files")
         kwargs.setdefault("reference_files", None)
         kwargs.setdefault("reference_dataset_info", None)
-        kwargs.setdefault("dataset_info", None)
+        kwargs.setdefault("xs_config_file", None)
         self.input_files = kwargs["input_files"]
         self.reference_files = kwargs["reference_files"]
         self.tree_name = kwargs["tree_name"]
@@ -34,12 +34,16 @@ class ComparisonReader(object):
             self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
     def get_instance(self, plot_config):
-        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref"):
+        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref") and len(self.input_files) == 1:
             _logger.debug("Using SingleFileMultiReader instance")
             return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_files:
             _logger.debug("Using MultiFileSingleDistReader instance")
             return MultiFileSingleDistReader(plot_config=plot_config, **self.__dict__)
+        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref") and self.reference_files is None and \
+                        len(self.input_files) > 0:
+            _logger.debug("Using MultiFileMultiDistReader")
+            return MultiFileMultiDistReader(plot_config=plot_config, **self.__dict__)
 
     def get_data(self):
         data = {}
@@ -63,7 +67,7 @@ class ComparisonReader(object):
         return hist
 
     @staticmethod
-    def merge_histograms(histograms, process_configs):
+    def merge_histograms(histograms, process_configs, ):
         for process, process_config in process_configs.iteritems():
             if not hasattr(process_config, "subprocesses"):
                 continue
@@ -76,8 +80,9 @@ class ComparisonReader(object):
                 else:
                     histograms[process].Add(histograms[sub_process])
                 histograms.pop(sub_process)
+
         for process in histograms.keys():
-            histograms[find_process_config(process, process_configs).label] = histograms.pop(process)
+            histograms[find_process_config(process, process_configs)] = histograms.pop(process)
 
 
     @staticmethod
@@ -131,6 +136,40 @@ class SingleFileMultiProcessReader(ComparisonReader):
         pass
 
 
+class MultiFileMultiDistReader(ComparisonReader):
+    def __init__(self, **kwargs):
+        self.file_handles = [FileHandle(file_name=fn,
+                                        dataset_info=kwargs["xs_config_file"]) for fn in kwargs["input_files"]]
+        self.plot_config = kwargs["plot_config"]
+        self.tree_name = kwargs["tree_name"]
+        for opt, value in kwargs.iteritems():
+            if not hasattr(self, opt):
+                setattr(self, opt, value)
+
+    def get_data(self):
+        plot_config_ref = copy(self.plot_config)
+        plot_config_ref.dist = self.plot_config.dist_ref
+        plot_config_ref.name += "_ref"
+        reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.tree_name) for
+                     file_handle in self.file_handles}
+        compare = {file_handle.process: self.make_plot(file_handle, self.plot_config, self.tree_name)
+                   for file_handle in self.file_handles}
+        ComparisonReader.merge_histograms(reference, self.process_configs)
+        ComparisonReader.merge_histograms(compare, self.process_configs)
+        if isinstance(reference, dict):
+            map(lambda obj: obj.SetDirectory(0), reference.values())
+            map(lambda obj: obj.SetDirectory(0), compare.values())
+        else:
+            map(lambda obj: obj.SetDirectory(0), reference)
+            map(lambda obj: obj.SetDirectory(0), compare)
+        if hasattr(plot_config_ref, "process_ref"):
+            reference = dict(filter(lambda item: item[0].name in plot_config_ref.process_ref, reference.iteritems()))
+        if hasattr(self.plot_config, "process_comp"):
+            compare = dict(filter(lambda item: item[0].name in self.plot_config.process_comp, compare.iteritems()))
+
+        return reference, compare
+
+
 class MultiFileSingleDistReader(ComparisonReader):
     """
     Read same distribitionS from reference and input files
@@ -143,7 +182,7 @@ class MultiFileSingleDistReader(ComparisonReader):
                                                   dataset_info=kwargs["reference_dataset_info"])
                                        for fn in reference_files]
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=False,
-                                        dataset_info=kwargs["dataset_info"]) for fn in input_files]
+                                        dataset_info=kwargs["xs_config_file"]) for fn in input_files]
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
         self.reference_tree_name = copy(self.tree_name)
@@ -260,7 +299,8 @@ class ComparisonPlotter(BasePlotter):
             yscale = 1.3
             ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
             plot_config.yscale = yscale
-            plot_config.ymax = ymax
+            if not hasattr(plot_config, "normalise"):
+                plot_config.ymax = ymax
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
             ctmp.cd()
