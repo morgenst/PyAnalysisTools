@@ -143,7 +143,7 @@ def format_hist(hist, plot_config):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "normalise") and plot_config.normalise:
         HT.normalise(hist)
-    if hasattr(plot_config, "rebin"):
+    if hasattr(plot_config, "rebin") and not isinstance(hist, ROOT.THStack):
         hist = HT.rebin(hist, plot_config.rebin)
         yscale = 1.1
         if hasattr(plot_config, "yscale"):
