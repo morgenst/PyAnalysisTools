@@ -141,7 +141,7 @@ def format_hist(hist, plot_config):
             hist.GetZaxis().SetTitle(plot_config.ztitle)
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
-    if hasattr(plot_config, "normalise"):
+    if hasattr(plot_config, "normalise") and plot_config.normalise:
         HT.normalise(hist)
     if hasattr(plot_config, "rebin"):
         hist = HT.rebin(hist, plot_config.rebin)
