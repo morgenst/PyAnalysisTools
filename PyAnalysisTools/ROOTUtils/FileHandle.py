@@ -53,7 +53,7 @@ class FileHandle(object):
         self.open()
         self.year = None
         self.period = None
-        if not "ignore_process_name" in kwargs:
+        if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
 
     def open(self):
@@ -80,6 +80,7 @@ class FileHandle(object):
             move(self.file_name, self.initial_file_name)
 
     def parse_process(self, switch_off_analysis=False):
+
         def analyse_process_name():
             if "data" in process_name:
                 try:
