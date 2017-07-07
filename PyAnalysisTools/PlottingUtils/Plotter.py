@@ -3,7 +3,7 @@ import copy
 import pathos.multiprocessing as mp
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -150,6 +150,19 @@ class Plotter(BasePlotter):
                     continue
                 HT.scale(hist, scale_factor)
 
+    def get_signal_hists(self, data):
+        signals = {}
+        signal_process_configs = filter(lambda pc: isinstance(pc[1], ProcessConfig) and
+                                                   pc[1].type.lower() == "signal", self.process_configs.iteritems())
+        if len(signal_process_configs) == 0:
+            return signals
+        for process in signal_process_configs:
+            try:
+                signals[process[0]] = data.pop(process[0])
+            except KeyError:
+                continue
+        return signals
+
     def make_plots(self):
         self.read_cutflows()
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
@@ -176,6 +189,7 @@ class Plotter(BasePlotter):
             data = {k: v for k, v in data.iteritems() if v}
             if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])
+            signals = self.get_signal_hists(data)
             if plot_config.outline == "stack" and not plot_config.is_multidimensional:
                 canvas = PT.plot_stack(data, plot_config=plot_config,
                                        process_configs=self.process_configs)
@@ -186,6 +200,8 @@ class Plotter(BasePlotter):
                 plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                                   color=ROOT.kBlack)
                 PT.add_object_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
+                for signal in signals.iteritems():
+                    PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
                 self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
             elif plot_config.is_multidimensional:
                 self.make_multidimensional_plot(plot_config, data)
