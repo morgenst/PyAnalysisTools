@@ -59,7 +59,7 @@ class ComparisonReader(object):
             tree_name = self.tree_name
         try:
             file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, None,
-                                                    tdirectory="Nominal")
+                                                    tdirectory=self.systematics)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
         except Exception as e:
@@ -139,7 +139,9 @@ class SingleFileMultiProcessReader(ComparisonReader):
 class MultiFileMultiDistReader(ComparisonReader):
     def __init__(self, **kwargs):
         self.file_handles = [FileHandle(file_name=fn,
-                                        dataset_info=kwargs["xs_config_file"]) for fn in kwargs["input_files"]]
+                                        dataset_info=kwargs["xs_config_file"],
+                                        switch_off_process_name_analysis=kwargs["xs_config_file"] is None)
+                             for fn in kwargs["input_files"]]
         self.plot_config = kwargs["plot_config"]
         self.tree_name = kwargs["tree_name"]
         for opt, value in kwargs.iteritems():
@@ -178,11 +180,14 @@ class MultiFileSingleDistReader(ComparisonReader):
         reference_files = kwargs["reference_files"]
         input_files = kwargs["input_files"]
         plot_config = kwargs["plot_config"]
-        self.reference_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=False,
-                                                  dataset_info=kwargs["reference_dataset_info"])
+        self.reference_file_handles = [FileHandle(file_name=fn,
+                                                  dataset_info=kwargs["reference_dataset_info"],
+                                                  switch_off_process_name_analysis=kwargs["xs_config_file"] is None)
                                        for fn in reference_files]
-        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=False,
-                                        dataset_info=kwargs["xs_config_file"]) for fn in input_files]
+        self.file_handles = [FileHandle(file_name=fn,
+                                        dataset_info=kwargs["xs_config_file"],
+                                        switch_off_process_name_analysis=kwargs["xs_config_file"] is None)
+                             for fn in input_files]
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
         self.reference_tree_name = copy(self.tree_name)
@@ -215,7 +220,7 @@ class MultiFileSingleDistReader(ComparisonReader):
             compare = {file_handle.process: self.make_plot(file_handle, self.plot_config)
                        for file_handle in self.file_handles}
 
-            if hasattr(self, "process_configs"):
+            if hasattr(self, "process_configs") and self.process_configs is not None:
                 ComparisonReader.merge_histograms(reference, self.reference_process_configs)
                 ComparisonReader.merge_histograms(compare, self.process_configs)
             if isinstance(reference, dict):
@@ -241,6 +246,7 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault("tree_name", None)
         kwargs.setdefault("output_dir", "./")
         kwargs.setdefault("process_config_file", None)
+        kwargs.setdefault("systematics", None)
         set_batch_mode(kwargs["batch"])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
@@ -250,6 +256,8 @@ class ComparisonPlotter(BasePlotter):
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
+        if self.systematics is None:
+            self.systematics = "Nominal"
         self.analyse_plot_config()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
 
