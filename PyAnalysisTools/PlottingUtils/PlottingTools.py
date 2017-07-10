@@ -175,6 +175,10 @@ def plot_graphs(graphs, plot_config):
     return canvas
 
 
+def add_signal_to_canvas(signal, canvas, plot_config, process_configs):
+    add_histogram_to_canvas(canvas, signal[1], plot_config, process_configs[signal[0]])
+
+
 def plot_histograms(hists, plot_config, process_configs=None):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
@@ -234,10 +238,10 @@ def plot_histograms(hists, plot_config, process_configs=None):
     return canvas
 
 
-def add_histogram_to_canvas(canvas, hist, plot_config):
+def add_histogram_to_canvas(canvas, hist, plot_config, process_config = None):
     canvas.cd()
-    draw_option = get_draw_option_as_root_str(plot_config)
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
+    draw_option = get_draw_option_as_root_str(plot_config, process_config)
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
     if style_attr is not None:
         getattr(hist, "Set" + style_setter + "Style")(style_attr)
@@ -264,11 +268,9 @@ def plot_graph(graph, plot_config=None, **kwargs):
     if color is not None:
         getattr(graph, "Set" + style_setter + "Color")(color)
     ROOT.SetOwnership(graph, False)
-    print graph.GetName(), plot_config
     if plot_config:
         graph = format_obj(graph, plot_config)
     canvas.Update()
-    print graph.GetPaintedGraph().GetXaxis().GetXmin(),  graph.GetPaintedGraph().GetXaxis().GetXmax()
     return canvas
 
 
