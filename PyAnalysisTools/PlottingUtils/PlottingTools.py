@@ -64,6 +64,10 @@ def plot_hist(hist, plot_config, **kwargs):
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
+    if hasattr(plot_config, "labels") and plot_config.labels is not None:
+        for b in range(len(plot_config.labels)):
+            hist.GetXaxis().SetBinLabel(b+1, plot_config.labels[b])
+            print "set labels: ", plot_config.labels[b]
     canvas.Update()
     return canvas
 
@@ -143,6 +147,14 @@ def format_hist(hist, plot_config):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "normalise") and plot_config.normalise:
         HT.normalise(hist)
+        yscale = 1.1
+        if hasattr(plot_config, "yscale"):
+            yscale = yscale
+        ymax = yscale*hist.GetMaximum()
+        if hasattr(plot_config, "ymax"):
+            plot_config.ymax = max(plot_config.ymax, ymax)
+        else:
+            plot_config.ymax = ymax
     if hasattr(plot_config, "rebin") and not isinstance(hist, ROOT.THStack):
         hist = HT.rebin(hist, plot_config.rebin)
         yscale = 1.1
