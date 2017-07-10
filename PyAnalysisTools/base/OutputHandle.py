@@ -82,15 +82,18 @@ class OutputFileHandle(SysOutputHandle):
             self.output_file.cd()
             self.attached = True
 
-    def dump_canvas(self, canvas, name=None):
+    def dump_canvas(self, canvas, name=None, tdir=None):
         #re-draw canvas to update internal reference in gPad
         canvas.Draw()
         ROOT.gPad.Update()
         extension = ".pdf"
         if not name:
             name = canvas.GetName()
-        canvas.SaveAs(os.path.join(os.path.join(self.output_dir,
-                                                name + extension)))
+        output_path = self.output_dir
+        if tdir is not None:
+            output_path = os.path.join(output_path, tdir)
+            ShellUtils.make_dirs(output_path)
+        canvas.SaveAs(os.path.join(output_path, name + extension))
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
@@ -114,22 +117,35 @@ class OutputFileHandle(SysOutputHandle):
         for plot_bucket in ratio_plots:
             self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio")
 
+    def write_to_file(self, obj, tdir=None):
+        if tdir is not None:
+            self.output_file.mkdir(tdir)
+        else:
+            tdir = "/"
+        directory = self.output_file.GetDirectory(tdir)
+        directory.cd()
+        obj.Write()
+        self.output_file.cd("/")
+
     def write_and_close(self):
         if self.enable_make_plot_book:
             self.make_plot_book()
         self.attach_file()
-        for obj in self.objects.values():
+        for tdir, obj in self.objects.iteritems():
             if isinstance(obj, ROOT.TCanvas):
-                self.dump_canvas(obj)
-            obj.Write()
+                self.dump_canvas(obj, tdir = tdir[0])
+            self.write_to_file(obj, tdir[0])
+            #obj.Write()
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
         #self.set_latest_link(self.overload)
 
-    def register_object(self, obj, tdir=""):
+    def register_object(self, obj, tdir=None):
         _logger.debug("Adding object %s" % obj.GetName())
+        if tdir is not None and not tdir.endswith("/"):
+            tdir += "/"
         if isinstance(obj, ROOT.TTree):
-            self.objects[tdir + obj.GetName()] = obj.CloneTree()
+            self.objects[(tdir, obj.GetName())] = obj.CloneTree()
         else:
-            self.objects[tdir + obj.GetName()] = obj.Clone(obj.GetName() + "_clone")
+            self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")
