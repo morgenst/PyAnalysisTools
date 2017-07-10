@@ -217,6 +217,9 @@ class TruthAnalyer(object):
                 decay_mode = -1
             self.histograms[process_id]["decay2_mode"].Fill(decay_mode)
             muon_pts.sort(reverse=True)
+            if len(muon_pts) < 3:
+                print "did not find 3 muons!"
+                continue
             self.histograms[process_id]["lead_muon_e"].Fill(muon_pts[0])
             self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_pts[1])
             self.histograms[process_id]["third_lead_muon_e"].Fill(muon_pts[2])
