@@ -10,8 +10,8 @@ import ROOT
 particle_map = dict()
 particle_map["Ds-"] = [-431, "D_{s}^{-}"]
 particle_map["Ds+"] = [431, "D_{s}^{+}"]
-particle_map["D-"] = [-441, "D^{-}"]
-particle_map["D+"] = [441, "D^{+}"]
+particle_map["D-"] = [-411, "D^{-}"]
+particle_map["D+"] = [411, "D^{+}"]
 particle_map["mu-"] = [-13, "#mu^{-}"]
 particle_map["mu+"] = [13, "#mu^{+}"]
 particle_map["phi1020"] = [333, "#phi"]
@@ -179,11 +179,15 @@ class TruthAnalyer(object):
                                       truth_particles)
             self.histograms[process_id]["resonance_counter_decay1"].Fill(len(resonance_decay1))
             if len(resonance_decay1) == 0:
-                print "Suspicious event. Could not find Ds"
+                print "Suspicious event. Could not find ", self.current_process_config.decay1_pdgid[0], " for process ", process_id
                 continue
             resonance1_vertex = resonance_decay1[0].decayVtxLink().outgoingParticleLinks()
             muon_pts = list()
-            muon_pts.append(filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0].e() / 1000.)
+            try:
+                muon_pts.append(filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0].e() / 1000.)
+            except IndexError:
+                print "Could not find any muon for first resonance decay in process", process_id
+                continue
             mode = list()
             for resonance1_child in resonance1_vertex:
                 self.histograms[process_id]["resonance_decay1_child_pdg_ids"].Fill(resonance1_child.pdgId())
@@ -213,6 +217,9 @@ class TruthAnalyer(object):
                 decay_mode = -1
             self.histograms[process_id]["decay2_mode"].Fill(decay_mode)
             muon_pts.sort(reverse=True)
+            if len(muon_pts) < 3:
+                print "did not find 3 muons!"
+                continue
             self.histograms[process_id]["lead_muon_e"].Fill(muon_pts[0])
             self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_pts[1])
             self.histograms[process_id]["third_lead_muon_e"].Fill(muon_pts[2])
