@@ -64,10 +64,9 @@ def plot_hist(hist, plot_config, **kwargs):
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
-    if hasattr(plot_config, "labels") and plot_config.labels is not None:
-        for b in range(len(plot_config.labels)):
-            hist.GetXaxis().SetBinLabel(b+1, plot_config.labels[b])
-            print "set labels: ", plot_config.labels[b]
+    if hasattr(plot_config, "axis_labels") and plot_config.axis_labels is not None:
+        for b in range(len(plot_config.axis_labels)):
+            hist.GetXaxis().SetBinLabel(b+1, plot_config.axis_labels[b])
     canvas.Update()
     return canvas
 
@@ -123,13 +122,10 @@ def format_tefficiency(obj, plot_config):
     if xtitle is None:
         xtitle = ""
     obj.SetTitle(";{:s};{:s}".format(xtitle, ytitle))
-    print  plot_config.xmin, plot_config.xmax
     if plot_config.xmin is not None and plot_config.xmax is not None:
         ROOT.gPad.Update()
-        print obj, obj.GetPaintedGraph(), plot_config.xmin, plot_config.xmax
         obj.GetPaintedGraph().GetXaxis().SetRangeUser(plot_config.xmin, plot_config.xmax)
         obj.GetPaintedGraph().Set(0)
-    print "obj: ", obj.GetPaintedGraph().GetXaxis().GetXmin(), obj.GetPaintedGraph().GetXaxis().GetXmax()
     return obj
 
 

@@ -21,6 +21,7 @@ particle_map["mu_nu"] = [-14, "#nu_{#mu}"]
 particle_map["gamma"] = [22, "#gamma"]
 particle_map["rho0"] = [113, "#rho"]
 particle_map["eta"] = [221, "#eta"]
+particle_map["eta'"] = [331, "#eta'"]
 particle_map["omega"] = [223, "#omega"]
 
 
@@ -77,12 +78,23 @@ class TruthAnalyer(object):
             self.histograms[process_id]["sub_lead_muon_e"] = ROOT.TH1F("sub_lead_muon_e_{:d}".format(process_id), "", 20, 0., 20.)
             self.histograms[process_id]["third_lead_muon_e"] = ROOT.TH1F("third_lead_muon_e_{:d}".format(process_id), "", 20, 0., 20.)
             self.histograms[process_id]["gamma_e"] = ROOT.TH1F("hist_gamma_e_{:d}".format(process_id), "", 20, 0., 50.)
-            self.histograms[process_id]["decay2_third_particle"] = ROOT.TH1F("decay2_third_particle_{:d}".format(process_id), "", 501, -499.5, 499.5)
-            self.histograms[process_id]["decay2_non_muon_particle"] = ROOT.TH1F("decay2_non_muon_particle_{:d}".format(process_id), "", 501, -499.5, 499.5)
-            self.histograms[process_id]["decay2_child_pdgid"] = ROOT.TH1F("decay2_child_pdgid_{:d}".format(process_id), "", 501, -499.5, 499.5)
-            self.histograms[process_id]["decay2_muon_e"] = ROOT.TH1F("decay2_muon_e_{:d}".format(process_id), "", 20, 0., 20.)
-            self.histograms[process_id]["decay2_gamma_e"] = ROOT.TH1F("decay2_gamma_e_{:d}".format(process_id), "", 20, 0., 20.)
-            self.histograms[process_id]["control_photon_mother_pdgid"] = ROOT.TH1F("control_photon_mother_pdgid_{:d}".format(process_id), "", 239, -119.5, 119.5)
+            self.histograms[process_id]["decay2_particle"] = ROOT.TH1F("decay2_particle_{:d}".format(process_id), "", 999, -499.5, 499.5)
+            self.histograms[process_id]["decay2_particle_status"] = ROOT.TH1F("decay2_particle_status_{:d}".format(process_id), "", 100, 0.5, 99.5)
+            self.histograms[process_id]["decay2_non_muon_particle"] = ROOT.TH1F("decay2_non_muon_particle_{:d}".format(process_id), "", 999, -499.5, 499.5)
+            self.histograms[process_id]["decay2_child_pdgid"] = ROOT.TH1F("decay2_child_pdgid_{:d}".format(process_id), "", 999, -499.5, 499.5)
+            self.histograms[process_id]["unidentified_pdgid"] = ROOT.TH1F("unidentified_pdgid_{:d}".format(process_id), "", 999, -499.5, 499.5)
+            self.histograms[process_id]["unidentified_e"] = ROOT.TH1F("unidentified_e_{:d}".format(process_id), "", 100,
+                                                                      0., 1.)
+            self.histograms[process_id]["unidentified_gamma_e"] = ROOT.TH1F("unidentified_gamma_e_{:d}".format(process_id), "", 100,
+                                                                      0., 1.)
+            self.histograms[process_id]["decay2_muon_e"] = ROOT.TH1F("decay2_muon_e_{:d}".format(process_id), "", 100, 0., 20.)
+            self.histograms[process_id]["decay2_gamma_e"] = ROOT.TH1F("decay2_gamma_e_{:d}".format(process_id), "", 100, 0., 20.)
+            self.histograms[process_id]["decay2_gamma_e_low_pt"] = ROOT.TH1F("decay2_gamma_e_low_pt{:d}".format(process_id), "", 100, 0., 1.)
+            self.histograms[process_id]["decay2_gamma_status"] = ROOT.TH1F("decay2_gamma_status_{:d}".format(process_id), "", 100, -0.5, 99.5)
+            self.histograms[process_id]["decay2_gamma_e_after_veto"] = ROOT.TH1F("decay2_gamma_e_after_veto_{:d}".format(process_id), "", 100, 0., 20.)
+            self.histograms[process_id]["decay2_gamma_status_after_veto"] = ROOT.TH1F("decay2_gamma_status_after_veto_{:d}".format(process_id), "", 100, -0.5, 99.5)
+            self.histograms[process_id]["decay2_gamma_e_after_veto_low_pt"] = ROOT.TH1F("decay2_gamma_e_after_veto_low_pt{:d}".format(process_id), "", 100, 0., 1.)
+            self.histograms[process_id]["control_photon_mother_pdgid"] = ROOT.TH1F("control_photon_mother_pdgid_{:d}".format(process_id), "", 501, -499.5, 499.5)
 
     def book_plot_configs(self):
         pc = PlotConfig(dist=None, name="", xtitle="", ytitle="Entries", watermark="Simulation Internal",
@@ -93,10 +105,6 @@ class TruthAnalyer(object):
         pc.name = "resonance_decay1_child_pdg_ids"
         pc.xtitle = "pdg ID"
         self.plot_configs["resonance_decay1_child_pdg_ids"] = copy(pc)
-        pc.name = "decay2_mode"
-        pc.xtitle = "decay mode"
-        pc.ymax = 1.1
-        self.plot_configs["decay2_mode"] = copy(pc)
         pc.name = "muon_e"
         pc.xtitle = "all #mu E [GeV]"
         self.plot_configs["muon_e"] = copy(pc)
@@ -112,25 +120,56 @@ class TruthAnalyer(object):
         pc.name = "gamma_e"
         pc.xtitle = "#gamma E [GeV]"
         self.plot_configs["gamma_e"] = copy(pc)
-        pc.name = "decay2_third_particle"
-        pc.xtitle = "3^{rd} particle pdg ID"
-        self.plot_configs["decay2_third_particle"] = copy(pc)
+        pc.name = "decay2_particle"
+        pc.xtitle = "2^{nd} decay particle pdg ID"
+        self.plot_configs["decay2_particle"] = copy(pc)
+        pc.name = "decay2_particle_status"
+        pc.xtitle = "2^{nd} decay particle status"
+        self.plot_configs["decay2_particle_status"] = copy(pc)
         pc.name = "decay2_non_muon_particle"
         pc.xtitle = "non #mu pdg ID"
         self.plot_configs["decay2_non_muon_particle"] = copy(pc)
         pc.name = "decay2_child_pdgid"
         pc.xtitle = "decay2 child pdg IDs"
         self.plot_configs["decay2_child_pdgid"] = copy(pc)
+        pc.name = "unidentified_pdgid"
+        pc.xtitle = "unidentified pdg IDs"
+        self.plot_configs["unidentified_pdgid"] = copy(pc)
+        pc.name = "unidentified_e"
+        pc.xtitle = "unidentified E [GeV]"
+        self.plot_configs["unidentified_e"] = copy(pc)
+        pc.name = "unidentified_gamme_e"
+        pc.xtitle = "unidentified #gamma E [GeV]"
+        self.plot_configs["unidentified_gamma_e"] = copy(pc)
         pc.name = "decay2_muon_e"
         pc.xtitle = "decay 2 #mu E [GeV]"
         self.plot_configs["decay2_muon_e"] = copy(pc)
         pc.name = "decay2_gamma_e"
         pc.xtitle = "decay 2 #gamma E [GeV]"
         self.plot_configs["decay2_gamma_e"] = copy(pc)
+        pc.name = "decay2_gamma_e_after_veto"
+        pc.xtitle = "decay 2 #gamma E [GeV] (after E cut)"
+        self.plot_configs["decay2_gamma_e_after_veto"] = copy(pc)
+        pc.name = "decay2_gamma_e_low_pt"
+        pc.xtitle = "decay 2 #gamma E [GeV]"
+        self.plot_configs["decay2_gamma_e_low_pt"] = copy(pc)
+        pc.name = "decay2_gamma_e_after_veto_low_pt"
+        pc.xtitle = "decay 2 #gamma E [GeV] (after E cut)"
+        self.plot_configs["decay2_gamma_e_after_veto_low_pt"] = copy(pc)
         pc.name = "control_photon_mother_pdgid"
         pc.xtitle = "#gamma mother pdgID"
         self.plot_configs["control_photon_mother_pdgid"] = copy(pc)
-        
+        pc.name = "decay2_gamma_status"
+        pc.xtitle = "decay 2 #gamma status"
+        self.plot_configs["decay2_gamma_status"] = copy(pc)
+        pc.name = "decay2_gamma_status_after_veto"
+        pc.xtitle = "decay 2 #gamma status (after E cut)"
+        self.plot_configs["decay2_gamma_status_after_veto"] = copy(pc)
+        pc.name = "decay2_mode"
+        pc.xtitle = "decay mode"
+        pc.ymax = 1.1
+        self.plot_configs["decay2_mode"] = copy(pc)
+
     def run(self):
         for input_file in self.input_files:
             self.analyse_file(input_file)
@@ -155,7 +194,7 @@ class TruthAnalyer(object):
             for hist_name, hist in histograms.iteritems():
                 pc = self.plot_configs[hist_name]
                 if hist_name == "decay2_mode":
-                    pc.labels = self.processes[process_id].get_bin_labels()
+                    pc.axis_labels = self.processes[process_id].get_bin_labels()
                     pc.normalise = True
                 canvas = PT.plot_obj(hist, pc)
                 if hist_name == "decay2_mode":
@@ -195,7 +234,7 @@ class TruthAnalyer(object):
                     self.histograms[process_id]["muon_e"].Fill(resonance1_child.e() / 1000.)
                 if resonance1_child.pdgId() not in self.current_process_config.decay_2_initial_resonance:
                     continue
-                mode.append(resonance1_child.pdgId())
+                mode.append((resonance1_child.pdgId(), resonance1_child.e() / 1000.))
                 resonance2_vertex = resonance1_child.decayVtxLink().outgoingParticleLinks()
                 for resonance2_child in resonance2_vertex:
                     if abs(resonance2_child.pdgId()) == 13:
@@ -204,17 +243,32 @@ class TruthAnalyer(object):
                         muon_pts.append(resonance2_child.e() / 1000.)
                     if abs(resonance2_child.pdgId()) == 22:
                         self.histograms[process_id]["decay2_gamma_e"].Fill(resonance2_child.e() / 1000.)
+                        self.histograms[process_id]["decay2_gamma_e_low_pt"].Fill(resonance2_child.e() / 1000.)
+                        self.histograms[process_id]["decay2_gamma_status"].Fill(resonance2_child.status())
                     if not abs(resonance2_child.pdgId()) == 13:
                         self.histograms[process_id]["decay2_non_muon_particle"].Fill(resonance2_child.pdgId())
-                    if resonance2_child.e() < 1.:
+                    if resonance2_child.e() < 50.:
                         continue
-                    mode.append(resonance2_child.pdgId())
-                    self.histograms[process_id]["decay2_third_particle"].Fill(resonance2_child.pdgId())
-            mode.sort(reverse=True)
+                    mode.append((resonance2_child.pdgId(), resonance2_child.e() / 1000.))
+                    self.histograms[process_id]["decay2_particle"].Fill(resonance2_child.pdgId())
+                    self.histograms[process_id]["decay2_particle_status"].Fill(resonance2_child.status())
+                    if abs(resonance2_child.pdgId()) == 22:
+                        self.histograms[process_id]["decay2_gamma_e_after_veto"].Fill(resonance2_child.e() / 1000.)
+                        self.histograms[process_id]["decay2_gamma_e_after_veto_low_pt"].Fill(resonance2_child.e() / 1000.)
+                        self.histograms[process_id]["decay2_gamma_status_after_veto"].Fill(resonance2_child.status())
+                        mother = resonance2_child.prodVtx().incomingParticleLinks()[0]
+                        self.histograms[process_id]["control_photon_mother_pdgid"].Fill(mother.pdgId())
+            mode.sort(key=lambda i: i[0], reverse=True)
             try:
-                decay_mode = self.current_process_config.decay2_sorted.index(mode)
+                decay_mode = self.current_process_config.decay2_sorted.index(map(lambda i: i[0], mode))
             except ValueError:
                 decay_mode = -1
+            if decay_mode == -1:
+                for pdg_id, pt in mode:
+                    self.histograms[process_id]["unidentified_pdgid"].Fill(pdg_id)
+                    if pdg_id == 22:
+                        self.histograms[process_id]["unidentified_gamma_e"].Fill(pt)
+
             self.histograms[process_id]["decay2_mode"].Fill(decay_mode)
             muon_pts.sort(reverse=True)
             if len(muon_pts) < 3:
