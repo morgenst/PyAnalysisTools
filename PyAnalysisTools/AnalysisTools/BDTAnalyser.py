@@ -22,6 +22,7 @@ class BDTAnalyser(object):
         ROOT.gROOT.SetBatch(True)
 
     def analyse(self):
+        self.analyse_train_variables()
         self.perform_overtraining_check()
         self.perform_correlation_analysis()
         self.output_handle.write_and_close()
@@ -29,6 +30,32 @@ class BDTAnalyser(object):
     def perform_overtraining_check(self):
         for file_handle in self.file_handles:
             self.analyse_overtraining(file_handle)
+
+    def analyse_train_variables(self):
+        for file_handle in self.file_handles:
+            self.plot_train_variables(file_handle)
+
+    def plot_train_variables(self, file_handle):
+        def classify():
+            variables = {}
+            for signal_hist in signal_hists:
+                variables[signal_hist.GetName().replace("__Signal", "")] = [signal_hist]
+            for background_hist in background_hists:
+                variables[background_hist.GetName().replace("__Background", "")].append(background_hist)
+            return variables
+        signal_hists = file_handle.get_objects_by_pattern("[A-z]*__Signal",
+                                                          "Method_BDT/BDTG")
+        background_hists = file_handle.get_objects_by_pattern("[A-z]*__Background",
+                                                              "Method_BDT/BDTG")
+        variables_hists = classify()
+        for variable_name, variable_hists in variables_hists.iteritems():
+            plot_config = PC(name="{:s}_{:d}".format(variable_name, self.file_handles.index(file_handle)),
+                             color=[ROOT.kRed, ROOT.kBlue],
+                             draw="Hist",
+                             watermark="Internal")
+            canvas = PT.plot_histograms(variable_hists, plot_config)
+            FM.decorate_canvas(canvas, plot_config)
+            self.output_handle.register_object(canvas, tdir="train_variables")
 
     def analyse_overtraining(self, file_handle):
         training_score_signal = file_handle.get_object_by_name("MVA_BDTG_Train_S", "Method_BDT/BDTG")
@@ -104,17 +131,20 @@ class BDTAnalyser(object):
             self.output_handle.register_object(canvas)
 
     def fit_score(self):
-        bdt_score = ROOT.RooRealVar("BDTScore", "BDTScore", -1., 1.)
-        tree = self.file_handles[0].get_object_by_name(self.tree_name, "Nominal")
-        p0 = ROOT.RooRealVar("p0", "p0", 1, 0., 10.)
-        p1 = ROOT.RooRealVar("p1", "p1", 1, 0., 10.)
-        p2 = ROOT.RooRealVar("p2", "p2", 1, 0., 10.)
-        p3 = ROOT.RooRealVar("p3", "p3", 1, 0., 10.)
-        p4 = ROOT.RooRealVar("p4", "p4", 1, 0., 10.)
+        bdt_score = ROOT.RooRealVar("BDT_20170522_170718", "BDT score", -1., 1.)
+        chain = ROOT.TChain("Nominal/" + self.tree_name)
+        for file_handle in self.file_handles[1:]:
+            chain.Add(file_handle.file_name)
+        p0 = ROOT.RooRealVar("p0", "p0", 1, -10., 10.)
+        p1 = ROOT.RooRealVar("p1", "p1", 1, -10., 10.)
+        p2 = ROOT.RooRealVar("p2", "p2", 1, -10., 10.)
+        p3 = ROOT.RooRealVar("p3", "p3", 1, -10., 10.)
+        p4 = ROOT.RooRealVar("p4", "p4", 1, -10., 10.)
+        norm = ROOT.RooRealVar("norm", "norm", chain.GetEntries(), 0., chain.GetEntries() * 2)
         genpdf = ROOT.RooGenericPdf("genpdf", "genpdf",
-                                    "p0 + p1 * exp(bdt_score*p2)  + p3 * abs(x)^(bdt_score*p4)",
-                                    ROOT.RooArgList(bdt_score, p0, p1, p2, p3, p4))
-        data = ROOT.RooDataSet("data", "BDT_170526", tree, ROOT.RooArgSet(bdt_score))
+                                    "norm * (p0 + p1 * exp(BDT_20170522_170718*p2)  + p3 * abs(BDT_20170522_170718)^(BDT_20170522_170718*p4))",
+                                    ROOT.RooArgList(bdt_score, p0, p1, p2, p3, p4, norm))
+        data = ROOT.RooDataSet("data", "BDT_170526", chain, ROOT.RooArgSet(bdt_score))
         frame = bdt_score.frame()
         data.plotOn(frame, ROOT.RooFit.Binning(25))
         genpdf.fitTo(data)
