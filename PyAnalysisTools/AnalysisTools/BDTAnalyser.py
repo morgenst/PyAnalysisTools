@@ -52,7 +52,9 @@ class BDTAnalyser(object):
             plot_config = PC(name="{:s}_{:d}".format(variable_name, self.file_handles.index(file_handle)),
                              color=[ROOT.kRed, ROOT.kBlue],
                              draw="Hist",
-                             watermark="Internal")
+                             watermark="Internal",
+                             normalise=True,
+                             ymax=0.2)
             canvas = PT.plot_histograms(variable_hists, plot_config)
             FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas, tdir="train_variables")
