@@ -16,7 +16,7 @@ particle_map["D+"] = [411, "D^{+}"]
 particle_map["mu-"] = [-13, "#mu^{-}"]
 particle_map["mu+"] = [13, "#mu^{+}"]
 particle_map["phi1020"] = [333, "#phi"]
-particle_map["pi0"] = [111, "#pi"]
+particle_map["pi0"] = [111, "#pi^{0}"]
 particle_map["anti_mu_nu"] = [14, "#nu_{#mu}"]
 particle_map["mu_nu"] = [-14, "#nu_{#mu}"]
 particle_map["gamma"] = [22, "#gamma"]
@@ -242,8 +242,12 @@ class TruthAnalyer(object):
                     if resonance2_child.pdgId() == 22:
                         all_photons_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(),
                                                 resonance2_child.phi()])
-                    if resonance2_child.pdgId() == 22 and resonance2_child.e() < 50.:
+                    if resonance2_child.pdgId() == 22 and resonance2_child.e() < 100.:
                         continue
+                    # if resonance2_child.pdgId() == 22 and self.deltaR(muon_pts[0], [resonance2_child.e() / 1000.,
+                    #                                                                 resonance2_child.eta(),
+                    #                                                                 resonance2_child.phi()]) > 0.4:
+                    #     continue
                     mode.append((resonance2_child.pdgId(), resonance2_child.e() / 1000.))
                     self.histograms[process_id]["decay2_particle"].Fill(resonance2_child.pdgId())
                     self.histograms[process_id]["decay2_particle_eta"].Fill(resonance2_child.eta())
