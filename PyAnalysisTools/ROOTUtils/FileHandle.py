@@ -168,7 +168,7 @@ class FileHandle(object):
     def get_number_of_total_events(self):
         try:
             cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
-            return cutflow_hist.GetBinContent(1)
+            return cutflow_hist.GetBinContent(2)
         except ValueError as e:
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
             raise e

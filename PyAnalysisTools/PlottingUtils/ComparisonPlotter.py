@@ -8,9 +8,10 @@ from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
-    expand_plot_config, parse_and_build_process_config, find_process_config
+    expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
+from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
 
 
 class ComparisonReader(object):
@@ -67,7 +68,12 @@ class ComparisonReader(object):
         return hist
 
     @staticmethod
-    def merge_histograms(histograms, process_configs, ):
+    def merge_histograms(histograms, process_configs):
+        def expand():
+            if process_configs is not None:
+                for process_name in histograms.keys():
+                    _ = find_process_config(process_name, process_configs)
+        expand()
         for process, process_config in process_configs.iteritems():
             if not hasattr(process_config, "subprocesses"):
                 continue
@@ -247,6 +253,8 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault("output_dir", "./")
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("systematics", None)
+        kwargs.setdefault("ref_mod_modules", None)
+        kwargs.setdefault("inp_mod_modules", None)
         set_batch_mode(kwargs["batch"])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
@@ -258,8 +266,16 @@ class ComparisonPlotter(BasePlotter):
                 setattr(self, attr, value)
         if self.systematics is None:
             self.systematics = "Nominal"
+        self.ref_process_configs = None
+        if "reference_merge_file" in kwargs:
+            self.ref_process_configs = parse_and_build_process_config(kwargs["reference_merge_file"])
+        if "merge_file" in kwargs:
+            self.process_config = parse_and_build_process_config(kwargs["reference_merge_file"])
+        self.ref_mod_modules = [SubtractionHandle(subtract_items=["Wtaunu"], output_name="WmunuData",
+                                                  reference_item="Data", process_configs=self.ref_process_configs)]
         self.analyse_plot_config()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
+
 
     def analyse_plot_config(self):
         pc = next((pc for pc in self.plot_configs if pc.name == "parse_from_file"), None)
@@ -296,12 +312,17 @@ class ComparisonPlotter(BasePlotter):
         reference_hists = data[0]
         hists = data[1]
         labels = None
+        if self.ref_mod_modules:
+            for mod in self.ref_mod_modules:
+                reference_hists = mod.execute(reference_hists)
         if isinstance(reference_hists, dict):
             reference_hists_dict = copy(reference_hists)
             hists_dict = copy(hists)
             reference_hists = reference_hists.values()
             hists = hists.values()
             labels = reference_hists_dict.keys() + hists_dict.keys()
+            if any(isinstance(l, ProcessConfig) for l in labels):
+                labels = map(lambda p: p.label, labels)
         y_max = None
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
@@ -339,7 +360,7 @@ class ComparisonPlotter(BasePlotter):
             labels = plot_config.labels
         if hasattr(plot_config, "labels"):
             labels = plot_config.labels
-        if len(labels) != len(hists) + 1:
+        if len(labels) != len(hists) + len(reference_hists):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                 len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
