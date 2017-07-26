@@ -234,6 +234,24 @@ def plot_histograms(hists, plot_config, process_configs=None):
     return canvas
 
 
+def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
+    canvas.cd()
+    if frame:
+        pdf.paramOn(frame, ROOT.RooFit.Layout(0.50, 0.9, 0.8))
+        chi2 = frame.chiSquare("model", "data", 3)
+        txt = ROOT.TText(2, 100, "#chi^{2} = " + "{:.2f}".format(chi2))
+        ROOT.SetOwnership(txt, False)
+        txt.SetTextSize(0.04)
+        txt.SetTextColor(ROOT.kRed)
+        frame.addObject(txt)
+    else:
+        for i in range(len(fit_result.floatParsFinal()) - 1):
+            var = fit_result.floatParsFinal()[i]
+            var_string = "{:s} = {:.2f} \pm {:.2f}".format(var.GetName(), var.getValV(), var.getError())
+            FM.add_text_to_canvas(canvas, var_string, pos={'x': 0.15, 'y': 0.9 - i * 0.05}, size=0.04, color=None)
+    canvas.Update()
+
+
 def add_histogram_to_canvas(canvas, hist, plot_config, process_config = None):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config, process_config)

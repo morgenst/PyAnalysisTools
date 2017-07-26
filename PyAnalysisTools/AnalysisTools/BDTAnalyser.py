@@ -133,26 +133,33 @@ class BDTAnalyser(object):
             self.output_handle.register_object(canvas)
 
     def fit_score(self):
-        bdt_score = ROOT.RooRealVar("BDT_20170522_170718", "BDT score", -1., 1.)
+        bdt_score = ROOT.RooRealVar(self.branch_name, "BDT score", -0.9, 1.)
         chain = ROOT.TChain("Nominal/" + self.tree_name)
         for file_handle in self.file_handles[1:]:
             chain.Add(file_handle.file_name)
         p0 = ROOT.RooRealVar("p0", "p0", 1, -10., 10.)
         p1 = ROOT.RooRealVar("p1", "p1", 1, -10., 10.)
-        p2 = ROOT.RooRealVar("p2", "p2", 1, -10., 10.)
+        p2 = ROOT.RooRealVar("p2", "p2", 1, -100., 100.)
         p3 = ROOT.RooRealVar("p3", "p3", 1, -10., 10.)
         p4 = ROOT.RooRealVar("p4", "p4", 1, -10., 10.)
         norm = ROOT.RooRealVar("norm", "norm", chain.GetEntries(), 0., chain.GetEntries() * 2)
+        mass = ROOT.RooRealVar("object_m", "object_m", 0., 100000.)
         genpdf = ROOT.RooGenericPdf("genpdf", "genpdf",
-                                    "norm * (p0 + p1 * exp(BDT_20170522_170718*p2)  + p3 * abs(BDT_20170522_170718)^(BDT_20170522_170718*p4))",
+                                    "norm * (p0 + p1 * exp(({:s} + 1.) *p2)  + p3 * abs({:s})^(({:s} + 1.)*p4))".format(self.branch_name,
+                                                                                                         self.branch_name,
+                                                                                                         self.branch_name),
                                     ROOT.RooArgList(bdt_score, p0, p1, p2, p3, p4, norm))
-        data = ROOT.RooDataSet("data", "BDT_170526", chain, ROOT.RooArgSet(bdt_score))
+        data = ROOT.RooDataSet("data", "BDT_170526", chain, ROOT.RooArgSet(bdt_score, mass),
+                               "object_m/1000. < 1713. || object_m/1000. > 1841.")
         frame = bdt_score.frame()
-        data.plotOn(frame, ROOT.RooFit.Binning(25))
-        genpdf.fitTo(data)
+        data.plotOn(frame, ROOT.RooFit.Name("data"), ROOT.RooFit.Binning(25))
+        fit_result = genpdf.fitTo(data, ROOT.RooFit.Save())
         canvas = ROOT.TCanvas("c", "c", 800, 600)
         canvas.cd()
+        genpdf.plotOn(frame, ROOT.RooFit.Name("model"))
+        PT.add_fit_to_canvas(canvas, fit_result, genpdf, frame)
+        FM.add_atlas_label(canvas, "Internal")
         frame.Draw()
-        genpdf.plotOn(frame)
+        canvas.Modified()
         self.output_handle.register_object(canvas)
         self.output_handle.write_and_close()
