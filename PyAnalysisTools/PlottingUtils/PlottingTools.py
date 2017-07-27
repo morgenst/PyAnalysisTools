@@ -64,6 +64,9 @@ def plot_hist(hist, plot_config, **kwargs):
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
+    if hasattr(plot_config, "axis_labels") and plot_config.axis_labels is not None:
+        for b in range(len(plot_config.axis_labels)):
+            hist.GetXaxis().SetBinLabel(b+1, plot_config.axis_labels[b])
     canvas.Update()
     return canvas
 
@@ -119,13 +122,10 @@ def format_tefficiency(obj, plot_config):
     if xtitle is None:
         xtitle = ""
     obj.SetTitle(";{:s};{:s}".format(xtitle, ytitle))
-    print  plot_config.xmin, plot_config.xmax
     if plot_config.xmin is not None and plot_config.xmax is not None:
         ROOT.gPad.Update()
-        print obj, obj.GetPaintedGraph(), plot_config.xmin, plot_config.xmax
         obj.GetPaintedGraph().GetXaxis().SetRangeUser(plot_config.xmin, plot_config.xmax)
         obj.GetPaintedGraph().Set(0)
-    print "obj: ", obj.GetPaintedGraph().GetXaxis().GetXmin(), obj.GetPaintedGraph().GetXaxis().GetXmax()
     return obj
 
 
@@ -143,6 +143,14 @@ def format_hist(hist, plot_config):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "normalise") and plot_config.normalise:
         HT.normalise(hist)
+        yscale = 1.1
+        if hasattr(plot_config, "yscale"):
+            yscale = yscale
+        ymax = yscale*hist.GetMaximum()
+        if hasattr(plot_config, "ymax"):
+            plot_config.ymax = max(plot_config.ymax, ymax)
+        else:
+            plot_config.ymax = ymax
     if hasattr(plot_config, "rebin") and not isinstance(hist, ROOT.THStack):
         hist = HT.rebin(hist, plot_config.rebin)
         yscale = 1.1
@@ -224,6 +232,24 @@ def plot_histograms(hists, plot_config, process_configs=None):
             canvas.Update()
         is_first = False
     return canvas
+
+
+def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
+    canvas.cd()
+    if frame:
+        pdf.paramOn(frame, ROOT.RooFit.Layout(0.50, 0.9, 0.8))
+        chi2 = frame.chiSquare("model", "data", 3)
+        txt = ROOT.TText(2, 100, "#chi^{2} = " + "{:.2f}".format(chi2))
+        ROOT.SetOwnership(txt, False)
+        txt.SetTextSize(0.04)
+        txt.SetTextColor(ROOT.kRed)
+        frame.addObject(txt)
+    else:
+        for i in range(len(fit_result.floatParsFinal()) - 1):
+            var = fit_result.floatParsFinal()[i]
+            var_string = "{:s} = {:.2f} \pm {:.2f}".format(var.GetName(), var.getValV(), var.getError())
+            FM.add_text_to_canvas(canvas, var_string, pos={'x': 0.15, 'y': 0.9 - i * 0.05}, size=0.04, color=None)
+    canvas.Update()
 
 
 def add_histogram_to_canvas(canvas, hist, plot_config, process_config = None):

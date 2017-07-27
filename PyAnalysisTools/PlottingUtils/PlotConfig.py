@@ -191,6 +191,8 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
             if "-" in color:
                 color, offset = color.split("-")
             color = getattr(ROOT, color.rstrip()) + int(offset)
+        if isinstance(color, list):
+            return transform_color(color[index])
         return color
 
     style_setter = None
