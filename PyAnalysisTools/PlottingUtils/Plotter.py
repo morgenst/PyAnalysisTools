@@ -16,6 +16,7 @@ from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyse
 from PyAnalysisTools.AnalysisTools import StatisticsTools as ST
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 
 
 class Plotter(BasePlotter):
@@ -50,6 +51,7 @@ class Plotter(BasePlotter):
         self.initialise()
         if kwargs["enable_systematics"]:
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
+        self.modules = [RegionBuilder()]
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -165,6 +167,8 @@ class Plotter(BasePlotter):
 
     def make_plots(self):
         self.read_cutflows()
+        for mod in self.modules:
+            self.plot_configs = mod.execute(self.plot_configs)
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
                                                                                                file_handles=self.file_handles),
                                                                                        self.plot_configs)

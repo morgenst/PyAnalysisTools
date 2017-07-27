@@ -110,12 +110,12 @@ class BasePlotter(object):
             histograms = mp.ThreadPool(min(self.nfile_handles,
                                            len(file_handles))).map(partial(self.fetch_histograms,
                                                                            plot_config=plot_config,
-                                                                           systematic="Nominal"), file_handles)
+                                                                           systematic=systematic), file_handles)
         else:
             histograms = mp.ThreadPool(min(self.nfile_handles,
                                            len(file_handles))).map(partial(self.fetch_plain_histograms,
                                                                            plot_config=plot_config,
-                                                                           systematic="Nominal"), file_handles)
+                                                                           systematic=systematic), file_handles)
         return plot_config, histograms
 
     def categorise_histograms(self, plot_config, histograms):
