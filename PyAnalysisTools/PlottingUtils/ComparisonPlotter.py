@@ -276,7 +276,6 @@ class ComparisonPlotter(BasePlotter):
         self.analyse_plot_config()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
 
-
     def analyse_plot_config(self):
         pc = next((pc for pc in self.plot_configs if pc.name == "parse_from_file"), None)
         if pc is None:
