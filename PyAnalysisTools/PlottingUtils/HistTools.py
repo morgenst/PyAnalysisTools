@@ -66,7 +66,7 @@ def merge_overflow_bins(hists, x_max=None):
         _merge_overflow_bins_1d(hists, x_max)
 
 
-def _merge_overflow_bins_1d(hist, x_max):
+def _merge_overflow_bins_1d(hist, x_max=None):
     if x_max:
         last_visible_bin = hist.FindBin(x_max)
     else:

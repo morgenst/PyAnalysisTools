@@ -189,6 +189,7 @@ class Plotter(BasePlotter):
             data = {k: v for k, v in data.iteritems() if v}
             if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])
+            HT.merge_overflow_bins(data)
             signals = self.get_signal_hists(data)
             if plot_config.outline == "stack" and not plot_config.is_multidimensional:
                 canvas = PT.plot_stack(data, plot_config=plot_config,
