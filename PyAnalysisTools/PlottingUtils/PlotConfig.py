@@ -50,6 +50,12 @@ class PlotConfig(object):
         kwargs.setdefault("ignore_style", False)
         self.ratio_config = PlotConfig(**kwargs)
 
+    def __str__(self):
+        obj_str = "Plot config: {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            obj_str += '{}={} '.format(attribute, value)
+        return obj_str
+
     @staticmethod
     def get_overwritable_options():
         return ["outline", "make_plot_book", "no_data", "draw", "ordering"]
