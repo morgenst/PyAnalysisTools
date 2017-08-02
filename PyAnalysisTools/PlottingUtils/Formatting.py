@@ -30,6 +30,8 @@ def decorate_canvas(canvas, plot_config):
         add_lumi_text(canvas, plot_config.lumi, {"x": 0.6, "y": 0.9})
     if hasattr(plot_config, "grid") or hasattr(plot_config, "grid"):
         canvas.SetGrid()
+    if hasattr(plot_config, "decor_text"):
+        add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
 
 
 def set_title_x(obj, title):
