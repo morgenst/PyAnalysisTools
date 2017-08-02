@@ -8,11 +8,16 @@ class Region(object):
         self.n_lep = args[1]
         self.n_electron = args[2]
         self.n_muon = args[3]
-        self.n_tau = 0
+        self.n_tau = args[4]
 
     def convert2cut_string(self):
-        return "electron_n == {:d} && muon_n == {:d}".format(self.n_electron,
-                                                             self.n_muon)
+        return "electron_n == {:d} && muon_n == {:d} && tau_n == {:d}".format(self.n_electron,
+                                                                              self.n_muon,
+                                                                              self.n_tau)
+
+    def convert2cut_decor_string(self):
+        return "".join([a*b for a, b in zip(["e^{#pm}", "#mu^{#pm}", "#tau^{#pm}"],
+                                            [self.n_electron, self.n_muon, self.n_tau])])
 
 
 class RegionBuilder(object):
@@ -37,6 +42,8 @@ class RegionBuilder(object):
                 else:
                     region_pc.cuts.append(region.convert2cut_string())
                 region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
+                region_pc.decor_text = region.convert2cut_decor_string()
+                print "decor string: ", region_pc.decor_text
                 tmp.append(region_pc)
         return tmp
 
