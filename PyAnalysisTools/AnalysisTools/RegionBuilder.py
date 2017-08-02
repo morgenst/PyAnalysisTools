@@ -43,7 +43,6 @@ class RegionBuilder(object):
                     region_pc.cuts.append(region.convert2cut_string())
                 region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
                 region_pc.decor_text = region.convert2cut_decor_string()
-                print "decor string: ", region_pc.decor_text
                 tmp.append(region_pc)
         return tmp
 
