@@ -1,10 +1,9 @@
 import pathos.multiprocessing as mp
 from functools import partial
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config,\
-    merge_plot_configs, propagate_common_config
-from PyAnalysisTools.PlottingUtils import Formatting as FM
+from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
+from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition, find_process_config, merge_plot_configs
@@ -47,7 +46,7 @@ class BasePlotter(object):
 
     @staticmethod
     def load_atlas_style():
-        FM.load_atlas_style()
+        fm.load_atlas_style()
 
     def read_cutflows(self):
         for file_handle in self.file_handles:
