@@ -72,7 +72,6 @@ class BasePlotter(object):
     def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal"):
         file_handle.open()
         hist = get_histogram_definition(plot_config)
-        hist.SetName(hist.GetName() + file_handle.process)
         try:
             weight = None
             selection_cuts = ""
