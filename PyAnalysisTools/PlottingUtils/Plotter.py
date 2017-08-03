@@ -16,6 +16,8 @@ from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyse
 from PyAnalysisTools.AnalysisTools import StatisticsTools as ST
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
+from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
 
 
 class Plotter(BasePlotter):
@@ -50,6 +52,8 @@ class Plotter(BasePlotter):
         self.initialise()
         if kwargs["enable_systematics"]:
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
+        self.modules = [RegionBuilder()]
+        self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -93,8 +97,8 @@ class Plotter(BasePlotter):
             canvas = PT.plot_hist(ratio, plot_config)
         return canvas
 
-    def apply_lumi_weights(self):
-        for hist_set in self.histograms.values():
+    def apply_lumi_weights(self, histograms):
+        for hist_set in histograms.values():
             for process, hist in hist_set.iteritems():
                 if hist is None:
                     _logger.error("Histogram for process {:s} is None".format(process))
@@ -165,13 +169,15 @@ class Plotter(BasePlotter):
 
     def make_plots(self):
         self.read_cutflows()
+        for mod in self.modules:
+            self.plot_configs = mod.execute(self.plot_configs)
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
                                                                                                file_handles=self.file_handles),
                                                                                        self.plot_configs)
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
-        self.apply_lumi_weights()
+        self.apply_lumi_weights(self.histograms)
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
@@ -186,6 +192,8 @@ class Plotter(BasePlotter):
             self.systematics_analyser.retrieve_total_systematics()
 
         for plot_config, data in self.histograms.iteritems():
+            fake_hist = self.fake_estimator.get_fake_background(plot_config)
+            data["Fakes"] = fake_hist
             data = {k: v for k, v in data.iteritems() if v}
             if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])

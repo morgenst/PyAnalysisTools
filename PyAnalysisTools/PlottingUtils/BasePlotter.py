@@ -1,10 +1,9 @@
 import pathos.multiprocessing as mp
 from functools import partial
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config,\
-    merge_plot_configs, propagate_common_config
-from PyAnalysisTools.PlottingUtils import Formatting as FM
+from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
+from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition, find_process_config, merge_plot_configs
@@ -47,7 +46,7 @@ class BasePlotter(object):
 
     @staticmethod
     def load_atlas_style():
-        FM.load_atlas_style()
+        fm.load_atlas_style()
 
     def read_cutflows(self):
         for file_handle in self.file_handles:
@@ -72,7 +71,6 @@ class BasePlotter(object):
     def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal"):
         file_handle.open()
         hist = get_histogram_definition(plot_config)
-        hist.SetName(hist.GetName() + file_handle.process)
         try:
             weight = None
             selection_cuts = ""
@@ -110,12 +108,12 @@ class BasePlotter(object):
             histograms = mp.ThreadPool(min(self.nfile_handles,
                                            len(file_handles))).map(partial(self.fetch_histograms,
                                                                            plot_config=plot_config,
-                                                                           systematic="Nominal"), file_handles)
+                                                                           systematic=systematic), file_handles)
         else:
             histograms = mp.ThreadPool(min(self.nfile_handles,
                                            len(file_handles))).map(partial(self.fetch_plain_histograms,
                                                                            plot_config=plot_config,
-                                                                           systematic="Nominal"), file_handles)
+                                                                           systematic=systematic), file_handles)
         return plot_config, histograms
 
     def categorise_histograms(self, plot_config, histograms):
