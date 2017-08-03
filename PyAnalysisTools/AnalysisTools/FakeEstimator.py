@@ -1,18 +1,158 @@
 import ROOT
+from itertools import permutations
 from copy import copy
+from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError, Utilities
-from PyAnalysisTools.PlottingUtils.Plotter import Plotter
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.HistTools as HT
 import PyAnalysisTools.PlottingUtils.Formatting as FT
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, find_process_config, PlotConfig
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
 import pathos.multiprocessing as mp
 
 
 class MuonFakeEstimator(object):
+    def __init__(self, plotter_instance, **kwargs):
+        self.plotter = plotter_instance
+        self.file_handles = filter(lambda fh: "data" not in fh.process.lower(), kwargs["file_handles"])
+
+    def get_fake_background(self, plot_config):
+        def rebuild_dict_structure():
+            for key, data in fake_histograms.iteritems():
+                print data
+                hist_data = {k: v for k,v in data[0][1]}
+                fake_histograms[key] = hist_data
+
+        fake_plot_configs = self.retrieve_fake_plot_configs(plot_config)
+        if len(fake_plot_configs) == 0:
+            return None
+        fake_histograms = dict()
+        for key, plot_config in fake_plot_configs.iteritems():
+            fake_histograms[key] = mp.ThreadPool(self.plotter.ncpu).map(partial(self.plotter.read_histograms,
+                                                                        file_handles=self.file_handles),
+                                                                        [plot_config])
+        rebuild_dict_structure()
+        self.plotter.apply_lumi_weights(fake_histograms)
+        fake_histograms = self.merge(fake_histograms)
+        fake_hist = self.build_fake_contribution(fake_histograms)
+        fake_hist.SetName(plot_config.name + "_Fakes")
+        return fake_hist
+
+    @staticmethod
+    def build_fake_contribution(fake_histograms):
+        single_lepton_fake_contribution = filter(lambda (k, v): k[0] == 1, fake_histograms.iteritems())
+        fake_contribution = single_lepton_fake_contribution.pop()[-1]
+        while len(single_lepton_fake_contribution) > 0:
+            fake_contribution.Add(single_lepton_fake_contribution.pop()[-1])
+        di_lepton_fake_contribution = filter(lambda (k, v): k[0] == 2, fake_histograms.iteritems())
+        while len(di_lepton_fake_contribution) > 0:
+            fake_contribution.Add(di_lepton_fake_contribution.pop()[-1], -1)
+        tri_lepton_fake_contribution = filter(lambda (k, v): k[0] == 3, fake_histograms.iteritems())
+        while len(tri_lepton_fake_contribution) > 0:
+            fake_contribution.Add(tri_lepton_fake_contribution.pop()[-1])
+        return fake_contribution
+
+    def merge(self, fake_histograms):
+        for key, histograms in fake_histograms.iteritems():
+            hist = histograms.pop(histograms.keys()[0])
+            for process in histograms.keys():
+                hist.Add(histograms.pop(process))
+            fake_histograms[key] = hist
+        return fake_histograms
+
+    def retrieve_fake_plot_configs(self, plot_config):
+        n_muon = plot_config.region.n_muon
+        fake_plot_configs = dict()
+        l = range(1, n_muon + 1)
+        combinations = [zip(x, l) for x in permutations(l, len(l))]
+        combinations = [i for comb in combinations for i in comb]
+        print combinations
+        combinations = filter(lambda e: e[1] >= e[0], combinations)
+        for combination in combinations:
+            fake_plot_configs[combination] = self.retrieve_single_fake_plot_config(plot_config, *combination)
+        return fake_plot_configs
+
+    @staticmethod
+    def retrieve_single_fake_plot_config(plot_config, n_fake_muon, n_total_muon):
+        pc = copy(plot_config)
+        pc.name = "fake_single_lep"
+        cut = filter(lambda cut: "muon_n" in cut, pc.cuts)[0]
+        cut_index = pc.cuts.index(cut)
+        pc.cuts[cut_index] = cut.replace("muon_n == {:d}".format(n_total_muon),
+                                         "(muon_n - muon_prompt_n) == {:d}".format(n_fake_muon))
+
+        return pc
+
+
+class MuonFakeProvider(object):
     def __init__(self, **kwargs):
+        self.file_handle = FileHandle(file_name=kwargs["fake_factor_file"])
+        self.fake_factor = None
+        self.read_fake_factors()
+
+    def read_fake_factors(self):
+        canvas_fake_factor = self.file_handle.get_object_by_name("fake_factor_pt_eta_geq0_jets_dR0.3")
+        self.fake_factor = get_objects_from_canvas_by_name(canvas_fake_factor, "fake_factor_pt_eta_geq0_jets_dR0.3")[0]
+
+    def retrieve_fake_factor(self, pt, eta, is_non_prompt):
+        if is_non_prompt == 0:
+            return 1.
+        b = self.fake_factor.FindBin(pt / 1000., eta)
+        return self.fake_factor.GetBinContent(b)
+
+
+class MuonFakeDecorator(object):
+    def __init__(self, **kwargs):
+        input_files = filter(lambda fn: "data" not in fn, kwargs["input_files"])
+        self.input_file_handles = [FileHandle(file_name=input_file, open_option="UPDATE",
+                                              run_dir=kwargs["run_dir"]) for input_file in input_files]
+        self.estimator = MuonFakeProvider(**kwargs)
+        self.tree_name = kwargs["tree_name"]
+        self.fake_factors = ROOT.std.vector('float')()
+        self.branch_name = kwargs["branch_name"]
+        self.tree = None
+        self.branch = None
+
+    def decorate_event(self):
+        self.fake_factors.clear()
+        for n_muon in range(self.tree.muon_n):
+            self.fake_factors.push_back(self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
+                                                                         self.tree.muon_eta[n_muon],
+                                                                         self.tree.muon_is_non_prompt[n_muon]))
+
+    def event_loop(self):
+        total_entries = self.tree.GetEntries()
+        for entry in range(total_entries):
+            self.tree.GetEntry(entry)
+            self.decorate_event()
+            self.branch.Fill()
+
+    def dump(self, file_handle):
+        tdir = file_handle.get_directory("Nominal")
+        tdir.cd()
+        self.tree.Write()
+        file_handle.close()
+
+    def initialise(self, file_handle):
+        self.tree = file_handle.get_objects_by_pattern(self.tree_name, "Nominal")[0]
+        self.branch = self.tree.Branch(self.branch_name, self.fake_factors)
+
+    def execute(self):
+        for file_handle in self.input_file_handles:
+            try:
+                self.initialise(file_handle)
+                self.event_loop()
+                self.dump(file_handle)
+            except Exception as e:
+                raise e
+            finally:
+                file_handle.close()
+
+
+class MuonFakeCalculator(object):
+    def __init__(self, **kwargs):
+        from PyAnalysisTools.PlottingUtils.Plotter import Plotter
         if not "input_files" in kwargs:
             raise InvalidInputError("No input files provided")
         kwargs.setdefault("lumi", 36.3)
@@ -53,7 +193,7 @@ class MuonFakeEstimator(object):
                 self.plotter.histograms = {}
                 histograms = filter(lambda hist: hist is not None, histograms)
                 self.plotter.categorise_histograms(plot_config, histograms)
-            self.plotter.apply_lumi_weights()
+            self.plotter.apply_lumi_weights(self.histograms)
             for hist_set in self.plotter.histograms.values():
                 for process_name in hist_set.keys():
                     _ = find_process_config(process_name, self.plotter.process_configs)
