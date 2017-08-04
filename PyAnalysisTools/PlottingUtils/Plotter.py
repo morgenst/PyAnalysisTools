@@ -41,6 +41,7 @@ class Plotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
+        kwargs.setdefault("module_config_file", None)
 
         super(Plotter, self).__init__(**kwargs)
         self.modules = load_modules(kwargs["module_config_file"], self)
@@ -51,7 +52,6 @@ class Plotter(BasePlotter):
         self.histograms = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.systematics_analyser = None
-        self.initialise()
         if kwargs["enable_systematics"]:
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
