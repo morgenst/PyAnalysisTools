@@ -7,7 +7,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.HistTools as HT
 import PyAnalysisTools.PlottingUtils.Formatting as FT
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, find_process_config, PlotConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, PlotConfig
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
 import pathos.multiprocessing as mp
 
@@ -16,6 +16,10 @@ class MuonFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         self.plotter = plotter_instance
         self.file_handles = filter(lambda fh: "data" not in fh.process.lower(), kwargs["file_handles"])
+        self.type = "DataProvider"
+
+    def execute(self, plot_config):
+        return "Fakes", self.get_fake_background(plot_config)
 
     def get_fake_background(self, plot_config):
         def rebuild_dict_structure():
