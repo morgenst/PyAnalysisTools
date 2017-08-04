@@ -21,9 +21,10 @@ class Region(object):
 
 
 class RegionBuilder(object):
-    def __init__(self):
+    def __init__(self, **kwargs):
         self.regions = []
         self.auto_generate_region(3)
+        self.type = "PCModifier"
 
     def auto_generate_region(self, n_leptons):
         for digits in product('0123', repeat=n_leptons):
