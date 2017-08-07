@@ -9,8 +9,7 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 class PlotConfig(object):
     def __init__(self, **kwargs):
         if "dist" not in kwargs and "is_common" not in kwargs:
-            _logger.error("Plot config does not contain distribution. Add dist key")
-            InvalidInputError("No distribution provided")
+            _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
         kwargs.setdefault("draw", "hist")
         kwargs.setdefault("outline", "hist")
