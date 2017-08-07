@@ -6,6 +6,7 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
+
 class CorrelationPlotter(object):
     def __init__(self, **kwargs):
         if not "input_file" in kwargs:
