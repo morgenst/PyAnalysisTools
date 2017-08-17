@@ -3,17 +3,25 @@ from itertools import product
 
 
 class Region(object):
-    def __init__(self, *args):
+    def __init__(self, *args, **kwargs):
         self.name = args[0]
         self.n_lep = args[1]
         self.n_electron = args[2]
         self.n_muon = args[3]
-        self.n_tau = args[4]
+        try:
+            self.n_tau = args[4]
+        except IndexError:
+            self.n_tau = 0
+        kwargs.setdefault("disable_taus", False)
+        for k, v in kwargs.iteritems():
+            setattr(self, k.lower(), v)
 
     def convert2cut_string(self):
-        return "electron_n == {:d} && muon_n == {:d} && tau_n == {:d}".format(self.n_electron,
-                                                                              self.n_muon,
-                                                                              self.n_tau)
+        if self.disable_taus:
+            return "electron_prompt_n == {:d} && muon_prompt_n == {:d}".format(self.n_electron, self.n_muon)
+        return "electron_prompt_n == {:d} && muon_prompt_n == {:d} && tau_prompt_n == {:d}".format(self.n_electron,
+                                                                                                   self.n_muon,
+                                                                                                   self.n_tau)
 
     def convert2cut_decor_string(self):
         return "".join([a*b for a, b in zip(["e^{#pm}", "#mu^{#pm}", "#tau^{#pm}"],
@@ -23,15 +31,18 @@ class Region(object):
 class RegionBuilder(object):
     def __init__(self, **kwargs):
         self.regions = []
-        self.auto_generate_region(3)
+        kwargs.setdefault("auto_generate", False)
+        kwargs.setdefault("disable_taus", False)
+        if kwargs["auto_generate"]:
+            self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"])
         self.type = "PCModifier"
 
-    def auto_generate_region(self, n_leptons):
-        for digits in product('0123', repeat=n_leptons):
+    def auto_generate_region(self, n_leptons, disable_taus):
+        for digits in product("".join(map(str, range(n_leptons+1))), repeat=n_leptons):
             comb = map(int, digits)
-            if sum(comb) == 3:
+            if sum(comb) == n_leptons:
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])
-                self.regions.append(Region(name, n_leptons, *comb))
+                self.regions.append(Region(name, n_leptons, *comb, disable_taus=disable_taus))
 
     def modify_plot_configs(self, plot_configs):
         tmp = []
