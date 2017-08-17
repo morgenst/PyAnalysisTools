@@ -24,8 +24,7 @@ class MuonFakeEstimator(object):
     def get_fake_background(self, plot_config):
         def rebuild_dict_structure():
             for key, data in fake_histograms.iteritems():
-                print data
-                hist_data = {k: v for k,v in data[0][1]}
+                hist_data = {k: v for k, v in data[0][1]}
                 fake_histograms[key] = hist_data
 
         fake_plot_configs = self.retrieve_fake_plot_configs(plot_config)
@@ -71,7 +70,6 @@ class MuonFakeEstimator(object):
         l = range(1, n_muon + 1)
         combinations = [zip(x, l) for x in permutations(l, len(l))]
         combinations = [i for comb in combinations for i in comb]
-        print combinations
         combinations = filter(lambda e: e[1] >= e[0], combinations)
         for combination in combinations:
             fake_plot_configs[combination] = self.retrieve_single_fake_plot_config(plot_config, *combination)
@@ -81,9 +79,9 @@ class MuonFakeEstimator(object):
     def retrieve_single_fake_plot_config(plot_config, n_fake_muon, n_total_muon):
         pc = copy(plot_config)
         pc.name = "fake_single_lep"
-        cut = filter(lambda cut: "muon_n" in cut, pc.cuts)[0]
+        cut = filter(lambda cut: "muon_prompt_n" in cut, pc.cuts)[0]
         cut_index = pc.cuts.index(cut)
-        pc.cuts[cut_index] = cut.replace("muon_n == {:d}".format(n_total_muon),
+        pc.cuts[cut_index] = cut.replace("muon_prompt_n == {:d}".format(n_total_muon),
                                          "(muon_n - muon_prompt_n) == {:d}".format(n_fake_muon))
 
         return pc
