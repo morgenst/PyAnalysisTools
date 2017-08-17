@@ -85,7 +85,7 @@ class RatioPlotter(object):
         return canvas
 
     def decorate_ratio_canvas(self, canvas):
-        if self.plot_config.enable_legend: #labels=self.plot_config.labels,
+        if self.plot_config.enable_legend:
             fm.add_legend_to_canvas(canvas,  **self.plot_config.__dict__)
 
     def make_ratio_tefficiency(self, ratios):
