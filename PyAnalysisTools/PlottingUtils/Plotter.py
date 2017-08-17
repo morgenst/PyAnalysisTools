@@ -262,9 +262,9 @@ class Plotter(BasePlotter):
                         plot_config_stat_unc_ratio.logy = False
                         statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(
                             self.statistical_uncertainty_hist)
-                        ratio_hist = get_objects_from_canvas_by_type(canvas_ratio, "TH1F")[0]
-                        canvas_ratio = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
-                        PT.add_histogram_to_canvas(canvas_ratio, ratio_hist, ratio_plot_config)
+                        canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, statistical_uncertainty_ratio,
+                                                                plot_config_stat_unc_ratio)
+                    ratio_plotter.decorate_ratio_canvas(canvas_ratio)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
                     self.output_handle.register_object(canvas_combined)
         self.output_handle.write_and_close()
