@@ -1,10 +1,10 @@
 import ROOT
 from copy import copy
-from array import array
-from itertools import chain
+from itertools import chain, combinations
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.HistTools as HT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
@@ -76,14 +76,19 @@ class TriggerAcceptancePlotter(BasePlotter):
     def __init__(self, **kwargs):
         kwargs.setdefault("datset_info", None)
         kwargs.setdefault("output_file_name", "plots.root")
-        self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["dataset_info"])
-                             for file_name in kwargs["input_file_list"]]
-        self.tree_name = "BaseSelection_trigger_Final"
+        self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["xs_config_file"])
+                             for file_name in kwargs["input_files"]]
+        self.tree_name = kwargs["tree_name"]
         self.trigger_list = self.build_trigger_list()
         self.hist_def = None
         super(TriggerAcceptancePlotter, self).__init__(**kwargs)
-        self.xs_handle = XSHandle(kwargs["dataset_info"])
+        self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
+        self.overlap_hist = None
+        self.unqiue_rate_hist = None
+
+    def __del__(self):
+        self.output_handle.write_and_close()
 
     def build_trigger_list(self):
         trigger_list = list(set(list(chain.from_iterable([file_handle.get_branch_names_from_tree(self.tree_name,
@@ -125,7 +130,95 @@ class TriggerAcceptancePlotter(BasePlotter):
         canvas.Modified()
         FM.decorate_canvas(canvas, self.plot_configs[0])
         self.output_handle.register_object(canvas)
-        self.output_handle.write_and_close()
+
+    def read_data(self, file_handle):
+        tree = file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
+        entries = tree.GetEntries()
+        trigger_data = {}
+        for entry in range(entries):
+            tree.GetEntry(entry)
+            for trigger in self.trigger_list:
+                try:
+                    trigger_data[trigger].append(eval("tree.{:s}".format(trigger)))
+                except KeyError:
+                    trigger_data[trigger] = [(eval("tree.{:s}".format(trigger)))]
+        return trigger_data
+
+    def get_overlap_coefficients(self, trigger_data):
+        trigger_combinations = list(combinations(self.trigger_list, 2))
+        trigger_overlap = {}
+        for comb in trigger_combinations:
+            overlap = sum(map(float, map(lambda d: d[0] == d[1] and d[0] == 1, zip(trigger_data[comb[0]],
+                                                                                   trigger_data[comb[1]]))))
+            overlap /= sum(map(float, map(lambda d: d[0] == 1 or d[1] == 1, zip(trigger_data[comb[0]],
+                                                                                trigger_data[comb[1]]))))
+            trigger_overlap[comb] = overlap
+        return trigger_overlap
+
+    def get_unique_rate(self, trigger_data):
+        trigger_unqiue_rate = {}
+        print trigger_data
+        exit(0)
+        for comb in trigger_combinations:
+            overlap = sum(map(float, map(lambda d: d[0] == d[1] and d[0] == 1, zip(trigger_data[comb[0]],
+                                                                                   trigger_data[comb[1]]))))
+            overlap /= sum(map(float, map(lambda d: d[0] == 1 or d[1] == 1, zip(trigger_data[comb[0]],
+                                                                                trigger_data[comb[1]]))))
+            trigger_overlap[comb] = overlap
+        return trigger_overlap
+
+    def plot_trigger_correlation(self):
+        for file_handle in self.file_handles:
+            trigger_data = self.read_data(file_handle)
+            overlap = self.get_overlap_coefficients(trigger_data)
+            self.output_handle.register_object(self.make_overlap_histogram("overlap_{:s}".format(file_handle.process),
+                                                                           overlap))
+
+    def plot_unqiue_trigger_rate(self):
+        for file_handle in self.file_handles:
+            trigger_data = self.read_data(file_handle)
+            unique_rate = self.get_unique_rate(trigger_data)
+            self.output_handle.register_object(self.make_unique_rate_histogram("unqiue_rate_{:s}".format(file_handle.process),
+                                                                               unique_rate))
+
+    def make_overlap_histogram(self, name, data):
+        def get_hist_def():
+            if self.overlap_hist is not None:
+                return self.overlap_hist.Clone(name)
+            self.overlap_hist = ROOT.TH2F(name, "", len(self.trigger_list), 0., len(self.trigger_list),
+                                          len(self.trigger_list), 0., len(self.trigger_list))
+            for trigger_name in self.trigger_list:
+                index = self.trigger_list.index(trigger_name)
+                self.overlap_hist.GetXaxis().SetBinLabel(index + 1,
+                                                         trigger_name.replace("_acceptance", ""))
+                self.overlap_hist.GetXaxis().SetLabelSize(0.03)
+                self.overlap_hist.GetYaxis().SetBinLabel(len(self.trigger_list) - index,
+                                                         trigger_name.replace("_acceptance", ""))
+                self.overlap_hist.GetYaxis().SetLabelSize(0.03)
+
+        get_hist_def()
+        for comb, overlap in data.iteritems():
+            self.overlap_hist.Fill(comb[0].replace("_acceptance", ""), comb[1].replace("_acceptance", ""), overlap)
+            self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
+        plot_config = pc(name=name, draw_option="COLZTEXT")
+        return PT.plot_2d_hist(self.overlap_hist, plot_config=plot_config)
+
+    def make_unique_rate_histogram(self, name, data):
+        def get_hist_def():
+            if self.unique_rate_hist is not None:
+                return self.unique_rate_hist.Clone(name)
+            self.unique_rate_hist = ROOT.TH1F(name, "", len(self.trigger_list), 0., len(self.trigger_list))
+            for trigger_name in self.trigger_list:
+                index = self.trigger_list.index(trigger_name)
+                self.unqiue_rate_hist.GetXaxis().SetBinLabel(index + 1, trigger_name.replace("_acceptance", ""))
+                self.unqiue_rate_hist.GetXaxis().SetLabelSize(0.03)
+
+        get_hist_def()
+        for comb, overlap in data.iteritems():
+            self.overlap_hist.Fill(comb[0].replace("_acceptance", ""), comb[1].replace("_acceptance", ""), overlap)
+            self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
+        plot_config = pc(name=name, draw_option="HIST")
+        return PT.plot_hist(self.unqiue_rate_hist, plot_config=plot_config)
 
     def make_histograms(self, data):
         histograms = {}

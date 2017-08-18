@@ -6,17 +6,18 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
+
 class CorrelationPlotter(object):
     def __init__(self, **kwargs):
         if not "input_file" in kwargs:
             _logger.error("No input file provided")
             InvalidInputError("Missing input file")
-        if not "tree" in kwargs:
+        if not "tree_name" in kwargs:
             _logger.error("No tree name provided")
             InvalidInputError("Missing tree name")
-        self.file_handle = FileHandle(kwargs["input_file"])
-        self.tree_name = kwargs["tree"]
-        self.tree = self.file_handle.get_object_by_name(self.tree_name)
+        self.file_handle = FileHandle(file_name=kwargs["input_file"])
+        self.tree_name = kwargs["tree_name"]
+        self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
         kwargs.setdefault("output_file", "correlation_%s.root" % self.file_handle.parse_process())
         for k, v in kwargs.iteritems():
             if k in ["input_files", "tree"]:
@@ -62,14 +63,15 @@ class CorrelationPlotter(object):
                                  ybins=100,
                                  draw="COLZ")
         hist = self.__class__.get_histogram_definition(plot_config)
-        self.file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist)
+        self.file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, tdirectory="Nominal")
         correlation_coefficient = hist.GetCorrelationFactor()
         self.fill_correlation_coefficient(correlation_coefficient, *combination)
         canvas = PT.plot_hist(hist, plot_config)
         self.output_handle.register_object(canvas)
 
-    def make_correlation_plots(self):
-        variables = self.file_handle.get_branch_names_from_tree(self.tree_name)
+    def make_correlation_plots(self, variables=None):
+        if variables is None:
+            variables = self.file_handle.get_branch_names_from_tree(self.tree_name)
         variable_combinations = list(combinations(variables, 2))
         self.prepare_correlation_coefficient_hist(variables)
         for combination in variable_combinations:
@@ -78,7 +80,7 @@ class CorrelationPlotter(object):
             self.fill_correlation_coefficient(1., variable, variable)
         canvas = PT.plot_hist(self.correlation_coeff_hist, self.plot_config)
         self.output_handle.register_object(canvas)
-        self.output_handle._write_and_close()
+        self.output_handle.write_and_close()
 
     def prepare_correlation_coefficient_hist(self, variables):
         bins=len(variables)

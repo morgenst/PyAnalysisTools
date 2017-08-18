@@ -1,7 +1,8 @@
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils import Formatting as fm
-from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils import PlottingTools as pt
+from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils.HistTools import get_colors
 
 
@@ -9,6 +10,7 @@ class RatioCalculator(object):
     def __init__(self, **kwargs):
         self.reference = kwargs["reference"]
         self.compare = kwargs["compare"]
+        self.rebin = kwargs["rebin"]
 
     def calculate_ratio(self):
         if isinstance(self.reference, ROOT.TEfficiency):
@@ -42,6 +44,9 @@ class RatioCalculator(object):
         return ratio_graph
 
     def calculate_ratio_hist(self, compare):
+        if self.rebin:
+            compare = ht.rebin(compare, self.rebin)
+            self.reference = ht.rebin(self.reference, self.rebin)
         ratio_hist = compare.Clone("ratio_" + compare.GetName())
         ratio_hist.Divide(self.reference)
         fm.set_title_y(ratio_hist, "ratio")
@@ -75,13 +80,13 @@ class RatioPlotter(object):
             colors = get_colors(self.compare)
             self.plot_config.color = colors
         self.plot_config.ordering = None
-        canvas = PT.plot_histograms(ratios, self.plot_config)
+        canvas = pt.plot_histograms(ratios, self.plot_config)
         return canvas
 
     def add_uncertainty_to_canvas(self, canvas, hist, plot_config):
         ratio_hist = fm.get_objects_from_canvas_by_type(canvas, "TH1F")[0]
-        canvas = PT.plot_hist(hist, plot_config)
-        PT.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
+        canvas = pt.plot_hist(hist, plot_config)
+        pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
         return canvas
 
     def decorate_ratio_canvas(self, canvas):
@@ -101,9 +106,9 @@ class RatioPlotter(object):
         ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         if colors is not None:
             self.plot_config.color = colors[0]
-        ratio_canvas = PT.plot_graph(ratios[0], self.plot_config)
+        ratio_canvas = pt.plot_graph(ratios[0], self.plot_config)
         for ratio in ratios[1:]:
             if colors is not None:
                 self.plot_config.color = colors[ratios.index(ratio)]
-            PT.add_graph_to_canvas(ratio_canvas, ratio, self.plot_config)
+            pt.add_graph_to_canvas(ratio_canvas, ratio, self.plot_config)
         return ratio_canvas

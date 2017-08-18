@@ -255,6 +255,9 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault("systematics", None)
         kwargs.setdefault("ref_mod_modules", None)
         kwargs.setdefault("inp_mod_modules", None)
+        kwargs.setdefault("read_hist", False)
+        kwargs.setdefault("n_files_handles", 1)
+        kwargs.setdefault("nfile_handles", 1)
         set_batch_mode(kwargs["batch"])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
@@ -270,14 +273,15 @@ class ComparisonPlotter(BasePlotter):
         if "reference_merge_file" in kwargs:
             self.ref_process_configs = parse_and_build_process_config(kwargs["reference_merge_file"])
         if "merge_file" in kwargs:
-            self.process_config = parse_and_build_process_config(kwargs["reference_merge_file"])
+            self.process_config = parse_and_build_process_config(kwargs["merge_file"])
         self.ref_mod_modules = [SubtractionHandle(subtract_items=["Wtaunu"], output_name="WmunuData",
                                                   reference_item="Data", process_configs=self.ref_process_configs)]
         self.analyse_plot_config()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
 
-
     def analyse_plot_config(self):
+        if self.plot_configs is None:
+            return None
         pc = next((pc for pc in self.plot_configs if pc.name == "parse_from_file"), None)
         if pc is None:
             return
@@ -308,13 +312,13 @@ class ComparisonPlotter(BasePlotter):
             self.make_comparison_plot(plot_config, hists)
         self.output_handle.write_and_close()
 
-    def make_comparison_plot(self, plot_config, data):
+    def make_comparison_plot(self, plot_config, data, plot_config_compare = None):
         reference_hists = data[0]
         hists = data[1]
         labels = None
-        if self.ref_mod_modules:
-            for mod in self.ref_mod_modules:
-                reference_hists = mod.execute(reference_hists)
+        # if self.ref_mod_modules:
+        #     for mod in self.ref_mod_modules:
+        #         reference_hists = mod.execute(reference_hists)
         if isinstance(reference_hists, dict):
             reference_hists_dict = copy(reference_hists)
             hists_dict = copy(hists)
@@ -341,6 +345,7 @@ class ComparisonPlotter(BasePlotter):
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         canvas = PT.plot_obj(reference_hists[0], plot_config)
+
         for hist in reference_hists[1:]:
             PT.add_object_to_canvas(canvas, hist, plot_config)
         for hist in hists:
@@ -350,7 +355,10 @@ class ComparisonPlotter(BasePlotter):
             except IndexError:
                 _logger.warning("Run of colors in palette. Using black as default")
                 plot_config.color = ROOT.kBlack
-            PT.add_object_to_canvas(canvas, hist, plot_config)
+            pc = plot_config
+            if plot_config_compare is not None:
+                pc = plot_config_compare
+            PT.add_object_to_canvas(canvas, hist, plot_config_compare)
         canvas.Modified()
         canvas.Update()
         FM.decorate_canvas(canvas, plot_config)
@@ -364,14 +372,17 @@ class ComparisonPlotter(BasePlotter):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                 len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
-        FM.add_legend_to_canvas(canvas, labels=labels, **plot_config.legend_options)
+        FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
+                                **plot_config.legend_options)
+        rebin = plot_config.rebin
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
         if hasattr(plot_config, "ratio_config"):
             plot_config = plot_config.ratio_config
-        plot_config.name = "ratio_" + plot_config.name
+        if not plot_config.name.startswith("ratio"):
+            plot_config.name = "ratio_" + plot_config.name
         canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
-                                    plot_config=plot_config).make_ratio_plot()
+                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)

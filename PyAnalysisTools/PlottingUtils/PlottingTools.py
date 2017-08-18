@@ -64,6 +64,8 @@ def plot_hist(hist, plot_config, **kwargs):
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
+    if hasattr(plot_config, "logx") and plot_config.logx:
+        canvas.SetLogx()
     if hasattr(plot_config, "axis_labels") and plot_config.axis_labels is not None:
         for b in range(len(plot_config.axis_labels)):
             hist.GetXaxis().SetBinLabel(b+1, plot_config.axis_labels[b])
@@ -142,7 +144,7 @@ def format_hist(hist, plot_config):
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
     if hasattr(plot_config, "normalise") and plot_config.normalise:
-        HT.normalise(hist)
+        HT.normalise(hist, plot_config.normalise_range)
         yscale = 1.1
         if hasattr(plot_config, "yscale"):
             yscale = yscale
@@ -217,15 +219,18 @@ def plot_histograms(hists, plot_config, process_configs=None):
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
-            FM.set_minimum_y(hist, plot_config.y_min)
+            FM.set_minimum_y(hist, plot_config.ymin)
             FM.set_maximum_y(hist, max_y)
+            if plot_config.xmin:
+                FM.set_minimum(hist, plot_config.xmin, "x")
             if plot_config.logy:
                 if hasattr(plot_config, "ymin"):
                     hist.SetMinimum(max(1., plot_config.ymin))
                 else:
                     hist.SetMinimum(0.0001)
                 canvas.SetLogy()
-
+            if plot_config.logx:
+                canvas.SetLogx()
             if hasattr(plot_config, "ymax"):
                 hist.SetMaximum(plot_config.ymax)
             format_hist(hist, plot_config)
@@ -254,13 +259,16 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
 
 def add_histogram_to_canvas(canvas, hist, plot_config, process_config = None):
     canvas.cd()
+
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
     if style_attr is not None:
-        getattr(hist, "Set" + style_setter + "Style")(style_attr)
+        for ss in style_setter:
+            getattr(hist, "Set" + ss + "Style")(style_attr)
     if color is not None:
-        getattr(hist, "Set" + style_setter + "Color")(color)
+        for ss in style_setter:
+            getattr(hist, "Set" + ss + "Color")(color)
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
@@ -467,12 +475,16 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     scale = 1. / y_frac - 1.5
     reset_frame_text(hratio)
     scale_frame_text(hratio, scale)
-
     ratio.Update()
     ratio.SetBottomMargin(0.4)
     ratio.DrawClonePad()
+    pad2.Update()
     xlow = pad2.GetUxmin()
     xup = pad2.GetUxmax()
+    if ratio.GetLogx():
+        stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+        xlow = stack.GetXaxis().GetXmin()
+        xup = stack.GetXaxis().GetXmax()
     line = ROOT.TLine(xlow, 1, xup, 1)
     line.Draw('same')
     pad2.Update()

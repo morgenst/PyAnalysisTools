@@ -66,7 +66,7 @@ def merge_overflow_bins(hists, x_max=None):
         _merge_overflow_bins_1d(hists, x_max)
 
 
-def _merge_overflow_bins_1d(hist, x_max):
+def _merge_overflow_bins_1d(hist, x_max=None):
     if x_max:
         last_visible_bin = hist.FindBin(x_max)
     else:
@@ -78,7 +78,9 @@ def scale(hist, weight):
     hist.Scale(weight)
 
 
-def normalise(histograms, integration_range=[-1, -1]):
+def normalise(histograms, integration_range=None):
+    if integration_range is None:
+        integration_range = [-1, -1]
     if type(histograms) == dict:
         for h in histograms.keys():
             histograms[h] = _normalise_1d_hist(histograms[h], integration_range)

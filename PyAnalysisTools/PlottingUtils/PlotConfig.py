@@ -9,8 +9,7 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 class PlotConfig(object):
     def __init__(self, **kwargs):
         if "dist" not in kwargs and "is_common" not in kwargs:
-            _logger.error("Plot config does not contain distribution. Add dist key")
-            InvalidInputError("No distribution provided")
+            _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
         kwargs.setdefault("draw", "hist")
         kwargs.setdefault("outline", "hist")
@@ -20,6 +19,7 @@ class PlotConfig(object):
         kwargs.setdefault("merge", True)
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
+        kwargs.setdefault("rebin", None)
         kwargs.setdefault("weight", False)
         kwargs.setdefault("blind", None)
         kwargs.setdefault("legend_options", dict())
@@ -28,11 +28,14 @@ class PlotConfig(object):
         kwargs.setdefault("ordering", None)
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
+        kwargs.setdefault("normalise_range", None)
         kwargs.setdefault("logy", False)
+        kwargs.setdefault("logx", False)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config":
+                v["logx"] = kwargs["logx"]
                 self.set_ratio_config(**v)
                 continue
 
@@ -49,6 +52,12 @@ class PlotConfig(object):
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
         self.ratio_config = PlotConfig(**kwargs)
+
+    def __str__(self):
+        obj_str = "Plot config: {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            obj_str += '{}={} '.format(attribute, value)
+        return obj_str
 
     @staticmethod
     def get_overwritable_options():
@@ -208,17 +217,19 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         color = transform_color(process_config.color)
     if hasattr(plot_config, "color"):
         color = transform_color(plot_config.color)
-    if draw_option.lower() == "hist" or re.match(r"e\d",draw_option.lower()):
+    if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if style_attr:
             style_setter = "Fill"
         else:
-            style_setter = "Line"
+            style_setter = ["Line", "Marker", "Fill"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
         style_setter = "Marker"
     elif draw_option.lower() == "line":
         style_setter = "Line"
     # else:
     #     style_attr = None
+    if not isinstance(style_setter, list):
+        style_setter = [style_setter]
     return style_setter, style_attr, color
 
 
