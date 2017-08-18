@@ -28,6 +28,7 @@ class PlotConfig(object):
         kwargs.setdefault("ordering", None)
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
+        kwargs.setdefault("xmin", None)
         kwargs.setdefault("normalise_range", None)
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
@@ -51,6 +52,7 @@ class PlotConfig(object):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
+        kwargs.setdefault("enable_legend", False)
         self.ratio_config = PlotConfig(**kwargs)
 
     def __str__(self):
