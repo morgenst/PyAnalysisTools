@@ -281,7 +281,10 @@ def add_legend_to_canvas(canvas, **kwargs):
             plot_objects.append(plot_obj)
             continue
         if "process_configs" in kwargs and kwargs["process_configs"] is not None:
-            label = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"]).label
+            try:
+                label = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"]).label
+            except AttributeError:
+                pass
         if "labels" in kwargs:
             label = kwargs["labels"][plot_objects.index(plot_obj)]
         is_stacked = False
