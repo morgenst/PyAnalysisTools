@@ -2,7 +2,7 @@ import re
 import ROOT
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
 
 
@@ -267,10 +267,21 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     legend.SetTextSize(0.025)
-    plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
-    plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
-    stacks = get_objects_from_canvas_by_type(canvas, "THStack")
-    plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
+    labels = None
+    stacks = []
+    if "labels" in kwargs:
+        labels = kwargs["labels"]
+    if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
+        plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
+        stacks = get_objects_from_canvas_by_type(canvas, "THStack")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
+    else:
+        labels = {}
+        plot_objects = []
+        for hist_pattern, lab in kwargs["labels"].iteritems():
+            plot_objects.append(get_objects_from_canvas_by_name(canvas, hist_pattern)[0])
+            labels[get_objects_from_canvas_by_name(canvas, hist_pattern)[0].GetName()] = lab
     stacked_objects = None
     if len(stacks) is not 0:
         stacked_objects = stacks[0].GetHists()
@@ -285,8 +296,12 @@ def add_legend_to_canvas(canvas, **kwargs):
                 label = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"]).label
             except AttributeError:
                 pass
-        if "labels" in kwargs:
-            label = kwargs["labels"][plot_objects.index(plot_obj)]
+        if "labels" is not None:
+            if isinstance(labels, list):
+                label = labels[plot_objects.index(plot_obj)]
+            if isinstance(labels, dict):
+                if plot_obj.GetName() in labels:
+                    label = labels[plot_obj.GetName()]
         is_stacked = False
         if stacked_objects and plot_obj in stacked_objects:
             is_stacked = True

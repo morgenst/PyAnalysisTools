@@ -18,6 +18,7 @@ from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
+from PyAnalysisTools.base.Modules import load_modules
 
 
 class Plotter(BasePlotter):
@@ -40,8 +41,10 @@ class Plotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
+        kwargs.setdefault("module_config_file", None)
 
         super(Plotter, self).__init__(**kwargs)
+        self.modules = load_modules(kwargs["module_config_file"], self)
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
@@ -49,10 +52,10 @@ class Plotter(BasePlotter):
         self.histograms = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.systematics_analyser = None
-        self.initialise()
         if kwargs["enable_systematics"]:
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
-        self.modules = [RegionBuilder()]
+        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
 
     def initialise(self):
@@ -169,7 +172,7 @@ class Plotter(BasePlotter):
 
     def make_plots(self):
         self.read_cutflows()
-        for mod in self.modules:
+        for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
         fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
                                                                                                file_handles=self.file_handles),
@@ -192,8 +195,8 @@ class Plotter(BasePlotter):
             self.systematics_analyser.retrieve_total_systematics()
 
         for plot_config, data in self.histograms.iteritems():
-            fake_hist = self.fake_estimator.get_fake_background(plot_config)
-            data["Fakes"] = fake_hist
+            for mod in self.modules_data_providers:
+                data.update([mod.execute(plot_config)])
             data = {k: v for k, v in data.iteritems() if v}
             if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])
@@ -260,9 +263,9 @@ class Plotter(BasePlotter):
                         plot_config_stat_unc_ratio.logy = False
                         statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(
                             self.statistical_uncertainty_hist)
-                        ratio_hist = get_objects_from_canvas_by_type(canvas_ratio, "TH1F")[0]
-                        canvas_ratio = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
-                        PT.add_histogram_to_canvas(canvas_ratio, ratio_hist, ratio_plot_config)
+                        canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, statistical_uncertainty_ratio,
+                                                                plot_config_stat_unc_ratio)
+                    ratio_plotter.decorate_ratio_canvas(canvas_ratio)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
                     self.output_handle.register_object(canvas_combined)
         self.output_handle.write_and_close()

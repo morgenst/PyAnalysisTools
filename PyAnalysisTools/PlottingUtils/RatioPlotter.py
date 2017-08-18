@@ -80,7 +80,18 @@ class RatioPlotter(object):
             colors = get_colors(self.compare)
             self.plot_config.color = colors
         self.plot_config.ordering = None
-        return pt.plot_histograms(ratios, self.plot_config)
+        canvas = pt.plot_histograms(ratios, self.plot_config)
+        return canvas
+
+    def add_uncertainty_to_canvas(self, canvas, hist, plot_config):
+        ratio_hist = fm.get_objects_from_canvas_by_type(canvas, "TH1F")[0]
+        canvas = pt.plot_hist(hist, plot_config)
+        pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
+        return canvas
+
+    def decorate_ratio_canvas(self, canvas):
+        if self.plot_config.enable_legend:
+            fm.add_legend_to_canvas(canvas,  **self.plot_config.__dict__)
 
     def make_ratio_tefficiency(self, ratios):
         c = ROOT.TCanvas("C", "C")

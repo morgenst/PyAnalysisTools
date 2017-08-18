@@ -80,7 +80,7 @@ class FileHandle(object):
             move(self.file_name, self.initial_file_name)
 
     def parse_process(self, switch_off_analysis=False):
-
+        #return "data"
         def analyse_process_name():
             if "data" in process_name:
                 try:

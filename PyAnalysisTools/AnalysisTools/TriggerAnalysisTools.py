@@ -85,6 +85,7 @@ class TriggerAcceptancePlotter(BasePlotter):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.overlap_hist = None
+        self.unqiue_rate_hist = None
 
     def __del__(self):
         self.output_handle.write_and_close()
@@ -154,12 +155,31 @@ class TriggerAcceptancePlotter(BasePlotter):
             trigger_overlap[comb] = overlap
         return trigger_overlap
 
+    def get_unique_rate(self, trigger_data):
+        trigger_unqiue_rate = {}
+        print trigger_data
+        exit(0)
+        for comb in trigger_combinations:
+            overlap = sum(map(float, map(lambda d: d[0] == d[1] and d[0] == 1, zip(trigger_data[comb[0]],
+                                                                                   trigger_data[comb[1]]))))
+            overlap /= sum(map(float, map(lambda d: d[0] == 1 or d[1] == 1, zip(trigger_data[comb[0]],
+                                                                                trigger_data[comb[1]]))))
+            trigger_overlap[comb] = overlap
+        return trigger_overlap
+
     def plot_trigger_correlation(self):
         for file_handle in self.file_handles:
             trigger_data = self.read_data(file_handle)
             overlap = self.get_overlap_coefficients(trigger_data)
             self.output_handle.register_object(self.make_overlap_histogram("overlap_{:s}".format(file_handle.process),
                                                                            overlap))
+
+    def plot_unqiue_trigger_rate(self):
+        for file_handle in self.file_handles:
+            trigger_data = self.read_data(file_handle)
+            unique_rate = self.get_unique_rate(trigger_data)
+            self.output_handle.register_object(self.make_unique_rate_histogram("unqiue_rate_{:s}".format(file_handle.process),
+                                                                               unique_rate))
 
     def make_overlap_histogram(self, name, data):
         def get_hist_def():
@@ -182,6 +202,23 @@ class TriggerAcceptancePlotter(BasePlotter):
             self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
         plot_config = pc(name=name, draw_option="COLZTEXT")
         return PT.plot_2d_hist(self.overlap_hist, plot_config=plot_config)
+
+    def make_unique_rate_histogram(self, name, data):
+        def get_hist_def():
+            if self.unique_rate_hist is not None:
+                return self.unique_rate_hist.Clone(name)
+            self.unique_rate_hist = ROOT.TH1F(name, "", len(self.trigger_list), 0., len(self.trigger_list))
+            for trigger_name in self.trigger_list:
+                index = self.trigger_list.index(trigger_name)
+                self.unqiue_rate_hist.GetXaxis().SetBinLabel(index + 1, trigger_name.replace("_acceptance", ""))
+                self.unqiue_rate_hist.GetXaxis().SetLabelSize(0.03)
+
+        get_hist_def()
+        for comb, overlap in data.iteritems():
+            self.overlap_hist.Fill(comb[0].replace("_acceptance", ""), comb[1].replace("_acceptance", ""), overlap)
+            self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
+        plot_config = pc(name=name, draw_option="HIST")
+        return PT.plot_hist(self.unqiue_rate_hist, plot_config=plot_config)
 
     def make_histograms(self, data):
         histograms = {}
