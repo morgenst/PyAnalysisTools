@@ -8,6 +8,7 @@ from PyAnalysisTools.PlottingUtils.HistTools import get_colors
 
 class RatioCalculator(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("rebin", None)
         self.reference = kwargs["reference"]
         self.compare = kwargs["compare"]
         self.rebin = kwargs["rebin"]

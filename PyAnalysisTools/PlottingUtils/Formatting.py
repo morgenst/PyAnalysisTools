@@ -18,9 +18,11 @@ def load_atlas_style():
 def apply_style(obj, plot_config, process_config):
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     if style_attr is not None:
-        getattr(obj, "Set" + style_setter + "Style")(style_attr)
+        for setter in style_setter:
+            getattr(obj, "Set" + setter + "Style")(style_attr)
     if color is not None:
-        getattr(obj, "Set" + style_setter + "Color")(color)
+        for setter in style_setter:
+            getattr(obj, "Set" + setter + "Color")(color)
 
 
 def decorate_canvas(canvas, plot_config):
