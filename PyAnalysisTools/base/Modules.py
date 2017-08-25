@@ -1,6 +1,7 @@
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
+from PyAnalysisTools.AnalysisTools.RegionSummaryModule import RegionSummaryModule
 
 
 class Module(object):
