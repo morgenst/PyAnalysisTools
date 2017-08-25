@@ -69,6 +69,8 @@ class RegionBuilder(object):
             comb = map(int, digits)
             if sum(comb) == n_leptons:
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])
+                if disable_taus and comb[2] > 0:
+                    continue
                 if split_z_mass:
                     self.regions.append(Region(name=name + "_onZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
                                                n_tau=comb[2], disable_taus=disable_taus, is_on_z=True))
