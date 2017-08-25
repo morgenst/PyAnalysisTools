@@ -56,6 +56,7 @@ class Plotter(BasePlotter):
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
 
     def initialise(self):
@@ -174,9 +175,12 @@ class Plotter(BasePlotter):
         self.read_cutflows()
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
-        fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
-                                                                                               file_handles=self.file_handles),
-                                                                                       self.plot_configs)
+        if len(self.modules_hist_fetching) == 0:
+            fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
+                                                                                                   file_handles=self.file_handles),
+                                                                                           self.plot_configs)
+        else:
+            fetched_histograms = [(self.plot_configs[0], self.modules_hist_fetching[0].fetch())]
         for plot_config, histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
             self.categorise_histograms(plot_config, histograms)
@@ -241,7 +245,7 @@ class Plotter(BasePlotter):
                         if key == "Data":
                             continue
                         if mc_total is None:
-                            mc_total = hist.Clone("mc_total_%s" % plot_config.dist)
+                            mc_total = hist.Clone("mc_total_%s" % plot_config.name)
                             continue
                         mc_total.Add(hist)
                     if hasattr(plot_config, "ratio_config"):
