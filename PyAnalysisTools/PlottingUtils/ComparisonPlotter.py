@@ -12,7 +12,8 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
-
+from PyAnalysisTools.base.Modules import load_modules
+from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 
 class ComparisonReader(object):
     def __init__(self, **kwargs):
@@ -22,6 +23,7 @@ class ComparisonReader(object):
         kwargs.setdefault("reference_files", None)
         kwargs.setdefault("reference_dataset_info", None)
         kwargs.setdefault("xs_config_file", None)
+        kwargs.setdefault("systematics", "Nominal")
         self.input_files = kwargs["input_files"]
         self.reference_files = kwargs["reference_files"]
         self.tree_name = kwargs["tree_name"]
@@ -58,6 +60,8 @@ class ComparisonReader(object):
         hist.SetName(hist.GetName() + file_handle.process)
         if tree_name is None:
             tree_name = self.tree_name
+        if self.systematics is None:
+            self.systematics = "Nominal"
         try:
             file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, None,
                                                     tdirectory=self.systematics)
@@ -252,12 +256,14 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault("tree_name", None)
         kwargs.setdefault("output_dir", "./")
         kwargs.setdefault("process_config_file", None)
-        kwargs.setdefault("systematics", None)
+        kwargs.setdefault("systematics", "Nominal")
         kwargs.setdefault("ref_mod_modules", None)
         kwargs.setdefault("inp_mod_modules", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault("n_files_handles", 1)
         kwargs.setdefault("nfile_handles", 1)
+        kwargs.setdefault("ref_module_config_file", None)
+        kwargs.setdefault("module_config_file", None)
         set_batch_mode(kwargs["batch"])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
@@ -267,16 +273,19 @@ class ComparisonPlotter(BasePlotter):
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
-        if self.systematics is None:
-            self.systematics = "Nominal"
+        # if self.systematics is None:
+        #     self.systematics = "Nominal"
         self.ref_process_configs = None
         if "reference_merge_file" in kwargs:
             self.ref_process_configs = parse_and_build_process_config(kwargs["reference_merge_file"])
         if "merge_file" in kwargs:
             self.process_config = parse_and_build_process_config(kwargs["merge_file"])
-        self.ref_mod_modules = [SubtractionHandle(subtract_items=["Wtaunu"], output_name="WmunuData",
-                                                  reference_item="Data", process_configs=self.ref_process_configs)]
+        self.ref_modules = load_modules(kwargs["ref_mod_modules"], self)
+        self.modules = load_modules(kwargs["module_config_file"], self)
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.module_filters = [m for m in self.modules if m.type == "Filter"]
         self.analyse_plot_config()
+        #self.update_color_palette()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
 
     def analyse_plot_config(self):
@@ -316,9 +325,12 @@ class ComparisonPlotter(BasePlotter):
         reference_hists = data[0]
         hists = data[1]
         labels = None
-        # if self.ref_mod_modules:
-        #     for mod in self.ref_mod_modules:
-        #         reference_hists = mod.execute(reference_hists)
+        for mod in self.ref_modules:
+            reference_hists = mod.execute(reference_hists)
+        for mod in self.modules_data_providers:
+            hists = mod.execute(hists)
+        for mod in self.module_filters:
+            hists = mod.execute(hists)
         if isinstance(reference_hists, dict):
             reference_hists_dict = copy(reference_hists)
             hists_dict = copy(hists)
@@ -345,7 +357,6 @@ class ComparisonPlotter(BasePlotter):
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         canvas = PT.plot_obj(reference_hists[0], plot_config)
-
         for hist in reference_hists[1:]:
             PT.add_object_to_canvas(canvas, hist, plot_config)
         for hist in hists:
@@ -358,7 +369,7 @@ class ComparisonPlotter(BasePlotter):
             pc = plot_config
             if plot_config_compare is not None:
                 pc = plot_config_compare
-            PT.add_object_to_canvas(canvas, hist, plot_config_compare)
+            PT.add_object_to_canvas(canvas, hist, pc, self.process_configs)
         canvas.Modified()
         canvas.Update()
         FM.decorate_canvas(canvas, plot_config)

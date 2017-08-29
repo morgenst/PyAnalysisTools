@@ -32,9 +32,9 @@ def plot_objects(objects, plot_config, process_configs=None):
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
 
-def add_object_to_canvas(canvas, obj, plot_config):
+def add_object_to_canvas(canvas, obj, plot_config, process_config=None):
     if isinstance(obj, ROOT.TH1):
-        add_histogram_to_canvas(canvas, obj, plot_config)
+        add_histogram_to_canvas(canvas, obj, plot_config, process_config)
     if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
         add_graph_to_canvas(canvas, obj, plot_config)
 
@@ -212,7 +212,9 @@ def plot_histograms(hists, plot_config, process_configs=None):
                     hist_color = color[hists.index(hist)]
                 elif isinstance(hists, dict):
                     hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
-            getattr(hist, "Set" + style_setter + "Color")(hist_color)
+            if style_attr is not None:
+                for setter in style_setter:
+                    getattr(hist, "Set" + setter + "Style")(style_attr)
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
@@ -254,9 +256,8 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
     canvas.Update()
 
 
-def add_histogram_to_canvas(canvas, hist, plot_config, process_config = None):
+def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None):
     canvas.cd()
-
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
