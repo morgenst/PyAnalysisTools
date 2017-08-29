@@ -16,23 +16,27 @@ class XSInfo(object):
     def __init__(self, dataset):
         if dataset.is_data:
             return
-        self.xsec = dataset.cross_section
-        self.kfactor = 1.
-        self.filtereff = 1.
-        if hasattr(dataset, "kfactor"):
-            self.kfactor = dataset.kfactor
-        if hasattr(dataset, "filtereff"):
-            self.filtereff = dataset.filtereff
+        for attr, val in dataset.__dict__.iteritems():
+            setattr(self, attr, val)
+        self.xsec = self.cross_section
+        if not hasattr(dataset, "kfactor"):
+            self.kfactor = 1.
+        if not hasattr(dataset, "filtereff"):
+            self.filtereff = 1.
 
 
 class XSHandle(object):
-    def __init__(self, cross_section_file):
+    def __init__(self, cross_section_file, read_dsid=False):
         if cross_section_file is None:
             self.invalid = True
             return
         self.invalid = False
-        self.cross_sections = {value.process_name: XSInfo(value)
-                               for value in YAMLLoader.read_yaml(cross_section_file).values() if value.is_mc}
+        if not read_dsid:
+            self.cross_sections = {value.process_name: XSInfo(value)
+                                   for value in YAMLLoader.read_yaml(cross_section_file).values() if value.is_mc}
+        else:
+            self.cross_sections = {key: XSInfo(val)
+                                   for key, val in YAMLLoader.read_yaml(cross_section_file).iteritems() if val.is_mc}
 
     def get_xs_scale_factor(self, process):
         if self.invalid:
@@ -65,3 +69,6 @@ class XSHandle(object):
 
     def get_lumi_scale_factor(self, process, lumi, mc_events):
         return self.get_xs_scale_factor(process) * lumi * 1000. * 1000. / mc_events
+
+    def get_ds_info(self, process, element):
+        return getattr(self.cross_sections[process], element)
