@@ -14,8 +14,10 @@ import pathos.multiprocessing as mp
 
 class MuonFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
+        kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
         self.file_handles = filter(lambda fh: "data" not in fh.process.lower(), kwargs["file_handles"])
+        self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
     def execute(self, plot_config):
@@ -39,7 +41,7 @@ class MuonFakeEstimator(object):
         self.plotter.apply_lumi_weights(fake_histograms)
         fake_histograms = self.merge(fake_histograms)
         fake_hist = self.build_fake_contribution(fake_histograms)
-        fake_hist.SetName(plot_config.name + "_Fakes")
+        fake_hist.SetName("{:s}_{:s}".format(plot_config.name, self.sample_name))
         return fake_hist
 
     @staticmethod
