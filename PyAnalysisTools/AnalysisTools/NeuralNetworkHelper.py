@@ -101,9 +101,11 @@ class NNTrainer(object):
         preds_bkg_train = preds_train[self.label_eval == 0]
         if self.plot:
             _logger.debug("Consistency plots")
-            plt.hist(preds_sig_train, 20, range=[0., 1.], histtype='step', label='signal model0')
-            plt.hist(preds_bkg_train, 20, range=[0., 1.], histtype='step', label='bkg model1')
-            plt.legend(["signal", "background"])
+            plt.hist(preds_sig_train, 20, range=[0., 1.], histtype='step', label='signal model0', normed=True)
+            plt.hist(preds_bkg_train, 20, range=[0., 1.], histtype='step', label='bkg model1', normed=True)
+            plt.yscale('log')
+            plt.grid(True)
+            plt.legend(["signal", "background"], loc="lower left")
             plt.savefig(os.path.join(self.output_path, "plots/consistency_sig_train.png"))
 
 
