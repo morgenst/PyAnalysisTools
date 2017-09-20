@@ -171,6 +171,13 @@ class Plotter(BasePlotter):
                 continue
         return signals
 
+    def scale_signals(self, signals, plot_config):
+        for process, signal_hist in signals.iteritems():
+            label_postfix = "(x {:.0f})".format(plot_config.signal_scale)
+            if label_postfix not in self.process_configs[process].label:
+                self.process_configs[process].label += label_postfix
+            HT.scale(signal_hist, plot_config.signal_scale)
+
     def make_plots(self):
         self.read_cutflows()
         for mod in self.modules_pc_modifiers:
@@ -206,6 +213,8 @@ class Plotter(BasePlotter):
                 HT.normalise(data, integration_range=[0, -1])
             HT.merge_overflow_bins(data)
             signals = self.get_signal_hists(data)
+            if plot_config.signal_scale is not None:
+                self.scale_signals(signals, plot_config)
             if plot_config.outline == "stack" and not plot_config.is_multidimensional:
                 canvas = PT.plot_stack(data, plot_config=plot_config,
                                        process_configs=self.process_configs)

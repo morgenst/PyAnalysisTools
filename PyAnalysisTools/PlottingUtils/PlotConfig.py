@@ -32,6 +32,7 @@ class PlotConfig(object):
         kwargs.setdefault("normalise_range", None)
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
+        kwargs.setdefault("signal_scale", None)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
@@ -63,7 +64,7 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw", "ordering"]
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
