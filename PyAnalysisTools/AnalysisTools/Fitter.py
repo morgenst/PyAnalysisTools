@@ -1,11 +1,11 @@
 import ROOT
 import PyAnalysisTools.PlottingUtils.Formatting as fm
-from ROOT import RooFit
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.AnalysisTools.FitHelpers import convert, flatten_tree
+from PyAnalysisTools.AnalysisTools.FitHelpers import convert
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
+from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
 
 
 class PDFConfig(object):
@@ -67,5 +67,14 @@ class Fitter(object):
         frame.SetTitle("")
         frame.Draw()
         chi2 = frame.chiSquare()
+        frame.SetTitle("")
+        frame.Draw()
+        chi2 = frame.chiSquare()
+        #add_text_to_canvas(canvas, "mean: {:.2f} #pm {:.2f}".format(ean.getVal(), mean.getError()),
+        #                    pos={"x": 0.65, "y": 0.87})
+        # add_text_to_canvas(canvas, "sigma: {:.2f} #pm {:.2f}".format(sigma.getVal(), sigma.getError()),
+        #                    pos={"x": 0.65, "y": 0.82})
+        add_text_to_canvas(canvas, "#chi^{2}: " + "{:.2f}".format(chi2), pos={"x": 0.65, "y": 0.77})
+
         self.output_handle.register_object(canvas)
         self.output_handle.write_and_close()
