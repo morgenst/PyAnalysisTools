@@ -3,6 +3,7 @@ from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
+from PyAnalysisTools.AnalysisTools.RegionSummaryModule import RegionSummaryModule
 
 
 class Module(object):
