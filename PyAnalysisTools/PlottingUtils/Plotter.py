@@ -48,7 +48,7 @@ class Plotter(BasePlotter):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
-        self.statistical_uncertainty_hist = None
+        self.stat_unc_hist = None
         self.histograms = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.systematics_analyser = None
@@ -88,13 +88,13 @@ class Plotter(BasePlotter):
         plot_config.logy = False
 
         #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
-        if self.statistical_uncertainty_hist:
+        if self.stat_unc_hist:
             plot_config_stat_unc_ratio = copy.copy(plot_config)
             plot_config_stat_unc_ratio.color = ROOT.kYellow
             plot_config_stat_unc_ratio.style = 1001
             plot_config_stat_unc_ratio.draw = "E2"
             plot_config_stat_unc_ratio.logy = False
-            statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(self.statistical_uncertainty_hist)
+            statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
             canvas = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
             PT.add_histogram_to_canvas(canvas, ratio, plot_config)
         else:
@@ -219,12 +219,12 @@ class Plotter(BasePlotter):
                 canvas = PT.plot_stack(data, plot_config=plot_config,
                                        process_configs=self.process_configs)
                 stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
-                self.statistical_uncertainty_hist = ST.get_statistical_uncertainty_from_stack(stack)
+                self.stat_unc_hist = ST.get_statistical_uncertainty_from_stack(stack)
                 #todo: temporary fix
-                self.statistical_uncertainty_hist.SetMarkerStyle(1)
+                self.stat_unc_hist.SetMarkerStyle(1)
                 plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                                   color=ROOT.kBlack)
-                PT.add_object_to_canvas(canvas, self.statistical_uncertainty_hist, plot_config_stat_unc)
+                PT.add_object_to_canvas(canvas, self.stat_unc_hist, plot_config_stat_unc)
                 for signal in signals.iteritems():
                     PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
                 self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
@@ -240,10 +240,21 @@ class Plotter(BasePlotter):
                 FM.add_legend_to_canvas(canvas, process_configs=self.process_configs)
             if hasattr(plot_config, "calcsig"):
                 #todo: "Background" should be an actual type
-                signal_hist = merge_objects_by_process_type(canvas, self.process_configs, "Signal")
-                background_hist = merge_objects_by_process_type(canvas, self.process_configs, "Background")
-                significance_hist = ST.get_significance(signal_hist, background_hist)
-                canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist)
+                merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
+                                                     self.process_configs.iteritems()))
+                signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
+                background_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Background")
+                if hasattr(plot_config, "significance_config"):
+                    sig_plot_config = plot_config.significance_config
+                else:
+                    sig_plot_config = copy.copy(plot_config)
+                    sig_plot_config.name = "sig_" + plot_config.name
+                    sig_plot_config.ytitle = "S/#Sqrt(S + B)"
+
+                significance_hist = ST.get_significance(signal_hist, background_hist, sig_plot_config)
+                canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist,
+                                                                   name=canvas.GetName() + "_significance")
+                self.output_handle.register_object(canvas_significance_ratio)
             self.output_handle.register_object(canvas)
             if hasattr(plot_config, "ratio"):
                 if plot_config.no_data or plot_config.is_multidimensional:
@@ -267,16 +278,15 @@ class Plotter(BasePlotter):
                     ratio_plotter = RP.RatioPlotter(reference=data["Data"], compare=mc_total,
                                                     plot_config=ratio_plot_config)
                     canvas_ratio = ratio_plotter.make_ratio_plot()
-                    if self.statistical_uncertainty_hist:
+                    if self.stat_unc_hist:
                         plot_config_stat_unc_ratio = copy.copy(ratio_plot_config)
                         plot_config_stat_unc_ratio.name = ratio_plot_config.name.replace("ratio", "stat_unc")
                         plot_config_stat_unc_ratio.color = ROOT.kYellow
                         plot_config_stat_unc_ratio.style = 1001
                         plot_config_stat_unc_ratio.draw = "E2"
                         plot_config_stat_unc_ratio.logy = False
-                        statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(
-                            self.statistical_uncertainty_hist)
-                        canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, statistical_uncertainty_ratio,
+                        stat_unc_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
+                        canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
                                                                 plot_config_stat_unc_ratio)
                     ratio_plotter.decorate_ratio_canvas(canvas_ratio)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)

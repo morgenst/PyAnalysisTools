@@ -33,14 +33,17 @@ class PlotConfig(object):
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
+        kwargs.setdefault("lumi", 1.)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config":
                 v["logx"] = kwargs["logx"]
-                self.set_ratio_config(**v)
+                self.set_additional_config("ratio_config", **v)
                 continue
-
+            if k == "significance_config":
+                self.set_additional_config("significance_config", **v)
+                continue
             setattr(self, k.lower(), v)
         self.auto_decorate()
 
@@ -49,12 +52,26 @@ class PlotConfig(object):
             return False
         return getattr(self, attr) == value
 
-    def set_ratio_config(self, **kwargs):
+    def set_additional_config(self, attr_name, **kwargs):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("enable_legend", False)
-        self.ratio_config = PlotConfig(**kwargs)
+        setattr(self, attr_name, PlotConfig(**kwargs))
+
+    # def set_ratio_config(self, **kwargs):
+    #     kwargs.setdefault("name", "ratio")
+    #     kwargs.setdefault("dist", "ratio")
+    #     kwargs.setdefault("ignore_style", False)
+    #     kwargs.setdefault("enable_legend", False)
+    #     self.ratio_config = PlotConfig(**kwargs)
+    #
+    # def set_sig_config(self, **kwargs):
+    #     kwargs.setdefault("name", "ratio")
+    #     kwargs.setdefault("dist", "ratio")
+    #     kwargs.setdefault("ignore_style", False)
+    #     kwargs.setdefault("enable_legend", False)
+    #     self.significance_config = PlotConfig(**kwargs)
 
     def __str__(self):
         obj_str = "Plot config: {:s} \n".format(self.name)
@@ -64,7 +81,7 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale"]
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
