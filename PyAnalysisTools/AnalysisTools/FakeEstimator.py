@@ -92,18 +92,22 @@ class MuonFakeEstimator(object):
 class MuonFakeProvider(object):
     def __init__(self, **kwargs):
         self.file_handle = FileHandle(file_name=kwargs["fake_factor_file"])
-        self.fake_factor = None
+        self.fake_factor = {}
         self.read_fake_factors()
 
     def read_fake_factors(self):
-        canvas_fake_factor = self.file_handle.get_object_by_name("fake_factor_pt_eta_geq0_jets_dR0.3")
-        self.fake_factor = get_objects_from_canvas_by_name(canvas_fake_factor, "fake_factor_pt_eta_geq0_jets_dR0.3")[0]
+        for i in range(3):
+            name = "fake_factor_pt_eta_geq{:d}_jets_dR0.3".format(i)
+            canvas_fake_factor = self.file_handle.get_object_by_name(name)
+            self.fake_factor[i] = get_objects_from_canvas_by_name(canvas_fake_factor, name)[0]
 
-    def retrieve_fake_factor(self, pt, eta, is_non_prompt):
+    def retrieve_fake_factor(self, pt, eta, is_non_prompt, n_jets):
         if is_non_prompt == 0:
             return 1.
-        b = self.fake_factor.FindBin(pt / 1000., eta)
-        return self.fake_factor.GetBinContent(b)
+        if n_jets > 2:
+            n_jets = 2
+        b = self.fake_factor[n_jets].FindBin(pt / 1000., eta)
+        return self.fake_factor[n_jets].GetBinContent(b)
 
 
 class MuonFakeDecorator(object):
@@ -119,15 +123,26 @@ class MuonFakeDecorator(object):
         self.branch = None
 
     def decorate_event(self):
+        def get_n_jets_dr(n_muon, dR):
+            n_jets_dr = 0
+            #todo: fix to new branch name: muon_jet_dr (v15 onwards)
+            for jet_dr in self.tree.muon_all_jet_dr:#[n_muon]:
+                if jet_dr > dR:
+                    continue
+                n_jets_dr += 1
+            return n_jets_dr
         self.fake_factors.clear()
+        print "decorating event"
         for n_muon in range(self.tree.muon_n):
             self.fake_factors.push_back(self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
-                                                                         self.tree.muon_eta[n_muon],
-                                                                         self.tree.muon_is_non_prompt[n_muon]))
+                                                                            self.tree.muon_eta[n_muon],
+                                                                            self.tree.muon_is_non_prompt[n_muon],
+                                                                            get_n_jets_dr(n_muon, 0.3)))
 
     def event_loop(self):
         total_entries = self.tree.GetEntries()
         for entry in range(total_entries):
+            _logger.debug("Process event {:d}".format(entry))
             self.tree.GetEntry(entry)
             self.decorate_event()
             self.branch.Fill()
