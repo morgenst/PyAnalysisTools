@@ -38,6 +38,9 @@ def merge_objects_by_process_type(canvas, process_config, merge_type):
     merged_hist = first_object.Clone("_".join([variable, merge_type]))
     for obj in objects:
         process_name = obj.GetName().split("_")[-1]
+        if process_name not in process_config:
+            #todo: add logger message and check for unc. hists
+            continue
         if not process_config[process_name].type == merge_type:
             continue
         merged_hist.Add(obj)
