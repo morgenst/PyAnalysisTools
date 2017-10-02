@@ -256,17 +256,20 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
     canvas.Update()
 
 
+def apply_style(obj, style_setter, style_attr, color):
+    if style_attr is not None:
+        for ss in style_setter:
+            getattr(obj, "Set" + ss + "Style")(style_attr)
+    if color is not None:
+        for ss in style_setter:
+            getattr(obj, "Set" + ss + "Color")(color)
+
+
 def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
-    if style_attr is not None:
-        for ss in style_setter:
-            getattr(hist, "Set" + ss + "Style")(style_attr)
-    if color is not None:
-        for ss in style_setter:
-            getattr(hist, "Set" + ss + "Color")(color)
+    apply_style(hist, *get_style_setters_and_values(plot_config))
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
@@ -282,11 +285,7 @@ def plot_graph(graph, plot_config=None, **kwargs):
     graph.Draw("ap")
     if not "same" in draw_option:
         draw_option += "same"
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
-    if style_attr is not None:
-        getattr(graph, "Set" + style_setter + "Style")(style_attr)
-    if color is not None:
-        getattr(graph, "Set" + style_setter + "Color")(color)
+    apply_style(graph, *get_style_setters_and_values(plot_config))
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)
@@ -299,11 +298,7 @@ def add_graph_to_canvas(canvas, graph, plot_config):
     draw_option = get_draw_option_as_root_str(plot_config)
     if not "same" in draw_option:
         draw_option += "same"
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
-    if style_attr is not None:
-        getattr(graph, "Set" + style_setter + "Style")(style_attr)
-    if color is not None:
-        getattr(graph, "Set" + style_setter + "Color")(color)
+    apply_style(graph, *get_style_setters_and_values(plot_config))
     graph.Draw(draw_option)
     ROOT.SetOwnership(graph, False)
     canvas.Update()
