@@ -33,7 +33,7 @@ class PlotConfig(object):
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
-        kwargs.setdefault("lumi", 1.)
+        kwargs.setdefault("lumi", None)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
@@ -58,20 +58,6 @@ class PlotConfig(object):
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("enable_legend", False)
         setattr(self, attr_name, PlotConfig(**kwargs))
-
-    # def set_ratio_config(self, **kwargs):
-    #     kwargs.setdefault("name", "ratio")
-    #     kwargs.setdefault("dist", "ratio")
-    #     kwargs.setdefault("ignore_style", False)
-    #     kwargs.setdefault("enable_legend", False)
-    #     self.ratio_config = PlotConfig(**kwargs)
-    #
-    # def set_sig_config(self, **kwargs):
-    #     kwargs.setdefault("name", "ratio")
-    #     kwargs.setdefault("dist", "ratio")
-    #     kwargs.setdefault("ignore_style", False)
-    #     kwargs.setdefault("enable_legend", False)
-    #     self.significance_config = PlotConfig(**kwargs)
 
     def __str__(self):
         obj_str = "Plot config: {:s} \n".format(self.name)
