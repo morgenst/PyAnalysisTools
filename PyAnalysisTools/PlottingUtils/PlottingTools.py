@@ -32,9 +32,9 @@ def plot_objects(objects, plot_config, process_configs=None):
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
 
-def add_object_to_canvas(canvas, obj, plot_config):
+def add_object_to_canvas(canvas, obj, plot_config, process_config=None):
     if isinstance(obj, ROOT.TH1):
-        add_histogram_to_canvas(canvas, obj, plot_config)
+        add_histogram_to_canvas(canvas, obj, plot_config, process_config)
     if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
         add_graph_to_canvas(canvas, obj, plot_config)
 
@@ -212,7 +212,9 @@ def plot_histograms(hists, plot_config, process_configs=None):
                     hist_color = color[hists.index(hist)]
                 elif isinstance(hists, dict):
                     hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
-            getattr(hist, "Set" + style_setter + "Color")(hist_color)
+            if style_attr is not None:
+                for setter in style_setter:
+                    getattr(hist, "Set" + setter + "Style")(style_attr)
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
@@ -254,18 +256,20 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
     canvas.Update()
 
 
-def add_histogram_to_canvas(canvas, hist, plot_config, process_config = None):
-    canvas.cd()
-
-    draw_option = get_draw_option_as_root_str(plot_config, process_config)
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
-    hist = format_obj(hist, plot_config)
+def apply_style(obj, style_setter, style_attr, color):
     if style_attr is not None:
         for ss in style_setter:
-            getattr(hist, "Set" + ss + "Style")(style_attr)
+            getattr(obj, "Set" + ss + "Style")(style_attr)
     if color is not None:
         for ss in style_setter:
-            getattr(hist, "Set" + ss + "Color")(color)
+            getattr(obj, "Set" + ss + "Color")(color)
+
+
+def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None):
+    canvas.cd()
+    draw_option = get_draw_option_as_root_str(plot_config, process_config)
+    hist = format_obj(hist, plot_config)
+    apply_style(hist, *get_style_setters_and_values(plot_config))
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
@@ -281,11 +285,7 @@ def plot_graph(graph, plot_config=None, **kwargs):
     graph.Draw("ap")
     if not "same" in draw_option:
         draw_option += "same"
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
-    if style_attr is not None:
-        getattr(graph, "Set" + style_setter + "Style")(style_attr)
-    if color is not None:
-        getattr(graph, "Set" + style_setter + "Color")(color)
+    apply_style(graph, *get_style_setters_and_values(plot_config))
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)
@@ -298,11 +298,7 @@ def add_graph_to_canvas(canvas, graph, plot_config):
     draw_option = get_draw_option_as_root_str(plot_config)
     if not "same" in draw_option:
         draw_option += "same"
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config)
-    if style_attr is not None:
-        getattr(graph, "Set" + style_setter + "Style")(style_attr)
-    if color is not None:
-        getattr(graph, "Set" + style_setter + "Color")(color)
+    apply_style(graph, *get_style_setters_and_values(plot_config))
     graph.Draw(draw_option)
     ROOT.SetOwnership(graph, False)
     canvas.Update()

@@ -67,7 +67,7 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi"]
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:

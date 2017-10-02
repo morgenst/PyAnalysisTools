@@ -32,6 +32,19 @@ def _rebin_hist(hist, factor):
     return hist
 
 
+def _parse_y_title(hist):
+    binning = None
+    y_title = hist.GetYaxis().GetTitle()
+    try:
+        binning = float(re.findall('[0-9].+', y_title)[0])
+    except IndexError:
+        try:
+            binning = int(re.findall('[0-9]+', y_title)[0])
+        except IndexError:
+            pass
+    return binning
+
+
 def _rebin_1d_hist(hist, factor):
     y_title = hist.GetYaxis().GetTitle()
     if not factor:
@@ -49,7 +62,9 @@ def _rebin_1d_hist(hist, factor):
 
 
 def __rebin_asymmetric_1d_hist(hist, n_bins, bins):
-    hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
+    binning = _parse_y_title(hist)
+    if binning is not None:
+        hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
     return hist.Rebin(n_bins - 1, hist.GetName(), bins)
 
 
@@ -117,7 +132,6 @@ def get_colors(hists):
         draw_option = hist.GetDrawOption()
         if isinstance(hist, ROOT.TEfficiency):
             return max(hist.GetPaintedGraph().GetLineColor(), hist.GetPaintedGraph().GetMarkerColor())
-        #todo: refactor this part as information parsing is implemented in PlotConfig
         if "hist" in draw_option.lower():
             return hist.GetLineColor()
     return [get_color() for hist in hists]

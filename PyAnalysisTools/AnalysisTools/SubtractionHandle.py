@@ -9,7 +9,8 @@ class SubtractionHandle(object):
         self.reference_item = kwargs["reference_item"]
         kwargs.setdefault("process_configs", None)
         self.process_configs = kwargs["process_configs"]
-
+        self.type = "DataProvider"
+        
     def execute(self, histograms):
         try:
             key, value = filter(lambda kv: kv[0].name == self.reference_item, histograms.iteritems())[0]
