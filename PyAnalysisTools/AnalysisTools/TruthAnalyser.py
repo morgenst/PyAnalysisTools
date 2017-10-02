@@ -24,6 +24,7 @@ particle_map["rho0"] = [113, "#rho"]
 particle_map["eta"] = [221, "#eta"]
 particle_map["eta'"] = [331, "#eta'"]
 particle_map["omega"] = [223, "#omega"]
+particle_map["LQ"] = [42, "LQ"]
 
 
 class Process(object):
