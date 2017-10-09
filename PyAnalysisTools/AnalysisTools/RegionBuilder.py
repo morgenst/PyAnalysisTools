@@ -65,7 +65,7 @@ class RegionBuilder(object):
         self.type = "PCModifier"
 
     def auto_generate_region(self, n_leptons, disable_taus, split_z_mass):
-        for digits in product("".join(map(str, range(n_leptons+1))), repeat=n_leptons):
+        for digits in product("".join(map(str, range(n_leptons+1))), repeat=3):
             comb = map(int, digits)
             if sum(comb) == n_leptons:
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])

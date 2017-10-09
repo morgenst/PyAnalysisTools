@@ -33,7 +33,7 @@ class PlotConfig(object):
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
-        kwargs.setdefault("lumi", None)
+        kwargs.setdefault("Lumi", 1.)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
