@@ -1,7 +1,14 @@
 import root_numpy
 import numpy as np
 import pandas as pd
+import ROOT
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
+import PyAnalysisTools.PlottingUtils.PlottingTools as pt
+import PyAnalysisTools.PlottingUtils.Formatting as fm
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 
 
 class Root2NumpyConverter(object):
@@ -60,3 +67,70 @@ class TrainingReader(object):
             tree_names += list(set(map(lambda name: str.replace(name, "train_", ""),
                                        map(lambda obj: obj.GetName(), self.input_file.get_objects_by_pattern(pattern)))))
             tree_names.remove(tree_name)
+
+
+class MLAnalyser(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("batch", True)
+        self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["cross_section_config"])
+                             for file_name in kwargs["input_files"]]
+        self.process_config_file = kwargs["process_config_file"]
+        self.branch_name = kwargs["branch_name"]
+        self.tree_name = kwargs["tree_name"]
+        self.converter = Root2NumpyConverter(self.branch_name)
+        self.process_configs = parse_and_build_process_config(self.process_config_file)
+        self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        set_batch_mode(kwargs["batch"])
+
+    def parse_process_config(self):
+        if self.process_config_file is None:
+            return None
+        process_config = parse_and_build_process_config(self.process_config_file)
+        return process_config
+
+    def read_score(self):
+        trees = {fh.process: fh.get_object_by_name(self.tree_name, "Nominal") for fh in self.file_handles}
+        arrays = {process: self.converter.convert_to_array(tree) for process, tree in trees.iteritems()}
+        signals = []
+        backgrounds = []
+
+        for process_name in trees.keys():
+            _ = find_process_config(process_name, self.process_configs)
+        for process, process_config in self.process_configs.iteritems():
+            if not hasattr(process_config, "subprocesses"):
+                continue
+            for sub_process in process_config.subprocesses:
+                if sub_process not in arrays.keys():
+                    continue
+                if process_config.type.lower() == "signal":
+                    signals.append(arrays[sub_process])
+                elif process_config.type.lower() == "background" or process_config.type.lower() == "data":
+                    backgrounds.append(arrays[sub_process])
+                else:
+                    print "Could not classify {:s}".format(sub_process)
+        signal = np.concatenate(signals)
+        background = np.concatenate(backgrounds)
+        return signal + 1., background + 1.
+
+    def plot_roc(self):
+        signal, background = self.read_score()
+        efficiencies = [100. - i * 10. for i in range(10)]
+        cuts = [np.percentile(signal, eff) for eff in efficiencies]
+        signal_total = sum(signal)
+        signal_eff = [np.sum(signal[signal > cut] / signal_total) for cut in cuts]
+
+        bkg_total = sum(background)
+        bkg_rej = [1. - np.sum(background[background > cut] / bkg_total) for cut in cuts]
+        curve = ROOT.TGraph(len(efficiencies))
+        curve.SetName("roc_curve")
+        for b in range(len(efficiencies)):
+            rej = bkg_rej[b]
+            if rej == np.inf:
+                rej = 0
+            curve.SetPoint(b, signal_eff[b], rej)
+        plot_config = pc(name="roc_curve", xtitle="signal efficiency", ytitle="background rejection", draw="Line",
+                         logy=True, watermark="Internal", lumi=1.)
+        canvas = pt.plot_obj(curve, plot_config)
+        fm.decorate_canvas(canvas, plot_config)
+        self.output_handle.register_object(canvas)
+        self.output_handle.write_and_close()
