@@ -11,6 +11,7 @@ from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
 
 class PDFConfig(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("blind", False)
         if "config_file" in kwargs:
             config = YAMLLoader.read_yaml(kwargs["config_file"])
             self.pdf = config.keys()[0]
@@ -23,8 +24,14 @@ class PDFConfig(object):
     def set_attr(self, attr, val):
         try:
             setattr(self, attr, eval(val))
-        except (TypeError, NameError):
-            setattr(self, attr, val)
+        except (TypeError, NameError) as e:
+            try:
+                if isinstance(val, list):
+                    setattr(self, attr, map(eval, val))
+                else:
+                    raise e
+            except (TypeError, NameError):
+                setattr(self, attr, val)
 
 
 class PDF(object):
@@ -56,7 +63,7 @@ class PDFLinear(PDF):
 
 class PDFChebychev(PDF):
     def __init__(self, **kwargs):
-        kwargs.setdefault("pdf_name", "linear")
+        kwargs.setdefault("pdf_name", "cheb")
         self.name = kwargs["pdf_name"]
         self.coefficients = kwargs["pdf_config"].coefficients
         self.quantity = kwargs["var"]
@@ -65,7 +72,6 @@ class PDFChebychev(PDF):
         coefficients = ROOT.RooArgList()
         for coeff in enumerate(self.coefficients):
             name = "coeff_{:d}".format(coeff[0])
-            print "add coeff: ", name
             roo_coeff = ROOT.RooRealVar(name, name, *coeff[1])
             coefficients.add(roo_coeff)
             ROOT.SetOwnership(roo_coeff, False)
@@ -100,10 +106,12 @@ class Fitter(object):
         self.tree_name = kwargs["tree_name"]
         self.quantity = kwargs["quantity"]
         self.data = None
-        self.pdf_config = PDFConfig(kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
+        self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
+        if hasattr(self.pdf_config, "quantity"):
+            self.quantity = self.pdf_config.quantity
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.selection = kwargs["selection"]
-        self.blind = kwargs["blind"]
+        self.blind = self.pdf_config.blind
         fm.load_atlas_style()
         set_batch_mode(kwargs["batch"])
 
@@ -125,19 +133,18 @@ class Fitter(object):
         self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, self.selection)
         self.build_model()
         if self.blind:
-            print self.quantity
-            region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
-                                                 self.var, "SideBand")
-            region.addThreshold(self.blind[0], "SideBand")
-            region.addThreshold(self.blind[1], "Signal")
-            fit_result = self.model.fitTo(self.data, RooFit.Cut("region==region::SideBand"), RooFit.Save())
+            # region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
+            #                                      self.var, "SideBand")
+            # region.addThreshold(self.blind[0], "SideBand")
+            # region.addThreshold(self.blind[1], "Signal")
+            fit_result = self.model.fitTo(self.data, RooFit.Range(("left,right")), RooFit.Save())#RooFit.Cut("region==region::SideBand"), RooFit.Save())
         else:
             fit_result = self.model.fitTo(self.data, RooFit.Save())
         canvas = ROOT.TCanvas("c", "", 800, 600)
         canvas.cd()
         frame = self.var.frame()
         binning = ROOT.RooBinning(25, 1600., 2250.)
-        self.data.plotOn(frame, ROOT.RooFit.Binning(binning))
+        self.data.plotOn(frame, ROOT.RooFit.Binning(binning), RooFit.CutRange("left,right"))
         self.model.plotOn(frame)
         frame.SetTitle("")
         frame.Draw()
