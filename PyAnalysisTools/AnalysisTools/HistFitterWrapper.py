@@ -11,19 +11,28 @@ from configWriter import fitConfig, Measurement, Channel, Sample
 from systematic import Systematic
 from math import sqrt
 import os
+from PyAnalysisTools.base.ShellUtils import make_dirs
 
 
 class HistFitterWrapper(object):
+
+    def set_output(self):
+        make_dirs(self.output_dir)
+        configMgr.outputFileName = os.path.join(self.output_dir, "{:s}_Output.root".format(configMgr.analysisName))
+
     def __init__(self, **kwargs):
-        self.fit_type = configMgr.FitType
+        configMgr.analysisName = kwargs["name"]
+        self.fit_type = "excl"
         self.my_fit_type = None
 
         kwargs.setdefault("interactive", False)
-        kwargs.setdefault("fit", False)
+        kwargs.setdefault("fit", True)
+        kwargs.setdefault("fitname", "")
+        kwargs.setdefault("minosPars", "")
         kwargs.setdefault("limit_plot", False)
         kwargs.setdefault("hypotest", False)
         kwargs.setdefault("discovery_hypotest", False)
-        kwargs.setdefault("draw", False)
+        kwargs.setdefault("draw", "before,after,corrMatrix")
         kwargs.setdefault("draw_before", False)
         kwargs.setdefault("draw_after", False)
         kwargs.setdefault("drawCorrelationMatrix", False)
@@ -40,39 +49,40 @@ class HistFitterWrapper(object):
         kwargs.setdefault("fixedPars", "")
         kwargs.setdefault("validation", False)
         kwargs.setdefault("use_archive_histfile", False)
-        kwargs.setdefault("create_histograms", configMgr.readFromTree)
+        kwargs.setdefault("read_tree", configMgr.readFromTree)
         kwargs.setdefault("create_workspace", configMgr.executeHistFactory)
-        kwargs.setdefault("use_XML", configMgr.writeXML)
+        #kwargs.setdefault("use_XML", configMgr.writeXML)
+        kwargs.setdefault("use_XML", True)
         kwargs.setdefault("num_toys", configMgr.nTOYs)
         kwargs.setdefault("seed", configMgr.toySeed)
         kwargs.setdefault("use_asimov", configMgr.useAsimovSet)
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("drawSystematics", False)
-
-        #FitType = configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
+        print kwargs["use_XML"]
+        FitType = configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
-
 
         for key, val in kwargs.iteritems():
             setattr(self, key, val)
+        self.set_output()
 
-    def run(self):
         if self.fit_type == "bkg":
             self.my_fit_type = self.fit_type.Background
             _logger.info("Will run in background-only fit mode")
 
         elif self.fit_type == "excl" or self.fit_type == "model-dep":
-            self.my_fit_type = self.fit_type.Exclusion
+            self.my_fit_type = FitType.Exclusion
             _logger.info("Will run in exclusion (model-dependent) fit mode")
         elif self.fit_type == "disc" or self.fit_type == "model-indep":
             self.my_fit_type = self.fit_type.Discovery
             _logger.info("Will run in discovery (model-independent) fit mode")
         configMgr.myFitType = self.my_fit_type
-
+        print self.fit_type
+        print configMgr.FitType
         if self.use_archive_histfile:
             configMgr.useHistBackupCacheFile = True
 
-        if self.create_histograms:
+        if self.read_tree:
             configMgr.readFromTree = True
 
         if self.create_workspace:
@@ -165,7 +175,7 @@ class HistFitterWrapper(object):
                 if arg.lower() == "all":
                     minosArgs[idx] = "all"
 
-            minosPars = ",".join(minosArgs)
+            self.minosPars = ",".join(minosArgs)
 
         # if self.constant:
         #     doFixParameters = True
@@ -228,9 +238,13 @@ class HistFitterWrapper(object):
                                 Util.plotUpDown(configMgr.histCacheFile, sam.name, Systs,
                                                             chan.regionString, chan.variableName)
 
+
+
+    def run(self):
         """
         runs fitting and plotting, by calling C++ side functions
         """
+
         if self.fit or self.draw:
             idx = 0
             if len(configMgr.fitConfigs) == 0:
@@ -244,16 +258,14 @@ class HistFitterWrapper(object):
                         idx = i
                         fitFound = True
                         runAll = False
-                        _logger.info("Found fitConfig with name %s at index %d" % (HistFitterArgs.fitname, idx))
+                        _logger.info("Found fitConfig with name %s at index %d" % (self.fitname, idx))
                         break
 
                 if not fitFound:
-                    _logger.fatal("Unable to find fitConfig with name %s, bailing out" % HistFitterArgs.fitname)
-
+                    _logger.fatal("Unable to find fitConfig with name %s, bailing out" % self.fitname)
             noFit = False
             if not self.fit:
                 noFit = True
-
             for i in xrange(len(configMgr.fitConfigs)):
                 if not runAll and i != idx:
                     _logger.debug("Skipping fit config {0}".format(configMgr.fitConfigs[i].name))
@@ -261,11 +273,16 @@ class HistFitterWrapper(object):
 
                 _logger.info("Running on fitConfig %s" % configMgr.fitConfigs[i].name)
                 _logger.info("Setting noFit = {0}".format(noFit))
-                r = self.GenerateFitAndPlotCPP(configMgr.fitConfigs[i], configMgr.analysisName, self.draw_before,
-                                               self.draw_after, drawCorrelationMatrix, drawSeparateComponents,
-                                              drawLogLikelihood, self.minos, minosPars, doFixParameters, fixedPars,
-                                              ReduceCorrMatrix, noFit)
-
+                print configMgr.__dict__
+                #exit()
+                for (i, config) in enumerate(configMgr.fitConfigs):
+                    print "Found fitConfig with name %s at index %d" % (configMgr.fitConfigs[i].name, i)
+                #exit()
+                self.GenerateFitAndPlotCPP(configMgr.fitConfigs[i], configMgr.analysisName, self.draw_before,
+                                               self.draw_after, self.drawCorrelationMatrix, self.drawSeparateComponents,
+                                                self.drawLogLikelihood, self.minos, self.minosPars, self.doFixParameters,
+                                               self.fixedPars, configMgr.ReduceCorrMatrix, noFit)
+                print "generated stuff"
             _logger.debug(
                     " GenerateFitAndPlotCPP(configMgr.fitConfigs[%d], configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
@@ -314,7 +331,7 @@ class HistFitterWrapper(object):
         _logger.info("Leaving HistFitter... Bye!")
 
 
-    def GenerateFitAndPlotCPP(fc, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents,
+    def GenerateFitAndPlotCPP(self, fc, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents,
                               drawLogLikelihood, minos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix, noFit):
         """
         function call to top-level C++ side function Util.GenerateFitAndPlot()
@@ -349,6 +366,9 @@ class HistFitterWrapper(object):
         _logger.debug("GenerateFitAndPlotCPP: ReduceCorrMatrix %s " % ReduceCorrMatrix)
         _logger.debug("GenerateFitAndPlotCPP: noFit {0}".format(noFit))
 
+        print fc
+        print fc.name
+        #exit()
         Util.GenerateFitAndPlot(fc.name, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix,
                                 drawSeparateComponents, drawLogLikelihood, minos, minosPars, doFixParameters, fixedPars,
                                 ReduceCorrMatrix, noFit)
@@ -359,7 +379,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         super(HistFitterCountingExperiment, self).__init__(**kwargs)
         kwargs.setdefault("bkg_name", "Bkg")
         kwargs.setdefault("name", "foo")
-        kwargs.setdefault("output_dir", "/afs/cern.ch/user/m/morgens/afs_work/devarea/MultiLepton/test/")
+        kwargs.setdefault("output_dir", kwargs["output_dir"])
 
         self.name = kwargs["name"]
         self.output_dir = kwargs["output_dir"]
@@ -436,35 +456,180 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         # These lines are needed for the user analysis to run
         # Make sure file is re-made when executing HistFactory
         if configMgr.executeHistFactory:
-            if os.path.isfile("data/%s.root" % configMgr.analysisName):
-                os.remove("data/%s.root" % configMgr.analysisName)
+            file_name = os.path.join(self.output_dir, "data", "{s}.root".format(configMgr.analysisName))
+            if os.path.isfile(file_name):
+                os.remove(file_name)
 
 
 class HistFitterShapeAnalysis(HistFitterWrapper):
+
     def __init__(self, **kwargs):
-        super(HistFitterShapeAnalysis, self).__init__(**kwargs)
-        self.input_files = kwargs["input_files"]
-        self.FitType = configMgr.FitType
+        kwargs.setdefault("name", "ShapeAnalysis")
+        kwargs.setdefault("read_tree", True)
+        kwargs.setdefault("create_workspace", True)
+        kwargs.setdefault("output_dir", kwargs["output_dir"])
+        configMgr.calculatorType = 2
+        configMgr.testStatType = 3
+        configMgr.nPoints = 20
+        FitType = configMgr.FitType
+        configMgr.writeXML = True
+
+        # ------------------------------------------------------------------------------------------------------
+        # Possibility to blind the control, validation and signal regions.
+        # We only have one signal region in this config file, thus only blinding the signal region makes sense.
+        # the other two commands are only given for information here.
+        # ------------------------------------------------------------------------------------------------------
+
+        configMgr.blindSR = False  # Blind the SRs (default is False)
+        configMgr.blindCR = False  # Blind the CRs (default is False)
+        configMgr.blindVR = False  # Blind the VRs (default is False)
+        # configMgr.useSignalInBlindedData = True
+
+        # ---------------------------------------------------
+        # Specify the default signal point
+        # Others to be given via option -g via command line
+        # ---------------------------------------------------
+
+        if not 'sigSamples' in dir():
+            sigSamples = ["SM_GG_onestepCC_425_385_345"]
+
+        # -------------------------------------
+        # Now we start to build the data model
+        # -------------------------------------
+
         # First define HistFactory attributes
-        configMgr.analysisName = "MyConfigExample"
+        configMgr.analysisName = "MyShapeFitExample"
+        configMgr.histCacheFile = "data/" + configMgr.analysisName + ".root"
+        configMgr.outputFileName = "results/" + configMgr.analysisName + "_Output.root"
+
+        # activate using of background histogram cache file to speed up processes
+        # configMgr.useCacheToTreeFallback = True # enable the fallback to trees
+        # configMgr.useHistBackupCacheFile = True # enable the use of an alternate data file
+        # configMgr.histBackupCacheFile =  "data/MyShapeFitExample_template.root" # the data file of your previous fit (= the backup cache file)
+
 
         # Scaling calculated by outputLumi / inputLumi
         configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
         configMgr.outputLumi = 4.713  # Luminosity required for output histograms
         configMgr.setLumiUnits("fb-1")
 
-        configMgr.histCacheFile = "data/" + configMgr.analysisName + ".root"
+        # Set the files to read from
+        bgdFiles = []
+        if kwargs["read_tree"]:
+            bgdFiles.append("/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_OneSoftEle_BG_v3.root")
+            bgdFiles.append("/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_OneSoftMuo_BG_v3.root")
+        else:
+            bgdFiles = [configMgr.histCacheFile]
+            pass
+        configMgr.setFileList(bgdFiles)
 
-        configMgr.outputFileName = "results/" + configMgr.analysisName + "_Output.root"
+        # Dictionnary of cuts for Tree->hist
+        configMgr.cutsDict[
+            "SR"] = "((lep1Pt < 20 && lep2Pt<10 && met>250 && mt>100 && jet1Pt>130 && jet2Pt>25 && AnalysisType==7) || (lep1Pt < 25 && lep2Pt<10 && met>250 && mt>100 && jet1Pt>130 && jet2Pt>25 && AnalysisType==6))"
+
+        # Tuples of nominal weights without and with b-jet selection
+        configMgr.weights = ["genWeight", "eventWeight", "leptonWeight", "triggerWeight", "truthWptWeight",
+                             "bTagWeight2Jet"]
+
+        # QCD weights without and with b-jet selection
+        # we turn the QCD background of for the tutorial as we do not want to use ATLAS data
+        # configMgr.weightsQCD = "qcdWeight"
+        # configMgr.weightsQCDWithB = "qcdBWeight"
+
+        # --------------------
+        # List of systematics
+        # --------------------
+
+        # Alpgen KtScale (weight-based)
+        ktScaleWHighWeights = ("genWeight", "eventWeight", "ktfacUpWeightW", "bTagWeight2Jet")
+        ktScaleWLowWeights = ("genWeight", "eventWeight", "ktfacDownWeightW", "bTagWeight2Jet")
+        wzKtScale = Systematic("KtScaleWZ", configMgr.weights, ktScaleWHighWeights, ktScaleWLowWeights, "weight",
+                               "overallSys")
+
+        ktScaleTopHighWeights = ("genWeight", "eventWeight", "ktfacUpWeightTop", "bTagWeight2Jet")
+        ktScaleTopLowWeights = ("genWeight", "eventWeight", "ktfacDownWeightTop", "bTagWeight2Jet")
+        # topKtScale = Systematic("KtScaleTop",configMgr.weights,ktScaleTopHighWeights,ktScaleTopLowWeights,"weight","overallSys")
+        topKtScale = Systematic("KtScaleTop", configMgr.weights, ktScaleTopHighWeights, ktScaleTopLowWeights, "weight",
+                                "histoSys")
+        # topKtScale = Systematic("KtScaleTop",configMgr.weights,ktScaleTopHighWeights,ktScaleTopLowWeights,"weight","normHistoSys")
+
+        # JES (tree-based)
+        jes = Systematic("JES", "_NoSys", "_JESup", "_JESdown", "tree", "overallSys")
+        configMgr.nomName = "_NoSys"
+
+        # -------------------------------------------
+        # List of samples and their plotting colours
+        # -------------------------------------------
+        topSample = Sample("Top", kGreen - 9)
+        # topSample.setNormFactor("mu_Top",1.,0.,5.)
+        wzSample = Sample("WZ", kAzure + 1)
+        # wzSample.setNormFactor("mu_WZ",1.,0.,5.)
+        dataSample = Sample("Data", kBlack)
+        dataSample.setData()
+        dataSample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "metmeff2Jet", 0.1, 0.1)
+        # dataSample.buildStatErrors([1.,1.,2.4,3.9,2.,0.],"SR","metmeff2Jet")
+
+        # **************
+        # Exclusion fit
+        # **************
+        if True: #myFitType == FitType.Exclusion:
+
+            # loop over all signal points
+            for sig in sigSamples:
+                # Fit config instance
+                exclusionFitConfig = configMgr.addFitConfig("Exclusion_" + sig)
+                meas = exclusionFitConfig.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=0.039)
+                meas.addPOI("mu_SIG")
+
+                # Samples
+                exclusionFitConfig.addSamples([topSample, wzSample, dataSample])
+
+                # Systematics
+                exclusionFitConfig.getSample("Top").addSystematic(topKtScale)
+                exclusionFitConfig.getSample("WZ").addSystematic(wzKtScale)
+                exclusionFitConfig.addSystematic(jes)
+
+                # Channel
+                srBin = exclusionFitConfig.addChannel("met/meff2Jet", ["SR"], 6, 0.1, 0.7)
+                srBin.useOverflowBin = True
+                srBin.useUnderflowBin = True
+                exclusionFitConfig.addSignalChannels([srBin])
+
+                sigSample = Sample(sig, kPink)
+                sigSample.setFileList(["/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_p832_GG-One-Step_soft_v1.root"])
+                sigSample.setNormByTheory()
+                sigSample.setNormFactor("mu_SIG", 1., 0., 5.)
+                # sigSample.addSampleSpecificWeight("0.001")
+                exclusionFitConfig.addSamples(sigSample)
+                exclusionFitConfig.setSignalSample(sigSample)
+
+                # Cosmetics
+                srBin.minY = 0.0001
+                srBin.maxY = 80.
+
+        super(HistFitterShapeAnalysis, self).__init__(**kwargs)
+        self.input_files = kwargs["input_files"]
+        #exit()
+        self.FitType = configMgr.FitType
+        # First define HistFactory attributes
+        print "here"
+        # Scaling calculated by outputLumi / inputLumi
+        configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
+        configMgr.outputLumi = 4.713  # Luminosity required for output histograms
+        configMgr.setLumiUnits("fb-1")
+        configMgr.calculatorType = 2
+        #configMgr.histCacheFile = "data/" + configMgr.analysisName + ".root"
+
 
         # Set the files to read from
         bgdFiles = []
         sigFiles = []
         if configMgr.readFromTree:
-            bgdFiles.append(self.input_files[0])
-            if self.my_fit_type == self.fit_type.Exclusion:
+            print "append "
+            bgdFiles.append("/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_OneSoftEle_BG_v3.root")#self.input_files[0])
+            if self.my_fit_type == configMgr.FitType.Exclusion:
                 # 1-step simplified model
-                sigFiles.append("samples/tutorial/SusyFitterTree_p832_GG-One-Step_soft_v1.root")
+                sigFiles.append("/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_p832_GG-One-Step_soft_v1.root")
         useStat = True
         # Dictionnary of cuts for Tree->hist
         # CR
@@ -490,8 +655,11 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
         # List of samples and their plotting colours
         topSample = Sample("Top", kGreen - 9)
-        topSample.setNormFactor("mu_Top", 1., 0., 5.)
-        topSample.setStatConfig(useStat)
+        topSample.buildHisto([86., 66., 62., 35., 11., 7., 2., 0.], "SLTR", "nJet", 2)
+        #topSample.setFileList(["/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_p832_GG-One-Step_soft_v1.root"])
+        print "set top sampel file"
+        #topSample.setNormFactor("mu_Top", 1., 0., 5.)
+        #topSample.setStatConfig(useStat)
         #topSample.setNormRegions([("SLWR", "nJet"), ("SLTR", "nJet")])
         # wzSample = Sample("WZ", kAzure + 1)
         # wzSample.setNormFactor("mu_WZ", 1., 0., 5.)
@@ -509,7 +677,7 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         dataSample = Sample("Data", kBlack)
         dataSample.setData()
         dataSample.buildHisto([86., 66., 62., 35., 11., 7., 2., 0.], "SLTR", "nJet", 2)
-        dataSample.buildHisto([1092., 426., 170., 65., 27., 9., 4., 1.], "SLWR", "nJet", 2)
+        #dataSample.buildHisto([1092., 426., 170., 65., 27., 9., 4., 1.], "SLWR", "nJet", 2)
 
         # set the file from which the samples should be taken
         for sam in [topSample, dataSample]:
@@ -544,21 +712,27 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         # Bkg only fit
         # ************
 
-        bkt = configMgr.addFitConfig("BkgOnly")
-        if useStat:
-            bkt.statErrThreshold = 0.05
-        else:
-            bkt.statErrThreshold = None
-        bkt.addSamples([topSample, dataSample])
+        #bkt = configMgr.addFitConfig("BkgOnly")
+        # if useStat:
+        #     bkt.statErrThreshold = 0.05
+        # else:
+        #     bkt.statErrThreshold = None
+        # bkt.addSamples([topSample, dataSample])
+        configMgr.setFileList(["/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_OneSoftEle_BG_v3.root",
+                         "/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_OneSoftMuo_BG_v3.root"])
+        configMgr.cutsDict[
+            "SR"] = "((lep1Pt < 20 && lep2Pt<10 && met>250 && mt>100 && jet1Pt>130 && jet2Pt>25 && AnalysisType==7) || (lep1Pt < 25 && lep2Pt<10 && met>250 && mt>100 && jet1Pt>130 && jet2Pt>25 && AnalysisType==6))"
 
         # Systematics to be applied globally within this topLevel
         # bkt.getSample("Top").addSystematic(topKtScale)
         # bkt.getSample("WZ").addSystematic(wzKtScale)
 
-        meas = bkt.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=0.039)
-        meas.addPOI("mu_SIG")
-        meas.addParamSetting("mu_BG", True, 1)
-        meas.addParamSetting("Lumi", True, 1)
+        # meas = bkt.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=0.039)
+        # meas.addPOI("mu_SIG")
+        # #meas.addParamSetting("mu_BG", True, 1)
+        # #meas.addParamSetting("Lumi", True, 1)
+        # srBin = bkt.addChannel("met/meff2Jet", ["SR"], 6, 0.1, 0.7)
+        # bkt.addSignalChannels([srBin])
 
         # -------------------------------------------------
         # Constraining regions - statistically independent
@@ -591,12 +765,12 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         ###################
 
         # Set global plotting colors/styles
-        bkt.dataColor = dataSample.color
-        bkt.totalPdfColor = kBlue
-        bkt.errorFillColor = kBlue - 5
-        bkt.errorFillStyle = 3004
-        #bkt.errorLineStyle = kDashed
-        bkt.errorLineColor = kBlue - 5
+        # bkt.dataColor = dataSample.color
+        # bkt.totalPdfColor = kBlue
+        # bkt.errorFillColor = kBlue - 5
+        # bkt.errorFillStyle = 3004
+        # #bkt.errorLineStyle = kDashed
+        # bkt.errorLineColor = kBlue - 5
 
         # Set Channel titleX, titleY, minY, maxY, logY
         # nJetWS.minY = 0.5
@@ -611,7 +785,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         # --------------------------------------------------------------
         # Validation regions - not necessarily statistically independent
         # --------------------------------------------------------------
-
         if self.validation:
             # s1l2jT
             srs1l2jTChannel = bkt.addChannel("cuts", ["SR1sl2j"], srNBins, srBinLow, srBinHigh)
@@ -659,19 +832,19 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         # -----------------------------
         doValidation = False
         if True: #myFitType == FitType.Exclusion:
-            sigSamples = ["SM_GG_onestepCC_425_385_345"]
+            sigSamples = ["/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_p832_GG-One-Step_soft_v1.root"]
             dataSample.buildHisto([1., 6., 16., 3., 0.], "SS", "metmeff2Jet", 0.2, 0.1)
 
             for sig in sigSamples:
-                myTopLvl = configMgr.addFitConfigClone(bkt, "Sig_%s" % sig)
-
+                #myTopLvl = configMgr.addFitConfigClone(bkt, "Sig_%s" % sig)
+                print "setting file list"
                 sigSample = Sample(sig, kPink)
-                sigSample.setFileList(sigFiles)
+                sigSample.setFileList([sig])
                 sigSample.setNormByTheory()
                 sigSample.setStatConfig(useStat)
                 sigSample.setNormFactor("mu_SIG", 1., 0., 5.)
-                myTopLvl.addSamples(sigSample)
-                myTopLvl.setSignalSample(sigSample)
+                # bkt.addSamples(sigSample)
+                # bkt.setSignalSample(sigSample)
 
                 # s1l2j using met/meff
                 # if doValidation:
@@ -684,7 +857,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
                 #     mm2J.addSystematic(jes)
                 #     pass
                 #myTopLvl.addSignalChannels([mm2J])
-
         # Create TLegend (AK: TCanvas is needed for that, but it gets deleted afterwards)
         c = TCanvas()
         compFillStyle = 1001  # see ROOT for Fill styles
@@ -695,14 +867,14 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         #
         entry = TLegendEntry()
         entry = leg.AddEntry("", "Data 2011 (#sqrt{s}=7 TeV)", "p")
-        entry.SetMarkerColor(bkt.dataColor)
+        #entry.SetMarkerColor(bkt.dataColor)
         entry.SetMarkerStyle(20)
         #
         entry = leg.AddEntry("", "Total pdf", "lf")
-        entry.SetLineColor(bkt.totalPdfColor)
+        #entry.SetLineColor(bkt.totalPdfColor)
         entry.SetLineWidth(2)
-        entry.SetFillColor(bkt.errorFillColor)
-        entry.SetFillStyle(bkt.errorFillStyle)
+        # entry.SetFillColor(bkt.errorFillColor)
+        # entry.SetFillStyle(bkt.errorFillStyle)
         #
         # entry = leg.AddEntry("", "t#bar{t}", "lf")
         # entry.SetLineColor(topSample.color)
@@ -731,7 +903,7 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         #     entry.SetFillStyle(compFillStyle)
 
         # Set legend for fitConfig
-        bkt.tLegend = leg
+        #bkt.tLegend = leg
         # if myFitType == FitType.Exclusion:
         #     myTopLvl.tLegend = leg
-        c.Close()
+        #c.Close()
