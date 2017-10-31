@@ -20,10 +20,10 @@ class HistFitterWrapper(object):
 
         kwargs.setdefault("interactive", False)
         kwargs.setdefault("fit", False)
-        kwargs.setdefault("limit_plot", False)
+        kwargs.setdefault("limit_plot", True)
         kwargs.setdefault("hypotest", False)
         kwargs.setdefault("discovery_hypotest", False)
-        kwargs.setdefault("draw", False)
+        kwargs.setdefault("draw", True)
         kwargs.setdefault("draw_before", False)
         kwargs.setdefault("draw_after", False)
         kwargs.setdefault("drawCorrelationMatrix", False)
@@ -192,6 +192,8 @@ class HistFitterWrapper(object):
         """
         runs Trees->histos and/or histos->workspace according to specifications
         """
+
+        print "execute?: ", configMgr.executeHistFactory:
         if configMgr.readFromTree or configMgr.executeHistFactory:
             if self.run_profiling:
                 import cProfile
@@ -354,19 +356,20 @@ class HistFitterWrapper(object):
                                 ReduceCorrMatrix, noFit)
 
 
-class HistFitterCountingExperiment(HistFitterWrapper):
+class HFCountingExp(HistFitterWrapper):
     def __init__(self, **kwargs):
-        super(HistFitterCountingExperiment, self).__init__(**kwargs)
+        super(HFCountingExp, self).__init__(**kwargs)
+        output_dir = os.path.join(kwargs["base_output_dir"], "limits")
         kwargs.setdefault("bkg_name", "Bkg")
         kwargs.setdefault("name", "foo")
-        kwargs.setdefault("output_dir", "/afs/cern.ch/user/m/morgens/afs_work/devarea/MultiLepton/test/")
+        kwargs.setdefault("output_dir", output_dir)
 
         self.name = kwargs["name"]
         self.output_dir = kwargs["output_dir"]
         self.bkg_name = kwargs["bkg_name"]
         ndata = 7.  # Number of events observed in data
-        nbkg = 5.  # Number of predicted bkg events
-        nsig = 5.  # Number of predicted signal events
+        nbkg = kwargs["n_bkg"]
+        nsig = kwargs["n_sig"]  # Number of predicted signal events
         nbkg_err = 1.  # (Absolute) Statistical error on bkg estimate
         nsig_err = 2.  # (Absolute) Statistical error on signal estimate
         lumi_error = 0.039  # Relative luminosity uncertainty
