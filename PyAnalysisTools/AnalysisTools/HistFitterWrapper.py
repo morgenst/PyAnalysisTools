@@ -1,4 +1,5 @@
 from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 try:
     from configManager import configMgr
 except ImportError:
@@ -11,14 +12,15 @@ from configWriter import fitConfig, Measurement, Channel, Sample
 from systematic import Systematic
 from math import sqrt
 import os
-from PyAnalysisTools.base.ShellUtils import make_dirs
+from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 
 
 class HistFitterWrapper(object):
 
     def set_output(self):
         make_dirs(self.output_dir)
-        configMgr.outputFileName = os.path.join(self.output_dir, "{:s}_Output.root".format(configMgr.analysisName))
+        #clear
+        # configMgr.outputFileName = os.path.join(self.output_dir, "{:s}_Output.root".format(configMgr.analysisName))
 
     def __init__(self, **kwargs):
         configMgr.analysisName = kwargs["name"]
@@ -58,7 +60,6 @@ class HistFitterWrapper(object):
         kwargs.setdefault("use_asimov", configMgr.useAsimovSet)
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("drawSystematics", False)
-        print kwargs["use_XML"]
         FitType = configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
 
@@ -77,8 +78,6 @@ class HistFitterWrapper(object):
             self.my_fit_type = self.fit_type.Discovery
             _logger.info("Will run in discovery (model-independent) fit mode")
         configMgr.myFitType = self.my_fit_type
-        print self.fit_type
-        print configMgr.FitType
         if self.use_archive_histfile:
             configMgr.useHistBackupCacheFile = True
 
@@ -195,6 +194,7 @@ class HistFitterWrapper(object):
         """
         standard execution from now on
         """
+
         configMgr.initialize()
         RooRandom.randomGenerator().SetSeed(configMgr.toySeed)
         ReduceCorrMatrix = configMgr.ReduceCorrMatrix
@@ -244,7 +244,6 @@ class HistFitterWrapper(object):
         """
         runs fitting and plotting, by calling C++ side functions
         """
-
         if self.fit or self.draw:
             idx = 0
             if len(configMgr.fitConfigs) == 0:
@@ -273,16 +272,10 @@ class HistFitterWrapper(object):
 
                 _logger.info("Running on fitConfig %s" % configMgr.fitConfigs[i].name)
                 _logger.info("Setting noFit = {0}".format(noFit))
-                print configMgr.__dict__
-                #exit()
-                for (i, config) in enumerate(configMgr.fitConfigs):
-                    print "Found fitConfig with name %s at index %d" % (configMgr.fitConfigs[i].name, i)
-                #exit()
                 self.GenerateFitAndPlotCPP(configMgr.fitConfigs[i], configMgr.analysisName, self.draw_before,
                                                self.draw_after, self.drawCorrelationMatrix, self.drawSeparateComponents,
                                                 self.drawLogLikelihood, self.minos, self.minosPars, self.doFixParameters,
                                                self.fixedPars, configMgr.ReduceCorrMatrix, noFit)
-                print "generated stuff"
             _logger.debug(
                     " GenerateFitAndPlotCPP(configMgr.fitConfigs[%d], configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
@@ -310,10 +303,10 @@ class HistFitterWrapper(object):
                 pass
 
             if self.discovery_hypotest:
-                configMgr.cppMgr.doHypoTestAll('results/', False)
+                configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), False)
 
             if self.hypotest:
-                configMgr.cppMgr.doHypoTestAll('results/', True)
+                configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), True)
 
             pass
 
@@ -366,9 +359,6 @@ class HistFitterWrapper(object):
         _logger.debug("GenerateFitAndPlotCPP: ReduceCorrMatrix %s " % ReduceCorrMatrix)
         _logger.debug("GenerateFitAndPlotCPP: noFit {0}".format(noFit))
 
-        print fc
-        print fc.name
-        #exit()
         Util.GenerateFitAndPlot(fc.name, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix,
                                 drawSeparateComponents, drawLogLikelihood, minos, minosPars, doFixParameters, fixedPars,
                                 ReduceCorrMatrix, noFit)
@@ -416,8 +406,6 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         configMgr.analysisName = self.name
         configMgr.outputFileName = os.path.join(self.output_dir, "results",
                                                 "{:s}_Output.root".format(configMgr.analysisName))
-        print configMgr.outputFileName
-        # exit(0)
         # Define samples
         bkgSample = Sample(self.bkg_name, kGreen - 9)
         bkgSample.setStatConfig(True)
@@ -473,7 +461,8 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         configMgr.nPoints = 20
         FitType = configMgr.FitType
         configMgr.writeXML = True
-
+        self.analysis_name = kwargs["name"]
+        self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
         # ------------------------------------------------------------------------------------------------------
         # Possibility to blind the control, validation and signal regions.
         # We only have one signal region in this config file, thus only blinding the signal region makes sense.
@@ -484,7 +473,9 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         configMgr.blindCR = False  # Blind the CRs (default is False)
         configMgr.blindVR = False  # Blind the VRs (default is False)
         # configMgr.useSignalInBlindedData = True
-
+        make_dirs(self.output_dir)
+        cur_dir = os.path.abspath(os.path.curdir)
+        os.chdir(self.output_dir)
         # ---------------------------------------------------
         # Specify the default signal point
         # Others to be given via option -g via command line
@@ -498,10 +489,14 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         # -------------------------------------
 
         # First define HistFactory attributes
-        configMgr.analysisName = "MyShapeFitExample"
-        configMgr.histCacheFile = "data/" + configMgr.analysisName + ".root"
-        configMgr.outputFileName = "results/" + configMgr.analysisName + "_Output.root"
-
+        configMgr.analysisName = self.analysis_name
+        make_dirs(os.path.join(self.output_dir, "results"))
+        make_dirs(os.path.join(self.output_dir, "data"))
+        make_dirs(os.path.join(self.output_dir, "config"))
+        copy(os.path.join(os.environ["HISTFITTER"], "config/HistFactorySchema.dtd"),
+                          os.path.join(self.output_dir, "config/HistFactorySchema.dtd"))
+        configMgr.histCacheFile = os.path.join(self.output_dir, "data/" + configMgr.analysisName + ".root")
+        configMgr.outputFileName = os.path.join(self.output_dir, "results/" + configMgr.analysisName + "_Output.root")
         # activate using of background histogram cache file to speed up processes
         # configMgr.useCacheToTreeFallback = True # enable the fallback to trees
         # configMgr.useHistBackupCacheFile = True # enable the use of an alternate data file
@@ -609,10 +604,9 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
         super(HistFitterShapeAnalysis, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
-        #exit()
+
         self.FitType = configMgr.FitType
         # First define HistFactory attributes
-        print "here"
         # Scaling calculated by outputLumi / inputLumi
         configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
         configMgr.outputLumi = 4.713  # Luminosity required for output histograms
@@ -625,7 +619,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         bgdFiles = []
         sigFiles = []
         if configMgr.readFromTree:
-            print "append "
             bgdFiles.append("/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_OneSoftEle_BG_v3.root")#self.input_files[0])
             if self.my_fit_type == configMgr.FitType.Exclusion:
                 # 1-step simplified model
@@ -657,7 +650,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         topSample = Sample("Top", kGreen - 9)
         topSample.buildHisto([86., 66., 62., 35., 11., 7., 2., 0.], "SLTR", "nJet", 2)
         #topSample.setFileList(["/afs/cern.ch/user/m/morgens/afs_work/devarea/HF2/HistFitter/samples/tutorial/SusyFitterTree_p832_GG-One-Step_soft_v1.root"])
-        print "set top sampel file"
         #topSample.setNormFactor("mu_Top", 1., 0., 5.)
         #topSample.setStatConfig(useStat)
         #topSample.setNormRegions([("SLWR", "nJet"), ("SLTR", "nJet")])
@@ -837,7 +829,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
             for sig in sigSamples:
                 #myTopLvl = configMgr.addFitConfigClone(bkt, "Sig_%s" % sig)
-                print "setting file list"
                 sigSample = Sample(sig, kPink)
                 sigSample.setFileList([sig])
                 sigSample.setNormByTheory()

@@ -1,4 +1,5 @@
 import ROOT
+import traceback
 from itertools import permutations
 from copy import copy
 from functools import partial
@@ -16,7 +17,7 @@ class MuonFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
-        self.file_handles = filter(lambda fh: "data" not in fh.process.lower(), kwargs["file_handles"])
+        self.file_handles = filter(lambda fh: "data" in fh.process.lower(), kwargs["file_handles"])
         self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
@@ -81,10 +82,12 @@ class MuonFakeEstimator(object):
     def retrieve_single_fake_plot_config(plot_config, n_fake_muon, n_total_muon):
         pc = copy(plot_config)
         pc.name = "fake_single_lep"
-        cut = filter(lambda cut: "muon_prompt_n" in cut, pc.cuts)[0]
+        cut_name = "Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)"
+        cut = filter(lambda cut: cut_name in cut, pc.cuts)[0]
         cut_index = pc.cuts.index(cut)
-        pc.cuts[cut_index] = cut.replace("muon_prompt_n == {:d}".format(n_total_muon),
-                                         "(muon_n - muon_prompt_n) == {:d}".format(n_fake_muon))
+        pc.cuts[cut_index] = cut.replace("{:s} == {:d}".format(cut_name, n_total_muon),
+                                         "(muon_n - {:s}) == {:d}".format(cut_name, n_fake_muon))
+        pc.weight += " * muon_fake_factor2"
 
         return pc
 
@@ -101,8 +104,8 @@ class MuonFakeProvider(object):
             canvas_fake_factor = self.file_handle.get_object_by_name(name)
             self.fake_factor[i] = get_objects_from_canvas_by_name(canvas_fake_factor, name)[0]
 
-    def retrieve_fake_factor(self, pt, eta, is_non_prompt, n_jets):
-        if is_non_prompt == 0:
+    def retrieve_fake_factor(self, pt, eta, is_denom, n_jets):
+        if is_denom:
             return 1.
         if n_jets > 2:
             n_jets = 2
@@ -112,7 +115,7 @@ class MuonFakeProvider(object):
 
 class MuonFakeDecorator(object):
     def __init__(self, **kwargs):
-        input_files = filter(lambda fn: "data" not in fn, kwargs["input_files"])
+        input_files = filter(lambda fn: "data" in fn, kwargs["input_files"])
         self.input_file_handles = [FileHandle(file_name=input_file, open_option="UPDATE",
                                               run_dir=kwargs["run_dir"]) for input_file in input_files]
         self.estimator = MuonFakeProvider(**kwargs)
@@ -132,12 +135,14 @@ class MuonFakeDecorator(object):
                 n_jets_dr += 1
             return n_jets_dr
         self.fake_factors.clear()
-        print "decorating event"
         for n_muon in range(self.tree.muon_n):
-            self.fake_factors.push_back(self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
+            fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
                                                                             self.tree.muon_eta[n_muon],
-                                                                            self.tree.muon_is_non_prompt[n_muon],
-                                                                            get_n_jets_dr(n_muon, 0.3)))
+                                                                            self.tree.muon_is_denom[n_muon],
+                                                                            self.tree.muon_n_jet_dr2[n_muon])
+            print fake_factor
+            self.fake_factors.push_back(fake_factor)
+                                                                            #get_n_jets_dr(n_muon, 0.3)))
 
     def event_loop(self):
         total_entries = self.tree.GetEntries()
@@ -164,6 +169,7 @@ class MuonFakeDecorator(object):
                 self.event_loop()
                 self.dump(file_handle)
             except Exception as e:
+                print(traceback.format_exc())
                 raise e
             finally:
                 file_handle.close()
