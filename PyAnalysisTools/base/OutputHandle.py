@@ -14,7 +14,7 @@ class SysOutputHandle(object):
             kwargs.setdefault("output_dir", "./")
         kwargs.setdefault("sub_dir_name", "output")
         self.base_output_dir = kwargs["output_dir"]
-        self.output_dir = resolve_output_dir(**kwargs)
+        self.output_dir = self.resolve_output_dir(**kwargs)
         ShellUtils.make_dirs(self.output_dir)
 
     @staticmethod
