@@ -181,7 +181,8 @@ class MuonFakeCalculator(object):
         if not "input_files" in kwargs:
             raise InvalidInputError("No input files provided")
         kwargs.setdefault("lumi", 36.3)
-        self.file_handles = [FileHandle(file_name=file_name) for file_name in kwargs["input_files"]]
+        self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["xs_config_file"])
+                             for file_name in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.ncpu = 10
         self.plotter = Plotter(plot_config_files=[kwargs["plot_config"]], **kwargs)
@@ -201,24 +202,24 @@ class MuonFakeCalculator(object):
             else:
                 jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
-                cut = ["({:s} {:s} {:d}) && muon_d0sig > 3 && muon_isolGradient==1".format(jet_selector,
-                                                                                           relation_op, n_jet)]
-                cut.append("MC:(muon_truth_mother_pdg==12 || muon_truth_mother_pdg==13)")
+                cut = ["({:s} {:s} {:d}) && muon_is_num == 1 ".format(jet_selector, relation_op, n_jet)]
             elif "denominator" in dist:
-                cut = ["({:s} {:s} {:d}) && fake_muon_d0sig > 3 && fake_muon_isolGradient==0".format(jet_selector.replace("muon", "fake_muon"),
-                                                                                                     relation_op, n_jet)]
-                cut.append("MC:(fake_muon_truth_mother_pdg==12 || fake_muon_truth_mother_pdg==13)")
+                cut = ["({:s} {:s} {:d}) && muon_is_denom == 1".format(jet_selector, relation_op, n_jet)]
+
             plot_config.cuts = cut
             suffix = "eq" if relation_op == "==" else "geq"
             jet_selector_name = "" if not enable_dr else "_dR0.3"
             name = "{:s}_{:s}{:d}_jets{:s}".format(dist, suffix, n_jet, jet_selector_name)
             plot_config.name = name
-            numerator_hists = mp.ThreadPool(min(self.ncpu, 1)).map(self.plotter.read_histograms, [plot_config])
+            numerator_hists = mp.ThreadPool(min(self.ncpu, 1)).map(partial(self.plotter.read_histograms,
+                                                                           file_handles=self.file_handles),
+                                                                   [plot_config])
+            #_, numerator_hists = self.plotter.read_histograms(self.file_handles, plot_config=plot_config)
             for plot_config, histograms in numerator_hists:
                 self.plotter.histograms = {}
                 histograms = filter(lambda hist: hist is not None, histograms)
                 self.plotter.categorise_histograms(plot_config, histograms)
-            self.plotter.apply_lumi_weights(self.histograms)
+            self.plotter.apply_lumi_weights(self.plotter.histograms)
             for hist_set in self.plotter.histograms.values():
                 for process_name in hist_set.keys():
                     _ = find_process_config(process_name, self.plotter.process_configs)
