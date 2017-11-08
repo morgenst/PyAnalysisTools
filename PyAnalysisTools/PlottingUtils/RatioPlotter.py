@@ -86,7 +86,13 @@ class RatioPlotter(object):
 
     def add_uncertainty_to_canvas(self, canvas, hist, plot_config):
         ratio_hist = fm.get_objects_from_canvas_by_type(canvas, "TH1F")[0]
-        canvas = pt.plot_hist(hist, plot_config)
+        if not isinstance(hist, list):
+            hist = [hist]
+            plot_config = [plot_config]
+        canvas = pt.plot_hist(hist[0], plot_config[0])
+        if len(hist) > 1:
+            for pc, unc_hist in zip(plot_config[1:], hist[1:]):
+                pt.add_histogram_to_canvas(canvas, unc_hist, pc)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
         return canvas
 

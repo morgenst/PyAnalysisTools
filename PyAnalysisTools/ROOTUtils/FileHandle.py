@@ -68,8 +68,11 @@ class FileHandle(object):
             make_dirs(copy_dir)
             self.file_name = os.path.join(copy_dir, self.file_name.split("/")[-1])
             move(self.initial_file_name, self.file_name)
+            time.sleep(1)
+            self.absFName = os.path.join(self.path, self.file_name)
             while not os.path.exists(self.file_name):
-                time.sleep()
+                print self.file_name, os.path.exists(self.file_name)
+                time.sleep(1)
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
     def __del__(self):
