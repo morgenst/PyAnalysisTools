@@ -71,7 +71,6 @@ class FileHandle(object):
             time.sleep(1)
             self.absFName = os.path.join(self.path, self.file_name)
             while not os.path.exists(self.file_name):
-                print self.file_name, os.path.exists(self.file_name)
                 time.sleep(1)
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 

@@ -58,6 +58,9 @@ class Plotter(BasePlotter):
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        if self.process_configs is not None:
+            for fh in self.file_handles:
+                    _ = find_process_config(fh.process, self.process_configs)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -196,9 +199,6 @@ class Plotter(BasePlotter):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
         if self.process_configs is not None:
-            for hist_set in self.histograms.values():
-                for process_name in hist_set.keys():
-                    _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms()
         if self.systematics_analyser is not None:
             self.systematics_analyser.retrieve_sys_hists(self.file_handles)
