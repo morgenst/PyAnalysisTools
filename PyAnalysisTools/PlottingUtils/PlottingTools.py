@@ -17,7 +17,7 @@ def plot_obj(hist, plot_config, **kwargs):
         return plot_2d_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TH1):
         return plot_hist(hist, plot_config, **kwargs)
-    if isinstance(hist, ROOT.TEfficiency):
+    if isinstance(hist, ROOT.TEfficiency) or isinstance(hist, ROOT.TGraph):
         return plot_graph(hist, plot_config, **kwargs)
 
 
@@ -98,7 +98,7 @@ def fetch_process_config(process, process_config):
 def format_obj(obj, plot_config):
     if isinstance(obj, ROOT.TH1):
         return format_hist(obj, plot_config)
-    if isinstance(obj, ROOT.TGraphAsymmErrors):
+    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TGraph):
         return format_hist(obj, plot_config)
     if isinstance(obj, ROOT.TEfficiency):
         return format_tefficiency(obj, plot_config)
@@ -281,14 +281,17 @@ def plot_graph(graph, plot_config=None, **kwargs):
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
-    draw_option = "ap"
-    graph.Draw("ap")
+    draw_option = "a" + get_draw_option_as_root_str(plot_config)
+    #draw_option = "ap"
+    graph.Draw(draw_option)
     if not "same" in draw_option:
         draw_option += "same"
     apply_style(graph, *get_style_setters_and_values(plot_config))
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)
+    if hasattr(plot_config, "logy") and plot_config.logy:
+        canvas.SetLogy()
     canvas.Update()
     return canvas
 

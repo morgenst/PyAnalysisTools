@@ -282,11 +282,11 @@ class TriggerEfficiencyAnalyser(BasePlotter):
         if hasattr(plot_config, "cut"):
             cut_string = plot_config.cut.replace(plot_config.dist, numerator_plot_config.dist)
         numerators = dict((file_handle.process,
-                       file_handle.fetch_and_link_hist_to_tree(self.tree_name,
-                                                               hist,
-                                                               numerator_plot_config.dist,
-                                                               cut_string=cut_string,
-                                                               tdirectory="Nominal")) for file_handle in self.file_handles)
+                           file_handle.fetch_and_link_hist_to_tree(self.tree_name,
+                                                                   hist,
+                                                                   numerator_plot_config.dist,
+                                                                   cut_string=cut_string,
+                                                                   tdirectory="Nominal")) for file_handle in self.file_handles)
         if not isinstance(numerators.values()[0], ROOT.TH2F):
             dependency = plot_config.name.split("_")[-1]
         else:

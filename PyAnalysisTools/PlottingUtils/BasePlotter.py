@@ -1,4 +1,5 @@
 import pathos.multiprocessing as mp
+import traceback
 from functools import partial
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
@@ -103,6 +104,7 @@ class BasePlotter(object):
                 return None
 
         except Exception as e:
+            print traceback.print_exc()
             raise e
 
         return hist

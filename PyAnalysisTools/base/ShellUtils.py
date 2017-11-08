@@ -44,6 +44,8 @@ def copy(src, dest):
 
 
 def remove_directory(path, safe=False):
+    if not os.path.exists(path):
+        return
     if safe:
         try:
             os.removedirs(path)
