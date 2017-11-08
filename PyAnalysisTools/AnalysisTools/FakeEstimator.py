@@ -191,6 +191,8 @@ class MuonFakeCalculator(object):
         self.jet_binned_histograms = {}
         self.histograms = {}
         self.enable_bjets = kwargs["enable_bjets"]
+        self.plotter.expand_process_configs()
+        self.plotter.filter_process_configs()
 
     def get_plots(self, dist, relation_op, enable_dr=True):
         plot_config_base = filter(lambda pc: pc.name == dist, self.plot_config)[0]
@@ -220,9 +222,9 @@ class MuonFakeCalculator(object):
                 histograms = filter(lambda hist: hist is not None, histograms)
                 self.plotter.categorise_histograms(plot_config, histograms)
             self.plotter.apply_lumi_weights(self.plotter.histograms)
-            for hist_set in self.plotter.histograms.values():
-                for process_name in hist_set.keys():
-                    _ = find_process_config(process_name, self.plotter.process_configs)
+            # for hist_set in self.plotter.histograms.values():
+            #     for process_name in hist_set.keys():
+            #         _ = find_process_config(process_name, self.plotter.process_configs)
             self.plotter.merge_histograms()
             hists[name] = self.plotter.histograms
         return hists
