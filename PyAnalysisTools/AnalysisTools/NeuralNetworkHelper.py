@@ -24,7 +24,6 @@ class NeuralNetwork(object):
 
         # self.train_op = Adam(lr)
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-        print model.summary()
         self.kerasmodel = model
 
 
@@ -111,7 +110,8 @@ class NNTrainer(object):
 
 class NNReader(object):
     def __init__(self, **kwargs):
-        self.file_handles = [FileHandle(file_name=fn, open_option="UPDATE") for fn in kwargs["input_files"]]
+        self.file_handles = [FileHandle(file_name=fn, open_option="UPDATE", run_dir=kwargs["run_dir"])
+                             for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.model_train = load_model(os.path.join(os.path.abspath(kwargs["model_path"]), "model_train.h5"))
         self.model_eval = load_model(os.path.join(os.path.abspath(kwargs["model_path"]), "model_eval.h5"))
