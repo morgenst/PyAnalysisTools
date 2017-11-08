@@ -4,6 +4,9 @@ from ROOT import RooFit
 
 def convert(file_handles, tree_name, quantity, blind, selection=None):
     var = ROOT.RooRealVar(quantity[0], quantity[0], quantity[1], quantity[2])
+    if blind:
+        var.setRange("left", quantity[1], blind[0])
+        var.setRange("right", blind[1], quantity[2])
     var_arg = ROOT.RooArgSet(var)
     data = ROOT.RooDataSet("data", "data", var_arg)
     for file_handle in file_handles:

@@ -15,6 +15,7 @@ class PDFConfig(object):
         if "config_file" in kwargs:
             config = YAMLLoader.read_yaml(kwargs["config_file"])
             self.pdf = config.keys()[0]
+            self.set_attr("blind", False)
             for attr, val in config[self.pdf].iteritems():
                 self.set_attr(attr, val)
         else:
@@ -22,6 +23,9 @@ class PDFConfig(object):
                 self.set_attr(attr, val)
 
     def set_attr(self, attr, val):
+        if isinstance(val, dict):
+            setattr(self, attr, PDFConfig(**val))
+            return
         try:
             setattr(self, attr, eval(val))
         except (TypeError, NameError) as e:
@@ -60,6 +64,8 @@ class PDFLinear(PDF):
         kwargs.setdefault("pdf_name", "linear")
         self.name = kwargs["pdf_name"]
 
+    #def build(self):
+
 
 class PDFChebychev(PDF):
     def __init__(self, **kwargs):
@@ -77,6 +83,58 @@ class PDFChebychev(PDF):
             ROOT.SetOwnership(roo_coeff, False)
         ROOT.SetOwnership(coefficients, False)
         return ROOT.RooChebychev(self.name, self.name, self.quantity, coefficients)
+
+
+class PDFBernstein(PDF):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("pdf_name", "bernstein")
+        self.name = kwargs["pdf_name"]
+        self.coefficients = kwargs["pdf_config"].coefficients
+        self.quantity = kwargs["var"]
+
+    def build(self):
+        coefficients = ROOT.RooArgList()
+        for coeff in enumerate(self.coefficients):
+            name = "coeff_{:d}".format(coeff[0])
+            roo_coeff = ROOT.RooRealVar(name, name, *coeff[1])
+            coefficients.add(roo_coeff)
+            ROOT.SetOwnership(roo_coeff, False)
+        ROOT.SetOwnership(coefficients, False)
+        return ROOT.RooBernstein(self.name, self.name, self.quantity, coefficients)
+
+
+class PDFArgus(PDF):
+    def __init__(self, **kwargs):
+        print kwargs
+        kwargs.setdefault("pdf_name", "argus")
+        self.name = kwargs["pdf_name"]
+        self.kappa = kwargs["pdf_config"].kappa
+        self.const = kwargs["pdf_config"].const
+        self.quantity = kwargs["var"]
+
+    def build(self):
+        kappa = ROOT.RooRealVar("kappa", "kappa", *self.kappa)
+        ROOT.SetOwnership(kappa, False)
+        return ROOT.RooArgusBG(self.name, self.name, self.quantity, RooFit.RooConst(self.const), kappa)
+
+
+class PDFAdd(PDF):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("pdf_name", "argus")
+        self.name = kwargs["pdf_name"]
+        self.pdf1_config = kwargs["pdf_config"].pdf1
+        self.pdf2_config = kwargs["pdf_config"].pdf2
+        self.quantity = kwargs["var"]
+
+    def build(self):
+        print self.pdf1_config
+        self.pdf1 = PDFArgus(var=self.quantity, **{"pdf_config": self.pdf1_config}).build()
+        self.pdf2 = PDFBernstein(var=self.quantity, **{"pdf_config": self.pdf2_config}).build()
+        nsig = ROOT.RooRealVar("nsig", "#signal events", 200, 0., 10000)
+        nbkg = ROOT.RooRealVar("nbkg", "#background events", 800, 0., 10000)
+        ROOT.SetOwnership(nsig, False)
+        ROOT.SetOwnership(nbkg, False)
+        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1, self.pdf2), ROOT.RooArgList(nbkg, nsig))
 
 
 class PDFGeneric(PDF):
@@ -127,9 +185,14 @@ class Fitter(object):
             self.pdf = PDFChebychev(**self.__dict__)
         if self.pdf_config.pdf == "generic":
             self.pdf = PDFGeneric(**self.__dict__)
+        if self.pdf_config.pdf == "add":
+            self.pdf = PDFAdd(**self.__dict__)
+        if self.pdf_config.pdf == "linear":
+            self.pdf = PDFLinear(**self.__dict__)
         self.model = self.pdf.build()
 
     def fit(self, return_fit=False):
+        print self.file_handles, self.tree_name, self.quantity, self.blind, self.selection
         self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, self.selection)
         self.build_model()
         if self.blind:
@@ -137,13 +200,14 @@ class Fitter(object):
             #                                      self.var, "SideBand")
             # region.addThreshold(self.blind[0], "SideBand")
             # region.addThreshold(self.blind[1], "Signal")
-            fit_result = self.model.fitTo(self.data, RooFit.Range(("left,right")), RooFit.Save())#RooFit.Cut("region==region::SideBand"), RooFit.Save())
+            fit_result = self.model.fitTo(self.data, RooFit.Range(("left,right")), RooFit.Save(),
+                                          RooFit.PrintEvalErrors(-1))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
         else:
             fit_result = self.model.fitTo(self.data, RooFit.Save())
         canvas = ROOT.TCanvas("c", "", 800, 600)
         canvas.cd()
         frame = self.var.frame()
-        binning = ROOT.RooBinning(25, 1600., 2250.)
+        binning = ROOT.RooBinning(100, 1031., 2529.)
         self.data.plotOn(frame, ROOT.RooFit.Binning(binning), RooFit.CutRange("left,right"))
         self.model.plotOn(frame)
         frame.SetTitle("")
