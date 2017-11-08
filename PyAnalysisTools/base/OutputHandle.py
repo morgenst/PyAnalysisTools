@@ -71,8 +71,8 @@ class OutputFileHandle(SysOutputHandle):
         self.objects = dict()
         self.attached = False
         self.overload = overload
-        kwargs.setdefault("output_file_name", "output.root")
-        self.output_file_name = kwargs["output_file_name"]
+        kwargs.setdefault("output_file", "output.root")
+        self.output_file_name = kwargs["output_file"]
         self.output_file = None
         kwargs.setdefault("make_plotbook", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
