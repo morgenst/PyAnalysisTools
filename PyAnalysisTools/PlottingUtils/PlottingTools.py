@@ -204,7 +204,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
         if plot_config.ignore_style:
             style_setter = "Line"
         if not plot_config.ignore_style:
-            apply_style(hist, *get_style_setters_and_values(plot_config))
+            apply_style(hist, *get_style_setters_and_values(plot_config, index=index))
         if color is not None:
             hist_color = color
             if isinstance(color, list):
