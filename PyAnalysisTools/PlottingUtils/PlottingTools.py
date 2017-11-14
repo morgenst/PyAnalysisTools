@@ -6,6 +6,7 @@ from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 
 
 def retrieve_new_canvas(name, title, size_x=800, size_y=600):
@@ -47,7 +48,6 @@ def plot_hist(hist, plot_config, **kwargs):
     ROOT.SetOwnership(hist, False)
     process_config = None
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
     hist.SetMarkerSize(0.7)
@@ -354,6 +354,8 @@ def plot_stack(hists, plot_config, **kwargs):
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
         max_y = max(max_y, 1.1 * data[1].GetMaximum())
+        if plot_config.rebin:
+            max_y = max(max_y, 1.3 * get_objects_from_canvas_by_name(canvas, data[1].GetName())[0].GetMaximum())
     FM.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)
