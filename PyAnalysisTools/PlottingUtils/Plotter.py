@@ -59,17 +59,18 @@ class Plotter(BasePlotter):
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
         self.expand_process_configs()
+        self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
 
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
                     _ = find_process_config(fh.process, self.process_configs)
 
-    def filter_process_configs(self):
-        if self.process_configs is None:
-            return
-        self.file_handles = filter(lambda fh: find_process_config(fh.process, self.process_configs) is not None,
-                                   self.file_handles)
+    @staticmethod
+    def filter_process_configs(file_handles, process_configs=None):
+        if process_configs is None:
+            return file_handles
+        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None, file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
