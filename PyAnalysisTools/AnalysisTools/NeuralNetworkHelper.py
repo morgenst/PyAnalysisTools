@@ -3,6 +3,8 @@ from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Activation, Input, LSTM, Masking, Dropout
 from keras.layers.normalization import BatchNormalization
 from keras.optimizers import Adam
+import matplotlib
+matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
 from array import array
