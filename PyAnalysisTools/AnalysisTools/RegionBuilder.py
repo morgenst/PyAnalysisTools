@@ -28,8 +28,11 @@ class Region(object):
             self.build_label()
 
     def convert2cut_string(self):
-        electron_selector = "Sum$(electron_is_num == 1 && electron_is_prompt_fix == 1)"
-        muon_selector = "Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)"
+        # electron_selector = "Sum$(electron_is_num == 1 && electron_is_prompt_fix == 1)"
+        # muon_selector = "Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)"
+        electron_selector = "Sum$(abs(electron_d0sig) < 3 && electron_is_tight == 1) && Sum$(abs(electron_d0sig) < 3 && electron_is_tight == 1) == electron_n" #&& electron_is_prompt == 1
+        muon_selector = "Sum$(muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3) && Sum$(muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3) == muon_n"
+
         cut = ""
         if self.is_on_z is not None:
             cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
