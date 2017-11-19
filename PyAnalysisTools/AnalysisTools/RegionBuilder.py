@@ -28,14 +28,21 @@ class Region(object):
             self.build_label()
 
     def convert2cut_string(self):
-        electron_selector = "Sum$(electron_is_num == 1 && electron_is_prompt_fix == 1)"
-        muon_selector = "Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)"
+        good_electron = "abs(electron_d0sig) < 3 && electron_is_tight == 1"
+        good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
+        electron_selector = "Sum$({:s}) == electron_n".format(good_electron)
+        muon_selector = "Sum$({:s}) == muon_n".format(good_muon)
+
         cut = ""
         if self.is_on_z is not None:
             cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
         if self.disable_taus:
-            return cut + "{:s} {:s} {:d} && {:s} {:s} {:d}".format(electron_selector, self.operator, self.n_electron,
-                                                                   muon_selector, self.operator, self.n_muon)
+            return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
+                                                                                           self.operator,
+                                                                                           self.n_electron,
+                                                                                           muon_selector,
+                                                                                           self.operator,
+                                                                                           self.n_muon)
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
             return cut + "{:s} + {:s}+ tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
                                                                self.n_lep)
