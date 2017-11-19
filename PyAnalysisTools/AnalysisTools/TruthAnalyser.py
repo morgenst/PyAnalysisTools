@@ -336,7 +336,7 @@ class LQTruthAnalyser(object):
         book_histogram("quark_e", 50, 0., 1500.)
         book_histogram("quark_eta", 50, -2.5, 2.5)
         book_histogram("quark_phi", 50, -3.2, 3.2)
-        book_histogram("inv_mass", 100, 1500, 3500)
+        book_histogram("inv_mass", 100, 500, 4500)
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
@@ -412,8 +412,8 @@ class LQTruthAnalyser(object):
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
-        #for entry in xrange(tree.GetEntries()):
         no_LQ_counter = 0
+        #for entry in xrange(tree.GetEntries()):
         for entry in xrange(100):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
@@ -428,14 +428,16 @@ class LQTruthAnalyser(object):
                 continue
             resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
             prod_vtx = LQ[0].prodVtxLink().outgoingParticleLinks()
-            self.histograms[process_id]["lepton2_e"].Fill(filter(lambda particle: abs(particle.pdgId()) == 11,
-                                                                 prod_vtx)[0].e() / 1000.)
-            self.histograms[process_id]["lepton2_eta"].Fill(filter(lambda particle: abs(particle.pdgId()) == 11,
-                                                                   prod_vtx)[0].eta())
-            self.histograms[process_id]["lepton2_phi"].Fill(filter(lambda particle: abs(particle.pdgId()) == 11,
-                                                                   prod_vtx)[0].phi())
             try:
-                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11, resonance1_vertex)[0]
+                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 13, prod_vtx)[0]
+                self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
+                self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
+                self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
+            except IndexError:
+                print "Could not find any second lepton for first resonance decay in process", process_id
+                continue
+            try:
+                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0]
                 quark_1 = filter(lambda particle: abs(particle.pdgId())in range(1, 6), resonance1_vertex)[0]
                 self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
                 self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
@@ -449,8 +451,6 @@ class LQTruthAnalyser(object):
                 tlv_quark_1 = ROOT.TLorentzVector()
                 tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
                 self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
-
-
             except IndexError:
                 print "Could not find any first lepton for first resonance decay in process", process_id
                 continue
