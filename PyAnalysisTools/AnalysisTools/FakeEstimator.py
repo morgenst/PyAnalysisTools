@@ -216,10 +216,10 @@ class MuonFakeCalculator(object):
             else:
                 jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
-                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) > 3 && mc_weight >=0".format(jet_selector, relation_op,
+                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) > 3 && abs(muon_d0sig) < 10 && mc_weight >=0".format(jet_selector, relation_op,
                                                                                             n_jet)]
             elif "denominator" in dist:
-                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutLoose == 0 && muon_is_prompt == 1  && abs(muon_d0sig) > 3 && mc_weight >=0".format(jet_selector, relation_op,
+                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutLoose == 0 && muon_is_prompt == 1  && abs(muon_d0sig) > 3 && abs(muon_d0sig) < 10 && mc_weight >=0".format(jet_selector, relation_op,
                                                                                               n_jet)]
 
             plot_config.cuts = cut
