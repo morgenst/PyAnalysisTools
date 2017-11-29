@@ -1,5 +1,6 @@
 import ROOT
 from copy import copy
+from array import array
 from itertools import chain, combinations
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.HistTools as HT
