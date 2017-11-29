@@ -28,6 +28,12 @@ particle_map["LQ"] = [1102, "LQ"]
 particle_map["e-"] = [-11, "e^{-}"]
 particle_map["e+"] = [11, "e^{+}"]
 particle_map["q"] = [range(1,6), "q"]
+particle_map["tau-"] = [-15, "tau^{-}"]
+particle_map["tau+"] = [15, "tau^{+}"]
+particle_map["anti_tau_nu"] = [16, "#nu_{#tau}"]
+particle_map["tau_nu"] = [-16, "#nu_{#tau}"]
+particle_map["Bc+"] = [541, "B_{c}^{+}"]
+particle_map["JPsi"] = [443, "J/#Psi"]
 
 
 class Process(object):
