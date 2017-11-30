@@ -32,7 +32,7 @@ particle_map["tau-"] = [-15, "tau^{-}"]
 particle_map["tau+"] = [15, "tau^{+}"]
 particle_map["anti_tau_nu"] = [16, "#nu_{#tau}"]
 particle_map["tau_nu"] = [-16, "#nu_{#tau}"]
-particle_map["Bc+"] = [541, "B_{c}^{+}"]
+particle_map["Bc+"] = [521, "B_{c}^{+}"]
 particle_map["JPsi"] = [443, "J/#Psi"]
 
 
@@ -179,6 +179,7 @@ class TruthAnalyer(object):
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
                     pc.normalise = True
+                print pc
                 canvas = PT.plot_obj(hist, pc)
                 if hist_name == "decay2_mode":
                     pc_ref = copy(pc)
@@ -463,76 +464,159 @@ class LQTruthAnalyser(object):
         print "no LQ counter: ", no_LQ_counter
 
 
-            # mode = list()
-            # for resonance1_child in resonance1_vertex:
-            #     self.histograms[process_id]["resonance_decay1_child_pdg_ids"].Fill(resonance1_child.pdgId())
-            #     if abs(resonance1_child.pdgId() == 13):
-            #         self.histograms[process_id]["muon_e"].Fill(resonance1_child.e() / 1000.)
-            #         self.histograms[process_id]["muon_eta"].Fill(resonance1_child.eta())
-            #         self.histograms[process_id]["muon_phi"].Fill(resonance1_child.phi())
-            #     if resonance1_child.pdgId() not in self.current_process_config.decay_2_initial_resonance:
-            #         continue
-            #     mode.append((resonance1_child.pdgId(), resonance1_child.e() / 1000.))
-            #     resonance2_vertex = resonance1_child.decayVtxLink().outgoingParticleLinks()
-            #     for resonance2_child in resonance2_vertex:
-            #         if abs(resonance2_child.pdgId()) == 13:
-            #             self.histograms[process_id]["decay2_muon_e"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["muon_e"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["muon_eta"].Fill(resonance2_child.eta())
-            #             self.histograms[process_id]["muon_phi"].Fill(resonance2_child.phi())
-            #             muon_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(), resonance2_child.phi()])
-            #         if abs(resonance2_child.pdgId()) == 22:
-            #             self.histograms[process_id]["decay2_gamma_e"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_e_low_pt"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_status"].Fill(resonance2_child.status())
-            #         if not abs(resonance2_child.pdgId()) == 13:
-            #             self.histograms[process_id]["decay2_non_muon_particle"].Fill(resonance2_child.pdgId())
-            #         if resonance2_child.pdgId() == 22:
-            #             all_photons_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(),
-            #                                     resonance2_child.phi()])
-            #         if resonance2_child.pdgId() == 22 and resonance2_child.e() < 100.:
-            #             continue
-            #         # if resonance2_child.pdgId() == 22 and self.deltaR(muon_pts[0], [resonance2_child.e() / 1000.,
-            #         #                                                                 resonance2_child.eta(),
-            #         #                                                                 resonance2_child.phi()]) > 0.4:
-            #         #     continue
-            #         mode.append((resonance2_child.pdgId(), resonance2_child.e() / 1000.))
-            #         self.histograms[process_id]["decay2_particle"].Fill(resonance2_child.pdgId())
-            #         self.histograms[process_id]["decay2_particle_eta"].Fill(resonance2_child.eta())
-            #         self.histograms[process_id]["decay2_particle_phi"].Fill(resonance2_child.phi())
-            #         self.histograms[process_id]["decay2_particle_status"].Fill(resonance2_child.status())
-            #         if abs(resonance2_child.pdgId()) == 22:
-            #             self.histograms[process_id]["decay2_gamma_e_after_veto"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_eta"].Fill(resonance2_child.eta())
-            #             self.histograms[process_id]["decay2_gamma_phi"].Fill(resonance2_child.phi())
-            #             self.histograms[process_id]["decay2_gamma_e_after_veto_low_pt"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_status_after_veto"].Fill(resonance2_child.status())
-            #             mother = resonance2_child.prodVtx().incomingParticleLinks()[0]
-            #             self.histograms[process_id]["control_photon_mother_pdgid"].Fill(mother.pdgId())
-            #             photons_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(),
-            #                                 resonance2_child.phi()])
-            # mode.sort(key=lambda i: i[0], reverse=True)
-            # try:
-            #     decay_mode = self.current_process_config.decay2_sorted.index(map(lambda i: i[0], mode))
-            # except ValueError:
-            #     decay_mode = -1
-            # if decay_mode == -1:
-            #     for pdg_id, pt in mode:
-            #         self.histograms[process_id]["unidentified_pdgid"].Fill(pdg_id)
-            #         if pdg_id == 22:
-            #             self.histograms[process_id]["unidentified_gamma_e"].Fill(pt)
-            #
-            # self.histograms[process_id]["decay2_mode"].Fill(decay_mode)
-            # muon_pts.sort(key=lambda x: x[0], reverse=True)
-            # if len(muon_pts) < 3:
-            #     print "did not find 3 muons!"
-            #     continue
-            # self.histograms[process_id]["lead_muon_e"].Fill(muon_pts[0][0])
-            # self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_pts[1][0])
-            # self.histograms[process_id]["third_lead_muon_e"].Fill(muon_pts[2][0])
-            # for photon in photons_pts:
-            #     for muon in muon_pts:
-            #         self.histograms[process_id]["decay2_gamma_mu_dr_after_veto"].Fill(self.deltaR(photon, muon))
-            # for photon in all_photons_pts:
-            #     for muon in muon_pts:
-            #         self.histograms[process_id]["decay2_gamma_mu_dr"].Fill(self.deltaR(photon, muon))
+class BcTruthAnalyser(object):
+    def __init__(self, **kwargs):
+        self.input_files = kwargs["input_files"]
+        self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        self.histograms = dict()
+        self.plot_configs = dict()
+        self.references = dict()
+        self.tree_name = "CollectionTree"
+        process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
+        self.processes = {int(channel): Process(process_config) for channel, process_config in
+                          process_configs.iteritems()}
+        self.current_process_config = None
+        self.setup()
+        self.book_histograms()
+        self.book_plot_configs()
+
+    @staticmethod
+    def setup():
+        ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
+        ROOT.xAOD.Init().ignore()
+
+    def book_histograms(self):
+        def book_histogram(name, n_bins, x_min, x_max):
+            for process_id in self.processes.keys():
+                if process_id not in self.histograms:
+                    self.histograms[process_id] = dict()
+                self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
+                                                              x_max)
+
+        book_histogram("lepton_e", 50, 0., 1500.)
+        book_histogram("lepton_eta", 50, -2.5, 2.5)
+        book_histogram("lepton_phi", 50, -3.2, 3.2)
+        book_histogram("jpsi_e", 50, 0., 100.)
+        book_histogram("jpsi_eta", 50, -2.5, 2.5)
+        book_histogram("jpsi_phi", 50, -3.2, 3.2)
+        book_histogram("jpsi_lepton1_e", 50, 0., 100.)
+        book_histogram("jpsi_lepton1_eta", 50, -2.5, 2.5)
+        book_histogram("jpsi_lepton1_phi", 50, -3.2, 3.2)
+        book_histogram("jpsi_lepton2_e", 50, 0., 100.)
+        book_histogram("jpsi_lepton2_eta", 50, -2.5, 2.5)
+        book_histogram("jpsi_lepton2_phi", 50, -3.2, 3.2)
+        book_histogram("jpsi_mass", 50, 0., 5.)
+        book_histogram("B_mass_visible", 50, 0., 10.)
+
+    def book_plot_configs(self):
+        def book_plot_config(name, xtitle, **kwargs):
+            pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
+                            color=ROOT.kBlue, draw="HIST", no_fill=True)
+            for args, val in kwargs.iteritems():
+                setattr(pc, name, val)
+            self.plot_configs[name] = pc
+
+        book_plot_config("resonance_counter_decay1", "pdg ID")
+        book_plot_config("resonance_decay1_child_pdg_ids", "pdg ID")
+        book_plot_config("lepton_e", "lepton from B_{c} decay E [GeV]")
+        book_plot_config("lepton_eta", "lepton from B_{c} decay #eta")
+        book_plot_config("lepton_phi", "lepton from B_{c} decay #phi")
+        book_plot_config("jpsi_e", "J/#Psi E [GeV]")
+        book_plot_config("jpsi_eta", "J/#Psi #eta")
+        book_plot_config("jpsi_phi", "J/#Psi #phi")
+        book_plot_config("jpsi_lepton1_e", "1^{st} muon from J/#Psi decay E [GeV]")
+        book_plot_config("jpsi_lepton1_eta", "1^{st} muon from J/#Psi decay #eta")
+        book_plot_config("jpsi_lepton1_phi", "1^{st} muon from J/#Psi decay #phi")
+        book_plot_config("jpsi_lepton2_e", "2^{st} muon from J/#Psi decay E [GeV]")
+        book_plot_config("jpsi_lepton2_eta", "2^{st} muon from J/#Psi decay #eta")
+        book_plot_config("jpsi_lepton2_phi", "2^{st} muon from J/#Psi decay #phi")
+        book_plot_config("jpsi_mass", "M_{J/#Psi} [GeV]")
+        book_plot_config("B_mass_visible", "visible M_{B} [GeV]")
+
+    def run(self):
+        for input_file in self.input_files:
+            self.analyse_file(input_file)
+        self.plot_histograms()
+        self.output_handle.write_and_close()
+
+    def plot_histograms(self):
+        for process_id, histograms in self.histograms.iteritems():
+            for hist_name, hist in histograms.iteritems():
+                pc = self.plot_configs[hist_name]
+                if hist_name == "decay2_mode":
+                    pc.axis_labels = self.processes[process_id].get_bin_labels()
+                    pc.normalise = True
+                canvas = PT.plot_obj(hist, pc)
+                if hist_name == "decay2_mode":
+                    pc_ref = copy(pc)
+                    pc_ref.color = ROOT.kRed
+                    PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
+                FT.decorate_canvas(canvas, pc)
+                self.output_handle.register_object(canvas, str(process_id))
+
+    @staticmethod
+    def deltaR(particle1, particle2):
+        def shift_phi(phi):
+            if phi >= pi:
+                return phi - 2. * pi
+            if phi < -1. * pi:
+                return phi + 2. * pi
+            return phi
+
+        phi1 = shift_phi(particle1[2])
+        phi2 = shift_phi(particle2[2])
+        return sqrt(pow(particle1[1] - particle2[1], 2) + pow(phi1 - phi2, 2))
+
+    def analyse_file(self, input_file):
+        f = ROOT.TFile.Open(input_file)
+        tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
+        self.current_process_config = None
+        # for entry in xrange(tree.GetEntries()):
+        for entry in xrange(100):
+            tree.GetEntry(entry)
+            process_id = tree.EventInfo.runNumber()
+            # if self.current_process_config is None:
+            #     self.current_process_config = self.processes[process_id]
+            truth_particles = tree.TruthParticles
+            Bc = filter(lambda p: p.pdgId() == 521, truth_particles)
+            # self.histograms[process_id]["resonance_counter_decay1"].Fill(1)
+            if len(Bc) == 0:
+                print "Suspicious event. Could not find LQ"
+                continue
+
+            resonance1_vertex = Bc[0].decayVtxLink().outgoingParticleLinks()
+            prod_vtx = Bc[0].decayVtxLink().outgoingParticleLinks()
+            try:
+                jpsi = filter(lambda particle: abs(particle.pdgId()) == 443, prod_vtx)[0]
+            except IndexError:
+                print "Could not find J/Psi"
+                continue
+            self.histograms[process_id]["jpsi_e"].Fill(jpsi.e() / 1000.)
+            self.histograms[process_id]["jpsi_eta"].Fill(jpsi.eta())
+            self.histograms[process_id]["jpsi_phi"].Fill(jpsi.phi())
+            lepton = filter(lambda particle: abs(particle.pdgId()) == 15 or abs(particle.pdgId()) == 13, prod_vtx)[0]
+            self.histograms[process_id]["lepton_e"].Fill(lepton.e() / 1000.)
+            self.histograms[process_id]["lepton_eta"].Fill(lepton.eta())
+            self.histograms[process_id]["lepton_phi"].Fill(lepton.phi())
+
+            jpsi_decay_vtx = jpsi.decayVtxLink().outgoingParticleLinks()
+
+            jpsi_muon1 = filter(lambda particle: abs(particle.pdgId()) == 13, jpsi_decay_vtx)[0]
+            jpsi_muon2 = filter(lambda particle: abs(particle.pdgId()) == 13, jpsi_decay_vtx)[1]
+
+            self.histograms[process_id]["jpsi_lepton1_e"].Fill(jpsi_muon1.e() / 1000.)
+            self.histograms[process_id]["jpsi_lepton1_eta"].Fill(jpsi_muon1.eta())
+            self.histograms[process_id]["jpsi_lepton1_phi"].Fill(jpsi_muon1.phi())
+            self.histograms[process_id]["jpsi_lepton2_e"].Fill(jpsi_muon2.e() / 1000.)
+            self.histograms[process_id]["jpsi_lepton2_eta"].Fill(jpsi_muon2.eta())
+            self.histograms[process_id]["jpsi_lepton2_phi"].Fill(jpsi_muon2.phi())
+            self.histograms[process_id]["jpsi_lepton2_phi"].Fill(jpsi_muon2.phi())
+            
+            jpsi_muon1_tlv = ROOT.TLorentzVector()
+            jpsi_muon1_tlv.SetPtEtaPhiE(jpsi_muon1.e(), jpsi_muon1.eta(), jpsi_muon1.phi(), jpsi_muon1.e())
+            jpsi_muon2_tlv = ROOT.TLorentzVector()
+            jpsi_muon2_tlv.SetPtEtaPhiE(jpsi_muon2.e(), jpsi_muon2.eta(), jpsi_muon2.phi(), jpsi_muon2.e())
+            lepton_tlv = ROOT.TLorentzVector()
+            lepton_tlv.SetPtEtaPhiE(lepton.e(), lepton.eta(), lepton.phi(), lepton.e())
+            self.histograms[process_id]["jpsi_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv).M() / 1000.)
+            self.histograms[process_id]["B_mass_visible"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv).M() / 1000.)
