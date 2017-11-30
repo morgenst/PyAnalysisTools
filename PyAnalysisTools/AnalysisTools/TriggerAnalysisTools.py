@@ -25,9 +25,13 @@ class TriggerFlattener(object):
             raise InvalidInputError("No input file name provided")
         if not "tree_name" in kwargs:
             raise InvalidInputError("No tree name provided")
+        kwargs.setdefault("additional_trees", [])
         self.file_handle = FileHandle(file_name=kwargs["input_file"], open_option="UPDATE")
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
+        self.additional_trees_names = kwargs["additional_trees"]
+        for tn in self.additional_trees_names:
+            setattr(self, tn, self.file_handle.get_object_by_name(tn, tdirectory="Nominal"))
         self.trigger_list = []
 
     def flatten_all_branches(self):
@@ -49,8 +53,13 @@ class TriggerFlattener(object):
                 new_name = branch_name.replace("trigger", trigger_name)
                 exec("data_holder_{:s} = array(\'f\', [0.])".format(new_name))
                 exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(*[new_name]*4))
+                for tn in self.additional_trees_names:
+                    exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(tn, new_name, tn, *[new_name] * 3))
+
         for entry in range(self.tree.GetEntries()):
             self.tree.GetEntry(entry)
+            for tree_name in self.additional_trees_names:
+                getattr(self, tree_name).GetEntry(entry)
             unprocessed_triggers = copy(self.trigger_list)
             for item in range(len(self.tree.trigger_list)):
                 trig_name = self.tree.trigger_list[item].replace("-", "_")
@@ -63,14 +72,20 @@ class TriggerFlattener(object):
                     new_name = branch_name.replace("trigger", trig_name)
                     exec("data_holder_{:s}[0] = self.tree.{:s}[item]".format(new_name, branch_name))
                     eval("branch_{:s}.Fill()".format(new_name))
+                    for tn in self.additional_trees_names:
+                        eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
             for missing_trigger in unprocessed_triggers:
                 for branch_name in branch_names:
                     new_name = branch_name.replace("trigger", missing_trigger)
                     exec ("data_holder_{:s}[0] = -1111.".format(new_name))
                     eval("branch_{:s}.Fill()".format(new_name))
+                    for tn in self.additional_trees_names:
+                        eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
         tdir = self.file_handle.get_directory("Nominal")
         tdir.cd()
         self.tree.Write()
+        for tree_name in self.additional_trees_names:
+            getattr(self, tree_name).Write()
 
 
 class TriggerAcceptancePlotter(BasePlotter):
