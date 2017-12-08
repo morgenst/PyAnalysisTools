@@ -1,5 +1,6 @@
 import ROOT
 import traceback
+from array import array
 from itertools import permutations
 from copy import deepcopy
 from functools import partial
@@ -131,8 +132,11 @@ class MuonFakeDecorator(object):
         self.tree_name = kwargs["tree_name"]
         self.fake_factors = ROOT.std.vector('float')()
         self.branch_name = kwargs["branch_name"]
+        self.branch_name_total = "{:s}_total".format(kwargs["branch_name"])
         self.tree = None
         self.branch = None
+        self.branch_total = None
+        self.total_sf = array('f', [1.])
 
     def decorate_event(self):
         def get_n_jets_dr(n_muon, dR):
@@ -144,6 +148,7 @@ class MuonFakeDecorator(object):
                 n_jets_dr += 1
             return n_jets_dr
         self.fake_factors.clear()
+        self.total_sf[0] = 1.
         for n_muon in range(self.tree.muon_n):
             #muon_isolFixedCutLoose == 0 & & muon_is_prompt == 1 & & abs(muon_d0sig) > 3 & & mc_weight >= 0
             fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
@@ -151,6 +156,7 @@ class MuonFakeDecorator(object):
                                                               self.tree.muon_isolFixedCutLoose[n_muon] == 0,
                                                               0)
                                                               #self.tree.muon_n_jet_dr2[n_muon])
+            self.total_sf[0] *= fake_factor
             self.fake_factors.push_back(fake_factor)
                                                                             #get_n_jets_dr(n_muon, 0.3)))
 
@@ -161,6 +167,7 @@ class MuonFakeDecorator(object):
             self.tree.GetEntry(entry)
             self.decorate_event()
             self.branch.Fill()
+            self.branch_total.Fill()
 
     def dump(self, file_handle):
         tdir = file_handle.get_directory("Nominal")
@@ -171,6 +178,9 @@ class MuonFakeDecorator(object):
     def initialise(self, file_handle):
         self.tree = file_handle.get_objects_by_pattern(self.tree_name, "Nominal")[0]
         self.branch = self.tree.Branch(self.branch_name, self.fake_factors)
+        self.branch_total = self.tree.Branch(self.branch_name_total,
+                                             self.total_sf,
+                                             "{:s}/F".format(self.branch_name_total))
 
     def execute(self):
         for file_handle in self.input_file_handles:
@@ -209,17 +219,17 @@ class MuonFakeCalculator(object):
         plot_config_base = filter(lambda pc: pc.name == dist, self.plot_config)[0]
         hists = {}
         for n_jet in range(3):
-            plot_config = copy(plot_config_base)
+            plot_config = deepcopy(plot_config_base)
             plot_config.lumi = self.lumi
             if self.enable_bjets:
                 jet_selector = "Sum$(muon_bjet_dr > 0.3)" if enable_dr else "jet_n"
             else:
                 jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
-                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) > 3 && abs(muon_d0sig) < 10 && mc_weight >=0".format(jet_selector, relation_op,
+                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) > 3 && abs(muon_d0sig) < 10 && mc_weight >=0 && HLT_2mu14_acceptance==1".format(jet_selector, relation_op,
                                                                                             n_jet)]
             elif "denominator" in dist:
-                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutLoose == 0 && muon_is_prompt == 1  && abs(muon_d0sig) > 3 && abs(muon_d0sig) < 10 && mc_weight >=0".format(jet_selector, relation_op,
+                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutLoose == 0 && muon_is_prompt == 1  && abs(muon_d0sig) > 3 && abs(muon_d0sig) < 10 && mc_weight >=0 && HLT_2mu14_acceptance==1".format(jet_selector, relation_op,
                                                                                               n_jet)]
 
             plot_config.cuts = cut
@@ -283,8 +293,20 @@ class MuonFakeCalculator(object):
 
     @staticmethod
     def calculate_fake_factor(numerator, denominator, name):
+        c_test_num = ROOT.TCanvas("c_test_{:s}_num".format(numerator.GetName()), "")
+        c_test_num.cd()
+        numerator.Draw()
+        c_test_num.SaveAs("/afs/cern.ch/user/m/morgens/afs_work/devarea/MultiLepton/test/fakes_debug/{:s}.pdf".format(c_test_num.GetName()))
+        c_test_denom = ROOT.TCanvas("c_test_{:s}_denom".format(denominator.GetName()), "")
+        c_test_denom.cd()
+        denominator.Draw()
+        c_test_denom.SaveAs("/afs/cern.ch/user/m/morgens/afs_work/devarea/MultiLepton/test/fakes_debug/{:s}.pdf".format(c_test_denom.GetName()))
         fake_factor = numerator.Clone(name)
         fake_factor.Divide(denominator)
+        c_test_ff = ROOT.TCanvas("c_test_{:s}_ff".format(denominator.GetName()), "")
+        c_test_ff.cd()
+        fake_factor.Draw()
+        c_test_ff.SaveAs("/afs/cern.ch/user/m/morgens/afs_work/devarea/MultiLepton/test/fakes_debug/{:s}.pdf".format(c_test_ff.GetName()))
         return fake_factor
 
     def plot_fake_factors(self):
