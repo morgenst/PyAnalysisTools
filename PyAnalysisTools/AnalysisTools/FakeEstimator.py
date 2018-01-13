@@ -1,7 +1,7 @@
 import ROOT
 import traceback
 from itertools import permutations
-from copy import deepcopy
+from copy import copy, deepcopy
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError, Utilities
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
@@ -347,6 +347,33 @@ class MuonFakeCalculator(object):
         self.plotter.output_handle.register_object(canvas_geq)
         self.plotter.output_handle.register_object(canvas_eq_dr)
         self.plotter.output_handle.register_object(canvas_geq_dr)
+
+    def get_d0_extrapolation(self):
+        def retrieve_hist(config, is_high_d0):
+            pc = deepcopy(config)
+            if is_high_d0:
+                pc.cuts += ["abs(muon_d0sig)>3", "abs(muon_d0sig)<10"]
+            else:
+                pc.cuts += ["abs(muon_d0sig)<3"]
+            return self.plotter.read_histograms(pc, self.file_handles)[1][0][1]
+
+        for plot_config in self.plot_config:
+            fake_pc = copy(plot_config)
+            fake_pc.cuts = plot_config.fake_cuts
+            prompt_pc = copy(plot_config)
+            prompt_pc.cuts = plot_config.prompt_cuts
+            fake_hist_high_d0 = retrieve_hist(fake_pc, True)
+            fake_hist_low_d0 = retrieve_hist(fake_pc, False)
+            prompt_hist_high_d0 = retrieve_hist(prompt_pc, True)
+            prompt_hist_low_d0 = retrieve_hist(prompt_pc, False)
+            fake_factor_high =self.calculate_fake_factor(fake_hist_high_d0, prompt_hist_high_d0,
+                                                         "ff_{:s}_{:s}".format(plot_config.name, "high"))
+            fake_factor_low = self.calculate_fake_factor(fake_hist_low_d0, prompt_hist_low_d0,
+                                                          "ff_{:s}_{:s}".format(plot_config.name, "low"))
+            print fake_hist_low_d0.GetEntries(), prompt_hist_low_d0.GetEntries()
+            canvas = PT.plot_obj(fake_factor_low, plot_config)
+            PT.add_histogram_to_canvas(canvas, fake_factor_high, plot_config)
+            canvas.SaveAs("/afs/cern.ch/user/m/morgens/afs_work/test.pdf")
 
     def plot_fake_factors_2D(self):
         self.histograms = Utilities.merge_dictionaries(self.get_plots("numerator_pt_eta", "=="))
