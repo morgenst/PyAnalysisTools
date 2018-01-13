@@ -1,6 +1,6 @@
 import ROOT
 from itertools import permutations
-from copy import copy
+from copy import copy, deepcopy
 from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError, Utilities
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
@@ -175,6 +175,7 @@ class MuonFakeCalculator(object):
         if not "input_files" in kwargs:
             raise InvalidInputError("No input files provided")
         kwargs.setdefault("lumi", 36.3)
+        kwargs.setdefault("enable_bjets", False)
         self.file_handles = [FileHandle(file_name=file_name) for file_name in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.ncpu = 10
@@ -196,12 +197,12 @@ class MuonFakeCalculator(object):
                 jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
                 cut = ["({:s} {:s} {:d}) && muon_d0sig > 3 && muon_isolGradient==1".format(jet_selector,
-                                                                                           relation_op, n_jet)]
-                cut.append("MC:(muon_truth_mother_pdg==12 || muon_truth_mother_pdg==13)")
+                                                                                           relation_op, n_jet),
+                       "MC:(muon_truth_mother_pdg==12 || muon_truth_mother_pdg==13)"]
             elif "denominator" in dist:
-                cut = ["({:s} {:s} {:d}) && fake_muon_d0sig > 3 && fake_muon_isolGradient==0".format(jet_selector.replace("muon", "fake_muon"),
-                                                                                                     relation_op, n_jet)]
-                cut.append("MC:(fake_muon_truth_mother_pdg==12 || fake_muon_truth_mother_pdg==13)")
+                cut = ["({:s} {:s} {:d}) && fake_muon_d0sig > 3 && fake_muon_isolGradient==0".format(
+                    jet_selector.replace("muon", "fake_muon"),
+                    relation_op, n_jet), "MC:(fake_muon_truth_mother_pdg==12 || fake_muon_truth_mother_pdg==13)"]
             plot_config.cuts = cut
             suffix = "eq" if relation_op == "==" else "geq"
             jet_selector_name = "" if not enable_dr else "_dR0.3"
@@ -291,6 +292,33 @@ class MuonFakeCalculator(object):
         FT.add_legend_to_canvas(canvas, labels=labels)
         FT.decorate_canvas(canvas, plot_config)
         self.plotter.output_handle.register_object(canvas)
+
+    def get_d0_extrapolation(self):
+        def retrieve_hist(config, is_high_d0):
+            pc = deepcopy(config)
+            if is_high_d0:
+                pc.cuts += ["abs(muon_d0sig)>3", "abs(muon_d0sig)<10"]
+            else:
+                pc.cuts += ["abs(muon_d0sig)<3"]
+            return self.plotter.read_histograms(pc, self.file_handles)[1][0][1]
+
+        for plot_config in self.plot_config:
+            fake_pc = copy(plot_config)
+            fake_pc.cuts = plot_config.fake_cuts
+            prompt_pc = copy(plot_config)
+            prompt_pc.cuts = plot_config.prompt_cuts
+            fake_hist_high_d0 = retrieve_hist(fake_pc, True)
+            fake_hist_low_d0 = retrieve_hist(fake_pc, False)
+            prompt_hist_high_d0 = retrieve_hist(prompt_pc, True)
+            prompt_hist_low_d0 = retrieve_hist(prompt_pc, False)
+            fake_factor_high =self.calculate_fake_factor(fake_hist_high_d0, prompt_hist_high_d0,
+                                                         "ff_{:s}_{:s}".format(plot_config.name, "high"))
+            fake_factor_low = self.calculate_fake_factor(fake_hist_low_d0, prompt_hist_low_d0,
+                                                          "ff_{:s}_{:s}".format(plot_config.name, "low"))
+            print fake_hist_low_d0.GetEntries(), prompt_hist_low_d0.GetEntries()
+            canvas = PT.plot_obj(fake_factor_low, plot_config)
+            PT.add_histogram_to_canvas(canvas, fake_factor_high, plot_config)
+            canvas.SaveAs("/afs/cern.ch/user/m/morgens/afs_work/test.pdf")
 
     def plot_fake_factors_2D(self):
         self.histograms = Utilities.merge_dictionaries(self.get_plots("numerator_pt_eta", "=="))
