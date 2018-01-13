@@ -1,4 +1,5 @@
 import ROOT
+import traceback
 from itertools import permutations
 from copy import copy, deepcopy
 from functools import partial
@@ -16,7 +17,7 @@ class MuonFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
-        self.file_handles = filter(lambda fh: "data" not in fh.process.lower(), kwargs["file_handles"])
+        self.file_handles = filter(lambda fh: "data" in fh.process.lower(), kwargs["file_handles"])
         self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
@@ -79,13 +80,24 @@ class MuonFakeEstimator(object):
 
     @staticmethod
     def retrieve_single_fake_plot_config(plot_config, n_fake_muon, n_total_muon):
-        pc = copy(plot_config)
+        pc = deepcopy(plot_config)
         pc.name = "fake_single_lep"
-        cut = filter(lambda cut: "muon_prompt_n" in cut, pc.cuts)[0]
-        cut_index = pc.cuts.index(cut)
-        pc.cuts[cut_index] = cut.replace("muon_prompt_n == {:d}".format(n_total_muon),
-                                         "(muon_n - muon_prompt_n) == {:d}".format(n_fake_muon))
+        cut_name = "Sum$(muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3)" #""Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)" #"Sum$(muon_isolFixedCutLoose == 0)"
 
+        good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
+        bad_muon = "muon_isolFixedCutLoose == 0 && abs(muon_d0sig) < 3"
+        muon_selector = "Sum$({:s})".format(good_muon)
+        cut = filter(lambda cut: cut_name in cut, pc.cuts)[0]
+        cut_index = pc.cuts.index(cut)
+        print "cut before: ", cut
+        cut = cut.replace("{:s} == muon_n".format(muon_selector),
+                          "{:s} == (muon_n - {:d})".format(muon_selector, n_fake_muon))
+        print "replace: ", "{:s} == muon_n".format(muon_selector), " \n with:",  "{:s} == (muon_n - {:d})".format(muon_selector, n_fake_muon)
+        cut = cut.replace("muon_n == {:d}".format(n_total_muon),
+                          "muon_n == {:d} && Sum$({:s}) == {:d}".format(n_total_muon, bad_muon, n_fake_muon))
+        print cut
+        pc.cuts[cut_index] = cut
+        pc.weight += " * muon_fake_factor_20171117"
         return pc
 
 
@@ -101,8 +113,8 @@ class MuonFakeProvider(object):
             canvas_fake_factor = self.file_handle.get_object_by_name(name)
             self.fake_factor[i] = get_objects_from_canvas_by_name(canvas_fake_factor, name)[0]
 
-    def retrieve_fake_factor(self, pt, eta, is_non_prompt, n_jets):
-        if is_non_prompt == 0:
+    def retrieve_fake_factor(self, pt, eta, is_denom, n_jets):
+        if not is_denom or pt > 50000.:
             return 1.
         if n_jets > 2:
             n_jets = 2
@@ -112,7 +124,7 @@ class MuonFakeProvider(object):
 
 class MuonFakeDecorator(object):
     def __init__(self, **kwargs):
-        input_files = filter(lambda fn: "data" not in fn, kwargs["input_files"])
+        input_files = filter(lambda fn: "data" in fn, kwargs["input_files"])
         self.input_file_handles = [FileHandle(file_name=input_file, open_option="UPDATE",
                                               run_dir=kwargs["run_dir"]) for input_file in input_files]
         self.estimator = MuonFakeProvider(**kwargs)
@@ -132,12 +144,15 @@ class MuonFakeDecorator(object):
                 n_jets_dr += 1
             return n_jets_dr
         self.fake_factors.clear()
-        print "decorating event"
         for n_muon in range(self.tree.muon_n):
-            self.fake_factors.push_back(self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
-                                                                            self.tree.muon_eta[n_muon],
-                                                                            self.tree.muon_is_non_prompt[n_muon],
-                                                                            get_n_jets_dr(n_muon, 0.3)))
+            #muon_isolFixedCutLoose == 0 & & muon_is_prompt == 1 & & abs(muon_d0sig) > 3 & & mc_weight >= 0
+            fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
+                                                              self.tree.muon_eta[n_muon],
+                                                              self.tree.muon_isolFixedCutLoose[n_muon] == 0,
+                                                              0)
+                                                              #self.tree.muon_n_jet_dr2[n_muon])
+            self.fake_factors.push_back(fake_factor)
+                                                                            #get_n_jets_dr(n_muon, 0.3)))
 
     def event_loop(self):
         total_entries = self.tree.GetEntries()
@@ -164,6 +179,7 @@ class MuonFakeDecorator(object):
                 self.event_loop()
                 self.dump(file_handle)
             except Exception as e:
+                print(traceback.format_exc())
                 raise e
             finally:
                 file_handle.close()
@@ -174,9 +190,9 @@ class MuonFakeCalculator(object):
         from PyAnalysisTools.PlottingUtils.Plotter import Plotter
         if not "input_files" in kwargs:
             raise InvalidInputError("No input files provided")
-        kwargs.setdefault("lumi", 36.3)
-        kwargs.setdefault("enable_bjets", False)
-        self.file_handles = [FileHandle(file_name=file_name) for file_name in kwargs["input_files"]]
+        kwargs.setdefault("lumi", 21.)
+        self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["xs_config_file"])
+                             for file_name in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.ncpu = 10
         self.plotter = Plotter(plot_config_files=[kwargs["plot_config"]], **kwargs)
@@ -184,56 +200,54 @@ class MuonFakeCalculator(object):
         self.plotter.read_cutflows()
         self.jet_binned_histograms = {}
         self.histograms = {}
+        self.lumi = kwargs["lumi"]
         self.enable_bjets = kwargs["enable_bjets"]
+        self.plotter.expand_process_configs()
+        self.file_handles = self.plotter.filter_process_configs(self.file_handles, self.plotter.process_configs)
 
     def get_plots(self, dist, relation_op, enable_dr=True):
         plot_config_base = filter(lambda pc: pc.name == dist, self.plot_config)[0]
         hists = {}
         for n_jet in range(3):
             plot_config = copy(plot_config_base)
+            plot_config.lumi = self.lumi
             if self.enable_bjets:
                 jet_selector = "Sum$(muon_bjet_dr > 0.3)" if enable_dr else "jet_n"
             else:
                 jet_selector = "Sum$(muon_jet_dr > 0.3)" if enable_dr else "jet_n"
             if "numerator" in dist:
-                cut = ["({:s} {:s} {:d}) && muon_d0sig > 3 && muon_isolGradient==1".format(jet_selector,
-                                                                                           relation_op, n_jet),
-                       "MC:(muon_truth_mother_pdg==12 || muon_truth_mother_pdg==13)"]
+                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) > 3 && mc_weight >=0".format(jet_selector, relation_op,
+                                                                                            n_jet)]
             elif "denominator" in dist:
-                cut = ["({:s} {:s} {:d}) && fake_muon_d0sig > 3 && fake_muon_isolGradient==0".format(
-                    jet_selector.replace("muon", "fake_muon"),
-                    relation_op, n_jet), "MC:(fake_muon_truth_mother_pdg==12 || fake_muon_truth_mother_pdg==13)"]
+                cut = ["({:s} {:s} {:d}) && muon_isolFixedCutLoose == 0 && muon_is_prompt == 1  && abs(muon_d0sig) > 3 && mc_weight >=0".format(jet_selector, relation_op,
+                                                                                              n_jet)]
+
             plot_config.cuts = cut
             suffix = "eq" if relation_op == "==" else "geq"
             jet_selector_name = "" if not enable_dr else "_dR0.3"
             name = "{:s}_{:s}{:d}_jets{:s}".format(dist, suffix, n_jet, jet_selector_name)
             plot_config.name = name
-            numerator_hists = mp.ThreadPool(min(self.ncpu, 1)).map(self.plotter.read_histograms, [plot_config])
+            numerator_hists = mp.ThreadPool(min(self.ncpu, 1)).map(partial(self.plotter.read_histograms,
+                                                                           file_handles=self.file_handles),
+                                                                   [plot_config])
+            #_, numerator_hists = self.plotter.read_histograms(self.file_handles, plot_config=plot_config)
             for plot_config, histograms in numerator_hists:
                 self.plotter.histograms = {}
                 histograms = filter(lambda hist: hist is not None, histograms)
                 self.plotter.categorise_histograms(plot_config, histograms)
-            self.plotter.apply_lumi_weights(self.histograms)
-            for hist_set in self.plotter.histograms.values():
-                for process_name in hist_set.keys():
-                    _ = find_process_config(process_name, self.plotter.process_configs)
+            self.plotter.apply_lumi_weights(self.plotter.histograms)
+            # for hist_set in self.plotter.histograms.values():
+            #     for process_name in hist_set.keys():
+            #         _ = find_process_config(process_name, self.plotter.process_configs)
             self.plotter.merge_histograms()
             hists[name] = self.plotter.histograms
         return hists
 
     def make_plot(self, hists, plot_config):
-        data = hists[0].pop("Data")
-        canvas = PT.plot_objects(hists[0], plot_config, process_configs=self.plotter.process_configs)
-        PT.add_data_to_stack(canvas, data, plot_config)
-        ymax = 1.3 * max(map(lambda h: h.GetMaximum(), get_objects_from_canvas_by_type(canvas, "TH1F")))
-        ymin = 0.
-        if plot_config.logy:
-            ymin = 0.1
-        get_objects_from_canvas_by_type(canvas, "TH1F")[0].GetYaxis().SetRangeUser(ymin, ymax)
+        canvas = PT.plot_stack(hists[0], plot_config, process_configs=self.plotter.process_configs)
         canvas.Update()
         canvas.Modified()
-        hists[0]["Data"] = data
-        labels = ["Prompt MC", "Data"]
+        labels = ["Data"] + [k for k in hists[0].keys() if "Data" not in k]
         FT.add_legend_to_canvas(canvas, labels=labels)
         FT.decorate_canvas(canvas, plot_config)
         self.plotter.output_handle.register_object(canvas)
@@ -256,7 +270,13 @@ class MuonFakeCalculator(object):
             data_hists[jet_bin] = {}
             for plot_config, hists in data.iteritems():
                 data_hists[jet_bin][plot_config] = hists["Data"]
-                data_hists[jet_bin][plot_config].Add(hists["Prompt"], -1.0)
+                if "Prompt" in hists:
+                    data_hists[jet_bin][plot_config].Add(hists["Prompt"], -1.0)
+                else:
+                    for process in hists.keys():
+                        if process == "Data":
+                            continue
+                        data_hists[jet_bin][plot_config].Add(hists[process], -1.0)
                 if hasattr(plot_config, "rebin") and plot_config.rebin is not None:
                     data_hists[jet_bin][plot_config] = HT.rebin(data_hists[jet_bin][plot_config], plot_config.rebin)
         return data_hists
@@ -284,14 +304,49 @@ class MuonFakeCalculator(object):
         plot_config = PlotConfig(draw="MarkerError", color=[ROOT.kBlack, ROOT.kRed, ROOT.kBlue, ROOT.kGreen,
                                                             ROOT.kCyan, ROOT.kGray] * 2, name="fake_factor_pt",
                                  watermark="Internal", xtitle="p_{T} [GeV]", ytitle="Fake factor", ordering=ordering,
-                                 ymin=0., ymax=1., styles=[20] * int(len(fake_factors) / 2) + [21]*int(len(fake_factors) / 2))
+                                 ymin=0., ymax=1.,
+                                 styles=[20] * int(len(fake_factors) / 2) + [21]*int(len(fake_factors) / 2))
         canvas = PT.plot_objects(fake_factors, plot_config)
         labels = ["=0 jet (dR > 0.3)", ">= 0 jet (dR > 0.3)", "=1 jet (dR > 0.3)", ">=1 jet (dR > 0.3)",
                   "=2 jet (dR > 0.3)", ">=2 jet  (dR > 0.3)", "=0 jet", ">= 0 jet", "=1 jet", ">=1 jet", "=2 jet",
                   ">=2 jet"]
         FT.add_legend_to_canvas(canvas, labels=labels)
+        fake_factors_eq = dict(filter(lambda h: "_eq" in h[1].GetName() and "dR" not in h[1].GetName(),
+                                      fake_factors.iteritems()))
+        fake_factors_geq = dict(filter(lambda h: "_geq" in h[1].GetName() and "dR" not in h[1].GetName(),
+                                       fake_factors.iteritems()))
+        fake_factors_eq_dr = dict(filter(lambda h: "_eq" in h[1].GetName() and "dR" in h[1].GetName(),
+                                         fake_factors.iteritems()))
+        fake_factors_geq_dr = dict(filter(lambda h: "_geq" in h[1].GetName() and "dR" in h[1].GetName(),
+                                          fake_factors.iteritems()))
+
+        labels_eq = filter(lambda l: ">=" not in l and "dR" not in l, labels)
+        labels_geq = filter(lambda l: ">=" in l and "dR" not in l, labels)
+        labels_eq_dr = filter(lambda l: ">=" not in l and "dR" in l, labels)
+        labels_geq_dr = filter(lambda l: ">=" in l and "dR" in l, labels)
+
+        plot_config.name = "fake_factor_pt_eq"
+        canvas_eq = PT.plot_objects(fake_factors_eq, plot_config)
+        FT.add_legend_to_canvas(canvas_eq, labels=labels_eq)
+        plot_config.name = "fake_factor_pt_qeq"
+        canvas_geq = PT.plot_objects(fake_factors_geq, plot_config)
+        FT.add_legend_to_canvas(canvas_geq, labels=labels_geq)
+        plot_config.name = "fake_factor_pt_geq"
+        canvas_eq_dr = PT.plot_objects(fake_factors_eq_dr, plot_config)
+        FT.add_legend_to_canvas(canvas_eq_dr, labels=labels_eq_dr)
+        plot_config.name = "fake_factor_pt_geq_dr"
+        canvas_geq_dr = PT.plot_objects(fake_factors_geq_dr, plot_config)
+        FT.add_legend_to_canvas(canvas_geq_dr, labels=labels_geq_dr)
         FT.decorate_canvas(canvas, plot_config)
+        FT.decorate_canvas(canvas_eq, plot_config)
+        FT.decorate_canvas(canvas_geq, plot_config)
+        FT.decorate_canvas(canvas_eq_dr, plot_config)
+        FT.decorate_canvas(canvas_geq_dr, plot_config)
         self.plotter.output_handle.register_object(canvas)
+        self.plotter.output_handle.register_object(canvas_eq)
+        self.plotter.output_handle.register_object(canvas_geq)
+        self.plotter.output_handle.register_object(canvas_eq_dr)
+        self.plotter.output_handle.register_object(canvas_geq_dr)
 
     def get_d0_extrapolation(self):
         def retrieve_hist(config, is_high_d0):

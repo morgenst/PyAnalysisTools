@@ -6,6 +6,7 @@ from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 
 
 def retrieve_new_canvas(name, title, size_x=800, size_y=600):
@@ -17,7 +18,7 @@ def plot_obj(hist, plot_config, **kwargs):
         return plot_2d_hist(hist, plot_config, **kwargs)
     if isinstance(hist, ROOT.TH1):
         return plot_hist(hist, plot_config, **kwargs)
-    if isinstance(hist, ROOT.TEfficiency):
+    if isinstance(hist, ROOT.TEfficiency) or isinstance(hist, ROOT.TGraph):
         return plot_graph(hist, plot_config, **kwargs)
 
 
@@ -47,7 +48,6 @@ def plot_hist(hist, plot_config, **kwargs):
     ROOT.SetOwnership(hist, False)
     process_config = None
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
     hist.SetMarkerSize(0.7)
@@ -98,7 +98,7 @@ def fetch_process_config(process, process_config):
 def format_obj(obj, plot_config):
     if isinstance(obj, ROOT.TH1):
         return format_hist(obj, plot_config)
-    if isinstance(obj, ROOT.TGraphAsymmErrors):
+    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TGraph):
         return format_hist(obj, plot_config)
     if isinstance(obj, ROOT.TEfficiency):
         return format_tefficiency(obj, plot_config)
@@ -203,8 +203,8 @@ def plot_histograms(hists, plot_config, process_configs=None):
         #     style_setter = "Line"
         if plot_config.ignore_style:
             style_setter = "Line"
-        if style_attr is not None and not plot_config.ignore_style:
-            getattr(hist, "Set"+style_setter+"Style")(style_attr)
+        if not plot_config.ignore_style:
+            apply_style(hist, *get_style_setters_and_values(plot_config, index=index))
         if color is not None:
             hist_color = color
             if isinstance(color, list):
@@ -281,14 +281,17 @@ def plot_graph(graph, plot_config=None, **kwargs):
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
-    draw_option = "ap"
-    graph.Draw("ap")
+    draw_option = "a" + get_draw_option_as_root_str(plot_config)
+    #draw_option = "ap"
+    graph.Draw(draw_option)
     if not "same" in draw_option:
         draw_option += "same"
     apply_style(graph, *get_style_setters_and_values(plot_config))
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)
+    if hasattr(plot_config, "logy") and plot_config.logy:
+        canvas.SetLogy()
     canvas.Update()
     return canvas
 
@@ -351,6 +354,8 @@ def plot_stack(hists, plot_config, **kwargs):
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
         max_y = max(max_y, 1.1 * data[1].GetMaximum())
+        if plot_config.rebin:
+            max_y = max(max_y, 1.3 * get_objects_from_canvas_by_name(canvas, data[1].GetName())[0].GetMaximum())
     FM.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)

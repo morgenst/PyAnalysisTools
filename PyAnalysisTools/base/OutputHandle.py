@@ -13,12 +13,13 @@ class SysOutputHandle(object):
             _logger.warning("No output directory provied")
             kwargs.setdefault("output_dir", "./")
         kwargs.setdefault("sub_dir_name", "output")
-        self.time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
         self.base_output_dir = kwargs["output_dir"]
         self.output_dir = self.resolve_output_dir(**kwargs)
         ShellUtils.make_dirs(self.output_dir)
 
-    def resolve_output_dir(self, **kwargs):
+    @staticmethod
+    def resolve_output_dir(**kwargs):
+        time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
         output_dir = kwargs["output_dir"]
         if output_dir is None:
             output_dir = "./"
@@ -26,7 +27,7 @@ class SysOutputHandle(object):
             output_dir = os.readlink(output_dir)
         if re.search(r"([0-9]{8}_[0-9]{2}-[0-9]{2}-[0-9]{2})$", output_dir):
             return output_dir
-        return os.path.join(output_dir, "{}_{}".format(kwargs["sub_dir_name"], self.time_stamp))
+        return os.path.join(output_dir, "{}_{}".format(kwargs["sub_dir_name"], time_stamp))
 
     def _set_latest_link(self, link):
         if os.path.exists(link):
@@ -70,8 +71,8 @@ class OutputFileHandle(SysOutputHandle):
         self.objects = dict()
         self.attached = False
         self.overload = overload
-        kwargs.setdefault("output_file_name", "output.root")
-        self.output_file_name = kwargs["output_file_name"]
+        kwargs.setdefault("output_file", "output.root")
+        self.output_file_name = kwargs["output_file"]
         self.output_file = None
         kwargs.setdefault("make_plotbook", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]

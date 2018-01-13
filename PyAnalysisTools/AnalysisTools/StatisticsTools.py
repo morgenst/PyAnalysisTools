@@ -50,5 +50,19 @@ def get_statistical_uncertainty_ratio(stat_unc_hist):
     return stat_unc_hist_ratio
 
 
+def get_relative_systematics_ratio(nominal, stat_unc, systematic):
+    ratio_hist = nominal.Clone("ratio_{:s}".format(systematic.GetName()))
+    for b in range(nominal.GetNbinsX()+1):
+        nominal_yield = nominal.GetBinContent(b)
+        if nominal_yield == 0.:
+            ratio_hist.SetBinContent(b, stat_unc.GetBinContent(b) - 1.)
+            continue
+        uncertainty = (systematic.GetBinContent(b) - nominal_yield) / nominal_yield
+        uncertainty += stat_unc.GetBinError(b)
+        ratio_hist.SetBinContent(b, 1.)
+        ratio_hist.SetBinError(b, uncertainty)
+    return ratio_hist
+
+
 def get_KS(reference, compare):
     return reference.KolmogorovTest(compare)

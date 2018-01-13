@@ -1,5 +1,6 @@
 import os
 import re
+import time
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
@@ -67,6 +68,10 @@ class FileHandle(object):
             make_dirs(copy_dir)
             self.file_name = os.path.join(copy_dir, self.file_name.split("/")[-1])
             move(self.initial_file_name, self.file_name)
+            time.sleep(1)
+            self.absFName = os.path.join(self.path, self.file_name)
+            while not os.path.exists(self.file_name):
+                time.sleep(1)
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
     def __del__(self):
@@ -80,7 +85,6 @@ class FileHandle(object):
             move(self.file_name, self.initial_file_name)
 
     def parse_process(self, switch_off_analysis=False):
-        #return "data"
         def analyse_process_name():
             if "data" in process_name:
                 try:
@@ -165,9 +169,11 @@ class FileHandle(object):
                                                                                               self.file_name))
         return obj
 
-    def get_number_of_total_events(self):
+    def get_number_of_total_events(self, unweighted=False):
         try:
             cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
+            if unweighted:
+                return cutflow_hist.GetBinContent(1)
             return cutflow_hist.GetBinContent(2)
         except ValueError as e:
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)

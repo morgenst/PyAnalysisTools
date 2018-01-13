@@ -58,6 +58,19 @@ class Plotter(BasePlotter):
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        self.expand_process_configs()
+        self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
+
+    def expand_process_configs(self):
+        if self.process_configs is not None:
+            for fh in self.file_handles:
+                    _ = find_process_config(fh.process, self.process_configs)
+
+    @staticmethod
+    def filter_process_configs(file_handles, process_configs=None):
+        if process_configs is None:
+            return file_handles
+        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None, file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -196,14 +209,11 @@ class Plotter(BasePlotter):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
         if self.process_configs is not None:
-            for hist_set in self.histograms.values():
-                for process_name in hist_set.keys():
-                    _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms()
         if self.systematics_analyser is not None:
             self.systematics_analyser.retrieve_sys_hists(self.file_handles)
             self.systematics_analyser.calculate_variations(self.histograms)
-            self.systematics_analyser.retrieve_total_systematics()
+            self.systematics_analyser.calculate_total_systematics()
 
         for plot_config, data in self.histograms.iteritems():
             for mod in self.modules_data_providers:
@@ -286,8 +296,25 @@ class Plotter(BasePlotter):
                         plot_config_stat_unc_ratio.draw = "E2"
                         plot_config_stat_unc_ratio.logy = False
                         stat_unc_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
-                        canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
-                                                                plot_config_stat_unc_ratio)
+                        if self.systematics_analyser is None:
+                            canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
+                                                                                   plot_config_stat_unc_ratio)
+                    if self.systematics_analyser is not None:
+                        plot_config_syst_unc_ratio = copy.copy(ratio_plot_config)
+                        plot_config_syst_unc_ratio.name = ratio_plot_config.name.replace("ratio", "syst_unc")
+                        plot_config_syst_unc_ratio.color = ROOT.kRed
+                        plot_config_syst_unc_ratio.style = 1001
+                        plot_config_syst_unc_ratio.draw = "E2"
+                        plot_config_syst_unc_ratio.logy = False
+                        syst_sm_total_up, syst_sm_total_down = self.systematics_analyser.get_relative_unc_on_SM_total(plot_config, data)
+                        ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up)
+                        ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up)
+                        canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio,
+                                                                               [ratio_syst_up, ratio_syst_down,
+                                                                                stat_unc_ratio],
+                                                                               [plot_config_syst_unc_ratio,
+                                                                                plot_config_syst_unc_ratio,
+                                                                                plot_config_stat_unc_ratio])
                     ratio_plotter.decorate_ratio_canvas(canvas_ratio)
                     canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
                     self.output_handle.register_object(canvas_combined)

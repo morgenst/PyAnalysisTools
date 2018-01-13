@@ -5,6 +5,7 @@ from copy import copy
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.JSONHandle import JSONHandle
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
@@ -264,6 +265,9 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("ref_module_config_file", None)
         kwargs.setdefault("module_config_file", None)
+        kwargs.setdefault("json", False)
+        if kwargs["json"]:
+            kwargs = JSONHandle(kwargs["json"]).load()
         set_batch_mode(kwargs["batch"])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
@@ -287,6 +291,8 @@ class ComparisonPlotter(BasePlotter):
         self.analyse_plot_config()
         #self.update_color_palette()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
+        if not kwargs["json"]:
+            JSONHandle(kwargs["output_dir"], **kwargs).dump()
 
     def analyse_plot_config(self):
         if self.plot_configs is None:

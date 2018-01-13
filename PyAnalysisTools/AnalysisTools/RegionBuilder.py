@@ -28,21 +28,28 @@ class Region(object):
             self.build_label()
 
     def convert2cut_string(self):
+        good_electron = "abs(electron_d0sig) < 3 && electron_is_tight == 1"
+        good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
+        electron_selector = "Sum$({:s}) == electron_n".format(good_electron)
+        muon_selector = "Sum$({:s}) == muon_n".format(good_muon)
+
         cut = ""
         if self.is_on_z is not None:
             cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
         if self.disable_taus:
-            return cut + "electron_prompt_n {:s} {:d} && muon_prompt_n {:s} {:d}".format(self.operator, self.n_electron,
-                                                                                         self.operator, self.n_muon)
+            return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
+                                                                                           self.operator,
+                                                                                           self.n_electron,
+                                                                                           muon_selector,
+                                                                                           self.operator,
+                                                                                           self.n_muon)
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
-            return cut + "electron_prompt_n + muon_prompt_n + tau_n {:s} {:d}".format(self.operator,
-                                                                                                self.n_lep)
-        return cut + "electron_prompt_n {:s} {:d} && muon_prompt_n {:s} {:d} && tau_n {:s} {:d}".format(self.operator,
-                                                                                                               self.n_electron,
-                                                                                                               self.operator,
-                                                                                                               self.n_muon,
-                                                                                                               self.operator,
-                                                                                                               self.n_tau)
+            return cut + "{:s} + {:s}+ tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
+                                                               self.n_lep)
+        return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
+                                                                                  self.n_electron, muon_selector,
+                                                                                  self.operator, self.n_muon,
+                                                                                  self.operator, self.n_tau)
 
     def build_label(self):
         self.label = "".join([a*b for a, b in zip(["e^{#pm}", "#mu^{#pm}", "#tau^{#pm}"],
@@ -65,7 +72,7 @@ class RegionBuilder(object):
         self.type = "PCModifier"
 
     def auto_generate_region(self, n_leptons, disable_taus, split_z_mass):
-        for digits in product("".join(map(str, range(n_leptons+1))), repeat=n_leptons):
+        for digits in product("".join(map(str, range(n_leptons+1))), repeat=3):
             comb = map(int, digits)
             if sum(comb) == n_leptons:
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])
