@@ -64,17 +64,21 @@ class RegionBuilder(object):
         kwargs.setdefault("auto_generate", False)
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("split_z_mass", False)
+        kwargs.setdefault("same_flavour_only", False)
         if kwargs["auto_generate"]:
-            self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"])
+            self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
+                                      kwargs["same_flavour_only"])
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
                 self.regions.append(Region(name=region_name, **region_def))
         self.type = "PCModifier"
 
-    def auto_generate_region(self, n_leptons, disable_taus, split_z_mass):
+    def auto_generate_region(self, n_leptons, disable_taus, split_z_mass, same_flavour_only):
         for digits in product("".join(map(str, range(n_leptons+1))), repeat=3):
             comb = map(int, digits)
             if sum(comb) == n_leptons:
+                if same_flavour_only and not comb.count(0) == 2:
+                    continue
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])
                 if disable_taus and comb[2] > 0:
                     continue
