@@ -26,7 +26,8 @@ class TriggerFlattener(object):
         if not "tree_name" in kwargs:
             raise InvalidInputError("No tree name provided")
         kwargs.setdefault("additional_trees", [])
-        self.file_handle = FileHandle(file_name=kwargs["input_file"], open_option="UPDATE")
+        kwargs.setdefault("tmp_dir", None)
+        self.file_handle = FileHandle(file_name=kwargs["input_file"], run_dir=kwargs["tmp_dir"], open_option="UPDATE")
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
         self.additional_trees_names = kwargs["additional_trees"]
