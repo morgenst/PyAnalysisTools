@@ -205,6 +205,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
                 color, offset = color.split("+")
             if "-" in color:
                 color, offset = color.split("-")
+                offset = "-" + offset
             color = getattr(ROOT, color.rstrip()) + int(offset)
         if isinstance(color, list):
             return transform_color(color[index])
