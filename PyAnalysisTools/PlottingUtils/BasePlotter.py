@@ -91,8 +91,14 @@ class BasePlotter(object):
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
                 selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
-            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
-                                                    tdirectory=systematic, weight=weight)
+            try:
+                hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+                file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
+                                                        tdirectory=systematic, weight=weight)
+            except RuntimeError:
+                _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
+                _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
+                return None
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
             if self.process_configs is None:
