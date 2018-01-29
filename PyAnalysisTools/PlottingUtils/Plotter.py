@@ -57,7 +57,8 @@ class Plotter(BasePlotter):
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
-        self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
 
