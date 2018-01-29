@@ -22,6 +22,7 @@ class PlotConfig(object):
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("rebin", None)
         kwargs.setdefault("weight", False)
+        kwargs.setdefault("enable_legend", False)
         kwargs.setdefault("blind", None)
         kwargs.setdefault("legend_options", dict())
         kwargs.setdefault("make_plot_book", False)
