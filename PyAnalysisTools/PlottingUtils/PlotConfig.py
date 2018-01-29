@@ -11,7 +11,8 @@ class PlotConfig(object):
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
-        kwargs.setdefault("Draw", "hist")
+        if not "draw" in kwargs:
+            kwargs.setdefault("Draw", "hist")
         kwargs.setdefault("outline", "hist")
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
@@ -179,21 +180,26 @@ def propagate_common_config(common_config, plot_configs):
 
 def _parse_draw_option(plot_config, process_config):
     draw_option = "Hist"
+    print plot_config.name, plot_config.draw
     if hasattr(plot_config, "draw"):
         draw_option = plot_config.draw
     if process_config and hasattr(process_config, "draw"):
         draw_option = process_config.draw
+    print "return ", plot_config.name, plot_config.draw
+
     return draw_option
 
 
 def get_draw_option_as_root_str(plot_config, process_config=None):
     draw_option = _parse_draw_option(plot_config, process_config)
+    print "parsed draw option ", draw_option
     if draw_option == "Marker":
         draw_option = "p"
     elif draw_option == "MarkerError":
         draw_option = "E"
     elif draw_option == "Line":
         draw_option = "l"
+    print "return draw option ", draw_option
     return draw_option
 
 
