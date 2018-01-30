@@ -11,6 +11,7 @@ import PyAnalysisTools.PlottingUtils.Formatting as FT
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, PlotConfig
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 import pathos.multiprocessing as mp
 
 
@@ -214,6 +215,7 @@ class MuonFakeCalculator(object):
         self.enable_bjets = kwargs["enable_bjets"]
         self.plotter.expand_process_configs()
         self.file_handles = self.plotter.filter_process_configs(self.file_handles, self.plotter.process_configs)
+        self.output_handle = OutputFileHandle(output_file="fake_factors.root", output_dir=kwargs["output_dir"])
 
     def get_plots(self, dist, relation_op, enable_dr=True):
         plot_config_base = filter(lambda pc: pc.name == dist, self.plot_config)[0]
@@ -369,6 +371,10 @@ class MuonFakeCalculator(object):
         self.plotter.output_handle.register_object(canvas_geq)
         self.plotter.output_handle.register_object(canvas_eq_dr)
         self.plotter.output_handle.register_object(canvas_geq_dr)
+        for ff_hist in fake_factors.values():
+            ff_hist.SetName(ff_hist.GetName().replace("_clone", ""))
+            print "name: ", ff_hist.GetName()
+            self.output_handle.register_object(ff_hist)
 
     def get_d0_extrapolation(self):
         def retrieve_hist(config, is_high_d0):
@@ -428,3 +434,4 @@ class MuonFakeCalculator(object):
         self.plot_fake_factors()
         self.plot_fake_factors_2D()
         self.plotter.output_handle.write_and_close()
+        self.output_handle.write_and_close()
