@@ -1,4 +1,3 @@
-import ROOT
 from copy import copy
 from array import array
 from itertools import chain, combinations
