@@ -31,6 +31,8 @@ class TriggerFlattener(object):
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
         self.additional_trees_names = kwargs["additional_trees"]
+        if self.additional_trees_names is None:
+            self.additional_trees_names = []
         for tn in self.additional_trees_names:
             setattr(self, tn, self.file_handle.get_object_by_name(tn, tdirectory="Nominal"))
         self.trigger_list = []
@@ -146,7 +148,8 @@ class TriggerAcceptancePlotter(BasePlotter):
             for process_name in histograms.keys():
                 _ = find_process_config(process_name, self.process_configs)
         Plotter.merge(histograms, self.process_configs)
-        canvas = PT.plot_objects(histograms, self.plot_configs[0])
+        #canvas = PT.plot_objects(histograms, self.plot_configs[0])
+        canvas = PT.plot_stack(histograms, self.plot_configs[0])
         canvas.SetBottomMargin(0.2)
         canvas.Modified()
         FM.decorate_canvas(canvas, self.plot_configs[0])
