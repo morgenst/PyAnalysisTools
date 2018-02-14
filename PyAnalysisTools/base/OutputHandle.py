@@ -134,7 +134,7 @@ class OutputFileHandle(SysOutputHandle):
         self.attach_file()
         for tdir, obj in self.objects.iteritems():
             if isinstance(obj, ROOT.TCanvas):
-                self.dump_canvas(obj, tdir = tdir[0])
+                self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
             #obj.Write()
         self.output_file.Write()
