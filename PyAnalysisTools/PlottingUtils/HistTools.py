@@ -89,6 +89,22 @@ def _merge_overflow_bins_1d(hist, x_max=None):
     hist.SetBinContent(last_visible_bin, hist.GetBinContent(last_visible_bin) + hist.Integral(last_visible_bin, -1))
 
 
+def merge_underflow_bins(hists, x_min=None):
+    if type(hists) == dict:
+        for item in hists.values():
+            _merge_underflow_bins_1d(item, x_min)
+    else:
+        _merge_underflow_bins_1d(hists, x_min)
+
+
+def _merge_underflow_bins_1d(hist, x_min=None):
+    if x_min:
+        first_visible_bin = hist.FindBin(x_min)
+    else:
+        first_visible_bin = 1
+    hist.SetBinContent(first_visible_bin, hist.GetBinContent(first_visible_bin) + hist.Integral(0, first_visible_bin))
+
+
 def scale(hist, weight):
     hist.Scale(weight)
 

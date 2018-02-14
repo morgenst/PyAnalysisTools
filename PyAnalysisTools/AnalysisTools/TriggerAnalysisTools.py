@@ -1,4 +1,3 @@
-import ROOT
 from copy import copy
 from array import array
 from itertools import chain, combinations
@@ -25,9 +24,13 @@ class TriggerFlattener(object):
             raise InvalidInputError("No input file name provided")
         if not "tree_name" in kwargs:
             raise InvalidInputError("No tree name provided")
+        kwargs.setdefault("additional_trees", [])
         self.file_handle = FileHandle(file_name=kwargs["input_file"], open_option="UPDATE")
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
+        self.additional_trees_names = kwargs["additional_trees"]
+        for tn in self.additional_trees_names:
+            setattr(self, tn, self.file_handle.get_object_by_name(tn, tdirectory="Nominal"))
         self.trigger_list = []
 
     def flatten_all_branches(self):
@@ -49,8 +52,13 @@ class TriggerFlattener(object):
                 new_name = branch_name.replace("trigger", trigger_name)
                 exec("data_holder_{:s} = array(\'f\', [0.])".format(new_name))
                 exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(*[new_name]*4))
+                for tn in self.additional_trees_names:
+                    exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(tn, new_name, tn, *[new_name] * 3))
+
         for entry in range(self.tree.GetEntries()):
             self.tree.GetEntry(entry)
+            for tree_name in self.additional_trees_names:
+                getattr(self, tree_name).GetEntry(entry)
             unprocessed_triggers = copy(self.trigger_list)
             for item in range(len(self.tree.trigger_list)):
                 trig_name = self.tree.trigger_list[item].replace("-", "_")
@@ -63,14 +71,20 @@ class TriggerFlattener(object):
                     new_name = branch_name.replace("trigger", trig_name)
                     exec("data_holder_{:s}[0] = self.tree.{:s}[item]".format(new_name, branch_name))
                     eval("branch_{:s}.Fill()".format(new_name))
+                    for tn in self.additional_trees_names:
+                        eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
             for missing_trigger in unprocessed_triggers:
                 for branch_name in branch_names:
                     new_name = branch_name.replace("trigger", missing_trigger)
                     exec ("data_holder_{:s}[0] = -1111.".format(new_name))
                     eval("branch_{:s}.Fill()".format(new_name))
+                    for tn in self.additional_trees_names:
+                        eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
         tdir = self.file_handle.get_directory("Nominal")
         tdir.cd()
         self.tree.Write()
+        for tree_name in self.additional_trees_names:
+            getattr(self, tree_name).Write()
 
 
 class TriggerAcceptancePlotter(BasePlotter):
@@ -80,14 +94,14 @@ class TriggerAcceptancePlotter(BasePlotter):
         self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["xs_config_file"])
                              for file_name in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
-        self.trigger_list = self.build_trigger_list()
         self.hist_def = None
         super(TriggerAcceptancePlotter, self).__init__(**kwargs)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
+        self.trigger_list = self.build_trigger_list()
         self.overlap_hist = None
         self.unqiue_rate_hist = None
-
+        
     def __del__(self):
         self.output_handle.write_and_close()
 
@@ -95,6 +109,10 @@ class TriggerAcceptancePlotter(BasePlotter):
         trigger_list = list(set(list(chain.from_iterable([file_handle.get_branch_names_from_tree(self.tree_name,
                                                                                             tdirectory="Nominal",
                                                                                             pattern="HLT_") for file_handle in self.file_handles]))))
+        if hasattr(self.plot_configs[0], 'white_list'):
+            trigger_list = filter(lambda x : x in self.plot_configs[0].white_list, trigger_list)
+        if hasattr(self.plot_configs[0], 'black_list'):
+            trigger_list = filter(lambda x : x not in self.plot_configs[0].black_list, trigger_list)
         return trigger_list
 
     def get_hist_def(self, name):
@@ -126,16 +144,15 @@ class TriggerAcceptancePlotter(BasePlotter):
             for process_name in histograms.keys():
                 _ = find_process_config(process_name, self.process_configs)
         Plotter.merge(histograms, self.process_configs)
-        canvas = PT.plot_stack(histograms, self.plot_configs[0])
+        canvas = PT.plot_objects(histograms, self.plot_configs[0])
         canvas.SetBottomMargin(0.2)
         canvas.Modified()
         FM.decorate_canvas(canvas, self.plot_configs[0])
         self.output_handle.register_object(canvas)
 
-    def read_data(self, file_handle):
+    def read_data(self, file_handle, trigger_data = {}):
         tree = file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
         entries = tree.GetEntries()
-        trigger_data = {}
         for entry in range(entries):
             tree.GetEntry(entry)
             for trigger in self.trigger_list:
@@ -149,10 +166,13 @@ class TriggerAcceptancePlotter(BasePlotter):
         trigger_combinations = list(combinations(self.trigger_list, 2))
         trigger_overlap = {}
         for comb in trigger_combinations:
-            overlap = sum(map(float, map(lambda d: d[0] == d[1] and d[0] == 1, zip(trigger_data[comb[0]],
+            if sum(trigger_data[comb[0]]) > 0. and sum(trigger_data[comb[1]]) > 0.:
+                overlap = sum(map(float, map(lambda d: d[0] == d[1] and d[0] == 1, zip(trigger_data[comb[0]],
                                                                                    trigger_data[comb[1]]))))
-            overlap /= sum(map(float, map(lambda d: d[0] == 1 or d[1] == 1, zip(trigger_data[comb[0]],
+                overlap /= sum(map(float, map(lambda d: d[0] == 1 or d[1] == 1, zip(trigger_data[comb[0]],
                                                                                 trigger_data[comb[1]]))))
+            else:
+                overlap = 0.
             trigger_overlap[comb] = overlap
         return trigger_overlap
 
@@ -169,12 +189,21 @@ class TriggerAcceptancePlotter(BasePlotter):
         return trigger_overlap
 
     def plot_trigger_correlation(self):
+        process_dict = {}
         for file_handle in self.file_handles:
-            trigger_data = self.read_data(file_handle)
+            if file_handle.process in process_dict:
+                process_dict[file_handle.process].append(file_handle)
+            else:
+                process_dict[file_handle.process] = [file_handle]                
+
+        for process, file_handles in process_dict.iteritems():
+            trigger_data = {}
+            for file_handle in file_handles:
+                trigger_data = self.read_data(file_handle, trigger_data)
             overlap = self.get_overlap_coefficients(trigger_data)
             self.output_handle.register_object(self.make_overlap_histogram("overlap_{:s}".format(file_handle.process),
                                                                            overlap))
-
+            
     def plot_unqiue_trigger_rate(self):
         for file_handle in self.file_handles:
             trigger_data = self.read_data(file_handle)
@@ -183,6 +212,7 @@ class TriggerAcceptancePlotter(BasePlotter):
                                                                                unique_rate))
 
     def make_overlap_histogram(self, name, data):
+        ROOT.gStyle.SetPaintTextFormat("4.2f")
         def get_hist_def():
             if self.overlap_hist is not None:
                 return self.overlap_hist.Clone(name)
@@ -201,6 +231,8 @@ class TriggerAcceptancePlotter(BasePlotter):
         for comb, overlap in data.iteritems():
             self.overlap_hist.Fill(comb[0].replace("_acceptance", ""), comb[1].replace("_acceptance", ""), overlap)
             self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
+        for i in range(self.overlap_hist.GetNbinsX()):
+            self.overlap_hist.Fill(i, self.overlap_hist.GetNbinsX()-i-1, 1.)
         plot_config = pc(name=name, draw_option="COLZTEXT")
         return PT.plot_2d_hist(self.overlap_hist, plot_config=plot_config)
 
@@ -238,7 +270,7 @@ class TriggerAcceptancePlotter(BasePlotter):
         def parse_trigger_info(file_handle):
             tree = file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
             tmp = dict((trigger.replace("_acceptance", ""),
-                        tree.GetEntries("{:s} == 1". format(trigger))) for trigger in self.trigger_list)
+                        tree.GetEntries("{:s} == 1".format(trigger))) for trigger in self.trigger_list)
             return tmp
         data = dict((file_handle.process, parse_trigger_info(file_handle)) for file_handle in self.file_handles)
         return data

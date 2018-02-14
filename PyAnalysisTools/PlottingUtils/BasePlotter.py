@@ -38,7 +38,8 @@ class BasePlotter(object):
         _logger.debug("Try to parse plot config file")
         unmerged_plot_configs = []
         for plot_config_file in self.plot_config_files:
-            unmerged_plot_configs.append(parse_and_build_plot_config(plot_config_file))
+            config = parse_and_build_plot_config(plot_config_file)
+            unmerged_plot_configs.append(config)
         self.plot_configs, common_config = merge_plot_configs(unmerged_plot_configs)
         if self.lumi is None:
             if hasattr(common_config, "lumi"):
@@ -94,9 +95,7 @@ class BasePlotter(object):
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
-                if len(selection_cuts) != 0:
-                    selection_cuts += " && "
-                selection_cuts += " !({:s})".format(" && ".join(plot_config.blind))
+                selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                     tdirectory=systematic, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)

@@ -253,10 +253,10 @@ def add_legend_to_canvas(canvas, **kwargs):
             draw_option = "Hist"
         legend_option = ""
         if "hist" in draw_option.lower():
-            if plot_obj.GetFillStyle() == 1001:
-                legend_option += "L"
-            else:
-                legend_option += "F"
+            # if plot_obj.GetFillStyle() == 1001:
+            #     legend_option += "L"
+            # else:
+            legend_option += "F"
         if "l" in draw_option:
             legend_option += "L"
         if "p" in draw_option or "E" in draw_option:

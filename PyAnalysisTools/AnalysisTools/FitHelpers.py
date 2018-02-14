@@ -16,8 +16,9 @@ def convert(file_handles, tree_name, quantity, blind, selection=None):
             try:
                 for t in range(len(getattr(tree, quantity[0]))):
                     value = getattr(tree, quantity[0])[t]
-                    ROOT.RooAbsRealLValue.__assign__(var, value)
-                    data.add(var_arg, 1.0)
+                    if quantity[1]<value and value<quantity[2] :
+                        ROOT.RooAbsRealLValue.__assign__(var, value)
+                        data.add(var_arg, 1.0)
             except TypeError:
                 value = getattr(tree, quantity[0])
                 ROOT.RooAbsRealLValue.__assign__(var, value)

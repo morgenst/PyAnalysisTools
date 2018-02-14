@@ -12,7 +12,7 @@ class PlotConfig(object):
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
-        kwargs.setdefault("draw", "hist")
+        kwargs.setdefault("Draw", "hist")
         kwargs.setdefault("outline", "hist")
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
@@ -127,10 +127,10 @@ def expand_plot_config(plot_config):
 def parse_and_build_plot_config(config_file):
     try:
         parsed_config = YAMLLoader.read_yaml(config_file)
-        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
+        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
@@ -159,7 +159,7 @@ def merge_plot_configs(plot_configs):
             merged_common_config = common_config
             continue
         merged_plot_config += plot_config
-        merged_common_config._merge(common_config)
+        merged_common_config.merge(common_config)
     return merged_plot_config, merged_common_config
 
 

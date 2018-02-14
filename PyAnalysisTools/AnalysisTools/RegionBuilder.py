@@ -28,14 +28,21 @@ class Region(object):
             self.build_label()
 
     def convert2cut_string(self):
-        electron_selector = "Sum$(electron_is_num == 1 && electron_is_prompt_fix == 1)"
-        muon_selector = "Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)"
+        good_electron = "abs(electron_d0sig) < 3 && electron_is_tight == 1"
+        good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
+        electron_selector = "Sum$({:s}) == electron_n".format(good_electron)
+        muon_selector = "Sum$({:s}) == muon_n".format(good_muon)
+
         cut = ""
         if self.is_on_z is not None:
             cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
         if self.disable_taus:
-            return cut + "{:s} {:s} {:d} && {:s} {:s} {:d}".format(electron_selector, self.operator, self.n_electron,
-                                                                   muon_selector, self.operator, self.n_muon)
+            return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
+                                                                                           self.operator,
+                                                                                           self.n_electron,
+                                                                                           muon_selector,
+                                                                                           self.operator,
+                                                                                           self.n_muon)
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
             return cut + "{:s} + {:s}+ tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
                                                                self.n_lep)
@@ -57,17 +64,21 @@ class RegionBuilder(object):
         kwargs.setdefault("auto_generate", False)
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("split_z_mass", False)
+        kwargs.setdefault("same_flavour_only", False)
         if kwargs["auto_generate"]:
-            self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"])
+            self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
+                                      kwargs["same_flavour_only"])
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
                 self.regions.append(Region(name=region_name, **region_def))
         self.type = "PCModifier"
 
-    def auto_generate_region(self, n_leptons, disable_taus, split_z_mass):
+    def auto_generate_region(self, n_leptons, disable_taus, split_z_mass, same_flavour_only):
         for digits in product("".join(map(str, range(n_leptons+1))), repeat=3):
             comb = map(int, digits)
             if sum(comb) == n_leptons:
+                if same_flavour_only and not comb.count(0) == 2:
+                    continue
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])
                 if disable_taus and comb[2] > 0:
                     continue

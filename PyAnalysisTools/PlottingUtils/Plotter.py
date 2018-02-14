@@ -224,6 +224,7 @@ class Plotter(BasePlotter):
             if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])
             HT.merge_overflow_bins(data)
+            HT.merge_underflow_bins(data)
             signals = self.get_signal_hists(data)
             if plot_config.signal_scale is not None:
                 self.scale_signals(signals, plot_config)
