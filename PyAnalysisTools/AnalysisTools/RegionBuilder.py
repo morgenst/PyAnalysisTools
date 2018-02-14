@@ -16,6 +16,12 @@ class Region(object):
         kwargs.setdefault("is_on_z", None)
         kwargs.setdefault("operator", "eq")
         kwargs.setdefault("label", None)
+        kwargs.setdefault("good_muon", None)
+        kwargs.setdefault("fake_muon", None)
+        kwargs.setdefault("inverted_muon", None)
+        kwargs.setdefault("good_electron", None)
+        kwargs.setdefault("inverted_electron", None)
+        kwargs.setdefault("event_cuts", None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         if kwargs["operator"] == "eq":
@@ -26,14 +32,35 @@ class Region(object):
             raise ValueError("Invalid operator provided. Currently supported: eq(==) and leq(>=)")
         if self.label is None:
             self.build_label()
+        self.convert_lepton_selections()
+
+    def convert_lepton_selections(self):
+        def convert_cut_list_to_string(cut_list):
+            return " && ".join(cut_list)
+
+        if self.good_muon:
+            # good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
+            self.good_muon_cut_string = convert_cut_list_to_string(self.good_muon)
+        if self.fake_muon:
+            self.inverted_muon_cut_string = convert_cut_list_to_string(self.inverted_muon)
+        if self.good_electron:
+            self.good_electron_cut_string = convert_cut_list_to_string(self.good_electron)
+        if self.fake_muon:
+            self.inverted_muon_cut_string = convert_cut_list_to_string(self.inverted_muon)
+        if self.event_cuts:
+            self.event_cut_string = convert_cut_list_to_string(self.event_cuts)
 
     def convert2cut_string(self):
-        good_electron = "abs(electron_d0sig) < 3 && electron_is_tight == 1"
-        good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
-        electron_selector = "Sum$({:s}) == electron_n".format(good_electron)
-        muon_selector = "Sum$({:s}) == muon_n".format(good_muon)
+        electron_selector = "electron_n == electron_n"
+        muon_selector = "muon_n == muon_n"
+        if self.good_muon:
+            muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
+        if self.good_electron:
+            electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
 
         cut = ""
+        if self.event_cuts is not None:
+            cut = self.event_cut_string + " && "
         if self.is_on_z is not None:
             cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
         if self.disable_taus:
@@ -44,7 +71,7 @@ class Region(object):
                                                                                            self.operator,
                                                                                            self.n_muon)
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
-            return cut + "{:s} + {:s}+ tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
+            return cut + "{:s} + {:s} + tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
                                                                self.n_lep)
         return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
                                                                                   self.n_electron, muon_selector,
