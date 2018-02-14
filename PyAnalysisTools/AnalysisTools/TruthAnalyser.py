@@ -526,6 +526,7 @@ class BcTruthAnalyser(object):
         book_histogram("Bc_init_pt", 25, 0., 50.)
         book_histogram("Bc_init_eta", 50, -2.5, 2.5)
         book_histogram("Bc_init_phi", 50, -3.2, 3.2)
+        book_histogram("tau_decay_length", 50, 0., 5.)
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
@@ -566,6 +567,7 @@ class BcTruthAnalyser(object):
         book_plot_config("Bc_init_pt", "p_{T} (B_{c}) [GeV]")
         book_plot_config("Bc_init_eta", "#eta (B_{c})")
         book_plot_config("Bc_init_phi", "#phi (B_{c})")
+        book_plot_config("tau_decay_length", "#tau decay length [mm]")
 
     def run(self):
         for input_file in self.input_files:
@@ -612,7 +614,7 @@ class BcTruthAnalyser(object):
         n_entries = 0
         for entry in xrange(tree.GetEntries()):
             n_entries += 1
-            # for entry in xrange(100):
+            #for entry in xrange(100):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
             if process_id not in self.processed_ids:
@@ -670,6 +672,15 @@ class BcTruthAnalyser(object):
                 self.histograms[process_id]["third_lepton_eta"].Fill(third_muon.eta())
                 self.histograms[process_id]["third_lepton_phi"].Fill(third_muon.phi())
 
+                tau_prod_vertex_link = lepton.prodVtxLink()
+                tau_decay_vertex_link = lepton.decayVtxLink()
+                tau_prod_vertex = ROOT.TVector3(tau_prod_vertex_link.x(),
+                                                tau_prod_vertex_link.y(),
+                                                tau_prod_vertex_link.z())
+                tau_decay_vertex = ROOT.TVector3(tau_decay_vertex_link.x(),
+                                                 tau_decay_vertex_link.y(),
+                                                 tau_decay_vertex_link.z())
+                self.histograms[process_id]["tau_decay_length"].Fill((tau_decay_vertex - tau_prod_vertex).Mag())
             jpsi_decay_vtx = jpsi.decayVtxLink().outgoingParticleLinks()
 
             jpsi_muon1 = filter(lambda particle: abs(particle.pdgId()) == 13, jpsi_decay_vtx)[0]
