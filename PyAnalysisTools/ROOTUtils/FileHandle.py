@@ -185,6 +185,14 @@ class FileHandle(object):
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
             raise e
 
+    def get_daod_events(self):
+        try:
+            cutflow_hist = self.get_object_by_name("EventLoop_EventCount")
+            return cutflow_hist.GetBinContent(1)
+        except ValueError as e:
+            _logger.error("Unable to parse EventLoop_EventCount from file %s" % self.file_name)
+            raise e
+
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
         tree = self.get_object_by_name(tree_name, tdirectory)
         _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name,

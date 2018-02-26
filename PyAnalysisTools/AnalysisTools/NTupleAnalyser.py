@@ -36,7 +36,7 @@ class NTupleAnalyser(object):
         for rf in os.listdir(os.path.join(self.input_path, ds[2])):
 
             n_processed_events += int(FileHandle(file_name=os.path.join(self.input_path, ds[2], rf),
-                                                 switch_off_process_name_analysis=True).get_number_of_total_events())
+                                                 switch_off_process_name_analysis=True).get_daod_events())
         ds.append(n_processed_events)
         client = pyAMI.client.Client('atlas')
         n_expected_events = int(client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
@@ -54,7 +54,8 @@ class NTupleAnalyser(object):
         print
         print "--------------- Incomplete datasets ---------------"
         for ds in incomplete:
-            print ds[2], ds[-2], ds[-1]
+            missing_fraction = float(ds[-2])/float(ds[-1]) * 100.
+            print ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction
 
     def run(self):
         self.transform_dataset_list()
