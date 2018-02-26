@@ -5,6 +5,7 @@ from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
+from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 
 
 _memoized = {}
@@ -46,7 +47,7 @@ class FileHandle(object):
         #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
-            self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
+            self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
         self.open_option = kwargs["open_option"]
         self.tfile = None
         self.initial_file_name = None
