@@ -71,6 +71,11 @@ class Plotter(BasePlotter):
     def filter_process_configs(file_handles, process_configs=None):
         if process_configs is None:
             return file_handles
+        unavailable_process = map(lambda fh: fh.process,
+                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                         file_handles))
+        for process in unavailable_process:
+            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None, file_handles)
 
     def initialise(self):
@@ -197,14 +202,15 @@ class Plotter(BasePlotter):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
         if len(self.modules_hist_fetching) == 0:
-            fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
-                                                                                                   file_handles=self.file_handles),
-                                                                                           self.plot_configs)
+            fetched_histograms = mp.ThreadingPool(min(self.nfile_handles,
+                                                      len(self.file_handles))).map(partial(self.read_histograms,
+                                                                                           plot_configs=self.plot_configs),
+                                                                                   self.file_handles)
         else:
             fetched_histograms = [(self.plot_configs[0], self.modules_hist_fetching[0].fetch())]
-        for plot_config, histograms in fetched_histograms:
+        for histograms in fetched_histograms:
             histograms = filter(lambda hist: hist is not None, histograms)
-            self.categorise_histograms(plot_config, histograms)
+            self.categorise_histograms(histograms)
         self.apply_lumi_weights(self.histograms)
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)

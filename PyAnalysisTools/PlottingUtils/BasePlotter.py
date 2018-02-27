@@ -61,11 +61,11 @@ class BasePlotter(object):
             else:
                 self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
 
-    def fetch_histograms(self, file_handle, plot_config, systematic="Nominal"):
+    def fetch_histograms(self, plot_config, file_handle, systematic="Nominal"):
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        return file_handle.process, tmp
+        return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
         if "data" in file_handle.process.lower() and plot_config.no_data:
@@ -111,25 +111,25 @@ class BasePlotter(object):
         except Exception as e:
             print traceback.print_exc()
             raise e
-
         return hist
 
-    def read_histograms(self, plot_config, file_handles, systematic="Nominal"):
+    def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
         if not self.read_hist:
             histograms = mp.ThreadPool(min(self.nfile_handles,
-                                           len(file_handles))).map(partial(self.fetch_histograms,
-                                                                           plot_config=plot_config,
-                                                                           systematic=systematic), file_handles)
+                                               len(plot_configs))).map(partial(self.fetch_histograms,
+                                                                               file_handle=file_handle,
+                                                                               systematic=systematic), plot_configs)
         else:
-            histograms = mp.ThreadPool(min(self.nfile_handles,
-                                           len(file_handles))).map(partial(self.fetch_plain_histograms,
-                                                                           plot_config=plot_config,
-                                                                           systematic=systematic), file_handles)
-        return plot_config, histograms
+            histograms = mp.ThreadPool(min(self.ncpu,
+                                           len(plot_configs))).map(partial(self.fetch_plain_histograms,
+                                                                               file_handle=file_handle,
+                                                                               systematic=systematic), plot_configs)
+        return histograms
 
-    def categorise_histograms(self, plot_config, histograms):
+    def categorise_histograms(self, histograms):
         _logger.debug("categorising {:d} histograms".format(len(histograms)))
-        for process, hist in histograms:
+
+        for plot_config, process, hist in histograms:
             if hist is None:
                 _logger.warning("hist for process {:s} is None".format(process))
                 continue
