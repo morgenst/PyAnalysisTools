@@ -115,13 +115,13 @@ class BasePlotter(object):
 
     def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
         if not self.read_hist:
-            histograms = mp.ThreadPool(min(self.nfile_handles,
+            histograms = mp.ProcessingPool(min(self.nfile_handles,
                                                len(plot_configs))).map(partial(self.fetch_histograms,
                                                                                file_handle=file_handle,
                                                                                systematic=systematic), plot_configs)
         else:
-            histograms = mp.ThreadPool(min(self.ncpu,
-                                           len(plot_configs))).map(partial(self.fetch_plain_histograms,
+            histograms = mp.ProcessingPool(min(self.ncpu,
+                                               len(plot_configs))).map(partial(self.fetch_plain_histograms,
                                                                                file_handle=file_handle,
                                                                                systematic=systematic), plot_configs)
         return histograms
@@ -134,6 +134,7 @@ class BasePlotter(object):
                 _logger.warning("hist for process {:s} is None".format(process))
                 continue
             try:
+
                 if process not in self.histograms[plot_config].keys():
                     self.histograms[plot_config][process] = hist
                 else:

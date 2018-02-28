@@ -34,6 +34,17 @@ class Region(object):
             self.build_label()
         self.convert_lepton_selections()
 
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.name)
+
     def convert_lepton_selections(self):
         def convert_cut_list_to_string(cut_list):
             return " && ".join(cut_list)

@@ -67,6 +67,17 @@ class PlotConfig(object):
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.name)
+
     @staticmethod
     def get_overwritable_options():
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise"]
@@ -268,7 +279,7 @@ def get_histogram_definition(plot_config):
 
 
 def find_process_config(process_name, process_configs):
-    if process_configs is None:
+    if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
         return process_configs[process_name]
