@@ -37,13 +37,14 @@ class SetupHelper(object):
         print "1. numpy"
         print "2. tensorflow (Note: Need to be on lxplus7 aka CC7)"
         print "3. root_numpy"
+        print "4. sklearn"
         print "a. All"
 
         user_input = raw_input("Please choose (space separated) the tools to install. Hit enter for exit.")
         if user_input == "":
             exit()
         if user_input.lower() == "a" or user_input.lower() == "all":
-            tools_to_install = range(1,len(self.tools)+1)
+            tools_to_install = range(1, len(self.tools)+1)
         else:
             try:
                 tools_to_install = map(int, user_input.split())
@@ -68,14 +69,16 @@ class SetupHelper(object):
         check_call(["pip", "install", "--upgrade", tool])
 
     def run_install(self):
-        tools_to_intall = self.print_menu()
-        if 1 in tools_to_intall:
+        tools_to_install = self.print_menu()
+        if 1 in tools_to_install:
             self._install("numpy")
-        if 2 in tools_to_intall:
+        if 2 in tools_to_install:
             self._install("tensorflow")
             self._install("keras")
-        if 3 in tools_to_intall:
+        if 3 in tools_to_install:
             self._install("root_numpy")
+        if 4 in tools_to_install:
+            self.install("scikit-learn")
 
     def run(self):
         if not self.install:
