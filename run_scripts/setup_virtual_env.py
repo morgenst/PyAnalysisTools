@@ -38,6 +38,7 @@ class SetupHelper(object):
         print "2. tensorflow (Note: Need to be on lxplus7 aka CC7)"
         print "3. root_numpy"
         print "4. sklearn"
+        print "5. matplotlib"
         print "a. All"
 
         user_input = raw_input("Please choose (space separated) the tools to install. Hit enter for exit.")
@@ -79,6 +80,8 @@ class SetupHelper(object):
             self._install("root_numpy")
         if 4 in tools_to_install:
             self.install("scikit-learn")
+        if 5 in tools_to_install:
+            self.install("matplotlib")
 
     def run(self):
         if not self.install:
