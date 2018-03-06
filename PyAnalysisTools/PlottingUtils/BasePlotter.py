@@ -95,7 +95,10 @@ class BasePlotter(object):
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
-                selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
+                if selection_cuts == "":
+                    selection_cuts = "!({:s})".format(selection_cuts, " && ".join(plot_config.blind))
+                else:
+                    selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
             file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                     tdirectory=systematic, weight=weight)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
