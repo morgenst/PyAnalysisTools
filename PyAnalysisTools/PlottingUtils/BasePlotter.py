@@ -84,10 +84,15 @@ class BasePlotter(object):
                 weight = plot_config.weight
             if plot_config.cuts:
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
+                data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
                     if not "data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
+                for data_cut in data_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(data_cut))
+                    if "data" in file_handle.process:
+                        selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
                 selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))

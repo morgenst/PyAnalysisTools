@@ -15,8 +15,8 @@ def load_atlas_style():
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
-def apply_style(obj, plot_config, process_config):
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+def apply_style(obj, plot_config, process_config, index=None):
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
     if style_attr is not None:
         for setter in style_setter:
             getattr(obj, "Set" + setter + "Style")(style_attr)
@@ -27,10 +27,10 @@ def apply_style(obj, plot_config, process_config):
 
 def decorate_canvas(canvas, plot_config):
     if hasattr(plot_config, "watermark"):
-        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
-    if hasattr(plot_config, "lumi"):
+        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.05)
+    if hasattr(plot_config, "lumi") and plot_config.lumi is not None:
         add_lumi_text(canvas, plot_config.lumi, {"x": 0.6, "y": 0.9})
-    if hasattr(plot_config, "grid") or hasattr(plot_config, "grid"):
+    if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
