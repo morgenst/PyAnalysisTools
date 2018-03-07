@@ -5,6 +5,7 @@ from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
+from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 
 
 _memoized = {}
@@ -46,7 +47,7 @@ class FileHandle(object):
         #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
-            self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
+            self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
         self.open_option = kwargs["open_option"]
         self.tfile = None
         self.initial_file_name = None
@@ -54,6 +55,8 @@ class FileHandle(object):
         self.open()
         self.year = None
         self.period = None
+        self.is_data = False
+        self.is_mc = False
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
 
@@ -89,6 +92,7 @@ class FileHandle(object):
             if "data" in process_name:
                 try:
                     self.year, _, self.period = process_name.split("_")[0:3]
+                    self.is_data = True
                     return ".".join([self.year, self.period])
                 except ValueError:
                     _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
@@ -100,8 +104,11 @@ class FileHandle(object):
                     tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
                                  self.dataset_info.values())
                 if len(tmp) == 1:
+                    self.mc = True
                     return tmp[0].process_name
             if process_name.isdigit():
+                return None
+                self.is_data = True
                 return "Data"
         process_name = self.file_name.split("-")[-1].split(".")[0]
         if switch_off_analysis:
@@ -179,6 +186,14 @@ class FileHandle(object):
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
             raise e
 
+    def get_daod_events(self):
+        try:
+            cutflow_hist = self.get_object_by_name("EventLoop_EventCount")
+            return cutflow_hist.GetBinContent(1)
+        except ValueError as e:
+            _logger.error("Unable to parse EventLoop_EventCount from file %s" % self.file_name)
+            raise e
+
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
         tree = self.get_object_by_name(tree_name, tdirectory)
         _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name,
@@ -186,6 +201,17 @@ class FileHandle(object):
         if cut_string is None:
             cut_string = ""
         if weight:
+            mc_weights = None
+            if "MC:" in weight:
+                weight = weight.split("*")
+                mc_weights = filter(lambda w: "MC:" in w, weight)
+                for mc_w in mc_weights:
+                    weight.remove(mc_w)
+                weight = "*".join(weight)
+                if not self.is_data:
+                    mc_weights = map(lambda mc_w: mc_w.replace("MC:", ""), mc_weights)
+                    for mc_w in mc_weights:
+                        weight += "* {:s}".format(mc_w)
             if cut_string == "":
                 cut_string = weight
             else:

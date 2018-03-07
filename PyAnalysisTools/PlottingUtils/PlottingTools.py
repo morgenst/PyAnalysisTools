@@ -272,7 +272,7 @@ def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     hist = format_obj(hist, plot_config)
-    apply_style(hist, *get_style_setters_and_values(plot_config))
+    apply_style(hist, *get_style_setters_and_values(plot_config, process_config))
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)

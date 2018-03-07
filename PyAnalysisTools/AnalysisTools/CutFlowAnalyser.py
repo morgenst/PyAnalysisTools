@@ -3,7 +3,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
 import PyAnalysisTools.PlottingUtils.Formatting as Ft
 from tabulate.tabulate import tabulate
 from collections import defaultdict
-from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
@@ -48,7 +48,11 @@ class CutflowAnalyser(object):
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
-            lumi_weight = self.get_cross_section_weight(process)
+            try:
+                lumi_weight = self.get_cross_section_weight(process)
+            except InvalidInputError:
+                _logger.error("None type parsed for ", self.cutflow_hists[process])
+                continue
             for systematic in self.cutflow_hists[process].keys():
                 for cutflow in self.cutflow_hists[process][systematic].values():
                     scale(cutflow, lumi_weight)
@@ -109,6 +113,9 @@ class CutflowAnalyser(object):
         self.cutflow_hists["SMTotal"] = sm_total_cutflows
 
     def get_cross_section_weight(self, process):
+        if process is None:
+            _logger.error("Process is None")
+            raise InvalidInputError("Process is NoneType")
         if self.lumi is None or "data" in process.lower():
             return 1.
         lumi_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_numbers[process])
@@ -229,6 +236,9 @@ class CutflowAnalyser(object):
     def load_cutflows(self, file_name):
         file_handle = FH(file_name=file_name, dataset_info=self.dataset_config_file)
         process = file_handle.process
+        if process is None:
+            _logger.error("Parsed NoneType process from {:s}".format(file_name))
+            return
         if process not in self.event_numbers:
             self.event_numbers[process] = file_handle.get_number_of_total_events()
         else:
