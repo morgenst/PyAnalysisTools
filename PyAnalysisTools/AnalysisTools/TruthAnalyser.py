@@ -28,6 +28,7 @@ particle_map["LQ"] = [1102, "LQ"]
 particle_map["e-"] = [-11, "e^{-}"]
 particle_map["e+"] = [11, "e^{+}"]
 particle_map["q"] = [range(1,6), "q"]
+particle_map["b"] = [5, "b"]
 particle_map["tau-"] = [-15, "tau^{-}"]
 particle_map["tau+"] = [15, "tau^{+}"]
 particle_map["anti_tau_nu"] = [16, "#nu_{#tau}"]
@@ -435,15 +436,22 @@ class LQTruthAnalyser(object):
             resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
             prod_vtx = LQ[0].prodVtxLink().outgoingParticleLinks()
             try:
-                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 13, prod_vtx)[0]
+                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                                   abs(particle.pdgId()) == 13 or
+                                                   abs(particle.pdgId()) == 15, prod_vtx)[0]
                 self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
                 self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
                 self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
             except IndexError:
                 print "Could not find any second lepton for first resonance decay in process", process_id
                 continue
+            except KeyError:
+                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
+                continue
             try:
-                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0]
+                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                                   abs(particle.pdgId()) == 13 or
+                                                   abs(particle.pdgId()) == 15, resonance1_vertex)[0]
                 quark_1 = filter(lambda particle: abs(particle.pdgId())in range(1, 6), resonance1_vertex)[0]
                 self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
                 self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
@@ -461,78 +469,3 @@ class LQTruthAnalyser(object):
                 print "Could not find any first lepton for first resonance decay in process", process_id
                 continue
         print "no LQ counter: ", no_LQ_counter
-
-
-            # mode = list()
-            # for resonance1_child in resonance1_vertex:
-            #     self.histograms[process_id]["resonance_decay1_child_pdg_ids"].Fill(resonance1_child.pdgId())
-            #     if abs(resonance1_child.pdgId() == 13):
-            #         self.histograms[process_id]["muon_e"].Fill(resonance1_child.e() / 1000.)
-            #         self.histograms[process_id]["muon_eta"].Fill(resonance1_child.eta())
-            #         self.histograms[process_id]["muon_phi"].Fill(resonance1_child.phi())
-            #     if resonance1_child.pdgId() not in self.current_process_config.decay_2_initial_resonance:
-            #         continue
-            #     mode.append((resonance1_child.pdgId(), resonance1_child.e() / 1000.))
-            #     resonance2_vertex = resonance1_child.decayVtxLink().outgoingParticleLinks()
-            #     for resonance2_child in resonance2_vertex:
-            #         if abs(resonance2_child.pdgId()) == 13:
-            #             self.histograms[process_id]["decay2_muon_e"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["muon_e"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["muon_eta"].Fill(resonance2_child.eta())
-            #             self.histograms[process_id]["muon_phi"].Fill(resonance2_child.phi())
-            #             muon_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(), resonance2_child.phi()])
-            #         if abs(resonance2_child.pdgId()) == 22:
-            #             self.histograms[process_id]["decay2_gamma_e"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_e_low_pt"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_status"].Fill(resonance2_child.status())
-            #         if not abs(resonance2_child.pdgId()) == 13:
-            #             self.histograms[process_id]["decay2_non_muon_particle"].Fill(resonance2_child.pdgId())
-            #         if resonance2_child.pdgId() == 22:
-            #             all_photons_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(),
-            #                                     resonance2_child.phi()])
-            #         if resonance2_child.pdgId() == 22 and resonance2_child.e() < 100.:
-            #             continue
-            #         # if resonance2_child.pdgId() == 22 and self.deltaR(muon_pts[0], [resonance2_child.e() / 1000.,
-            #         #                                                                 resonance2_child.eta(),
-            #         #                                                                 resonance2_child.phi()]) > 0.4:
-            #         #     continue
-            #         mode.append((resonance2_child.pdgId(), resonance2_child.e() / 1000.))
-            #         self.histograms[process_id]["decay2_particle"].Fill(resonance2_child.pdgId())
-            #         self.histograms[process_id]["decay2_particle_eta"].Fill(resonance2_child.eta())
-            #         self.histograms[process_id]["decay2_particle_phi"].Fill(resonance2_child.phi())
-            #         self.histograms[process_id]["decay2_particle_status"].Fill(resonance2_child.status())
-            #         if abs(resonance2_child.pdgId()) == 22:
-            #             self.histograms[process_id]["decay2_gamma_e_after_veto"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_eta"].Fill(resonance2_child.eta())
-            #             self.histograms[process_id]["decay2_gamma_phi"].Fill(resonance2_child.phi())
-            #             self.histograms[process_id]["decay2_gamma_e_after_veto_low_pt"].Fill(resonance2_child.e() / 1000.)
-            #             self.histograms[process_id]["decay2_gamma_status_after_veto"].Fill(resonance2_child.status())
-            #             mother = resonance2_child.prodVtx().incomingParticleLinks()[0]
-            #             self.histograms[process_id]["control_photon_mother_pdgid"].Fill(mother.pdgId())
-            #             photons_pts.append([resonance2_child.e() / 1000., resonance2_child.eta(),
-            #                                 resonance2_child.phi()])
-            # mode.sort(key=lambda i: i[0], reverse=True)
-            # try:
-            #     decay_mode = self.current_process_config.decay2_sorted.index(map(lambda i: i[0], mode))
-            # except ValueError:
-            #     decay_mode = -1
-            # if decay_mode == -1:
-            #     for pdg_id, pt in mode:
-            #         self.histograms[process_id]["unidentified_pdgid"].Fill(pdg_id)
-            #         if pdg_id == 22:
-            #             self.histograms[process_id]["unidentified_gamma_e"].Fill(pt)
-            #
-            # self.histograms[process_id]["decay2_mode"].Fill(decay_mode)
-            # muon_pts.sort(key=lambda x: x[0], reverse=True)
-            # if len(muon_pts) < 3:
-            #     print "did not find 3 muons!"
-            #     continue
-            # self.histograms[process_id]["lead_muon_e"].Fill(muon_pts[0][0])
-            # self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_pts[1][0])
-            # self.histograms[process_id]["third_lead_muon_e"].Fill(muon_pts[2][0])
-            # for photon in photons_pts:
-            #     for muon in muon_pts:
-            #         self.histograms[process_id]["decay2_gamma_mu_dr_after_veto"].Fill(self.deltaR(photon, muon))
-            # for photon in all_photons_pts:
-            #     for muon in muon_pts:
-            #         self.histograms[process_id]["decay2_gamma_mu_dr"].Fill(self.deltaR(photon, muon))
