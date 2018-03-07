@@ -24,6 +24,7 @@ class CutflowAnalyser(object):
         kwargs.setdefault("no_merge", False)
         kwargs.setdefault("raw", False)
         kwargs.setdefault("output_dir", None)
+        kwargs.setdefault("format", "plain")
         self.file_list = kwargs["file_list"]
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
@@ -38,6 +39,7 @@ class CutflowAnalyser(object):
         self.event_numbers = dict()
         self.process_config = None
         self.raw = kwargs["raw"]
+        self.format = kwargs["format"]
         self.merge = True if not kwargs["no_merge"] else False
         if kwargs["output_dir"] is not None:
             self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
@@ -187,7 +189,12 @@ class CutflowAnalyser(object):
                 cutflow_tables[selection] = rec_append_fields(cutflow_tables[selection],
                                                               [i+process for i in cutflow_tmp.dtype.names[1:]],
                                                               [cutflow_tmp[n] for n in cutflow_tmp.dtype.names[1:]])
-            self.cutflow_tables= {k: tabulate(v.transpose(), headers=self.cutflows[systematic].keys()) for k, v in cutflow_tables.iteritems()}
+            headers = ["Cut"] + [x for elem in self.cutflows[systematic].keys() for x in (elem, "")]
+            self.cutflow_tables = {k: tabulate(v.transpose(),
+                                               headers=headers,
+                                               tablefmt=self.format,
+                                               floatfmt=".2f")
+                                   for k, v in cutflow_tables.iteritems()}
 
     def stringify(self, cutflow):
         def format_yield(value, uncertainty):

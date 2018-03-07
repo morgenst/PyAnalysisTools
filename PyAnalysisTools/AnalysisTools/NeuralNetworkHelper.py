@@ -15,14 +15,14 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 
 
 class NeuralNetwork(object):
-    def __init__(self, num_features, num_layers=2, size=10, lr=1e-3, keep_prob=1.0, tloss="soft", input_noise=0.0):
+    def __init__(self, num_features, num_layers=3, size=20, lr=1e-3, keep_prob=1.0, tloss="soft", input_noise=0.0):
         self.inputs = inputs = Input(shape=(num_features,))
         x = Dense(size, activation='relu')(inputs)
         for i in range(num_layers - 1):
             x = Dense(size, activation='tanh')(x)
         pred = Dense(1, activation='sigmoid')(x)
         #pred = Dense(1, activation="softmax")(x)
-        model = Model(input=inputs, output=pred)
+        model = Model(inputs=inputs, outputs=pred)
 
         # self.train_op = Adam(lr)
         model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])

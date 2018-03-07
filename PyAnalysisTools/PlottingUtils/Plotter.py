@@ -59,6 +59,8 @@ class Plotter(BasePlotter):
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
+        self.expand_process_configs()
+        self.filter_process_configs(self.file_handles, self.process_configs)
 
     def expand_process_configs(self):
         if self.process_configs is not None:

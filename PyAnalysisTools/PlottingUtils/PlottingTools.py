@@ -145,7 +145,7 @@ def format_hist(hist, plot_config):
         yscale = 1.1
         if hasattr(plot_config, "yscale"):
             yscale = yscale
-        ymax = yscale*hist.GetMaximum()
+        ymax = yscale * hist.GetMaximum()
         if hasattr(plot_config, "ymax"):
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
@@ -194,7 +194,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
             draw_option = "hist"
-        style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
+        #style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
@@ -203,18 +203,19 @@ def plot_histograms(hists, plot_config, process_configs=None):
         #     style_setter = "Line"
         if plot_config.ignore_style:
             style_setter = "Line"
-        if not plot_config.ignore_style:
-            apply_style(hist, *get_style_setters_and_values(plot_config, index=index))
-        if color is not None:
-            hist_color = color
-            if isinstance(color, list):
-                if isinstance(hists, list):
-                    hist_color = color[hists.index(hist)]
-                elif isinstance(hists, dict):
-                    hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
-            if style_attr is not None:
-                for setter in style_setter:
-                    getattr(hist, "Set" + setter + "Style")(style_attr)
+        FM.apply_style(hist, plot_config, process_config, index=hist_defs.index((process, hist)))
+        # if not plot_config.ignore_style:
+        #     apply_style(hist, *get_style_setters_and_values(plot_config, index=index))
+        # if color is not None:
+        #     hist_color = color
+        #     if isinstance(color, list):
+        #         if isinstance(hists, list):
+        #             hist_color = color[hists.index(hist)]
+        #         elif isinstance(hists, dict):
+        #             hist_color = color[map(itemgetter(1), hist_defs).index(hist)]
+        #     if style_attr is not None:
+        #         for setter in style_setter:
+        #             getattr(hist, "Set" + setter + "Style")(style_attr)
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
@@ -230,11 +231,13 @@ def plot_histograms(hists, plot_config, process_configs=None):
                 canvas.SetLogy()
             if plot_config.logx:
                 canvas.SetLogx()
-            if hasattr(plot_config, "ymax"):
-                hist.SetMaximum(plot_config.ymax)
             format_hist(hist, plot_config)
+            if hasattr(plot_config, "ymax"):
+                 hist.SetMaximum(plot_config.ymax)
             canvas.Update()
         is_first = False
+    if hasattr(plot_config, "normalise") and plot_config.normalise is True:
+        hist_defs[0][1].SetMaximum(plot_config.ymax)
     return canvas
 
 

@@ -31,6 +31,7 @@ class PlotConfig(object):
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("xmin", None)
+        kwargs.setdefault("ymax", None)
         kwargs.setdefault("normalise_range", None)
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
@@ -208,6 +209,8 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
         draw_option = "E"
     elif draw_option == "Line":
         draw_option = "l"
+    elif draw_option == "hist":
+        draw_option = "HIST"
     return draw_option
 
 
@@ -244,7 +247,8 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         elif style_attr:
             style_setter = "Fill"
         else:
-            style_setter = ["Line", "Marker", "Fill"]
+            #style_setter = ["Line", "Marker", "Fill"]
+            style_setter = ["Line"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
         style_setter = "Marker"
     elif draw_option.lower() == "line":
@@ -277,6 +281,7 @@ def get_histogram_definition(plot_config):
         _logger.error("Unable to create histogram for plot_config %s for variable %s" % (plot_config.name,
                                                                                          plot_config.dist))
         raise InvalidInputError("Invalid plot configuration")
+    hist.Sumw2()
     return hist
 
 

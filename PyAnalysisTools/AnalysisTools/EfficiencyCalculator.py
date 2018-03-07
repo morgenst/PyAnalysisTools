@@ -13,9 +13,6 @@ class EfficiencyCalculator(object):
 
     def calculate_1d_efficiency(self, numerator, denominator, name=None):
         efficiency = ROOT.TEfficiency(numerator, denominator)
-        print "numerator ", numerator.GetName(), "  denominator: ", denominator.GetName()
-        for b in range(numerator.GetNbinsX()):
-            print numerator.GetXaxis().GetBinCenter(b), numerator.GetBinContent(b), "\t", denominator.GetXaxis().GetBinCenter(b), denominator.GetBinContent(b)
         if name:
             efficiency.SetName(name)
         return efficiency

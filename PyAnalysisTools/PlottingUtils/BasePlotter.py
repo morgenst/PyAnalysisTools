@@ -86,13 +86,21 @@ class BasePlotter(object):
                 weight = plot_config.weight
             if plot_config.cuts:
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
+                data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
                     if not "data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
+                for data_cut in data_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(data_cut))
+                    if "data" in file_handle.process:
+                        selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
-                selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
+                if selection_cuts == "":
+                    selection_cuts = "!({:s})".format(" && ".join(plot_config.blind))
+                else:
+                    selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
             try:
                 hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
                 file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
@@ -129,7 +137,6 @@ class BasePlotter(object):
                 _logger.warning("hist for process {:s} is None".format(process))
                 continue
             try:
-
                 if process not in self.histograms[plot_config].keys():
                     self.histograms[plot_config][process] = hist
                 else:

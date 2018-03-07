@@ -13,8 +13,10 @@ class Region(object):
         except KeyError:
             self.n_tau = 0
         kwargs.setdefault("disable_taus", False)
+        kwargs.setdefault("disable_electrons", False)
         kwargs.setdefault("is_on_z", None)
         kwargs.setdefault("operator", "eq")
+        kwargs.setdefault("muon_operator", "eq")
         kwargs.setdefault("label", None)
         kwargs.setdefault("good_muon", None)
         kwargs.setdefault("fake_muon", None)
@@ -27,6 +29,10 @@ class Region(object):
         if kwargs["operator"] == "eq":
             self.operator = "=="
         elif kwargs["operator"] == "leq":
+            self.operator = ">="
+        if kwargs["muon_operator"] == "eq":
+            self.operator = "=="
+        elif kwargs["muon_operator"] == "leq":
             self.operator = ">="
         else:
             raise ValueError("Invalid operator provided. Currently supported: eq(==) and leq(>=)")
@@ -74,19 +80,25 @@ class Region(object):
             cut = self.event_cut_string + " && "
         if self.is_on_z is not None:
             cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
-        if self.disable_taus:
-            return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
-                                                                                           self.operator,
-                                                                                           self.n_electron,
-                                                                                           muon_selector,
-                                                                                           self.operator,
-                                                                                           self.n_muon)
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
             return cut + "{:s} + {:s} + tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
                                                                self.n_lep)
+
+        cut += "{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon)
+        if not self.disable_electrons:
+            cut += " && {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron)
+        return cut
+        # if self.disable_taus:
+        #     return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
+        #                                                                                    self.operator,
+        #                                                                                    self.n_electron,
+        #                                                                                    muon_selector,
+        #                                                                                    self.muon_operator,
+        #                                                                                    self.n_muon)
+
         return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
                                                                                   self.n_electron, muon_selector,
-                                                                                  self.operator, self.n_muon,
+                                                                                  self.muon_operator, self.n_muon,
                                                                                   self.operator, self.n_tau)
 
     def build_label(self):
