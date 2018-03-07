@@ -1,7 +1,5 @@
 import ROOT
 import copy
-import pathos.multiprocessing as mp
-from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -106,7 +104,6 @@ class Plotter(BasePlotter):
             plot_config.draw = "Marker"
         plot_config.logy = False
 
-        #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         if self.stat_unc_hist:
             plot_config_stat_unc_ratio = copy.copy(plot_config)
             plot_config_stat_unc_ratio.color = ROOT.kYellow
@@ -202,15 +199,11 @@ class Plotter(BasePlotter):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
         if len(self.modules_hist_fetching) == 0:
-            fetched_histograms = mp.ThreadingPool(min(self.nfile_handles,
-                                                      len(self.file_handles))).map(partial(self.read_histograms,
-                                                                                           plot_configs=self.plot_configs),
-                                                                                   self.file_handles)
+            fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
         else:
             fetched_histograms = [(self.plot_configs[0], self.modules_hist_fetching[0].fetch())]
-        for histograms in fetched_histograms:
-            histograms = filter(lambda hist: hist is not None, histograms)
-            self.categorise_histograms(histograms)
+        fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+        self.categorise_histograms(fetched_histograms)
         self.apply_lumi_weights(self.histograms)
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)

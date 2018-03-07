@@ -1,6 +1,7 @@
 import pathos.multiprocessing as mp
 import traceback
 from functools import partial
+from itertools import product
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
@@ -61,7 +62,8 @@ class BasePlotter(object):
             else:
                 self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
 
-    def fetch_histograms(self, plot_config, file_handle, systematic="Nominal"):
+    def fetch_histograms(self, data, systematic="Nominal"):
+        file_handle, plot_config = data
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
@@ -114,21 +116,14 @@ class BasePlotter(object):
         return hist
 
     def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
-        if not self.read_hist:
-            histograms = mp.ProcessingPool(min(self.nfile_handles,
-                                               len(plot_configs))).map(partial(self.fetch_histograms,
-                                                                               file_handle=file_handle,
-                                                                               systematic=systematic), plot_configs)
-        else:
-            histograms = mp.ProcessingPool(min(self.ncpu,
-                                               len(plot_configs))).map(partial(self.fetch_plain_histograms,
-                                                                               file_handle=file_handle,
-                                                                               systematic=systematic), plot_configs)
+        cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
+        comb = product(file_handle, plot_configs)
+        pool = mp.ProcessPool(nodes=cpus)
+        histograms = pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
         return histograms
 
     def categorise_histograms(self, histograms):
         _logger.debug("categorising {:d} histograms".format(len(histograms)))
-
         for plot_config, process, hist in histograms:
             if hist is None:
                 _logger.warning("hist for process {:s} is None".format(process))

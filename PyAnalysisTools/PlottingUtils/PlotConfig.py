@@ -239,7 +239,9 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     if hasattr(plot_config, "color"):
         color = transform_color(plot_config.color)
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
-        if style_attr:
+        if hasattr(process_config, "format"):
+            style_setter = process_config.format.capitalize()
+        elif style_attr:
             style_setter = "Fill"
         else:
             style_setter = ["Line", "Marker", "Fill"]
