@@ -1,5 +1,21 @@
+import threading
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import _logger, InvalidInputError
+
+
+class DataSetStore(object):
+    _instance = None
+    _lock = threading.Lock()
+
+    def __new__(cls, *args):
+        if DataSetStore._instance is None:
+            with DataSetStore._lock:
+                if DataSetStore._instance is None:
+                    DataSetStore._instance = super(DataSetStore, cls).__new__(cls, *args)
+        return DataSetStore._instance
+
+    def __init__(self, dataset_info):
+        self.dataset_info = YAMLLoader.read_yaml(dataset_info)
 
 
 class Dataset(object):

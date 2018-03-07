@@ -1,6 +1,7 @@
 import pathos.multiprocessing as mp
 import traceback
 from functools import partial
+from itertools import product
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
@@ -61,11 +62,12 @@ class BasePlotter(object):
             else:
                 self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
 
-    def fetch_histograms(self, file_handle, plot_config, systematic="Nominal"):
+    def fetch_histograms(self, data, systematic="Nominal"):
+        file_handle, plot_config = data
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        return file_handle.process, tmp
+        return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
         if "data" in file_handle.process.lower() and plot_config.no_data:
@@ -99,8 +101,14 @@ class BasePlotter(object):
                     selection_cuts = "!({:s})".format(" && ".join(plot_config.blind))
                 else:
                     selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
-            file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
-                                                    tdirectory=systematic, weight=weight)
+            try:
+                hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+                file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
+                                                        tdirectory=systematic, weight=weight)
+            except RuntimeError:
+                _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
+                _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
+                return None
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
             if self.process_configs is None:
@@ -113,25 +121,18 @@ class BasePlotter(object):
         except Exception as e:
             print traceback.print_exc()
             raise e
-
         return hist
 
-    def read_histograms(self, plot_config, file_handles, systematic="Nominal"):
-        if not self.read_hist:
-            histograms = mp.ThreadPool(min(self.nfile_handles,
-                                           len(file_handles))).map(partial(self.fetch_histograms,
-                                                                           plot_config=plot_config,
-                                                                           systematic=systematic), file_handles)
-        else:
-            histograms = mp.ThreadPool(min(self.nfile_handles,
-                                           len(file_handles))).map(partial(self.fetch_plain_histograms,
-                                                                           plot_config=plot_config,
-                                                                           systematic=systematic), file_handles)
-        return plot_config, histograms
+    def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
+        cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
+        comb = product(file_handle, plot_configs)
+        pool = mp.ProcessPool(nodes=cpus)
+        histograms = pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
+        return histograms
 
-    def categorise_histograms(self, plot_config, histograms):
+    def categorise_histograms(self, histograms):
         _logger.debug("categorising {:d} histograms".format(len(histograms)))
-        for process, hist in histograms:
+        for plot_config, process, hist in histograms:
             if hist is None:
                 _logger.warning("hist for process {:s} is None".format(process))
                 continue

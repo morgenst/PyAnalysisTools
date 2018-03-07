@@ -41,7 +41,7 @@ def get_statistical_uncertainty_from_stack(stack):
 
 def get_statistical_uncertainty_ratio(stat_unc_hist):
     stat_unc_hist_ratio = stat_unc_hist.Clone("stat.unc.ratio")
-    for b in range(0, stat_unc_hist.GetNbinsX()):
+    for b in range(0, stat_unc_hist.GetNbinsX() + 1):
         stat_unc_hist_ratio.SetBinContent(b, 1.)
         if stat_unc_hist.GetBinContent(b) > 0.:
             stat_unc_hist_ratio.SetBinError(b, stat_unc_hist.GetBinError(b) / stat_unc_hist.GetBinContent(b))

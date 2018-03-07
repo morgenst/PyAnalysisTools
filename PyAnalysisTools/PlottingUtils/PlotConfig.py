@@ -8,11 +8,11 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 class PlotConfig(object):
     def __init__(self, **kwargs):
-        # type: (object) -> object
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
-        kwargs.setdefault("Draw", "hist")
+        if not "draw" in kwargs:
+            kwargs.setdefault("Draw", "hist")
         kwargs.setdefault("outline", "hist")
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
@@ -22,6 +22,7 @@ class PlotConfig(object):
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("rebin", None)
         kwargs.setdefault("weight", False)
+        kwargs.setdefault("enable_legend", False)
         kwargs.setdefault("blind", None)
         kwargs.setdefault("legend_options", dict())
         kwargs.setdefault("make_plot_book", False)
@@ -66,6 +67,17 @@ class PlotConfig(object):
         for attribute, value in self.__dict__.items():
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
+
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.name)
 
     @staticmethod
     def get_overwritable_options():
@@ -185,6 +197,7 @@ def _parse_draw_option(plot_config, process_config):
         draw_option = plot_config.draw
     if process_config and hasattr(process_config, "draw"):
         draw_option = process_config.draw
+
     return draw_option
 
 
@@ -209,6 +222,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
                 color, offset = color.split("+")
             if "-" in color:
                 color, offset = color.split("-")
+                offset = "-" + offset
             color = getattr(ROOT, color.rstrip()) + int(offset)
         if isinstance(color, list):
             return transform_color(color[index])
@@ -228,7 +242,9 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     if hasattr(plot_config, "color"):
         color = transform_color(plot_config.color)
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
-        if style_attr:
+        if hasattr(process_config, "format"):
+            style_setter = process_config.format.capitalize()
+        elif style_attr:
             style_setter = "Fill"
         else:
             #style_setter = ["Line", "Marker", "Fill"]
@@ -270,7 +286,7 @@ def get_histogram_definition(plot_config):
 
 
 def find_process_config(process_name, process_configs):
-    if process_configs is None:
+    if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
         return process_configs[process_name]

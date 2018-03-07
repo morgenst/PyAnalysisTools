@@ -29,6 +29,7 @@ particle_map["LQ"] = [1102, "LQ"]
 particle_map["e-"] = [-11, "e^{-}"]
 particle_map["e+"] = [11, "e^{+}"]
 particle_map["q"] = [range(1,6), "q"]
+particle_map["b"] = [5, "b"]
 particle_map["tau-"] = [-15, "tau^{-}"]
 particle_map["tau+"] = [15, "tau^{+}"]
 particle_map["anti_tau_nu"] = [16, "#nu_{#tau}"]
@@ -181,7 +182,6 @@ class TruthAnalyer(object):
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
                     pc.normalise = True
-                print pc
                 canvas = PT.plot_obj(hist, pc)
                 if hist_name == "decay2_mode":
                     pc_ref = copy(pc)
@@ -438,15 +438,22 @@ class LQTruthAnalyser(object):
             resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
             prod_vtx = LQ[0].prodVtxLink().outgoingParticleLinks()
             try:
-                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 13, prod_vtx)[0]
+                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                                   abs(particle.pdgId()) == 13 or
+                                                   abs(particle.pdgId()) == 15, prod_vtx)[0]
                 self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
                 self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
                 self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
             except IndexError:
                 print "Could not find any second lepton for first resonance decay in process", process_id
                 continue
+            except KeyError:
+                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
+                continue
             try:
-                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0]
+                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                                   abs(particle.pdgId()) == 13 or
+                                                   abs(particle.pdgId()) == 15, resonance1_vertex)[0]
                 quark_1 = filter(lambda particle: abs(particle.pdgId())in range(1, 6), resonance1_vertex)[0]
                 self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
                 self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
@@ -456,9 +463,9 @@ class LQTruthAnalyser(object):
                 self.histograms[process_id]["quark_phi"].Fill(quark_1.phi())
     
                 tlv_lepton_1 = ROOT.TLorentzVector()
-                tlv_lepton_1.SetPtEtaPhiM(lepton_1.px(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
+                tlv_lepton_1.SetPtEtaPhiM(lepton_1.e(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
                 tlv_quark_1 = ROOT.TLorentzVector()
-                tlv_quark_1.SetPtEtaPhiM(quark_1.px(), quark_1.eta(), quark_1.phi(), quark_1.m())
+                tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
                 self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
             except IndexError:
                 print "Could not find any first lepton for first resonance decay in process", process_id
@@ -693,7 +700,7 @@ class BcTruthAnalyser(object):
             self.histograms[process_id]["jpsi_lepton2_eta"].Fill(jpsi_muon2.eta())
             self.histograms[process_id]["jpsi_lepton2_phi"].Fill(jpsi_muon2.phi())
             self.histograms[process_id]["jpsi_lepton2_phi"].Fill(jpsi_muon2.phi())
-            
+
             jpsi_muon1_tlv = ROOT.TLorentzVector()
             jpsi_muon1_tlv.SetPxPyPzE(jpsi_muon1.px(), jpsi_muon1.py(), jpsi_muon1.pz(), jpsi_muon1.e())
             jpsi_muon2_tlv = ROOT.TLorentzVector()
@@ -703,6 +710,6 @@ class BcTruthAnalyser(object):
             resonance_neutrino_tlv = ROOT.TLorentzVector()
             resonance_neutrino_tlv.SetPxPyPzE(resonance_neutrino.px(), resonance_neutrino.py(), resonance_neutrino.pz(), resonance_neutrino.e())
             self.histograms[process_id]["jpsi_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv).M() / 1000.)
-            self.histograms[process_id]["B_mass_visible"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv).M() / 1000.)            
+            self.histograms[process_id]["B_mass_visible"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv).M() / 1000.)
             self.histograms[process_id]["B_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv + resonance_neutrino_tlv).M() / 1000.)
         print "N processed entries: ", n_entries, " and hist entries: ", self.histograms[process_id]["B_mass"].GetEntries()
