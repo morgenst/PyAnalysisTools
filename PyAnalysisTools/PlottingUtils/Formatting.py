@@ -29,7 +29,7 @@ def decorate_canvas(canvas, plot_config):
     if hasattr(plot_config, "watermark"):
         add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.05)
     if hasattr(plot_config, "lumi") and plot_config.lumi is not None:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.6, "y": 0.9})
+        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
@@ -246,6 +246,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yl", 0.6)
     kwargs.setdefault("xh", 0.9)
     kwargs.setdefault("yh", 0.9)
+    kwargs.setdefault("format", None)
 
     def convert_draw_option(process_config=None):
         draw_option = plot_obj.GetDrawOption()
@@ -256,8 +257,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             # if plot_obj.GetFillStyle() == 1001:
             #     legend_option += "L"
             # else:
-            if process_config is not None and hasattr(process_config, "format"):
-                if process_config.format.lower() == "line":
+            if (process_config is not None and hasattr(process_config, "format")) or kwargs["format"]:
+                if (process_config and process_config.format.lower() == "line") or kwargs["format"] == "line":
                     legend_option += "L"
             else:
                 legend_option += "F"
