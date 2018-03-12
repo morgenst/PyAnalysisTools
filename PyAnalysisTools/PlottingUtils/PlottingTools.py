@@ -194,7 +194,6 @@ def plot_histograms(hists, plot_config, process_configs=None):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
         else:
             draw_option = "hist"
-        #style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
