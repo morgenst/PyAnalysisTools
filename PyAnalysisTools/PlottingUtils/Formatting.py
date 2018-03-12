@@ -247,7 +247,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("xh", 0.9)
     kwargs.setdefault("yh", 0.9)
 
-    def convert_draw_option(process_config=None):
+    def convert_draw_option(process_config=None, plot_config=None):
         draw_option = plot_obj.GetDrawOption()
         if is_stacked:
             draw_option = "Hist"
@@ -256,8 +256,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             # if plot_obj.GetFillStyle() == 1001:
             #     legend_option += "L"
             # else:
-            if process_config is not None and hasattr(process_config, "format"):
-                if process_config.format.lower() == "line":
+            if process_config is not None and (hasattr(process_config, "format") or hasattr(plot_config, "format")):
+                if process_config.format.lower() == "line" or plot_config.format.lower() == "line":
                     legend_option += "L"
             else:
                 legend_option += "F"
@@ -315,7 +315,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             is_stacked = True
         if label is None:
             continue
-        legend.AddEntry(plot_obj, label, convert_draw_option(process_config))
+        plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
+        legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
     canvas.cd()
     legend.Draw("sames")
     canvas.Update()
