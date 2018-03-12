@@ -283,6 +283,8 @@ class Plotter(BasePlotter):
                         mc_total.Add(hist)
                     if hasattr(plot_config, "ratio_config"):
                         ratio_plot_config = plot_config.ratio_config
+                        if plot_config.logx:
+                            ratio_plot_config.logx = True
                     else:
                         ratio_plot_config = copy.copy(plot_config)
                         ratio_plot_config.name = "ratio_" + plot_config.name

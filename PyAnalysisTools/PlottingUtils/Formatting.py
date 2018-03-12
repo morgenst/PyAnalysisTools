@@ -246,6 +246,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yl", 0.6)
     kwargs.setdefault("xh", 0.9)
     kwargs.setdefault("yh", 0.9)
+    kwargs.setdefault("format", None)
 
     def convert_draw_option(process_config=None, plot_config=None):
         draw_option = plot_obj.GetDrawOption()
@@ -256,8 +257,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             # if plot_obj.GetFillStyle() == 1001:
             #     legend_option += "L"
             # else:
-            if process_config is not None and (hasattr(process_config, "format") or hasattr(plot_config, "format")):
-                if process_config.format.lower() == "line" or plot_config.format.lower() == "line":
+            if process_config is not None and (hasattr(process_config, "format") or hasattr(plot_config, "format")) or kwargs["format"]:
+                if process_config.format.lower() == "line" or plot_config.format.lower() == "line" or kwargs["format"]  == "line":
                     legend_option += "L"
             else:
                 legend_option += "F"

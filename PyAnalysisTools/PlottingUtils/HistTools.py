@@ -15,6 +15,8 @@ def rebin(histograms, factor=None):
                 histograms[key] = [_rebin_hist(hist, factor)]
         else:
             raise InvalidInputError('Invalid binning: ' + str(factor))
+    elif isinstance(histograms, list):
+        histograms = [_rebin_hist(h, factor) for h in histograms]
     else:
         histograms = _rebin_hist(histograms, factor)
     return histograms

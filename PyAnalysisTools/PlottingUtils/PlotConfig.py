@@ -1,5 +1,6 @@
 import ROOT
 import re
+from math import log10
 from array import array
 from copy import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -37,6 +38,7 @@ class PlotConfig(object):
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
         kwargs.setdefault("Lumi", 1.)
+
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
@@ -48,6 +50,7 @@ class PlotConfig(object):
                 self.set_additional_config("significance_config", **v)
                 continue
             setattr(self, k.lower(), v)
+
         self.auto_decorate()
 
     def is_set_to_value(self, attr, value):
@@ -265,10 +268,19 @@ def get_histogram_definition(plot_config):
     hist = None
     hist_name = plot_config.name
     if dimension == 0:
-        hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
+        if not plot_config.logx:
+            hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
+        else:
+            logxmin = log10(plot_config.xmin)
+            logxmax = log10(plot_config.xmax)
+            binwidth = (logxmax - logxmin) / plot_config.bins
+            xbins = [plot_config.xmin]
+            for i in range(1, plot_config.bins+1):
+                xbins.append(plot_config.xmin + pow(10, logxmin + i * binwidth))
+            hist = ROOT.TH1F(hist_name, "", plot_config.bins, array('d', xbins))
     elif dimension == 1:
         if isinstance(plot_config.xbins, list):
-            hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) -1, array("d", plot_config.xbins),
+            hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) - 1, array("d", plot_config.xbins),
                              plot_config.ybins, plot_config.ymin, plot_config.ymax)
         else:
             hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,

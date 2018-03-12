@@ -150,7 +150,7 @@ def format_hist(hist, plot_config):
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
-    if hasattr(plot_config, "rebin") and not isinstance(hist, ROOT.THStack):
+    if plot_config.rebin and not isinstance(hist, ROOT.THStack):
         hist = HT.rebin(hist, plot_config.rebin)
         yscale = 1.1
         if hasattr(plot_config, "yscale"):
@@ -219,7 +219,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
             if plot_config.logx:
                 canvas.SetLogx()
             format_hist(hist, plot_config)
-            if hasattr(plot_config, "ymax"):
+            if plot_config.ymax:
                  hist.SetMaximum(plot_config.ymax)
             canvas.Update()
         is_first = False
@@ -346,12 +346,18 @@ def plot_stack(hists, plot_config, **kwargs):
         max_y = max(max_y, 1.1 * data[1].GetMaximum())
         if plot_config.rebin:
             max_y = max(max_y, 1.3 * get_objects_from_canvas_by_name(canvas, data[1].GetName())[0].GetMaximum())
+    if plot_config.ymax:
+        max_y = plot_config.ymax
+        if isinstance(max_y, str):
+            max_y = eval(max_y)
     FM.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)
     if hasattr(plot_config, "logy") and plot_config.logy:
         stack.SetMinimum(0.1)
         canvas.SetLogy()
+    if plot_config.logx:
+        canvas.SetLogx()
     return canvas
 
 

@@ -31,9 +31,9 @@ class Region(object):
         elif kwargs["operator"] == "leq":
             self.operator = ">="
         if kwargs["muon_operator"] == "eq":
-            self.operator = "=="
+            self.muon_operator = "=="
         elif kwargs["muon_operator"] == "leq":
-            self.operator = ">="
+            self.muon_operator = ">="
         else:
             raise ValueError("Invalid operator provided. Currently supported: eq(==) and leq(>=)")
         if self.label is None:
