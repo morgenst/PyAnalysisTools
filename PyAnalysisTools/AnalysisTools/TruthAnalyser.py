@@ -345,12 +345,12 @@ class LQTruthAnalyser(object):
         book_histogram("quark_e", 50, 0., 1500.)
         book_histogram("quark_eta", 50, -2.5, 2.5)
         book_histogram("quark_phi", 50, -3.2, 3.2)
-        book_histogram("inv_mass", 100, 500, 4500)
+        book_histogram("inv_mass", 4000, 500, 4500)
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
             pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
-                            color=ROOT.kBlue, draw="HIST", no_fill=True)
+                            color=ROOT.kBlue, draw="HIST", no_fill=True, lumi=None)
             for args, val in kwargs.iteritems():
                 setattr(pc, name, val)
             self.plot_configs[name] = pc
@@ -429,7 +429,7 @@ class LQTruthAnalyser(object):
             # if self.current_process_config is None:
             #     self.current_process_config = self.processes[process_id]
             truth_particles = tree.TruthParticles
-            LQ = filter(lambda p: p.pdgId() == 1102, truth_particles)
+            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 42, truth_particles)
             #self.histograms[process_id]["resonance_counter_decay1"].Fill(1)
             if len(LQ) == 0:
                 no_LQ_counter += 1
