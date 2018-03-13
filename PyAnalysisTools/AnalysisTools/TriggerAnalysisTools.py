@@ -37,7 +37,7 @@ class TriggerFlattener(object):
         self.trigger_list = []
 
     def flatten_all_branches(self):
-        branch_names = find_branches_matching_pattern(self.tree, "trigger_*")
+        branch_names = find_branches_matching_pattern(self.tree, "trigger_.*")
         self.read_triggers()
         branch_names.remove("trigger_list")
         self.expand_branches(branch_names)

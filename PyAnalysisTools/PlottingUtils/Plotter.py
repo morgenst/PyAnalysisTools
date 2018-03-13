@@ -218,6 +218,7 @@ class Plotter(BasePlotter):
             self.systematics_analyser.calculate_total_systematics()
 
         for plot_config, data in self.histograms.iteritems():
+
             for mod in self.modules_data_providers:
                 data.update([mod.execute(plot_config)])
             data = {k: v for k, v in data.iteritems() if v}
@@ -225,7 +226,8 @@ class Plotter(BasePlotter):
                 HT.normalise(data, integration_range=[0, -1])
             HT.merge_overflow_bins(data)
             HT.merge_underflow_bins(data)
-            signals = self.get_signal_hists(data)
+            if not plot_config.signal_extraction:
+                signals = self.get_signal_hists(data)
             if plot_config.signal_scale is not None:
                 self.scale_signals(signals, plot_config)
             if plot_config.outline == "stack" and not plot_config.is_multidimensional:

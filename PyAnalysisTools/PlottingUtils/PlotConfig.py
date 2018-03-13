@@ -38,6 +38,7 @@ class PlotConfig(object):
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
         kwargs.setdefault("Lumi", 1.)
+        kwargs.setdefault("signal_extraction", True)
 
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
