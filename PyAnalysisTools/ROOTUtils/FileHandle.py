@@ -57,8 +57,15 @@ class FileHandle(object):
         self.period = None
         self.is_data = False
         self.is_mc = False
+        self.mc16a = False
+        self.mc16c = False
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
+            self.process_with_mc_campaign = self.process
+            if self.mc16a:
+                self.process_with_mc_campaign += ".mc16a"
+            if self.mc16c:
+                self.process_with_mc_campaign += ".mc16c"
 
     def open(self):
         if not os.path.exists(self.absFName):
@@ -115,6 +122,10 @@ class FileHandle(object):
             return process_name
         process_name = re.sub(r"(\_\d)$", "", process_name)
         analysed_process_name = analyse_process_name()
+        if "mc16a" in self.file_name.lower():
+            self.mc16a = True
+        if "mc16c" in self.file_name.lower():
+            self.mc16c = True
         if analysed_process_name is None:
             process_name = self.file_name.split("/")[-2]
             analysed_process_name = analyse_process_name()

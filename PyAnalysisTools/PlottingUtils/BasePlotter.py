@@ -24,6 +24,10 @@ class BasePlotter(object):
         set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
+        self.split_mc_campaigns = False
+        if any([lambda pc: not pc.merge_mc_campaigns, self.plot_configs]):
+            self.add_mc_campaigns()
+            self.split_mc_campaigns = True
         self.load_atlas_style()
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
@@ -57,16 +61,21 @@ class BasePlotter(object):
 
     def read_cutflows(self):
         for file_handle in self.file_handles:
+            process = file_handle.process
+            if self.split_mc_campaigns:
+                process = file_handle.process_with_mc_campaign
             if file_handle.process in self.event_yields:
-                self.event_yields[file_handle.process] += file_handle.get_number_of_total_events()
+                self.event_yields[process] += file_handle.get_number_of_total_events()
             else:
-                self.event_yields[file_handle.process] = file_handle.get_number_of_total_events()
+                self.event_yields[process] = file_handle.get_number_of_total_events()
 
     def fetch_histograms(self, data, systematic="Nominal"):
         file_handle, plot_config = data
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
+        if not plot_config.merge_mc_campaigns:
+            return plot_config, file_handle.process_with_mc_campaign, tmp
         return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
@@ -102,14 +111,17 @@ class BasePlotter(object):
                 else:
                     selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
             try:
-                hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+                if plot_config.merge_mc_campaigns:
+                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+                else:
+                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process_with_mc_campaign))
                 file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
             except RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
-            hist.SetName(hist.GetName() + "_" + file_handle.process)
+            #hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
             if self.process_configs is None:
                 return hist
@@ -128,6 +140,7 @@ class BasePlotter(object):
         comb = product(file_handle, plot_configs)
         pool = mp.ProcessPool(nodes=cpus)
         histograms = pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
+
         return histograms
 
     def categorise_histograms(self, histograms):
