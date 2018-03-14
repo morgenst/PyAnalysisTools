@@ -25,7 +25,7 @@ class BasePlotter(object):
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
-        if any([lambda pc: not pc.merge_mc_campaigns, self.plot_configs]):
+        if any([not pc.merge_mc_campaigns for pc in self.plot_configs]):
             self.add_mc_campaigns()
             self.split_mc_campaigns = True
         self.load_atlas_style()
