@@ -87,7 +87,7 @@ class OutputFileHandle(SysOutputHandle):
         #re-draw canvas to update internal reference in gPad
         canvas.Draw()
         ROOT.gPad.Update()
-        extension = ".pdf"
+        extension = ".png"
         if not name:
             name = canvas.GetName()
         output_path = self.output_dir

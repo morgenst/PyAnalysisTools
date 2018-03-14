@@ -2,7 +2,7 @@ import ROOT
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 from ROOT import RooFit
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.AnalysisTools.FitHelpers import convert
+from PyAnalysisTools.AnalysisTools.FitHelpers import *
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
@@ -136,6 +136,7 @@ class PDFAdd(PDF):
         ROOT.SetOwnership(nbkg, False)
         return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1, self.pdf2), ROOT.RooArgList(nbkg, nsig))
 
+
 class PDF2Gauss(PDF):
     def __init__(self, **kwargs):
         kwargs.setdefault("pdf_name", "2gauss")
@@ -168,6 +169,7 @@ class PDF2Gauss(PDF):
         ROOT.SetOwnership(coef3, False)
         return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3), ROOT.RooArgList(coef1, coef2, coef3))
 
+
 class PDFGeneric(PDF):
     def __init__(self, **kwargs):
         kwargs.setdefault("pdf_name", "generic")
@@ -196,20 +198,20 @@ class Fitter(object):
         self.quantity = kwargs["quantity"]
         self.selection = kwargs["selection"]
         self.data = None
+        self.slicing_variables = []
         self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
         if hasattr(self.pdf_config, "selection"):
             self.selection=self.pdf_config.selection
+            print(self.selection)
+        if hasattr(self.pdf_config, "slicing_variables"):
+            self.slicing_variables=self.pdf_config.slicing_variables
+            print(self.slicing_variables)
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.blind = self.pdf_config.blind
         fm.load_atlas_style()
         set_batch_mode(kwargs["batch"])
-
-    def get_integral(self, min=-1, max=-1):
-        var_set = ROOT.RooArgSet(self.var)
-        self.var.setRange("integral", min, max)
-        return self.model.createIntegral(var_set, RooFit.NormSet(var_set), RooFit.Range("integral"))
 
     def build_model(self):
         if self.pdf_config.pdf == "gauss":
@@ -226,9 +228,11 @@ class Fitter(object):
             self.pdf = PDF2Gauss(**self.__dict__)
         self.model = self.pdf.build()
 
-    def fit(self, return_fit=False):
-        print self.file_handles, self.tree_name, self.quantity, self.blind, self.selection
-        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, self.selection)
+    def fit(self, return_fit=False, return_count=False, extra_selection="1"):
+        selection_temp=list(self.selection)
+        selection_temp.append(extra_selection)
+        print self.file_handles, self.tree_name, self.quantity, self.blind, self.selection, extra_selection
+        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, selection_temp)
         self.build_model()
         if self.blind:
             # region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
@@ -239,25 +243,52 @@ class Fitter(object):
                                           RooFit.PrintEvalErrors(-1))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
         else:
             fit_result = self.model.fitTo(self.data, RooFit.Save())
-        canvas = ROOT.TCanvas("c", "", 800, 600)
+        canvas = ROOT.TCanvas("c"+convert_to_valid_name(extra_selection), "", 800, 600)
         canvas.cd()
         frame = self.var.frame()
-        binning = ROOT.RooBinning(50, self.quantity[1], self.quantity[2])
+        binning = ROOT.RooBinning(30, self.quantity[1], self.quantity[2])
         self.data.plotOn(frame, ROOT.RooFit.Binning(binning), RooFit.CutRange("left,right"))
         self.model.plotOn(frame)
-        frame.SetTitle("")
+        frame.SetTitle(extra_selection)
         frame.Draw()
+        self.frame=frame
+        if return_count:
+            canvas.SetTitle(convert_to_valid_name(extra_selection))
+            n_Ds, n_Bkg = get_Ds_and_Bkg_count(self.model, 1950, 2000)
+            add_fit_parameters_to_canvas(canvas, self.model)
+            add_text_to_canvas(canvas, extra_selection, pos={"x": 0.2, "y": 0.9})
+            add_text_to_canvas(canvas, "N_{D_{s}}: " + "{:.0f}".format(n_Ds), pos={"x": 0.72, "y": 0.77})
+            add_text_to_canvas(canvas, "N_{Bkg}: " + "{:.0f}".format(n_Bkg), pos={"x": 0.72, "y": 0.72})
         chi2 = frame.chiSquare()
-        frame.SetTitle("")
-        frame.Draw()
-        chi2 = frame.chiSquare()
-        #add_text_to_canvas(canvas, "mean: {:.2f} #pm {:.2f}".format(ean.getVal(), mean.getError()),
-        #                    pos={"x": 0.65, "y": 0.87})
-        # add_text_to_canvas(canvas, "sigma: {:.2f} #pm {:.2f}".format(sigma.getVal(), sigma.getError()),
-        #                    pos={"x": 0.65, "y": 0.82})
-        add_text_to_canvas(canvas, "#chi^{2}: " + "{:.2f}".format(chi2), pos={"x": 0.65, "y": 0.77})
-
+        add_text_to_canvas(canvas, "#chi^{2}: " + "{:.2f}".format(chi2), pos={"x": 0.72, "y": 0.67})
         if return_fit:
             return frame, fit_result
         self.output_handle.register_object(canvas)
+        if return_count:
+            return n_Ds, n_Bkg
+        self.output_handle.write_and_close()
+
+    def fit_per_bin(self):
+        for slicing_variable in self.slicing_variables:
+            list_of_slices_and_bin_center = get_list_of_slices(slicing_variable)
+            canvas = ROOT.TCanvas(slicing_variable[0], slicing_variable[0], 800, 600)
+            hist_Ds_count = ROOT.TH1F("", "",
+                                      slicing_variable[1], slicing_variable[2], slicing_variable[3])
+            hist_Bkg_count = ROOT.TH1F("", "",
+                                       slicing_variable[1], slicing_variable[2], slicing_variable[3])
+            for individual_slice in list_of_slices_and_bin_center:
+                n_Ds, n_Bkg = self.fit(False, True, individual_slice[0])
+                if n_Ds:
+                  hist_Ds_count.Fill(individual_slice[1],n_Ds)
+                if n_Bkg:
+                  hist_Bkg_count.Fill(individual_slice[1],n_Bkg)
+            canvas.cd()
+            hist_Ds_count.SetLineColor(8)
+            hist_Ds_count.SetMarkerColor(8)
+            hist_Ds_count.GetXaxis().SetTitle(slicing_variable[0])
+            hist_Ds_count.GetYaxis().SetTitle("Ds/Bkg count")
+            hist_Ds_count.Draw("E0P")
+            hist_Bkg_count.Draw("E0Psame")
+            self.output_handle.register_object(hist_Ds_count)
+            self.output_handle.register_object(canvas)
         self.output_handle.write_and_close()
