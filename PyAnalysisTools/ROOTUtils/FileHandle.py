@@ -62,10 +62,11 @@ class FileHandle(object):
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
             self.process_with_mc_campaign = self.process
-            if self.mc16a:
-                self.process_with_mc_campaign += ".mc16a"
-            if self.mc16c:
-                self.process_with_mc_campaign += ".mc16c"
+            if self.process is not None:
+                if self.mc16a:
+                    self.process_with_mc_campaign += ".mc16a"
+                if self.mc16c:
+                    self.process_with_mc_campaign += ".mc16c"
 
     def open(self):
         if not os.path.exists(self.absFName):
