@@ -38,6 +38,8 @@ class PlotConfig(object):
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
         kwargs.setdefault("Lumi", 1.)
+        kwargs.setdefault("signal_extraction", True)
+        kwargs.setdefault("merge_mc_campaigns", True)
 
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
@@ -84,7 +86,8 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise"]
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
+                "merge_mc_campaigns"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:

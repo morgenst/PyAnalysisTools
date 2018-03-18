@@ -28,7 +28,7 @@ def apply_style(obj, plot_config, process_config, index=None):
 def decorate_canvas(canvas, plot_config):
     if hasattr(plot_config, "watermark"):
         add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.05)
-    if hasattr(plot_config, "lumi") and plot_config.lumi is not None:
+    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
         add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()

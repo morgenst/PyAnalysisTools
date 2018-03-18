@@ -67,6 +67,20 @@ class Plotter(BasePlotter):
             for fh in self.file_handles:
                     _ = find_process_config(fh.process, self.process_configs)
 
+    def add_mc_campaigns(self):
+        for process_config_name in self.process_configs.keys():
+            process_config = self.process_configs[process_config_name]
+            if process_config.is_data:
+                continue
+            for i, campaign in enumerate(["mc16a", "mc16c"]):
+                new_config = copy.copy(process_config)
+                new_config.name += campaign
+                new_config.label += " {:s}".format(campaign)
+                new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
+                if hasattr(process_config, "subprocesses"):
+                    new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
+                self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
+
     @staticmethod
     def filter_process_configs(file_handles, process_configs=None):
         if process_configs is None:
@@ -127,7 +141,7 @@ class Plotter(BasePlotter):
                     continue
                 if "data" in process.lower():
                     continue
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi,
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], self.lumi,
                                                                             self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
 
@@ -225,7 +239,8 @@ class Plotter(BasePlotter):
                 HT.normalise(data, integration_range=[0, -1])
             HT.merge_overflow_bins(data)
             HT.merge_underflow_bins(data)
-            signals = self.get_signal_hists(data)
+            if not plot_config.signal_extraction:
+                signals = self.get_signal_hists(data)
             if plot_config.signal_scale is not None:
                 self.scale_signals(signals, plot_config)
             if plot_config.outline == "stack" and not plot_config.is_multidimensional:
