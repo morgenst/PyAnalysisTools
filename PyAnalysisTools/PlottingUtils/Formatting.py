@@ -29,7 +29,7 @@ def decorate_canvas(canvas, plot_config):
     if hasattr(plot_config, "watermark"):
         add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.05)
     if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.6, "y": 0.9})
+        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
@@ -247,6 +247,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("xh", 0.9)
     kwargs.setdefault("yh", 0.9)
     kwargs.setdefault("format", None)
+    kwargs.setdefault("columns", None)
 
     def convert_draw_option(process_config=None, plot_config=None):
         draw_option = plot_obj.GetDrawOption()
@@ -274,6 +275,8 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     legend.SetTextSize(0.025)
+    if kwargs["columns"]:
+        legend.SetNColumns(kwargs["columns"])
     labels = None
     stacks = []
     if "labels" in kwargs:
