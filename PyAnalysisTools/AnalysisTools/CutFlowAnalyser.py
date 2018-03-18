@@ -49,7 +49,7 @@ class CutflowAnalyser(object):
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
             try:
-                lumi_weight = self.get_cross_section_weight(process)
+                lumi_weight = self.get_cross_section_weight(process.split(".")[0])
             except InvalidInputError:
                 _logger.error("None type parsed for ", self.cutflow_hists[process])
                 continue
