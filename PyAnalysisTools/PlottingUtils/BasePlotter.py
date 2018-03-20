@@ -72,7 +72,7 @@ class BasePlotter(object):
     def fetch_histograms(self, data, systematic="Nominal"):
         file_handle, plot_config = data
         if "data" in file_handle.process.lower() and plot_config.no_data:
-            return
+            return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
         if not plot_config.merge_mc_campaigns:
             return plot_config, file_handle.process_with_mc_campaign, tmp
