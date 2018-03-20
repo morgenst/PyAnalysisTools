@@ -239,7 +239,7 @@ class Plotter(BasePlotter):
                 HT.normalise(data, integration_range=[0, -1])
             HT.merge_overflow_bins(data)
             HT.merge_underflow_bins(data)
-            if not plot_config.signal_extraction:
+            if plot_config.signal_extraction:
                 signals = self.get_signal_hists(data)
             if plot_config.signal_scale is not None:
                 self.scale_signals(signals, plot_config)
@@ -253,8 +253,9 @@ class Plotter(BasePlotter):
                 plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                                   color=ROOT.kBlack)
                 PT.add_object_to_canvas(canvas, self.stat_unc_hist, plot_config_stat_unc)
-                for signal in signals.iteritems():
-                    PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
+                if plot_config.signal_extraction:
+                    for signal in signals.iteritems():
+                        PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
                 self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
             elif plot_config.is_multidimensional:
                 self.make_multidimensional_plot(plot_config, data)
