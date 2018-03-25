@@ -57,7 +57,7 @@ def plot_hist(hist, plot_config, **kwargs):
         FM.set_maximum_y(hist, ymax)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(hist, plot_config.ymin)
-    if hasattr(plot_config, "ymax"):
+    if plot_config.ymax:
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()

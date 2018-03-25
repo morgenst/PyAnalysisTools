@@ -140,7 +140,6 @@ class BasePlotter(object):
         comb = product(file_handle, plot_configs)
         pool = mp.ProcessPool(nodes=cpus)
         histograms = pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
-
         return histograms
 
     def categorise_histograms(self, histograms):
