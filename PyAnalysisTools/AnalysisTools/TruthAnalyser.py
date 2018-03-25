@@ -583,6 +583,9 @@ class BcTruthAnalyser(object):
                 self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
                                                               x_max)
 
+        book_histogram("leading_lepton_e", 50, 0., 50.)
+        book_histogram("subleading_lepton_e", 50, 0., 50.)
+        book_histogram("thirdleading_lepton_e", 50, 0., 50.)
         book_histogram("lepton_e", 50, 0., 50.)
         book_histogram("lepton_eta", 50, -3.2, 3.2)
         book_histogram("lepton_phi", 50, -3.2, 3.2)
@@ -627,6 +630,9 @@ class BcTruthAnalyser(object):
 
         book_plot_config("resonance_counter_decay1", "pdg ID")
         book_plot_config("resonance_decay1_child_pdg_ids", "pdg ID")
+        book_plot_config("leading_lepton_e", "leading lepton E [GeV]")
+        book_plot_config("subleading_lepton_e", "sub-leading lepton E [GeV]")
+        book_plot_config("thirdleading_lepton_e", "third-leading lepton E [GeV]")
         book_plot_config("lepton_e", "lepton from B_{c} decay E [GeV]")
         book_plot_config("lepton_eta", "lepton from B_{c} decay #eta")
         book_plot_config("lepton_phi", "lepton from B_{c} decay #phi")
@@ -789,6 +795,12 @@ class BcTruthAnalyser(object):
             self.histograms[process_id]["jpsi_lepton2_phi"].Fill(jpsi_muon2.phi())
             self.histograms[process_id]["jpsi_lepton2_phi"].Fill(jpsi_muon2.phi())
             self.histograms[process_id]["jpsi_lepton2_pdgId"].Fill(jpsi_muon2.pdgId())
+
+            pts = [jpsi_muon1.e(), jpsi_muon2.e(), third_muon.e()]
+            pts.sort(reverse=True)
+            self.histograms[process_id]["leading_lepton_e"].Fill(pts[0] / 1000.)
+            self.histograms[process_id]["subleading_lepton_e"].Fill(pts[1] / 1000.)
+            self.histograms[process_id]["thirdleading_lepton_e"].Fill(pts[2] / 1000.)
 
             jpsi_muon1_tlv = ROOT.TLorentzVector()
             jpsi_muon1_tlv.SetPxPyPzE(jpsi_muon1.px(), jpsi_muon1.py(), jpsi_muon1.pz(), jpsi_muon1.e())
