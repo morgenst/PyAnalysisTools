@@ -16,6 +16,29 @@ import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+
+
+class ChannelDef(object):
+    def __init__(self, name, config):
+        self.name = name
+        self.discr_var = config["discriminating_var"]["dist"].replace(" ", "")
+        self.discr_var_xmin = config["discriminating_var"]["xmin"]
+        self.discr_var_xmax = config["discriminating_var"]["xmax"]
+        self.discr_var_bins = config["discriminating_var"]["bins"]
+        self.cuts = " && ".join(config["cuts"])
+
+
+class LimiConfig(object):
+    def __init__(self, config_file):
+        config = YAMLLoader().read_yaml(config_file)
+        self.channels = []
+        self.build_channel_configs(config)
+
+    def build_channel_configs(self, config):
+        for name, channel_config in config['channels'].iteritems():
+            self.channels.append(ChannelDef(name, channel_config))
+
 
 class HistFitterWrapper(object):
 
@@ -64,12 +87,13 @@ class HistFitterWrapper(object):
         kwargs.setdefault("seed", configMgr.toySeed)
         kwargs.setdefault("use_asimov", configMgr.useAsimovSet)
         kwargs.setdefault("run_toys", False)
-        kwargs.setdefault("drawSystematics", False)
         FitType = configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
 
         for key, val in kwargs.iteritems():
-            setattr(self, key, val)
+            if not hasattr(self, key):
+                setattr(self, key, val)
+        self.limit_config = LimiConfig(kwargs["limit_config_file"])
         self.process_configs = parse_and_build_process_config(self.process_config_file)
 
 
@@ -262,6 +286,8 @@ class HistFitterWrapper(object):
     def build_samples(self):
         for fn in self.file_handles:
             merged_process = find_process_config(fn.process, self.process_configs)
+            if merged_process is None:
+                continue
             if merged_process.name in self.samples:
                 self.samples[merged_process.name].files.append(fn.file_name)
             else:
@@ -271,7 +297,7 @@ class HistFitterWrapper(object):
                     sample.setData()
                 sample.setFileList([fn.file_name])
                 sample.setTreeName("Nominal/BaseSelection_lq_tree_Final")
-                sample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
+                #sample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
 
     def run(self):
         """
@@ -491,6 +517,7 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         kwargs.setdefault("read_tree", True)
         kwargs.setdefault("create_workspace", True)
         kwargs.setdefault("output_dir", kwargs["output_dir"])
+        self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
         super(HistFitterShapeAnalysis, self).__init__(**kwargs)
 
         configMgr.calculatorType = 2
@@ -499,7 +526,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         FitType = configMgr.FitType
         configMgr.writeXML = True
         self.analysis_name = kwargs["name"]
-        self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
         # ------------------------------------------------------------------------------------------------------
         # Possibility to blind the control, validation and signal regions.
         # We only have one signal region in this config file, thus only blinding the signal region makes sense.
@@ -510,7 +536,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         configMgr.blindCR = False  # Blind the CRs (default is False)
         configMgr.blindVR = False  # Blind the VRs (default is False)
         # configMgr.useSignalInBlindedData = True
-        make_dirs(self.output_dir)
         cur_dir = os.path.abspath(os.path.curdir)
 
         # First define HistFactory attributes
@@ -521,6 +546,8 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         configMgr.outputLumi = 4.713  # Luminosity required for output histograms
         configMgr.setLumiUnits("fb-1")
 
+        for channel in self.limit_config.channels:
+            configMgr.cutsDict[channel.name] = channel.cuts
         configMgr.cutsDict["SR"] = "(electron_pt > 65000.)"
         configMgr.weights = ["weight"]
 
@@ -542,20 +569,25 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
             #exclusionFitConfig.getSample("Top").addSystematic(topKtScale)
             #exclusionFitConfig.getSample("WZ").addSystematic(wzKtScale)
             #exclusionFitConfig.addSystematic(jes)
-
-            srBin = exclusionFitConfig.addChannel("lq_mass_max", ["SR"], 6, 1000., 2000.)
-            srBin.useOverflowBin = True
-            srBin.useUnderflowBin = True
-            exclusionFitConfig.addSignalChannels([srBin])
-
             sigSample = Sample("LQ", kPink)
             sigSample.setFileList(["/eos/atlas/user/m/morgens/datasets/LQ/ntuples/v2/ntuple-364131_0.root"])
-            sigSample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
+            sigSample.setTreeName("Nominal/BaseSelection_lq_tree_Final")
+            #sigSample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
             sigSample.setNormByTheory()
             sigSample.setNormFactor("mu_SIG", 1., 0., 5.)
             # sigSample.addSampleSpecificWeight("0.001")
             exclusionFitConfig.addSamples(sigSample)
             exclusionFitConfig.setSignalSample(sigSample)
+            regions = []
+            for channel in self.limit_config.channels:
+                region = exclusionFitConfig.addChannel(channel.discr_var, [channel.name], channel.discr_var_bins,
+                                                       channel.discr_var_xmin, channel.discr_var_xmax)
+                region.useOverflowBin = True
+                region.useUnderflowBin = True
+                regions.append(region)
+            #exclusionFitConfig.addSignalChannels([srBin])
+
+            exclusionFitConfig.addSignalChannels(regions)
         self.initialise()
         self.FitType = configMgr.FitType
         # First define HistFactory attributes
