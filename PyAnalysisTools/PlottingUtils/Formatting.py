@@ -259,7 +259,11 @@ def add_legend_to_canvas(canvas, **kwargs):
             #     legend_option += "L"
             # else:
             if process_config is not None and (hasattr(process_config, "format") or hasattr(plot_config, "format")) or kwargs["format"]:
-                if process_config.format.lower() == "line" or plot_config.format.lower() == "line" or kwargs["format"]  == "line":
+                if process_config is not None and process_config.format.lower() == "line":
+                    legend_option += "L"
+                elif plot_config is not None and plot_config.format.lower() == "line":
+                    legend_option += "L"
+                elif kwargs["format"] == "line":
                     legend_option += "L"
             else:
                 legend_option += "F"
