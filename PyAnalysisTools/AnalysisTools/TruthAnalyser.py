@@ -369,6 +369,8 @@ class LQTruthAnalyser(object):
         book_histogram("quark_eta", 50, -2.5, 2.5)
         book_histogram("quark_phi", 50, -3.2, 3.2)
         book_histogram("inv_mass", 4000, 500, 4500)
+        book_histogram("inv_mass_min", 4000, 500, 4500)
+        book_histogram("inv_mass_max", 4000, 500, 4500)
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
@@ -393,6 +395,8 @@ class LQTruthAnalyser(object):
         book_plot_config("quark_phi", "quark #phi")
 
         book_plot_config("inv_mass", "M_{lq} [GeV]")
+        book_plot_config("inv_mass_min", "M_{lq}^{min} [GeV]")
+        book_plot_config("inv_mass_max", "M_{lq}^{max} [GeV]")
 
     def run(self):
         for input_file in self.input_files:
@@ -441,6 +445,92 @@ class LQTruthAnalyser(object):
         return sqrt(pow(particle1[1] - particle2[1], 2) + pow(phi1 - phi2, 2))
 
     def analyse_file(self, input_file):
+        def run_schannel():
+            resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
+            prod_vtx = LQ[0].prodVtxLink().outgoingParticleLinks()
+            try:
+                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                                   abs(particle.pdgId()) == 13 or
+                                                   abs(particle.pdgId()) == 15, prod_vtx)[0]
+                self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
+                self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
+                self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
+            except IndexError:
+                print "Could not find any second lepton for first resonance decay in process", process_id
+                return
+            except KeyError:
+                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
+                return
+            try:
+                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                                   abs(particle.pdgId()) == 13 or
+                                                   abs(particle.pdgId()) == 15, resonance1_vertex)[0]
+                quark_1 = filter(lambda particle: abs(particle.pdgId()) in range(1, 6), resonance1_vertex)[0]
+                self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
+                self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
+                self.histograms[process_id]["lepton1_phi"].Fill(lepton_1.phi())
+                self.histograms[process_id]["quark_e"].Fill(quark_1.e() / 1000.)
+                self.histograms[process_id]["quark_eta"].Fill(quark_1.eta())
+                self.histograms[process_id]["quark_phi"].Fill(quark_1.phi())
+
+                tlv_lepton_1 = ROOT.TLorentzVector()
+                tlv_lepton_1.SetPtEtaPhiM(lepton_1.e(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
+                tlv_lepton_2 = ROOT.TLorentzVector()
+                tlv_lepton_2.SetPtEtaPhiM(lepton_2.e(), lepton_2.eta(), lepton_2.phi(), lepton_2.m())
+                tlv_quark_1 = ROOT.TLorentzVector()
+                tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
+                self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
+                mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
+                mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
+                print mass1, "\t", mass2
+                if mass1 > mass2:
+                    self.histograms[process_id]["inv_mass_max"].Fill(mass1)
+                    self.histograms[process_id]["inv_mass_min"].Fill(mass2)
+                else:
+                    self.histograms[process_id]["inv_mass_max"].Fill(mass2)
+                    self.histograms[process_id]["inv_mass_min"].Fill(mass1)
+            except IndexError:
+                print "Could not find any first lepton for first resonance decay in process", process_id
+                return
+
+        def run_tchannel():
+            LQ_decay_particles = filter(lambda p: p.status() == 23, truth_particles)
+            prod_vtx = LQ_decay_particles[0].prodVtxLink().outgoingParticleLinks()
+
+            leptons = filter(lambda particle: abs(particle.pdgId()) == 11 or
+                                               abs(particle.pdgId()) == 13 or
+                                               abs(particle.pdgId()) == 15, prod_vtx)
+            lepton_1 = leptons[0]
+            lepton_2 = leptons[1]
+            quark_1 = filter(lambda particle: abs(particle.pdgId()) in range(1, 6), prod_vtx)[0]
+            self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
+            self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
+            self.histograms[process_id]["lepton1_phi"].Fill(lepton_1.phi())
+            self.histograms[process_id]["quark_e"].Fill(quark_1.e() / 1000.)
+            self.histograms[process_id]["quark_eta"].Fill(quark_1.eta())
+            self.histograms[process_id]["quark_phi"].Fill(quark_1.phi())
+            self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
+            self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
+            self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
+            
+            tlv_lepton_1 = ROOT.TLorentzVector()
+            tlv_lepton_1.SetPtEtaPhiM(lepton_1.e(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
+            tlv_lepton_2 = ROOT.TLorentzVector()
+            tlv_lepton_2.SetPtEtaPhiM(lepton_2.e(), lepton_2.eta(), lepton_2.phi(), lepton_2.m())
+            tlv_quark_1 = ROOT.TLorentzVector()
+            tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
+
+            mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
+            mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
+            print "tchannel: ", mass1, "\t", mass2
+
+            if mass1 > mass2:
+                self.histograms[process_id]["inv_mass_max"].Fill(mass1)
+                self.histograms[process_id]["inv_mass_min"].Fill(mass2)
+            else:
+                self.histograms[process_id]["inv_mass_max"].Fill(mass2)
+                self.histograms[process_id]["inv_mass_min"].Fill(mass1)
+
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
@@ -455,44 +545,10 @@ class LQTruthAnalyser(object):
             LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 42, truth_particles)
             #self.histograms[process_id]["resonance_counter_decay1"].Fill(1)
             if len(LQ) == 0:
-                no_LQ_counter += 1
-                print "Suspicious event. Could not find LQ"
-                continue
-            resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
-            prod_vtx = LQ[0].prodVtxLink().outgoingParticleLinks()
-            try:
-                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 11 or
-                                                   abs(particle.pdgId()) == 13 or
-                                                   abs(particle.pdgId()) == 15, prod_vtx)[0]
-                self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
-                self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
-                self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
-            except IndexError:
-                print "Could not find any second lepton for first resonance decay in process", process_id
-                continue
-            except KeyError:
-                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
-                continue
-            try:
-                lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or
-                                                   abs(particle.pdgId()) == 13 or
-                                                   abs(particle.pdgId()) == 15, resonance1_vertex)[0]
-                quark_1 = filter(lambda particle: abs(particle.pdgId())in range(1, 6), resonance1_vertex)[0]
-                self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
-                self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
-                self.histograms[process_id]["lepton1_phi"].Fill(lepton_1.phi())
-                self.histograms[process_id]["quark_e"].Fill(quark_1.e() / 1000.)
-                self.histograms[process_id]["quark_eta"].Fill(quark_1.eta())
-                self.histograms[process_id]["quark_phi"].Fill(quark_1.phi())
-    
-                tlv_lepton_1 = ROOT.TLorentzVector()
-                tlv_lepton_1.SetPtEtaPhiM(lepton_1.e(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
-                tlv_quark_1 = ROOT.TLorentzVector()
-                tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
-                self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
-            except IndexError:
-                print "Could not find any first lepton for first resonance decay in process", process_id
-                continue
+                run_tchannel()
+            else:
+                run_schannel()
+
         print "no LQ counter: ", no_LQ_counter
 
 

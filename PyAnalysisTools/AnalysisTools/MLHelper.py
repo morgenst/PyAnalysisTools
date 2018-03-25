@@ -15,9 +15,9 @@ class Root2NumpyConverter(object):
     def __init__(self, branches):
         self.branches = branches
 
-    def convert_to_array(self, tree):
+    def convert_to_array(self, tree, selection="@object_pt.size()==1"):
         data = root_numpy.tree2array(tree, branches=self.branches,
-                                     selection="@object_pt.size()==1")
+                                     selection=selection)
         return pd.DataFrame(data).values
 
     def merge(self, signals, bkgs):

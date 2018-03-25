@@ -223,8 +223,27 @@ class CutflowAnalyser(object):
         return cutflow
 
     def print_cutflow_table(self):
+        available_cutflows = self.cutflow_tables.keys()
+        print "######## Selection menu  ########"
+        print "Available cutflows for printing: "
+        print "--------------------------------"
+        for i, region in enumerate(available_cutflows):
+            print i, ")", region
+        print "a) all"
+        user_input = raw_input("Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
+        if user_input == "":
+            selections = ["BaseSelection"]
+        elif user_input.lower() == "a":
+            selections = available_cutflows
+        elif "," in user_input:
+            selections = [available_cutflows[i-1] for i in map(int, user_input.split(","))]
+        elif "," in user_input:
+            selections = [available_cutflows[i-1] for i in map(int, user_input.split())]
+        else:
+            print "{:s}Invalid input {:s}. Going for default.\033[0m".format("\033[91m", user_input)
+            selections = ["BaseSelection"]
         for selection, cutflow in self.cutflow_tables.iteritems():
-            if not selection == "BaseSelection":
+            if selection not in selections:
                 continue
             print
             print "Cutflow for region %s" % selection
