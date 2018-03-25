@@ -19,9 +19,9 @@ package:
     - docker
   image: atlas/analysisbase:21.2.19
   before_script:
-    - echo $CONTAINER_TEST_IMAGE
     - source /home/atlas/release_setup.sh
-    - export MAKEFLAGS="-j`nproc` -l`nproc`"
+  script:
+    - source setup.sh
 
 # Setup for building a Docker image from the repository's compiled code.
 docker:
