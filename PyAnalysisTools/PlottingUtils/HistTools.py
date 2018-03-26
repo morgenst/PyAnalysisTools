@@ -84,6 +84,8 @@ def merge_overflow_bins(hists, x_max=None):
 
 
 def _merge_overflow_bins_1d(hist, x_max=None):
+    if isinstance(hist, ROOT.TH2):
+        return
     if x_max:
         last_visible_bin = hist.FindBin(x_max)
     else:
@@ -100,6 +102,8 @@ def merge_underflow_bins(hists, x_min=None):
 
 
 def _merge_underflow_bins_1d(hist, x_min=None):
+    if isinstance(hist, ROOT.TH2):
+        return
     if x_min:
         first_visible_bin = hist.FindBin(x_min)
     else:
@@ -116,12 +120,19 @@ def normalise(histograms, integration_range=None):
         integration_range = [-1, -1]
     if type(histograms) == dict:
         for h in histograms.keys():
-            histograms[h] = _normalise_1d_hist(histograms[h], integration_range)
+            histograms[h] = normalise_hist(histograms[h], integration_range)
     elif type(histograms) == list:
         for h in histograms:
-            h = _normalise_1d_hist(h, integration_range)
+            h = normalise_hist(h, integration_range)
     else:
-        histograms = _normalise_1d_hist(histograms, integration_range)
+        histograms = normalise_hist(histograms, integration_range)
+
+
+def normalise_hist(hist, integration_range):
+    if isinstance(hist, ROOT.TH2):
+        return _normalise_2d_hist(hist, integration_range)
+    if isinstance(hist, ROOT.TH1):
+        return _normalise_1d_hist(hist, integration_range)
 
 
 def _normalise_1d_hist(hist, integration_range=[-1, -1]):
@@ -131,6 +142,10 @@ def _normalise_1d_hist(hist, integration_range=[-1, -1]):
     if integral == 0:
         return hist
     hist.Scale(1. / integral)
+    return hist
+
+
+def _normalise_2d_hist(hist, integration_range=[-1,-1]):
     return hist
 
 
