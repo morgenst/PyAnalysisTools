@@ -17,6 +17,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
+np.seterr(divide='ignore', invalid='ignore')
 
 
 class NeuralNetwork(object):
@@ -68,6 +69,7 @@ class NNTrainer(object):
         kwargs.setdefault("layers", 2)
         kwargs.setdefault("units", 10)
         kwargs.setdefault("epochs", 10)
+        kwargs.setdefault("control_plots", False)
         self.reader = TrainingReader(**kwargs)
         self.converter = Root2NumpyConverter(kwargs["variables"])
         self.n_features = kwargs["n_features"]
@@ -76,6 +78,7 @@ class NNTrainer(object):
         self.epochs = kwargs["epochs"]
         self.max_events = kwargs["max_events"]
         self.plot = True
+        self.do_control_plots = kwargs["control_plots"]
         self.output_path = so.resolve_output_dir(output_dir=kwargs["output_path"], sub_dir_name="NNtrain")
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
@@ -117,7 +120,11 @@ class NNTrainer(object):
     def train(self):
         self.build_input()
         self.build_models()
+        if self.do_control_plots:
+            self.make_control_plots("prescaling")
         self.apply_scaling()
+        if self.do_control_plots:
+            self.make_control_plots("postscaling")
         #print "train shape: ", train_shape
         history_train = self.model_0.fit(self.data_train.values, self.label_train.reshape((self.label_train.shape[0], 1)),
                                          epochs=self.epochs, verbose=1, batch_size=32,
@@ -147,6 +154,30 @@ class NNTrainer(object):
             plt.grid(True)
             plt.legend(["signal", "background"], loc="lower left")
             plt.savefig(os.path.join(self.output_path, "plots/consistency_sig_train.png"))
+
+    def make_control_plots(self, prefix):
+        def make_plot(prefix, variable_name, signal, background):
+            data = signal
+            data.append(background)
+            if "/" in variable_name:
+                variable_name = "_".join(variable_name.split("/")).replace(" ","")
+            var_range = np.percentile(data, [2.5, 97.5])
+            plt.hist(map(float, signal.values), 100, range=var_range, histtype='step', label='signal', normed=True)
+            plt.hist(map(float, background.values), 100, range=var_range, histtype='step', label='background', normed=True)
+            if data.ptp() > 1000.:
+                plt.yscale('log')
+            plt.legend(["signal", "background"], loc="upper right")
+            plt.xlabel(variable_name)
+            plt.ylabel('Normalised')
+
+            plt.savefig(os.path.join(self.output_path, "plots/{:s}_{:s}.png".format(prefix, variable_name)))
+            plt.close()
+
+        for key in self.data_train.keys():
+            make_plot("{}_{}".format(prefix, "train"), key, self.data_train[key][self.label_train == 1],
+                      self.data_train[key][self.label_train == 0])
+            make_plot("{}_{}".format(prefix, "eval"), key, self.data_eval[key][self.label_eval == 1],
+                      self.data_eval[key][self.label_eval == 0])
 
 
 class NNReader(object):
