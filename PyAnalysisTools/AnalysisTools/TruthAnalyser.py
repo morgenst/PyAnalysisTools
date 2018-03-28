@@ -44,7 +44,6 @@ class Process(object):
         self.decay1_str = config["decay1"]
         self.decay2 = config["decay2"]
         self.decay1_pdgid = map(lambda name: particle_map[name][0], self.decay1_str)
-        print self.decay2
         self.decay2_pdgid = [map(lambda name: particle_map[name][0] if isinstance(name, str) else name, sub)
                              for sub in self.decay2]
         self.decay_2_initial_resonance = [decay[0] for decay in self.decay2_pdgid]
@@ -345,9 +344,9 @@ class LQTruthAnalyser(object):
         book_histogram("quark_e", 50, 0., 1500.)
         book_histogram("quark_eta", 50, -2.5, 2.5)
         book_histogram("quark_phi", 50, -3.2, 3.2)
-        book_histogram("inv_mass", 4000, 500, 4500)
-        book_histogram("inv_mass_min", 4000, 500, 4500)
-        book_histogram("inv_mass_max", 4000, 500, 4500)
+        book_histogram("inv_mass", 100, 500, 4500)
+        book_histogram("inv_mass_min", 100, 500, 4500)
+        book_histogram("inv_mass_max", 100, 500, 4500)
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
@@ -459,7 +458,6 @@ class LQTruthAnalyser(object):
                 self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
                 mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
                 mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
-                print mass1, "\t", mass2
                 if mass1 > mass2:
                     self.histograms[process_id]["inv_mass_max"].Fill(mass1)
                     self.histograms[process_id]["inv_mass_min"].Fill(mass2)
@@ -512,8 +510,8 @@ class LQTruthAnalyser(object):
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
         no_LQ_counter = 0
-        #for entry in xrange(tree.GetEntries()):
-        for entry in xrange(100):
+        for entry in xrange(tree.GetEntries()):
+            #for entry in xrange(100):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
             # if self.current_process_config is None:
