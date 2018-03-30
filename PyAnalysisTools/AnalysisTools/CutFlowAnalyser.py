@@ -127,25 +127,25 @@ class CutflowAnalyser(object):
         if not self.raw:
             parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                      cutflow_hist.GetBinContent(b),
-                                 #raw_cutflow_hist.GetBinContent(b),
-                                 cutflow_hist.GetBinError(b),
-                                 #raw_cutflow_hist.GetBinError(b),
-                                 -1.,
-                                 -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
-                               dtype=[("cut", "S100"), ("yield", "f4"), #("yield_raw", "f4"),
-                                       ("yield_unc", "f4"),
-                                      ("eff", float),
-                                      ("eff_total", float)])  # todo: array dtype for string not a good choice
+                                     #raw_cutflow_hist.GetBinContent(b),
+                                     # cutflow_hist.GetBinError(b),
+                                     # #raw_cutflow_hist.GetBinError(b),
+                                     -1.,
+                                     -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
+                                   dtype=[("cut", "S100"), ("yield", "f4"), #("yield_raw", "f4"),
+                                          ("yield_unc", "f4"),
+                                          ("eff", float),
+                                          ("eff_total", float)])  # todo: array dtype for string not a good choice
         else:
             parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                      raw_cutflow_hist.GetBinContent(b),
                                      raw_cutflow_hist.GetBinError(b),
                                      -1.,
                                      -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
-                               dtype=[("cut", "S100"), ("yield_raw", "f4"),
-                                       ("yield_unc_raw", "f4"),
-                                      ("eff", float),
-                                      ("eff_total", float)])  # todo: array dtype for string not a good choice
+                                   dtype=[("cut", "S100"), ("yield_raw", "f4"),
+                                          ("yield_unc_raw", "f4"),
+                                          ("eff", float),
+                                          ("eff_total", float)])  # todo: array dtype for string not a good choice
 
         #("yield_raw_unc", float),
         return parsed_info
@@ -292,7 +292,7 @@ class CutflowAnalyser(object):
         for region in flipped['Nominal'].keys():
             plot_config.name = "{:s}_cutflow".format(region)
             cutflow_hists = {process: hist for process, hist in flipped["Nominal"][region].iteritems()
-            if "smtotal" not in process.lower()}
+                             if "smtotal" not in process.lower()}
             for process, cutflow_hist in cutflow_hists.iteritems():
                 cutflow_hist.SetName("{:s}_{:s}".format(cutflow_hist.GetName(), process))
             cutflow_canvas = Pt.plot_stack(cutflow_hists, plot_config, process_configs=self.process_configs)
