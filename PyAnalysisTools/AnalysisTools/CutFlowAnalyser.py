@@ -10,6 +10,7 @@ from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl
 from numpy.lib.recfunctions import rec_append_fields
 
 
@@ -45,6 +46,9 @@ class CutflowAnalyser(object):
             self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         if kwargs["process_config"] is not None:
             self.process_configs = parse_and_build_process_config(kwargs["process_config"])
+        self.file_handles = [FH(file_name=fn, dataset_info=self.dataset_config_file )for fn in self.file_list]
+        self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
+        print self.file_handles
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -116,7 +120,7 @@ class CutflowAnalyser(object):
         if process is None:
             _logger.error("Process is None")
             raise InvalidInputError("Process is NoneType")
-        if self.lumi is None or "data" in process.lower():
+        if self.lumi is None or "data" in process.lower() or self.lumi == -1:
             return 1.
         lumi_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_numbers[process])
         _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
@@ -252,11 +256,10 @@ class CutflowAnalyser(object):
     def store_cutflow_table(self):
         pass
 
-    def load_cutflows(self, file_name):
-        file_handle = FH(file_name=file_name, dataset_info=self.dataset_config_file)
+    def load_cutflows(self, file_handle):
         process = file_handle.process
         if process is None:
-            _logger.error("Parsed NoneType process from {:s}".format(file_name))
+            _logger.error("Parsed NoneType process from {:s}".format(file_handle.file_name))
             return
         if process not in self.event_numbers:
             self.event_numbers[process] = file_handle.get_number_of_total_events()
@@ -276,8 +279,8 @@ class CutflowAnalyser(object):
                     self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")] = cutflow_hist
 
     def read_cutflows(self):
-        for file_name in self.file_list:
-            self.load_cutflows(file_name)
+        for file_handle in self.file_handles:
+            self.load_cutflows(file_handle)
 
     def plot_cutflow(self):
         set_batch_mode(True)
