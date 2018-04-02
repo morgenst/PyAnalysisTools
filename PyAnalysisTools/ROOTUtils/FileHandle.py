@@ -118,15 +118,16 @@ class FileHandle(object):
                 return None
                 self.is_data = True
                 return "Data"
+
+        if "mc16a" in self.file_name.lower():
+            self.mc16a = True
+        if "mc16c" in self.file_name.lower():
+            self.mc16c = True
         process_name = self.file_name.split("-")[-1].split(".")[0]
         if switch_off_analysis:
             return process_name
         process_name = re.sub(r"(\_\d)$", "", process_name)
         analysed_process_name = analyse_process_name()
-        if "mc16a" in self.file_name.lower():
-            self.mc16a = True
-        if "mc16c" in self.file_name.lower():
-            self.mc16c = True
         if analysed_process_name is None:
             process_name = self.file_name.split("/")[-2]
             analysed_process_name = analyse_process_name()
