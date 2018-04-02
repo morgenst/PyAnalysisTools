@@ -22,6 +22,9 @@ class BDTAnalyser(object):
         ROOT.gROOT.SetBatch(True)
 
     def analyse(self):
+        """
+        Main entry point to perform BDT analysis
+        """
         self.analyse_train_variables()
         self.perform_overtraining_check()
         self.perform_correlation_analysis()

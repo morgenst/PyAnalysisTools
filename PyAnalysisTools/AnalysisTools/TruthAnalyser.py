@@ -564,7 +564,7 @@ class BcTruthAnalyser(object):
                           process_configs.iteritems()}
         self.current_process_config = None
         self.setup()
-        self.book_histograms()
+        #self.book_histograms()
         self.book_plot_configs()
         self.processed_ids = []
 
@@ -708,6 +708,8 @@ class BcTruthAnalyser(object):
             #for entry in xrange(100):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
+            if process_id not in self.histograms:
+                self.book_histograms(process_id)
             if process_id not in self.processed_ids:
                 self.processed_ids.append(process_id)
             # if self.current_process_config is None:
