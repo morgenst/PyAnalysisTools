@@ -44,10 +44,9 @@ class NeuralNetwork(object):
         model =Sequential()
         #model.add(Dense(num_features[0], input_shape=(num_features[1],)))
         model.add(Dense(64, input_dim=num_features[1], activation='relu'))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dropout(0.5))
-        model.add(Dense(64, activation='relu'))
-        model.add(Dropout(0.5))
+        for i in range(num_layers - 1):
+            model.add(Dense(64, activation='relu'))
+            model.add(Dropout(0.5))
         model.add(Dense(1, activation='sigmoid'))
         sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 
@@ -59,7 +58,7 @@ class NeuralNetwork(object):
         # pred = Dense(1, activation="sigmoid")(x)
         # model = Model(inputs=inputs, outputs=pred)
         # self.train_op = Adam(lr)
-        model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
         self.kerasmodel = model
 
 
