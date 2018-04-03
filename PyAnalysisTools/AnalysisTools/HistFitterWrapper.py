@@ -59,7 +59,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("fit", True)
         kwargs.setdefault("fitname", "")
         kwargs.setdefault("minosPars", "")
-        kwargs.setdefault("limit_plot", True)
+        kwargs.setdefault("disable_limit_plot", False)
         kwargs.setdefault("hypotest", False)
         kwargs.setdefault("discovery_hypotest", False)
         kwargs.setdefault("draw", "before,after,corrMatrix")
@@ -352,7 +352,7 @@ class HistFitterWrapper(object):
         """
         calculating and printing upper limits for model-(in)dependent signal fit configurations (aka Exclusion/Discovery fit setup)
         """
-        if self.limit_plot:
+        if not self.disable_limit_plot:
             for fc in configMgr.fitConfigs:
                 if len(fc.validationChannels) > 0:
                     raise (Exception, "Validation regions should be turned off for setting an upper limit!")
@@ -377,7 +377,7 @@ class HistFitterWrapper(object):
 
             pass
 
-        if self.run_toys and configMgr.nTOYs > 0 and self.hypotest == False and self.limit_plot == False and self.fit == False:
+        if self.run_toys and configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and self.fit is False:
             configMgr.cppMgr.runToysAll()
             pass
 
