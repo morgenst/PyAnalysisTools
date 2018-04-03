@@ -17,11 +17,36 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 np.seterr(divide='ignore', invalid='ignore')
 
 
+class LimitConfig(object):
+    def __init__(self, name, **kwargs):
+        self.name = name
+        for attr, value in kwargs.iteritems():
+            if attr == "optimiser":
+                setattr(self, "optimiser", self.set_optimiser(value))
+                continue
+            setattr(self, attr, value)
+
+    @staticmethod
+    def set_optimiser(optimiser_config):
+        def convert_types(config):
+            for k, v in config.iteritems():
+                try:
+                    config[k] = eval(v)
+                except (NameError, TypeError):
+                    pass
+            return config
+        optimiser_type = optimiser_config.keys()[0]
+        if optimiser_type == "sgd":
+            return SGD(**convert_types(optimiser_config[optimiser_type]))
+
+
+
 class NeuralNetwork(object):
-    def __init__(self, num_features, num_layers=3, size=20, lr=1e-3, keep_prob=1.0, tloss="soft", input_noise=0.0):
+    def __init__(self, num_features, limit_config, num_layers=3, size=20, lr=1e-3, keep_prob=1.0, tloss="soft", input_noise=0.0):
         # self.inputs = inputs = Input(shape=num_features)
         # print backend.int_shape(inputs)
         # x = Reshape((-1,))(inputs)
@@ -41,14 +66,14 @@ class NeuralNetwork(object):
         # print backend.int_shape(inputs)
         # x = Reshape((-1,))(inputs)
         # print backend.int_shape(x)
-        model =Sequential()
+        model = Sequential()
         #model.add(Dense(num_features[0], input_shape=(num_features[1],)))
-        model.add(Dense(64, input_dim=num_features[1], activation='relu'))
+        model.add(Dense(64, input_dim=num_features[1], activation=limit_config.activation))
         for i in range(num_layers - 1):
-            model.add(Dense(64, activation='relu'))
+            model.add(Dense(64, activation=limit_config.activation))
             model.add(Dropout(0.5))
-        model.add(Dense(1, activation='sigmoid'))
-        sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
+        model.add(Dense(1, activation=limit_config.final_activation))
+        #sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
 
         # model.add(Activation('relu'))
         # x = Dense(size, activation='relu')(x)
@@ -58,7 +83,7 @@ class NeuralNetwork(object):
         # pred = Dense(1, activation="sigmoid")(x)
         # model = Model(inputs=inputs, outputs=pred)
         # self.train_op = Adam(lr)
-        model.compile(loss='binary_crossentropy', optimizer=sgd, metrics=['accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
         self.kerasmodel = model
 
 
@@ -79,8 +104,16 @@ class NNTrainer(object):
         self.plot = True
         self.do_control_plots = kwargs["control_plots"]
         self.output_path = so.resolve_output_dir(output_dir=kwargs["output_path"], sub_dir_name="NNtrain")
+        self.limit_config = self.build_limit_config(kwargs["training_config_file"])
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
+
+
+    @staticmethod
+    def build_limit_config(config_file_name):
+        configs = YAMLLoader.read_yaml(config_file_name)
+        for name, config in configs.iteritems():
+            return LimitConfig(name, **config)
 
     def build_input(self):
         trees = self.reader.get_trees()
@@ -92,9 +125,9 @@ class NNTrainer(object):
         self.data_eval = pd.DataFrame(self.data_eval)
 
     def build_models(self):
-        self.model_0 = NeuralNetwork(self.data_train.shape, num_layers=self.layers, size=self.units,
-                                     tloss='soft').kerasmodel
-        self.model_1 = NeuralNetwork(self.data_eval.shape, num_layers=self.layers, size=self.units,
+        self.model_0 = NeuralNetwork(self.data_train.shape, self.limit_config, num_layers=self.layers, size=self.units,
+                                     tloss='soft', ).kerasmodel
+        self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config, num_layers=self.layers, size=self.units,
                                      tloss='soft').kerasmodel
 
     def apply_scaling(self):
