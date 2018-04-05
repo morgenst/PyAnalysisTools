@@ -51,6 +51,9 @@ class PlotConfig(object):
             if k == "significance_config":
                 self.set_additional_config("significance_config", **v)
                 continue
+            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", v):
+                setattr(self, k.lower(), eval(v))
+                continue
             setattr(self, k.lower(), v)
 
         self.auto_decorate()
