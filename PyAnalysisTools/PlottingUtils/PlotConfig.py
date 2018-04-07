@@ -51,7 +51,7 @@ class PlotConfig(object):
             if k == "significance_config":
                 self.set_additional_config("significance_config", **v)
                 continue
-            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", v):
+            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
@@ -89,6 +89,12 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
+        """
+        Get properties which can be overwriten by specific plot config
+
+        :return: overwritable properties
+        :rtype: list
+        """
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
                 "merge_mc_campaigns", "signal_extraction"]
 
@@ -97,6 +103,14 @@ class PlotConfig(object):
             self.is_multidimensional = True if ":" in self.dist else False
 
     def _merge(self, other):
+        """
+        Merge two plot configs
+
+        :param other: plot config to be merged in self
+        :type other: PlotConfig
+        :return: None
+        :rtype: None
+        """
         for attr, val in other.__dict__.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
