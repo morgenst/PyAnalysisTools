@@ -4,6 +4,9 @@ from itertools import product
 
 class Region(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("n_lep", -1)
+        kwargs.setdefault("n_electron", -1)
+        kwargs.setdefault("n_muon", -1)
         self.name = kwargs["name"]
         self.n_lep = kwargs["n_lep"]
         self.n_electron = kwargs["n_electron"]
@@ -12,6 +15,7 @@ class Region(object):
             self.n_tau = kwargs["n_tau"]
         except KeyError:
             self.n_tau = 0
+        kwargs.setdefault("disable_leptons", False)
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("disable_electrons", False)
         kwargs.setdefault("disable_muons", False)
@@ -27,6 +31,12 @@ class Region(object):
         kwargs.setdefault("event_cuts", None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
+        if self.label is None:
+            self.build_label()
+        if self.event_cuts:
+            self.event_cut_string = self.convert_cut_list_to_string(self.event_cuts)
+        if self.disable_leptons:
+            return
         if kwargs["operator"] == "eq":
             self.operator = "=="
         elif kwargs["operator"] == "leq":
@@ -52,21 +62,36 @@ class Region(object):
     def __hash__(self):
         return hash(self.name)
 
+    @staticmethod
+    def convert_cut_list_to_string(cut_list):
+        """
+        Convert list of cuts into proper selection string which can be parsed by ROOT
+
+        :param cut_list: list of cuts
+        :type cut_list: list
+        :return: selection string
+        :rtype: string
+        """
+        return " && ".join(cut_list)
+
     def convert_lepton_selections(self):
-        def convert_cut_list_to_string(cut_list):
-            return " && ".join(cut_list)
+        """
+        build lepton selection depending on available definitions for good (signal-like) and bad (background side-band)
+        lepton definitions
+
+        :return: None
+        :rtype: None
+        """
 
         if self.good_muon:
             # good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
-            self.good_muon_cut_string = convert_cut_list_to_string(self.good_muon)
+            self.good_muon_cut_string = self.convert_cut_list_to_string(self.good_muon)
         if self.fake_muon:
-            self.inverted_muon_cut_string = convert_cut_list_to_string(self.inverted_muon)
+            self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
         if self.good_electron:
-            self.good_electron_cut_string = convert_cut_list_to_string(self.good_electron)
+            self.good_electron_cut_string = self.convert_cut_list_to_string(self.good_electron)
         if self.fake_muon:
-            self.inverted_muon_cut_string = convert_cut_list_to_string(self.inverted_muon)
-        if self.event_cuts:
-            self.event_cut_string = convert_cut_list_to_string(self.event_cuts)
+            self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
 
     def convert2cut_string(self):
         """
@@ -95,6 +120,8 @@ class Region(object):
         # if not self.disable_electrons:
         #     cut += " {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron)
         # return cut
+        if self.disable_leptons:
+            return self.event_cut_string
 
         cut_list = []
         electron_selector = "electron_n == electron_n"
@@ -148,6 +175,16 @@ class Region(object):
 
 class RegionBuilder(object):
     def __init__(self, **kwargs):
+        """
+        contructor
+
+        :param kwargs: see below
+        :type kwargs:
+
+        :Keyword Arguments:
+            * *auto_generate* (bool): enable automatic generation of regions based on possible combinations.
+        """
+
         self.regions = []
         kwargs.setdefault("auto_generate", False)
         kwargs.setdefault("disable_taus", False)

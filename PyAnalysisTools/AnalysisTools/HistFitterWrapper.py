@@ -42,6 +42,10 @@ class LimiConfig(object):
 
 class HistFitterWrapper(object):
 
+    @staticmethod
+    def get_fit_modes():
+        return ["bkg", "excl", "disc", "model-dep", "model-indep"]
+
     def prepare_output(self):
         make_dirs(os.path.join(self.output_dir, "results"))
         make_dirs(os.path.join(self.output_dir, "data"))
@@ -52,14 +56,11 @@ class HistFitterWrapper(object):
 
     def __init__(self, **kwargs):
         configMgr.analysisName = kwargs["name"]
-        self.fit_type = "disc"
-        #self.my_fit_type = None
-
         kwargs.setdefault("interactive", False)
         kwargs.setdefault("fit", True)
         kwargs.setdefault("fitname", "")
         kwargs.setdefault("minosPars", "")
-        kwargs.setdefault("limit_plot", True)
+        kwargs.setdefault("disable_limit_plot", False)
         kwargs.setdefault("hypotest", False)
         kwargs.setdefault("discovery_hypotest", False)
         kwargs.setdefault("draw", "before,after,corrMatrix")
@@ -113,13 +114,13 @@ class HistFitterWrapper(object):
         self.expand_process_configs()
 
     def initialise(self):
-        if self.fit_type == "bkg":
+        if self.fit_mode == "bkg":
             configMgr.myFitType = configMgr.FitType.Background
             _logger.info("Will run in background-only fit mode")
-        elif self.fit_type == "excl" or self.fit_type == "model-dep":
+        elif self.fit_mode == "excl" or self.fit_mode == "model-dep":
             configMgr.myFitType = configMgr.FitType.Exclusion
             _logger.info("Will run in exclusion (model-dependent) fit mode")
-        elif self.fit_type == "disc" or self.fit_type == "model-indep":
+        elif self.fit_mode == "disc" or self.fit_mode == "model-indep":
             configMgr.myFitType = configMgr.FitType.Discovery
             _logger.info("Will run in discovery (model-independent) fit mode")
         else:
@@ -352,7 +353,7 @@ class HistFitterWrapper(object):
         """
         calculating and printing upper limits for model-(in)dependent signal fit configurations (aka Exclusion/Discovery fit setup)
         """
-        if self.limit_plot:
+        if not self.disable_limit_plot:
             for fc in configMgr.fitConfigs:
                 if len(fc.validationChannels) > 0:
                     raise (Exception, "Validation regions should be turned off for setting an upper limit!")
@@ -377,7 +378,7 @@ class HistFitterWrapper(object):
 
             pass
 
-        if self.run_toys and configMgr.nTOYs > 0 and self.hypotest == False and self.limit_plot == False and self.fit == False:
+        if self.run_toys and configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and self.fit is False:
             configMgr.cppMgr.runToysAll()
             pass
 
