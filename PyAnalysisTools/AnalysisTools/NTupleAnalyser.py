@@ -1,5 +1,6 @@
 import os
-from PyAnalysisTools.base import InvalidInputError
+from subprocess import check_output, CalledProcessError
+from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
@@ -12,10 +13,31 @@ except Exception as e:
 
 class NTupleAnalyser(object):
     def __init__(self, **kwargs):
+        self.check_valid_proxy()
         if not "dataset_list" in kwargs:
             raise InvalidInputError("No dataset list provided")
         self.datasets = YAMLLoader.read_yaml(kwargs["dataset_list"])
         self.input_path = kwargs["input_path"]
+
+    @staticmethod
+    def check_valid_proxy():
+        """
+        Checks if valid voms proxy is setup and exits if not
+
+        :return: None
+        :rtype: None
+        """
+        try:
+            info = check_output(["voms-proxy-info"])
+        except CalledProcessError:
+            _logger.error("voms not setup. Please run voms-proxy-init -voms atlas. Giving up now...")
+            exit(-1)
+        time_left = map(int, filter(lambda e: e[0].startswith("timeleft"),
+                                    map(lambda tag: tag.split(":"), info.split("\n")))[0][1:])
+        if not all(map(lambda i: i == 0, time_left)):
+            return
+        _logger.error("No valid proxy found. Please run voms-proxy-init -voms atlas. Giving up now...")
+        exit(-1)
 
     def transform_dataset_list(self):
         self.datasets = [ds for campaign in self.datasets.values() for ds in campaign]
@@ -39,12 +61,27 @@ class NTupleAnalyser(object):
                                                  switch_off_process_name_analysis=True).get_daod_events())
         ds.append(n_processed_events)
         client = pyAMI.client.Client('atlas')
-        n_expected_events = int(client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
-                                               format="dict_object").get_rows()[0]["totalEvents"])
+        try:
+            n_expected_events = int(client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
+                                                   format="dict_object").get_rows()[0]["totalEvents"])
+        except pyAMI.exception.Error:
+            _logger.error("Could not find dataset: ", ds[0])
+            return
         ds.append(n_expected_events)
 
     @staticmethod
     def print_summary(missing, incomplete):
+        """
+        Print summary of missing and incomplete datasets
+        Values: dataset, events processed, events expected, missing fraction, complete fraction
+
+        :param missing: missing datasets
+        :type missing: list
+        :param incomplete: incomplete datasets including expected and processed events
+        :type incomplete: list(tuples)
+        :return: None
+        :rtype: None
+        """
         print "--------------- Missing datasets ---------------"
         for ds in missing:
             print ds[0]
@@ -58,6 +95,12 @@ class NTupleAnalyser(object):
             print ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction
 
     def run(self):
+        """
+        Entry point executing ntuple completeness check
+
+        :return: None
+        :rtype: None
+        """
         self.transform_dataset_list()
         self.add_path()
         missing_datasets = filter(lambda ds: ds[2] is None, self.datasets)

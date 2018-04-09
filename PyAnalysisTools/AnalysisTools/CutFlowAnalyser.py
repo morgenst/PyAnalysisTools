@@ -132,7 +132,7 @@ class CutflowAnalyser(object):
             parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                      cutflow_hist.GetBinContent(b),
                                      #raw_cutflow_hist.GetBinContent(b),
-                                     # cutflow_hist.GetBinError(b),
+                                     cutflow_hist.GetBinError(b),
                                      # #raw_cutflow_hist.GetBinError(b),
                                      -1.,
                                      -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],

@@ -86,8 +86,25 @@ class BasePlotter(object):
         return file_handle.process, hist
 
     def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal"):
+        """
+        Read data from ROOT file and build histogram according to definition in plot_config
+
+        :param file_handle: ROOT file handle
+        :type file_handle: FileHandle
+        :param plot_config: plot configuration including distribution and axis definitions
+        :type plot_config: PlotConfig
+        :param systematic:
+        :type systematic: str
+        :return: filled histogram - dimension depends on request in plot config
+        :rtype: THX
+        """
         file_handle.open()
-        hist = get_histogram_definition(plot_config)
+        try:
+            hist = get_histogram_definition(plot_config)
+        except ValueError:
+            _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
+            range settings.".format(plot_config.name))
+            return None
         try:
             weight = None
             selection_cuts = ""
@@ -121,6 +138,11 @@ class BasePlotter(object):
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
+            except Exception as e:
+                _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
+                                                                                               plot_config.name))
+                print traceback.print_exc()
+                return None
             #hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
             if self.process_configs is None:
@@ -131,8 +153,10 @@ class BasePlotter(object):
                 return None
 
         except Exception as e:
+            _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
+                                                                                           plot_config.name))
             print traceback.print_exc()
-            raise e
+            return None
         return hist
 
     def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
