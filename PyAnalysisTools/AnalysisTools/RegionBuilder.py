@@ -18,6 +18,7 @@ class Region(object):
         kwargs.setdefault("disable_leptons", False)
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("disable_electrons", False)
+        kwargs.setdefault("disable_muons", False)
         kwargs.setdefault("is_on_z", None)
         kwargs.setdefault("operator", "eq")
         kwargs.setdefault("muon_operator", "eq")
@@ -46,6 +47,8 @@ class Region(object):
             self.muon_operator = ">="
         else:
             raise ValueError("Invalid operator provided. Currently supported: eq(==) and leq(>=)")
+        if self.label is None:
+            self.build_label()
         self.convert_lepton_selections()
 
     def __eq__(self, other):
@@ -92,16 +95,35 @@ class Region(object):
 
     def convert2cut_string(self):
         """
-        Convert full selection to cut string which can be parsed by ROOT. This includes generation of logic on lepton
-        selection and appropriate build of event based selection
+        Build cut string from configuration
 
-        :return: selection string
+        :return: cut selection as ROOT compatible string
         :rtype: string
         """
-
+        # electron_selector = "electron_n == electron_n"
+        # muon_selector = "muon_n == muon_n"
+        # if self.good_muon:
+        #     muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
+        # if self.good_electron:
+        #     electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
+        #
+        # cut = ""
+        # if self.event_cuts is not None:
+        #     cut = self.event_cut_string + " && "
+        # if self.is_on_z is not None:
+        #     cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
+        # if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
+        #     return cut + "{:s} + {:s} + tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
+        #                                                        self.n_lep)
+        # if not self.disable_muons:
+        #     cut += "{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon)
+        # if not self.disable_electrons:
+        #     cut += " {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron)
+        # return cut
         if self.disable_leptons:
             return self.event_cut_string
 
+        cut_list = []
         electron_selector = "electron_n == electron_n"
         muon_selector = "muon_n == muon_n"
         if self.good_muon:
@@ -111,19 +133,40 @@ class Region(object):
 
         cut = ""
         if self.event_cuts is not None:
-            cut = self.event_cut_string + " && "
+            cut_list += self.event_cuts
         if self.is_on_z is not None:
-            cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
+            cut_list.append("Sum$(inv_Z_mask==1) > 0" if self.is_on_z else "Sum$(inv_Z_mask==1) == 0")
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
             return cut + "{:s} + {:s} + tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
                                                                self.n_lep)
-
-        cut += "{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon)
+        if not self.disable_muons:
+            cut_list.append("{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon))
         if not self.disable_electrons:
-            cut += " && {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron)
-        return cut
+            cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
+        return " &&".join(cut_list)
+
+
+
+        # if self.disable_taus:
+        #     return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
+        #                                                                                    self.operator,
+        #                                                                                    self.n_electron,
+        #                                                                                    muon_selector,
+        #                                                                                    self.muon_operator,
+        #                                                                                    self.n_muon)
+
+        return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
+                                                                                  self.n_electron, muon_selector,
+                                                                                  self.muon_operator, self.n_muon,
+                                                                                  self.operator, self.n_tau)
 
     def build_label(self):
+        """
+        Constructs optional label for region from number of leptons and
+
+        :return:
+        :rtype:
+        """
         self.label = "".join([a*b for a, b in zip(["e^{#pm}", "#mu^{#pm}", "#tau^{#pm}"],
                                                   [self.n_electron, self.n_muon, self.n_tau])])
         if self.is_on_z is not None:
