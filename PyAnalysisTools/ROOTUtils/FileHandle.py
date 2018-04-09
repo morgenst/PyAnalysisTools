@@ -225,6 +225,16 @@ class FileHandle(object):
                     mc_weights = map(lambda mc_w: mc_w.replace("MC:", ""), mc_weights)
                     for mc_w in mc_weights:
                         weight += "* {:s}".format(mc_w)
+            if "DATA:" in weight:
+                weight = weight.split("*")
+                data_weights = filter(lambda w: "DATA:" in w, weight)
+                for data_w in data_weights:
+                    weight.remove(data_w)
+                weight = "*".join(weight)
+                if self.is_data:
+                    data_weights = map(lambda data_w: data_w.replace("DATA:", ""), data_weights)
+                    for data_w in data_weights:
+                        weight += "* {:s}".format(data_w)
             if cut_string == "":
                 cut_string = weight
             else:
