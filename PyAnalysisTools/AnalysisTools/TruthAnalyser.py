@@ -340,7 +340,6 @@ class LQTruthAnalyser(object):
         self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
         self.current_process_config = None
         self.setup()
-        self.book_histograms()
         self.book_plot_configs()
         #self.build_references()
 
@@ -349,13 +348,12 @@ class LQTruthAnalyser(object):
         ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
         ROOT.xAOD.Init().ignore()
 
-    def book_histograms(self):
+    def book_histograms(self, process_id):
         def book_histogram(name, n_bins, x_min, x_max):
-            for process_id in self.processes.keys():
-                if process_id not in self.histograms:
-                    self.histograms[process_id] = dict()
-                self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
-                                                              x_max)
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
+                                                          x_max)
         #book_histogram("LQ_counter", 2, -0.5, 1.5)
         #book_histogram("decay2_mode", 4, -1.5, 2.5)
         book_histogram("lepton1_status", 150, -0.5, 149.5)
@@ -454,6 +452,7 @@ class LQTruthAnalyser(object):
                     pc_ref = copy(pc)
                     pc_ref.color = ROOT.kRed
                     PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
+                print canvas, hist_name, hist
                 FT.decorate_canvas(canvas, pc)
                 self.output_handle.register_object(canvas, str(process_id))
 
@@ -585,8 +584,8 @@ class LQTruthAnalyser(object):
             tree.GetEntry(entry)
             #tree.GetEntry(2)
             process_id = tree.EventInfo.runNumber()
-            # if self.current_process_config is None:
-            #     self.current_process_config = self.processes[process_id]
+            if process_id not in self.histograms:
+                self.book_histograms(process_id)
             truth_particles = tree.TruthParticles
             LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 42, truth_particles)
             map(lambda p: self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.), LQ)
