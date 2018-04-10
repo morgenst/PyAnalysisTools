@@ -143,7 +143,7 @@ class Region(object):
             cut_list.append("{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon))
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
-        return " &&".join(cut_list)
+        return " && ".join(cut_list)
 
 
 
