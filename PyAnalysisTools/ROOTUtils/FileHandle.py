@@ -69,7 +69,7 @@ class FileHandle(object):
                     self.process_with_mc_campaign += ".mc16c"
 
     def open(self):
-        if not os.path.exists(self.absFName):
+        if not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
         if self.tfile is not None and self.tfile.IsOpen():
             return
