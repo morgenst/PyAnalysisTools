@@ -438,18 +438,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("bkg_name", "Bkg")
         kwargs.setdefault("name", "foo")
         kwargs.setdefault("output_dir", kwargs["output_dir"])
+        kwargs.setdefault("nbkg",  0.911)
         super(HistFitterCountingExperiment, self).__init__(**kwargs)
 
         self.name = kwargs["name"]
-        self.output_dir = kwargs["output_dir"]
         self.bkg_name = kwargs["bkg_name"]
         ndata = 1.  # Number of events observed in data
-        nbkg = 0.911  # Number of predicted bkg events
+        nbkg = kwargs["nbkg"]# Number of predicted bkg events
         nsig = 1.  # Number of predicted signal events
         nbkg_err = 0.376*nbkg  # (Absolute) Statistical error on bkg estimate
         nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
         lumi_error = 0.039  # Relative luminosity uncertainty
-
         configMgr.cutsDict["UserRegion"] = 1.
         configMgr.weights = "1."
         # Set uncorrelated systematics for bkg and signal (1 +- relative uncertainties)

@@ -30,6 +30,10 @@ class Root2NumpyConverter(object):
 
 class TrainingReader(object):
     def __init__(self, **kwargs):
+        self.numpy_input = False
+        if len(kwargs["input_file"]) > 1 and kwargs["input_file"][0].endswith(".npy"):
+            self.numpy_input = True
+            return
         self.input_file = FileHandle(file_name=kwargs["input_file"])
         self.signal_tree_names = kwargs["signal_tree_names"]
         self.bkg_tree_names = kwargs["bkg_tree_names"]

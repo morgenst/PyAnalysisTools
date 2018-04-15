@@ -3,7 +3,7 @@ from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Activation, Input, LSTM, Masking, Dropout, Flatten, Reshape
 from keras.layers.normalization import BatchNormalization
 from keras.optimizers import SGD
-
+from keras.utils import plot_model
 import keras.backend as backend
 from keras.optimizers import Adam
 import matplotlib
@@ -44,45 +44,15 @@ class LimitConfig(object):
             return SGD(**convert_types(optimiser_config[optimiser_type]))
 
 
-
 class NeuralNetwork(object):
-    def __init__(self, num_features, limit_config, num_layers=3, size=20, lr=1e-3, keep_prob=1.0, tloss="soft", input_noise=0.0):
-        # self.inputs = inputs = Input(shape=num_features)
-        # print backend.int_shape(inputs)
-        # x = Reshape((-1,))(inputs)
-        # print backend.int_shape(x)
-        #
-        # x = Dense(size, activation='relu')(x)
-        # for i in range(num_layers - 1):
-        #     x = Dense(size, activation='tanh')(x)
-        # #pred = Dense(1, activation='softmax')(x)
-        # pred = Dense(1, activation="sigmoid")(x)
-        # model = Model(inputs=inputs, outputs=pred)
-        # # self.train_op = Adam(lr)
-        # model.compile(loss='binary_crossentropy', optimizer='adam', metrics=['accuracy'])
-        # self.kerasmodel = model
-
+    def __init__(self, num_features, limit_config, num_layers=3):
         self.inputs = inputs = Input(shape=num_features)
-        # print backend.int_shape(inputs)
-        # x = Reshape((-1,))(inputs)
-        # print backend.int_shape(x)
         model = Sequential()
-        #model.add(Dense(num_features[0], input_shape=(num_features[1],)))
         model.add(Dense(64, input_dim=num_features[1], activation=limit_config.activation))
         for i in range(num_layers - 1):
             model.add(Dense(64, activation=limit_config.activation))
             model.add(Dropout(0.5))
         model.add(Dense(1, activation=limit_config.final_activation))
-        #sgd = SGD(lr=0.01, decay=1e-6, momentum=0.9, nesterov=True)
-
-        # model.add(Activation('relu'))
-        # x = Dense(size, activation='relu')(x)
-        # for i in range(num_layers - 1):
-        #     x = Dense(size, activation='tanh')(x)
-        # #pred = Dense(1, activation='softmax')(x)
-        # pred = Dense(1, activation="sigmoid")(x)
-        # model = Model(inputs=inputs, outputs=pred)
-        # self.train_op = Adam(lr)
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
         self.kerasmodel = model
 
@@ -105,8 +75,14 @@ class NNTrainer(object):
         self.do_control_plots = kwargs["control_plots"]
         self.output_path = so.resolve_output_dir(output_dir=kwargs["output_path"], sub_dir_name="NNtrain")
         self.limit_config = self.build_limit_config(kwargs["training_config_file"])
+        self.store_arrays = not kwargs["disable_array_safe"]
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
+        if self.store_arrays and not self.reader.numpy_input:
+            self.input_store_path = os.path.join(self.output_path, "inputs")
+            make_dirs(self.input_store_path)
+        if self.reader.numpy_input:
+            self.input_store_path = "/".join(kwargs["input_file"][0].split("/")[:-1])
 
 
     @staticmethod
@@ -116,19 +92,28 @@ class NNTrainer(object):
             return LimitConfig(name, **config)
 
     def build_input(self):
-        trees = self.reader.get_trees()
-        arrays = [[self.converter.convert_to_array(tree, max_events=self.max_events) for tree in items]
-                  for items in trees]
-        self.data_train, self.label_train = self.converter.merge(arrays[0], arrays[1])
-        self.data_eval, self.label_eval = self.converter.merge(arrays[2], arrays[3])
+        if not self.reader.numpy_input:
+            trees = self.reader.get_trees()
+            arrays = [[self.converter.convert_to_array(tree, max_events=self.max_events) for tree in items]
+                      for items in trees]
+            self.data_train, self.label_train = self.converter.merge(arrays[0], arrays[1])
+            self.data_eval, self.label_eval = self.converter.merge(arrays[2], arrays[3])
+            if self.store_arrays:
+                np.save(os.path.join(self.input_store_path, "data_train.npy"), self.data_train)
+                np.save(os.path.join(self.input_store_path, "label_train.npy"), self.label_train)
+                np.save(os.path.join(self.input_store_path, "data_eval.npy"), self.data_eval)
+                np.save(os.path.join(self.input_store_path, "label_eval.npy"), self.label_eval)
+        else:
+            self.data_train = np.load(os.path.join(self.input_store_path, "data_train.npy"))
+            self.label_train = np.load(os.path.join(self.input_store_path, "label_train.npy"))
+            self.data_eval = np.load(os.path.join(self.input_store_path, "data_eval.npy"))
+            self.label_eval = np.load(os.path.join(self.input_store_path, "label_eval.npy"))
         self.data_train = pd.DataFrame(self.data_train)
         self.data_eval = pd.DataFrame(self.data_eval)
 
     def build_models(self):
-        self.model_0 = NeuralNetwork(self.data_train.shape, self.limit_config, num_layers=self.layers, size=self.units,
-                                     tloss='soft', ).kerasmodel
-        self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config, num_layers=self.layers, size=self.units,
-                                     tloss='soft').kerasmodel
+        self.model_0 = NeuralNetwork(self.data_train.shape, self.limit_config, num_layers=self.layers).kerasmodel
+        self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config, num_layers=self.layers).kerasmodel
 
     def apply_scaling(self):
         train_mean = self.data_train.mean()
@@ -157,7 +142,6 @@ class NNTrainer(object):
         self.apply_scaling()
         if self.do_control_plots:
             self.make_control_plots("postscaling")
-        #print "train shape: ", train_shape
         history_train = self.model_0.fit(self.data_train.values, self.label_train.reshape((self.label_train.shape[0], 1)),
                                          epochs=self.epochs, verbose=1, batch_size=32,
                                          shuffle=True, validation_data=(self.data_eval.values, self.label_eval))  # sample_weight=weight_0,
@@ -172,20 +156,41 @@ class NNTrainer(object):
         self.model_0.save(os.path.join(self.output_path, "models/model_train.h5"))
         self.model_1.save(os.path.join(self.output_path, "models/model_eval.h5"))
         self.run_predictions()
+        self.plot_models()
+        _logger.info("Stored outputs in {:s}".format(self.output_path))
+
+    def plot_models(self):
+        plot_model(self.model_0, to_file=os.path.join(self.output_path, "plots/model_train.png"), show_shapes=True)
+        plot_model(self.model_1, to_file=os.path.join(self.output_path, "plots/model_eval.png"), show_shapes=True)
 
     def run_predictions(self):
+        def make_plot(signal_pred, bkg_pred, label):
+            _logger.debug("Consistency plots")
+            sig_weights = np.ones_like(signal_pred) / float(len(signal_pred))
+            bkg_weights = np.ones_like(bkg_pred) / float(len(bkg_pred))
+            plt.hist(signal_pred, 50, range=[0., 1.], histtype='step', label='signal model0', weights=sig_weights,
+                     normed=True)
+            plt.hist(bkg_pred, 50, range=[0., 1.], histtype='step', label='bkg model1', weights=bkg_weights,
+                     normed=True)
+            plt.yscale('log')
+            plt.grid(True)
+            plt.legend(["signal", "background"], loc="upper right")
+            plt.savefig(os.path.join(self.output_path, "plots/score_{:s}_log.png".format(label)))
+            plt.yscale('linear')
+            plt.savefig(os.path.join(self.output_path, "plots/score_{:s}_lin.png".format(label)))
+            plt.close()
+
+        if not self.plot:
+            return
         _logger.info("Evaluating predictions")
         preds_train = self.model_0.predict(self.data_eval.values)
         preds_sig_train = preds_train[self.label_eval == 1]
         preds_bkg_train = preds_train[self.label_eval == 0]
-        if self.plot:
-            _logger.debug("Consistency plots")
-            plt.hist(preds_sig_train, 20, range=[0., 1.], histtype='step', label='signal model0', normed=True)
-            plt.hist(preds_bkg_train, 20, range=[0., 1.], histtype='step', label='bkg model1', normed=True)
-            plt.yscale('log')
-            plt.grid(True)
-            plt.legend(["signal", "background"], loc="lower left")
-            plt.savefig(os.path.join(self.output_path, "plots/consistency_sig_train.png"))
+        make_plot(preds_sig_train, preds_bkg_train, "train")
+        preds_eval = self.model_1.predict(self.data_eval.values)
+        preds_sig_eval = preds_eval[self.label_eval == 1]
+        preds_bkg_eval = preds_eval[self.label_eval == 0]
+        make_plot(preds_sig_eval, preds_bkg_eval, "eval")
 
     def make_control_plots(self, prefix):
         def make_plot(prefix, variable_name, signal, background):

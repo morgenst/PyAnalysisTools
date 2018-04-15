@@ -41,6 +41,9 @@ class FileHandle(object):
         kwargs.setdefault("open_option", "READ")
         kwargs.setdefault("run_dir", None)
         kwargs.setdefault("switch_off_process_name_analysis", False)
+        kwargs.setdefault("friend_directory", None)
+        kwargs.setdefault("friend_pattern", None)
+        kwargs.setdefault("friend_tree_names", None)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
@@ -59,6 +62,13 @@ class FileHandle(object):
         self.is_mc = False
         self.mc16a = False
         self.mc16c = False
+        self.friends = None
+        self.friend_tree_names = kwargs["friend_tree_names"]
+        self.friend_pattern = kwargs["friend_pattern"]
+        if self.friend_tree_names is not None and not isinstance(self.friend_tree_names, list):
+            self.friend_tree_names = [self.friend_tree_names]
+        if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
+            self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
             self.process_with_mc_campaign = self.process
@@ -67,9 +77,13 @@ class FileHandle(object):
                     self.process_with_mc_campaign += ".mc16a"
                 if self.mc16c:
                     self.process_with_mc_campaign += ".mc16c"
+        if kwargs["friend_directory"]:
+            self.attach_friend_files(kwargs["friend_directory"])
 
-    def open(self):
-        if not os.path.exists(self.absFName):
+    def open(self, file_name=None):
+        if file_name is not None:
+            return TFile.Open(file_name, "READ")
+        if not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
         if self.tfile is not None and self.tfile.IsOpen():
             return
@@ -175,18 +189,26 @@ class FileHandle(object):
                 branch_names.append(branch.GetName())
         return branch_names
 
-    def get_object_by_name(self, obj_name, tdirectory=None):
+    def get_object_by_name(self, obj_name, tdirectory=None, friend_file=None):
         self.open()
-        tdir = self.tfile
+        if friend_file is None:
+            tdir = self.tfile
+        else:
+            tdir = friend_file
         if tdirectory:
             try:
-                tdir = self.get_object_by_name(tdirectory)
+                if friend_file:
+                    tdir = self.get_object_by_name(tdirectory, friend_file=friend_file)
+                else:
+                    tdir = self.get_object_by_name(tdirectory)
             except ValueError as e:
                 raise e
         obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
-            raise ValueError("Object " + obj_name + " does not exist in file " + os.path.join(self.path,
-                                                                                              self.file_name))
+            raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
+                                                                                                tdirectory,
+                                                                                                os.path.join(self.path,
+                                                                                                             self.file_name)))
         return obj
 
     def get_number_of_total_events(self, unweighted=False):
@@ -209,6 +231,8 @@ class FileHandle(object):
 
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
         tree = self.get_object_by_name(tree_name, tdirectory)
+        if self.friends is not None:
+            self.link_friend_trees(tree, tdirectory)
         _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name,
                                                                              tree.GetEntries()))
         if cut_string is None:
@@ -252,6 +276,25 @@ class FileHandle(object):
             _logger.error("Unable to project %s from tree %s with cut %s" % (var_name, tree_name, cut_string))
             raise RuntimeError("TTree::Project failed")
         return hist
+
+    def link_friend_trees(self, nominal_tree, tdirectory):
+        if self.friend_tree_names is None:
+            _logger.error("No friend tree names provided, but requested to link them.")
+            return
+        for f in self.friends:
+            friend_trees = filter(lambda t: t is not None,
+                                  [self.get_object_by_name(tn, tdirectory, f) for tn in self.friend_tree_names])
+            for tree in friend_trees:
+                nominal_tree.AddFriend(tree)
+
+    def attach_friend_files(self, directory):
+        self.friends = []
+        available_files = os.listdir(directory)
+        base_file_name = self.file_name.split("/")[-1]
+        for pattern in self.friend_pattern:
+            friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
+                              available_files)[0]
+            self.friends.append(TFile.Open(os.path.join(directory, friend_fn), "READ"))
 
     @staticmethod
     def release_object_from_file(obj):
