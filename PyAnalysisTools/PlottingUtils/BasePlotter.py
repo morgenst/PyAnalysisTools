@@ -57,9 +57,21 @@ class BasePlotter(object):
 
     @staticmethod
     def load_atlas_style():
+        """
+        Load ATLAS plotting style
+
+        :return: None
+        :rtype: None
+        """
         fm.load_atlas_style()
 
     def read_cutflows(self):
+        """
+        Read cutflow histograms from input file and store total number of events in event yields dictionary
+
+        :return: None
+        :rtype: None
+        """
         for file_handle in self.file_handles:
             process = file_handle.process
             if self.split_mc_campaigns:

@@ -59,8 +59,8 @@ class Plotter(BasePlotter):
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
+        self.filter_empty_trees()
         self.expand_process_configs()
-        self.filter_process_configs(self.file_handles, self.process_configs)
 
     def expand_process_configs(self):
         if self.process_configs is not None:
@@ -94,6 +94,11 @@ class Plotter(BasePlotter):
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
+
+    def filter_empty_trees(self):
+        def is_empty(file_handle, tree_name):
+            return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
+        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -220,7 +225,8 @@ class Plotter(BasePlotter):
             fetched_histograms = [(self.plot_configs[0], self.modules_hist_fetching[0].fetch())]
         fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
         self.categorise_histograms(fetched_histograms)
-        self.apply_lumi_weights(self.histograms)
+        if not self.lumi < 0:
+            self.apply_lumi_weights(self.histograms)
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
