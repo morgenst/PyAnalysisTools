@@ -102,7 +102,7 @@ class PlotConfig(object):
         if hasattr(self, "dist") and self.dist:
             self.is_multidimensional = True if ":" in self.dist else False
 
-    def _merge(self, other):
+    def merge_configs(self, other):
         """
         Merge two plot configs
 
@@ -116,8 +116,15 @@ class PlotConfig(object):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                _logger.warn("Different settings for attrinute {:s} in common configs: {:s} vs. {:s}".format(attr, val,
-                                                                                                             getattr(self, attr)))
+                dec = raw_input("Different settings for attribute {:s} in common configs. "
+                                "Please choose 1) {:s} or 2) {:s}: ".format(attr, str(val), str(getattr(self, attr))))
+                if dec == "1":
+                    setattr(self, attr, val)
+                elif dec == "2":
+                    continue
+                else:
+                    _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
+
 
 
 class ProcessConfig(object):
@@ -194,7 +201,7 @@ def merge_plot_configs(plot_configs):
             merged_common_config = common_config
             continue
         merged_plot_config += plot_config
-        merged_common_config.merge(common_config)
+        merged_common_config.merge_configs(common_config)
     return merged_plot_config, merged_common_config
 
 

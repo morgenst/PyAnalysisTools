@@ -354,6 +354,8 @@ class LQTruthAnalyser(object):
                 self.histograms[process_id] = dict()
             self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
                                                           x_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
         #book_histogram("LQ_counter", 2, -0.5, 1.5)
         #book_histogram("decay2_mode", 4, -1.5, 2.5)
         book_histogram("lepton1_status", 150, -0.5, 149.5)
@@ -452,7 +454,7 @@ class LQTruthAnalyser(object):
                     pc_ref = copy(pc)
                     pc_ref.color = ROOT.kRed
                     PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
-                print canvas, hist_name, hist
+                print canvas, hist_name, hist, process_id
                 FT.decorate_canvas(canvas, pc)
                 self.output_handle.register_object(canvas, str(process_id))
 
@@ -566,7 +568,6 @@ class LQTruthAnalyser(object):
 
             mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
             mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
-
             if mass1 > mass2:
                 self.histograms[process_id]["inv_mass_max"].Fill(mass1)
                 self.histograms[process_id]["inv_mass_min"].Fill(mass2)
