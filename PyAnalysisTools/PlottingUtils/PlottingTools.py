@@ -23,12 +23,28 @@ def plot_obj(hist, plot_config, **kwargs):
 
 
 def plot_objects(objects, plot_config, process_configs=None):
+    """
+    Base interface to plot multiple objects
+
+    :param objects: objects to be plotted, e.g. TH1, TEfficiency
+    :type objects: list or dict
+    :param plot_config: plot configuration
+    :type plot_config: PlotConfig
+    :param process_configs: physics processes configuration containing e.g. colors and plot styles
+    :type process_configs: ProcessConfig
+    :return: canvas with plotted objects
+    :rtype: TCanvas
+    """
     if len(objects) == 0:
         _logger.warning("Requested plot objects with zero objects")
         return
-    if isinstance(objects.values()[0], ROOT.TH1):
+    if isinstance(objects, dict):
+        first_obj = objects.values()[0]
+    elif isinstance(objects, list):
+        first_obj = objects[0]
+    if isinstance(first_obj, ROOT.TH1):
         return plot_histograms(objects, plot_config, process_configs)
-    if isinstance(objects.values()[0], ROOT.TEfficiency):
+    if isinstance(first_obj, ROOT.TEfficiency):
         return plot_graphs(objects.values(), plot_config)
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
