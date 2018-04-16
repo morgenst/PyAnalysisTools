@@ -116,13 +116,20 @@ class NNTrainer(object):
         self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config, num_layers=self.layers).kerasmodel
 
     def apply_scaling(self):
-        train_mean = self.data_train.mean()
-        train_std = self.data_train.std()
-        self.data_train = (self.data_train - train_mean) / train_std
-        eval_mean = self.data_eval.mean()
-        eval_std = self.data_eval.std()
-        self.data_eval = (self.data_eval - eval_mean) / eval_std
-
+        train_mean_0 = self.data_train[self.label_train == 0].mean()
+        train_mean_1 = self.data_train[self.label_train == 1].mean()
+        train_std_0 = self.data_train[self.label_train == 0].std()
+        train_std_1 = self.data_train[self.label_train == 1].std()
+        self.data_train[self.label_train == 0] = (self.data_train[self.label_train == 0] - train_mean_0) / train_std_0
+        print (self.data_train[self.label_train == 0] - train_mean_0) / train_std_0
+        self.data_train[self.label_train == 1] = (self.data_train[self.label_train == 1] - train_mean_1) / train_std_1
+        eval_mean_0 = self.data_eval[self.label_eval == 0].mean()
+        eval_mean_1 = self.data_eval[self.label_eval == 1].mean()
+        eval_std_0 = self.data_eval[self.label_eval == 0].std()
+        eval_std_1 = self.data_eval[self.label_eval == 1].std()
+        self.data_eval[self.label_eval == 0] = (self.data_eval[self.label_eval == 0] - eval_mean_0) / eval_std_0
+        self.data_eval[self.label_eval == 1] = (self.data_eval[self.label_eval == 1] - eval_mean_1) / eval_std_1
+        
     def plot_train_control(self, history, name):
         plt.plot(history.history['loss'])
         plt.plot(history.history['val_loss'])
@@ -143,11 +150,11 @@ class NNTrainer(object):
         if self.do_control_plots:
             self.make_control_plots("postscaling")
         history_train = self.model_0.fit(self.data_train.values, self.label_train.reshape((self.label_train.shape[0], 1)),
-                                         epochs=self.epochs, verbose=1, batch_size=32,
-                                         shuffle=True, validation_data=(self.data_eval.values, self.label_eval))  # sample_weight=weight_0,
-        history_eval = self.model_1.fit(self.data_eval.values, self.label_eval.reshape((self.label_eval.shape[0], 1)), epochs=self.epochs,
-                                        verbose=1, batch_size=32,
-                                        shuffle=True, validation_data=(self.data_train.values, self.label_train)) #sample_weight=weight_0,
+                                         epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
+                                         validation_data=(self.data_eval.values, self.label_eval))
+        history_eval = self.model_1.fit(self.data_eval.values, self.label_eval.reshape((self.label_eval.shape[0], 1)),
+                                        epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
+                                        validation_data=(self.data_train.values, self.label_train))
         if self.plot:
             self.plot_train_control(history_train, "train")
             self.plot_train_control(history_eval, "eval")
@@ -157,7 +164,7 @@ class NNTrainer(object):
         self.model_1.save(os.path.join(self.output_path, "models/model_eval.h5"))
         self.run_predictions()
         self.plot_models()
-        _logger.info("Stored outputs in {:s}".format(self.output_path))
+        print "Stored outputs in {:s}".format(self.output_path)
 
     def plot_models(self):
         plot_model(self.model_0, to_file=os.path.join(self.output_path, "plots/model_train.png"), show_shapes=True)
@@ -199,6 +206,11 @@ class NNTrainer(object):
             if "/" in variable_name:
                 variable_name = "_".join(variable_name.split("/")).replace(" ","")
             var_range = np.percentile(data, [2.5, 97.5])
+
+            print "######## {:s} ##########".format(variable_name)
+            print var_range
+            print signal.values
+
             plt.hist(map(float, signal.values), 100, range=var_range, histtype='step', label='signal', normed=True)
             plt.hist(map(float, background.values), 100, range=var_range, histtype='step', label='background', normed=True)
             if data.ptp() > 1000.:
