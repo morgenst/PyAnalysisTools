@@ -1,10 +1,14 @@
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
+
+
 try:
-    from configManager import configMgr
+    import configManager
 except ImportError:
     print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
     exit(1)
+
+
 import ROOT
 from ROOT import kBlack, kWhite, kGray, kRed, kPink, kMagenta, kViolet, kBlue, kAzure, kCyan, kTeal, kGreen, kSpring, \
     kYellow, kOrange, TCanvas, TLegend, TLegendEntry
@@ -41,7 +45,6 @@ class LimiConfig(object):
 
 
 class HistFitterWrapper(object):
-
     @staticmethod
     def get_fit_modes():
         return ["bkg", "excl", "disc", "model-dep", "model-indep"]
@@ -55,7 +58,6 @@ class HistFitterWrapper(object):
                           os.path.join(self.output_dir, "config/HistFactorySchema.dtd"))
 
     def __init__(self, **kwargs):
-        configMgr.analysisName = kwargs["name"]
         kwargs.setdefault("interactive", False)
         kwargs.setdefault("fit", True)
         kwargs.setdefault("fitname", "")
@@ -80,28 +82,37 @@ class HistFitterWrapper(object):
         kwargs.setdefault("fixedPars", "")
         kwargs.setdefault("validation", False)
         kwargs.setdefault("use_archive_histfile", False)
-        kwargs.setdefault("read_tree", configMgr.readFromTree)
-        kwargs.setdefault("create_workspace", configMgr.executeHistFactory)
-        #kwargs.setdefault("use_XML", configMgr.writeXML)
+        kwargs.setdefault("read_tree", False) #self.configMgr.readFromTree
+        kwargs.setdefault("create_workspace", False) #self.configMgr.executeHistFactory)
+        #kwargs.setdefault("use_XML", self.configMgr.writeXML)
         kwargs.setdefault("use_XML", True)
-        kwargs.setdefault("num_toys", configMgr.nTOYs)
-        kwargs.setdefault("seed", configMgr.toySeed)
-        kwargs.setdefault("use_asimov", configMgr.useAsimovSet)
+        kwargs.setdefault("num_toys", 1000) #self.configMgr.nTOYs)
+        kwargs.setdefault("seed", 0) #self.configMgr.toySeed)
+        kwargs.setdefault("use_asimov", False) #self.configMgr.useAsimovSet)
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("process_config_file", None)
-        self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+        kwargs.setdefault("base_output_dir", None)
 
-        #FitType = configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
+        #FitType = self.configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
 
         for key, val in kwargs.iteritems():
             if not hasattr(self, key):
                 setattr(self, key, val)
-        configMgr.histCacheFile = os.path.join(self.output_dir, "data/" + configMgr.analysisName + ".root")
-        configMgr.outputFileName = os.path.join(self.output_dir, "results/" + configMgr.analysisName + "_Output.root")
-        self.prepare_output()
-
+        self.setup_output(**kwargs)
         self.samples = {}
+
+    def __del__(self):
+        del self.configMgr
+
+    def setup_output(self, **kwargs):
+        if not self.scan:
+            self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+        elif self.scan:
+            if self.base_output_dir is None:
+                self.base_output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+            self.output_dir = os.path.join(self.base_output_dir, str(self.call))
+        self.prepare_output()
 
     def parse_configs(self):
         self.limit_config = None
@@ -113,42 +124,50 @@ class HistFitterWrapper(object):
                                         dataset_info=os.path.abspath(self.xs_config_file)) for fn in self.input_files]
         self.expand_process_configs()
 
+    def reset_config_mgr(self):
+        self.configMgr = configManager.configMgr
+        self.configMgr.__init__()
+        self.configMgr.analysisName = self.analysis_name
+        self.configMgr.histCacheFile = os.path.join(self.output_dir, "data/{:s}.root".format(self.analysis_name))
+        self.configMgr.outputFileName = os.path.join(self.output_dir,
+                                                     "results/{:s}_Output.root".format(self.analysis_name))
+
     def initialise(self):
         if self.fit_mode == "bkg":
-            configMgr.myFitType = configMgr.FitType.Background
+            self.configMgr.myFitType = self.configMgr.FitType.Background
             _logger.info("Will run in background-only fit mode")
         elif self.fit_mode == "excl" or self.fit_mode == "model-dep":
-            configMgr.myFitType = configMgr.FitType.Exclusion
+            self.configMgr.myFitType = self.configMgr.FitType.Exclusion
             _logger.info("Will run in exclusion (model-dependent) fit mode")
         elif self.fit_mode == "disc" or self.fit_mode == "model-indep":
-            configMgr.myFitType = configMgr.FitType.Discovery
+            self.configMgr.myFitType = self.configMgr.FitType.Discovery
             _logger.info("Will run in discovery (model-independent) fit mode")
         else:
             _logger.error("fit type not specified. Giving up...")
             exit(0)
         if self.use_archive_histfile:
-            configMgr.useHistBackupCacheFile = True
+            self.configMgr.useHistBackupCacheFile = True
 
         if self.read_tree:
-            configMgr.readFromTree = True
+            self.configMgr.readFromTree = True
 
         if self.create_workspace:
-            configMgr.executeHistFactory = True
+            self.configMgr.executeHistFactory = True
 
         if self.use_XML:
-            configMgr.writeXML = True
+            self.configMgr.writeXML = True
 
-        #configMgr.userArg = self.userArg
-        configMgr.nTOYs = self.num_toys
+        #self.configMgr.userArg = self.userArg
+        self.configMgr.nTOYs = self.num_toys
 
         # if self.log_level:
         #     _logger.setLevel(self.log_level, True)
 
         if self.hypotest:
-            configMgr.doHypoTest = True
+            self.configMgr.doHypoTest = True
 
         if self.discovery_hypotest:
-            configMgr.doDiscoveryHypoTest = True
+            self.configMgr.doDiscoveryHypoTest = True
 
         if self.draw:
             drawArgs = self.draw.split(",")
@@ -178,14 +197,14 @@ class HistFitterWrapper(object):
                             "Wrong draw argument: '%s'. Possible draw arguments are 'allPlots' or comma separated 'before after corrMatrix sepComponents likelihood'" % drawArg)
 
         if self.no_empty:
-            configMgr.removeEmptyBins = True
+            self.configMgr.removeEmptyBins = True
 
         if self.seed != 0:  # 0 is default because type is int
-            configMgr.toySeedSet = True
-            configMgr.toySeed = self.seed
+            self.configMgr.toySeedSet = True
+            self.configMgr.toySeed = self.seed
 
         if self.use_asimov:
-            configMgr.useAsimovSet = True
+            self.configMgr.useAsimovSet = True
 
         # if self.grid_points and self.grid_points != "":
         #     sigSamples = self.grid_points.split(",")
@@ -205,15 +224,15 @@ class HistFitterWrapper(object):
         # if self.background:
         #     bkgArgs = self.background.split(',')
         #     if len(bkgArgs) == 2:
-        #         configMgr.SetBkgParName(bkgArgs[0])
-        #         configMgr.SetBkgCorrVal(float(bkgArgs[1]))
-        #         configMgr.SetBkgChlName("")
+        #         self.configMgr.SetBkgParName(bkgArgs[0])
+        #         self.configMgr.SetBkgCorrVal(float(bkgArgs[1]))
+        #         self.configMgr.SetBkgChlName("")
         #     elif len(bkgArgs) >= 3 and len(bkgArgs) % 3 == 0:
         #         for iChan in xrange(len(bkgArgs) / 3):
         #             iCx = iChan * 3
-        #             configMgr.AddBkgChlName(bkgArgs[iCx])
-        #             configMgr.AddBkgParName(bkgArgs[iCx + 1])
-        #             configMgr.AddBkgCorrVal(float(bkgArgs[iCx + 2]))
+        #             self.configMgr.AddBkgChlName(bkgArgs[iCx])
+        #             self.configMgr.AddBkgParName(bkgArgs[iCx + 1])
+        #             self.configMgr.AddBkgCorrVal(float(bkgArgs[iCx + 2]))
         #             continue
 
         if self.minos:
@@ -243,19 +262,19 @@ class HistFitterWrapper(object):
         standard execution from now on
         """
 
-        configMgr.initialize()
-        RooRandom.randomGenerator().SetSeed(configMgr.toySeed)
-        ReduceCorrMatrix = configMgr.ReduceCorrMatrix
+        self.configMgr.initialize()
+        RooRandom.randomGenerator().SetSeed(self.configMgr.toySeed)
+        ReduceCorrMatrix = self.configMgr.ReduceCorrMatrix
 
         """
         runs Trees->histos and/or histos->workspace according to specifications
         """
-        if configMgr.readFromTree or configMgr.executeHistFactory:
+        if self.configMgr.readFromTree or self.configMgr.executeHistFactory:
             if self.run_profiling:
                 import cProfile
-                cProfile.run('configMgr.executeAll()')
+                cProfile.run('self.configMgr.executeAll()')
             else:
-                configMgr.executeAll()
+                self.configMgr.executeAll()
 
         """
         shows systematics
@@ -265,7 +284,7 @@ class HistFitterWrapper(object):
             if not os.path.isdir("./plots"):
                 _logger.info("no directory './plots' found - attempting to create one")
                 os.mkdir("./plots")
-            for fC in configMgr.fitConfigs:
+            for fC in self.configMgr.fitConfigs:
                 for chan in fC.channels:
                     for sam in chan.sampleList:
                         if not sam.isData:
@@ -283,7 +302,7 @@ class HistFitterWrapper(object):
                                 if Systs != "":
                                     Systs = Systs[:-1]
                             if Systs != "":
-                                Util.plotUpDown(configMgr.histCacheFile, sam.name, Systs,
+                                Util.plotUpDown(self.configMgr.histCacheFile, sam.name, Systs,
                                                             chan.regionString, chan.variableName)
 
     def expand_process_configs(self):
@@ -307,21 +326,21 @@ class HistFitterWrapper(object):
                 sample.setTreeName("Nominal/BaseSelection_lq_tree_Final")
                 #sample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
 
-    def run(self):
+    def run_fit(self):
         """
         runs fitting and plotting, by calling C++ side functions
         """
 
         if self.fit or self.draw:
             idx = 0
-            if len(configMgr.fitConfigs) == 0:
+            if len(self.configMgr.fitConfigs) == 0:
                 _logger.fatal("No fit configurations found!")
 
             runAll = True
             if self.fitname != "":  # user specified a fit name
                 fitFound = False
-                for (i, config) in enumerate(configMgr.fitConfigs):
-                    if configMgr.fitConfigs[i].name == self.fitname:
+                for (i, config) in enumerate(self.configMgr.fitConfigs):
+                    if self.configMgr.fitConfigs[i].name == self.fitname:
                         idx = i
                         fitFound = True
                         runAll = False
@@ -333,19 +352,19 @@ class HistFitterWrapper(object):
             noFit = False
             if not self.fit:
                 noFit = True
-            for i in xrange(len(configMgr.fitConfigs)):
+            for i in xrange(len(self.configMgr.fitConfigs)):
                 if not runAll and i != idx:
-                    _logger.debug("Skipping fit config {0}".format(configMgr.fitConfigs[i].name))
+                    _logger.debug("Skipping fit config {0}".format(self.configMgr.fitConfigs[i].name))
                     continue
 
-                _logger.info("Running on fitConfig %s" % configMgr.fitConfigs[i].name)
+                _logger.info("Running on fitConfig %s" % self.configMgr.fitConfigs[i].name)
                 _logger.info("Setting noFit = {0}".format(noFit))
-                self.GenerateFitAndPlotCPP(configMgr.fitConfigs[i], configMgr.analysisName, self.draw_before,
+                self.GenerateFitAndPlotCPP(self.configMgr.fitConfigs[i], self.configMgr.analysisName, self.draw_before,
                                                self.draw_after, self.drawCorrelationMatrix, self.drawSeparateComponents,
                                                 self.drawLogLikelihood, self.minos, self.minosPars, self.doFixParameters,
-                                               self.fixedPars, configMgr.ReduceCorrMatrix, noFit)
+                                               self.fixedPars, self.configMgr.ReduceCorrMatrix, noFit)
             _logger.debug(
-                    " GenerateFitAndPlotCPP(configMgr.fitConfigs[%d], configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
+                    " GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
                     "   where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, ReduceCorrMatrix are booleans")
             pass
@@ -354,32 +373,32 @@ class HistFitterWrapper(object):
         calculating and printing upper limits for model-(in)dependent signal fit configurations (aka Exclusion/Discovery fit setup)
         """
         if not self.disable_limit_plot:
-            for fc in configMgr.fitConfigs:
+            for fc in self.configMgr.fitConfigs:
                 if len(fc.validationChannels) > 0:
                     raise (Exception, "Validation regions should be turned off for setting an upper limit!")
                 pass
-            configMgr.cppMgr.doUpperLimitAll()
+            self.configMgr.cppMgr.doUpperLimitAll()
             pass
 
         """
         run exclusion or discovery hypotest
         """
         if self.hypotest or self.discovery_hypotest:
-            for fc in configMgr.fitConfigs:
+            for fc in self.configMgr.fitConfigs:
                 if len(fc.validationChannels) > 0 and not (fc.signalSample is None or 'Bkg' in fc.signalSample):
                     raise (Exception, "Validation regions should be turned off for doing hypothesis test!")
                 pass
 
             if self.discovery_hypotest:
-                configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), False)
+                self.configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), False)
 
             if self.hypotest:
-                configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), True)
+                self.configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), True)
 
             pass
 
-        if self.run_toys and configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and self.fit is False:
-            configMgr.cppMgr.runToysAll()
+        if self.run_toys and self.configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and self.fit is False:
+            self.configMgr.cppMgr.runToysAll()
             pass
 
         if self.interactive:
@@ -434,46 +453,60 @@ class HistFitterWrapper(object):
 
 class HistFitterCountingExperiment(HistFitterWrapper):
     def __init__(self, **kwargs):
-        super(HistFitterCountingExperiment, self).__init__(**kwargs)
+        #super(HistFitterCountingExperiment, self).__init__(**kwargs)
         kwargs.setdefault("bkg_name", "Bkg")
-        kwargs.setdefault("name", "foo")
+        kwargs.setdefault("analysis_name", "foo")
         kwargs.setdefault("output_dir", kwargs["output_dir"])
         kwargs.setdefault("nbkg",  0.911)
+        kwargs.setdefault("call", 0)
+        kwargs.setdefault("scan", False)
+        kwargs.setdefault("use_asimov", True)
         super(HistFitterCountingExperiment, self).__init__(**kwargs)
 
-        self.name = kwargs["name"]
         self.bkg_name = kwargs["bkg_name"]
-        ndata = 1.  # Number of events observed in data
-        nbkg = kwargs["nbkg"]# Number of predicted bkg events
+
+    def run(self, **kwargs):
+        print "##################### RUN #####################"
+        if self.call > 0:
+            self.setup_output(**kwargs)
+        self.setup_regions(**kwargs)
+        self.call += 1
+        self.run_fit()
+
+    def setup_regions(self, **kwargs):
+        nbkg = kwargs["nbkg"]  # Number of predicted bkg events
+        ndata = nbkg  # Number of events observed in data
         nsig = 1.  # Number of predicted signal events
-        nbkg_err = 0.376*nbkg  # (Absolute) Statistical error on bkg estimate
+        nbkg_err = sqrt(nbkg)  # 0.376*nbkg  # (Absolute) Statistical error on bkg estimate
         nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
         lumi_error = 0.039  # Relative luminosity uncertainty
-        configMgr.cutsDict["UserRegion"] = 1.
-        configMgr.weights = "1."
+
+        self.reset_config_mgr()
+        self.configMgr.cutsDict["UserRegion"] = 1.
+        self.configMgr.weights = "1."
         # Set uncorrelated systematics for bkg and signal (1 +- relative uncertainties)
-        # ucb = Systematic("ucb", configMgr.weights, 1.2, 0.8, "user", "userOverallSys")
-        # ucs = Systematic("ucs", configMgr.weights, 1.1, 0.9, "user", "userOverallSys")
+        # ucb = Systematic("ucb", self.configMgr.weights, 1.2, 0.8, "user", "userOverallSys")
+        # ucs = Systematic("ucs", self.configMgr.weights, 1.1, 0.9, "user", "userOverallSys")
 
         # correlated systematic between background and signal (1 +- relative uncertainties)
-        # corb = Systematic("cor", configMgr.weights, [1.1], [0.9], "user", "userHistoSys")
-        # cors = Systematic("cor", configMgr.weights, [1.15], [0.85], "user", "userHistoSys")
+        # corb = Systematic("cor", self.configMgr.weights, [1.1], [0.9], "user", "userHistoSys")
+        # cors = Systematic("cor", self.configMgr.weights, [1.15], [0.85], "user", "userHistoSys")
 
         # Setting the parameters of the hypothesis test
-        configMgr.doExclusion = False  # True=exclusion, False=discovery
-        configMgr.nTOYs=5000
-        configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
-        configMgr.testStatType = 3  # 3=one-sided profile likelihood test statistic (LHC default)
-        configMgr.nPoints = 20  # number of values scanned of signal-strength for upper-limit determination of signal strength.
+        self.configMgr.doExclusion = False  # True=exclusion, False=discovery
+        self.configMgr.nTOYs = 5000
+        self.configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
+        self.configMgr.testStatType = 3  # 3=one-sided profile likelihood test statistic (LHC default)
+        self.configMgr.nPoints = 500  # number of values scanned of signal-strength for upper-limit determination of signal strength.
 
-        configMgr.writeXML = True
+        self.configMgr.writeXML = True
 
         ##########################
 
         # Give the analysis a name
-        configMgr.analysisName = self.name
-        configMgr.outputFileName = os.path.join(self.output_dir, "results",
-                                                "{:s}_Output.root".format(configMgr.analysisName))
+        #self.configMgr.analysisName = self.name
+        # self.configMgr.outputFileName = os.path.join(self.output_dir, "results",
+        #                                              "{:s}_Output.root".format(self.configMgr.analysisName))
         # Define samples
         bkgSample = Sample(self.bkg_name, kGreen - 9)
         bkgSample.setStatConfig(True)
@@ -483,9 +516,9 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         # bkgSample.addSystematic(ucb)
 
         sigSample = Sample("Sig", kPink)
-        sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
+        sigSample.setNormFactor("mu_Sig", 1., 0., 10.)
         sigSample.setStatConfig(True)
-        sigSample.setNormByTheory()
+        # sigSample.setNormByTheory()
         sigSample.buildHisto([nsig], "UserRegion", "cuts", 0.5)
         sigSample.buildStatErrors([nsig_err], "UserRegion", "cuts")
 
@@ -494,7 +527,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         dataSample.buildHisto([ndata], "UserRegion", "cuts", 0.5)
 
         # Define top-level
-        ana = configMgr.addFitConfig("SPlusB")
+        ana = self.configMgr.addFitConfig("SPlusB")
         ana.addSamples([bkgSample, sigSample, dataSample])
         ana.setSignalSample(sigSample)
 
@@ -510,10 +543,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         # These lines are needed for the user analysis to run
         # Make sure file is re-made when executing HistFactory
-        if configMgr.executeHistFactory:
-            file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(configMgr.analysisName))
+        if self.configMgr.executeHistFactory:
+            file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
             if os.path.isfile(file_name):
                 os.remove(file_name)
+        # del self.configMgr
+
+    def get_upper_limit(self):
+        f = ROOT.TFile.Open(os.path.join(self.output_dir,
+                                         "results/{:s}_Output_upperlimit.root".format(self.configMgr.analysisName)), "READ")
+        result = f.Get("hypo_Sig")
+        return result.UpperLimit()
 
 
 class HistFitterShapeAnalysis(HistFitterWrapper):
@@ -524,11 +564,11 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         kwargs.setdefault("output_dir", kwargs["output_dir"])
         super(HistFitterShapeAnalysis, self).__init__(**kwargs)
         self.parse_configs()
-        configMgr.calculatorType = 2
-        configMgr.testStatType = 3
-        configMgr.nPoints = 20
-        FitType = configMgr.FitType
-        configMgr.writeXML = True
+        self.configMgr.calculatorType = 2
+        self.configMgr.testStatType = 3
+        self.configMgr.nPoints = 20
+        FitType = self.configMgr.FitType
+        self.configMgr.writeXML = True
         self.analysis_name = kwargs["name"]
         # ------------------------------------------------------------------------------------------------------
         # Possibility to blind the control, validation and signal regions.
@@ -536,24 +576,24 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         # the other two commands are only given for information here.
         # ------------------------------------------------------------------------------------------------------
 
-        configMgr.blindSR = False  # Blind the SRs (default is False)
-        configMgr.blindCR = False  # Blind the CRs (default is False)
-        configMgr.blindVR = False  # Blind the VRs (default is False)
-        # configMgr.useSignalInBlindedData = True
+        self.configMgr.blindSR = False  # Blind the SRs (default is False)
+        self.configMgr.blindCR = False  # Blind the CRs (default is False)
+        self.configMgr.blindVR = False  # Blind the VRs (default is False)
+        # self.configMgr.useSignalInBlindedData = True
         cur_dir = os.path.abspath(os.path.curdir)
 
         # First define HistFactory attributes
-        configMgr.analysisName = self.analysis_name
+        self.configMgr.analysisName = self.analysis_name
 
         # Scaling calculated by outputLumi / inputLumi
-        configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
-        configMgr.outputLumi = 4.713  # Luminosity required for output histograms
-        configMgr.setLumiUnits("fb-1")
+        self.configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
+        self.configMgr.outputLumi = 4.713  # Luminosity required for output histograms
+        self.configMgr.setLumiUnits("fb-1")
 
         for channel in self.limit_config.channels:
-            configMgr.cutsDict[channel.name] = channel.cuts
-        configMgr.cutsDict["SR"] = "(electron_pt > 65000.)"
-        configMgr.weights = ["weight"]
+            self.configMgr.cutsDict[channel.name] = channel.cuts
+        self.configMgr.cutsDict["SR"] = "(electron_pt > 65000.)"
+        self.configMgr.weights = ["weight"]
 
         self.build_samples()
 
@@ -564,7 +604,7 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
             # loop over all signal points
             # Fit config instance
-            exclusionFitConfig = configMgr.addFitConfig("Exclusion_LQ")
+            exclusionFitConfig = self.configMgr.addFitConfig("Exclusion_LQ")
             meas = exclusionFitConfig.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=0.039)
             meas.addPOI("mu_SIG")
 
@@ -593,21 +633,21 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
             exclusionFitConfig.addSignalChannels(regions)
         self.initialise()
-        self.FitType = configMgr.FitType
+        self.FitType = self.configMgr.FitType
         # First define HistFactory attributes
         # Scaling calculated by outputLumi / inputLumi
-        configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
-        configMgr.outputLumi = 4.713  # Luminosity required for output histograms
-        configMgr.setLumiUnits("fb-1")
-        configMgr.calculatorType = 2
-        #configMgr.histCacheFile = "data/" + configMgr.analysisName + ".root"
+        self.configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
+        self.configMgr.outputLumi = 4.713  # Luminosity required for output histograms
+        self.configMgr.setLumiUnits("fb-1")
+        self.configMgr.calculatorType = 2
+        #self.configMgr.histCacheFile = "data/" + self.configMgr.analysisName + ".root"
 
         useStat = True
         # Tuples of nominal weights without and with b-jet selection
-        configMgr.weights = ("weight")
+        self.configMgr.weights = ("weight")
 
         # name of nominal histogram for systematics
-        configMgr.nomName = "_NoSys"
+        self.configMgr.nomName = "_NoSys"
 
 
 
@@ -622,7 +662,7 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         #     #self.dataSample.buildHisto([1., 6., 16., 3., 0.], "SS", "lq_mass_max", 0.2, 0.1)
         #
         #     for sig in sigSamples:
-        #         #myTopLvl = configMgr.addFitConfigClone(bkt, "Sig_%s" % sig)
+        #         #myTopLvl = self.configMgr.addFitConfigClone(bkt, "Sig_%s" % sig)
         #         sigSample = Sample(sig, kPink)
         #         sigSample.setFileList([sig])
         #         sigSample.setNormByTheory()
