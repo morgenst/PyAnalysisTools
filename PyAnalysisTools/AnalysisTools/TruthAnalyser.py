@@ -619,13 +619,14 @@ class BcTruthAnalyser(object):
         ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
         ROOT.xAOD.Init().ignore()
 
-    def book_histograms(self):
+    def book_histograms(self, process_id):
         def book_histogram(name, n_bins, x_min, x_max):
-            for process_id in self.processes.keys():
-                if process_id not in self.histograms:
-                    self.histograms[process_id] = dict()
-                self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
-                                                              x_max)
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
+                                                          x_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
 
         book_histogram("leading_lepton_e", 50, 0., 50.)
         book_histogram("subleading_lepton_e", 50, 0., 50.)
@@ -651,6 +652,12 @@ class BcTruthAnalyser(object):
         book_histogram("jpsi_lepton2_eta", 50, -3.2, 3.2)
         book_histogram("jpsi_lepton2_phi", 50, -3.2, 3.2)
         book_histogram("jpsi_lepton2_pdgId", 41, -20.5, 20.5)
+        book_histogram("jpsi_muon_deta", 50, 0., 2.5)
+        book_histogram("jpsi_muon_dphi", 50, 0., 3.2)
+        book_histogram("jpsi_muon_dR", 50, 0., 0.8)
+        book_histogram("jpsi_tau_deta", 50, 0., 2.5)
+        book_histogram("jpsi_tau_dphi", 50, 0., 3.2)
+        book_histogram("jpsi_tau_dR", 50, 0., 0.8)
         book_histogram("jpsi_mass", 50, 0., 5.)
         book_histogram("B_mass_visible", 25, 2., 7.)
         book_histogram("B_mass", 50, 0., 10.)
@@ -699,6 +706,12 @@ class BcTruthAnalyser(object):
         book_plot_config("jpsi_lepton2_eta", "2^{nd} muon from J/#Psi decay #eta")
         book_plot_config("jpsi_lepton2_phi", "2^{nd} muon from J/#Psi decay #phi")
         book_plot_config("jpsi_lepton2_pdgId", "2^{nd} muon from J/#Psi decay PDG ID")
+        book_plot_config("jpsi_muon_deta", "#Delta#eta(J/#Psi, e/#mu)")
+        book_plot_config("jpsi_muon_dphi", "#Delta#phi(J/#Psi, e/#mu)")
+        book_plot_config("jpsi_muon_dR", "#DeltaR(J/#Psi, e/#mu)")
+        book_plot_config("jpsi_tau_deta", "#Delta#eta(J/#Psi, #tau)")
+        book_plot_config("jpsi_tau_dphi", "#Delta#phi(J/#Psi, #tau)")
+        book_plot_config("jpsi_tau_dR", "#DeltaR(J/#Psi, #tau)")
         book_plot_config("jpsi_mass", "M_{J/#Psi} [GeV]")
         book_plot_config("B_mass_visible", "visible M_{B} [GeV]")
         book_plot_config("B_mass", "M_{B} [GeV]")
@@ -811,12 +824,22 @@ class BcTruthAnalyser(object):
             self.histograms[process_id]["neutrino_eta"].Fill(resonance_neutrino.eta())
             self.histograms[process_id]["neutrino_phi"].Fill(resonance_neutrino.phi())
 
+            jpsi_tlv = ROOT.TLorentzVector()
+            jpsi_tlv.SetPxPyPzE(jpsi.px(), jpsi.py(), jpsi.pz(), jpsi.e() / 1000.)
+
             if abs(lepton.pdgId()) == 15:
                 third_muon = filter(lambda particle: abs(particle.pdgId()) == 13 or abs(particle.pdgId()) == 11,
                                     lepton.decayVtxLink().outgoingParticleLinks())[0]
                 self.histograms[process_id]["third_lepton_e"].Fill(third_muon.e() / 1000.)
                 self.histograms[process_id]["third_lepton_eta"].Fill(third_muon.eta())
                 self.histograms[process_id]["third_lepton_phi"].Fill(third_muon.phi())
+
+                thrird_tlv = ROOT.TLorentzVector()
+                thrird_tlv.SetPxPyPzE(third_muon.px(), third_muon.py(), third_muon.pz(), third_muon.e() / 1000.)
+
+                self.histograms[process_id]["jpsi_muon_deta"].Fill(abs(jpsi_tlv.Eta() - thrird_tlv.Eta()))
+                self.histograms[process_id]["jpsi_muon_dphi"].Fill(jpsi_tlv.DeltaPhi(thrird_tlv))
+                self.histograms[process_id]["jpsi_muon_dR"].Fill(jpsi_tlv.DeltaR(thrird_tlv))
 
                 tau_prod_vertex_link = lepton.prodVtxLink()
                 tau_decay_vertex_link = lepton.decayVtxLink()
@@ -826,7 +849,20 @@ class BcTruthAnalyser(object):
                 tau_decay_vertex = ROOT.TVector3(tau_decay_vertex_link.x(),
                                                  tau_decay_vertex_link.y(),
                                                  tau_decay_vertex_link.z())
+                tau_tlv = ROOT.TLorentzVector()
+                tau_tlv.SetPxPyPzE(lepton.px(), lepton.py(), lepton.pz(), lepton.e() / 1000.)
                 self.histograms[process_id]["tau_decay_length"].Fill((tau_decay_vertex - tau_prod_vertex).Mag())
+                self.histograms[process_id]["jpsi_tau_deta"].Fill(abs(jpsi_tlv.Eta() - tau_tlv.Eta()))
+                self.histograms[process_id]["jpsi_tau_dphi"].Fill(jpsi_tlv.DeltaPhi(tau_tlv))
+                self.histograms[process_id]["jpsi_tau_dR"].Fill(jpsi_tlv.DeltaR(tau_tlv))
+            else:
+                third_muon = lepton
+                thrird_tlv = ROOT.TLorentzVector()
+                thrird_tlv.SetPxPyPzE(lepton.px(), lepton.py(), lepton.pz(), lepton.e() / 1000.)
+                self.histograms[process_id]["jpsi_muon_deta"].Fill(abs(jpsi_tlv.Eta() - thrird_tlv.Eta()))
+                self.histograms[process_id]["jpsi_muon_dphi"].Fill(jpsi_tlv.DeltaPhi(thrird_tlv))
+                self.histograms[process_id]["jpsi_muon_dR"].Fill(jpsi_tlv.DeltaR(thrird_tlv))
+
             jpsi_decay_vtx = jpsi.decayVtxLink().outgoingParticleLinks()
 
             jpsi_muon1 = filter(lambda particle: abs(particle.pdgId()) == 13, jpsi_decay_vtx)[0]
@@ -855,8 +891,10 @@ class BcTruthAnalyser(object):
             lepton_tlv = ROOT.TLorentzVector()
             lepton_tlv.SetPxPyPzE(lepton.px(), lepton.py(), lepton.pz(), lepton.e())
             resonance_neutrino_tlv = ROOT.TLorentzVector()
-            resonance_neutrino_tlv.SetPxPyPzE(resonance_neutrino.px(), resonance_neutrino.py(), resonance_neutrino.pz(), resonance_neutrino.e())
+            resonance_neutrino_tlv.SetPxPyPzE(resonance_neutrino.px(), resonance_neutrino.py(),
+                                              resonance_neutrino.pz(), resonance_neutrino.e())
             self.histograms[process_id]["jpsi_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv).M() / 1000.)
             self.histograms[process_id]["B_mass_visible"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv).M() / 1000.)
             self.histograms[process_id]["B_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv + resonance_neutrino_tlv).M() / 1000.)
+
         print "N processed entries: ", n_entries, " and hist entries: ", self.histograms[process_id]["B_mass"].GetEntries()
