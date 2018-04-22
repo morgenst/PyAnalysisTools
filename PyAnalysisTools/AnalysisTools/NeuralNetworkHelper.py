@@ -121,7 +121,6 @@ class NNTrainer(object):
         train_std_0 = self.data_train[self.label_train == 0].std()
         train_std_1 = self.data_train[self.label_train == 1].std()
         self.data_train[self.label_train == 0] = (self.data_train[self.label_train == 0] - train_mean_0) / train_std_0
-        print (self.data_train[self.label_train == 0] - train_mean_0) / train_std_0
         self.data_train[self.label_train == 1] = (self.data_train[self.label_train == 1] - train_mean_1) / train_std_1
         eval_mean_0 = self.data_eval[self.label_eval == 0].mean()
         eval_mean_1 = self.data_eval[self.label_eval == 1].mean()
@@ -206,11 +205,6 @@ class NNTrainer(object):
             if "/" in variable_name:
                 variable_name = "_".join(variable_name.split("/")).replace(" ","")
             var_range = np.percentile(data, [2.5, 97.5])
-
-            print "######## {:s} ##########".format(variable_name)
-            print var_range
-            print signal.values
-
             plt.hist(map(float, signal.values), 100, range=var_range, histtype='step', label='signal', normed=True)
             plt.hist(map(float, background.values), 100, range=var_range, histtype='step', label='background', normed=True)
             if data.ptp() > 1000.:

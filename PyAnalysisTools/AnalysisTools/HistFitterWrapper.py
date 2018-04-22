@@ -497,7 +497,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.configMgr.nTOYs = 5000
         self.configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
         self.configMgr.testStatType = 3  # 3=one-sided profile likelihood test statistic (LHC default)
-        self.configMgr.nPoints = 500  # number of values scanned of signal-strength for upper-limit determination of signal strength.
+        self.configMgr.nPoints = 50  # number of values scanned of signal-strength for upper-limit determination of signal strength.
 
         self.configMgr.writeXML = True
 
