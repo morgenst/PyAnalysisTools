@@ -7,6 +7,7 @@ from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config
 
 
 def retrieve_new_canvas(name, title, size_x=800, size_y=600):
@@ -191,6 +192,8 @@ def add_signal_to_canvas(signal, canvas, plot_config, process_configs):
 
 
 def plot_histograms(hists, plot_config, process_configs=None):
+    if plot_config is None:
+        plot_config = get_default_plot_config(hists[0])
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     is_first = True
@@ -224,8 +227,10 @@ def plot_histograms(hists, plot_config, process_configs=None):
                 canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.ymin)
             FM.set_maximum_y(hist, max_y)
-            if plot_config.xmin:
+            if plot_config.xmin and not plot_config.xmax:
                 FM.set_minimum(hist, plot_config.xmin, "x")
+            elif plot_config.xmin and plot_config.xmax:
+                FM.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
             if plot_config.logy:
                 if hasattr(plot_config, "ymin"):
                     hist.SetMinimum(max(1., plot_config.ymin))
@@ -241,6 +246,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
         is_first = False
     if hasattr(plot_config, "normalise") and plot_config.normalise is True:
         hist_defs[0][1].SetMaximum(plot_config.ymax)
+    canvas.Update()
     return canvas
 
 
@@ -356,10 +362,13 @@ def plot_stack(hists, plot_config, **kwargs):
     stack.Draw()
     canvas.Update()
     format_hist(stack, plot_config)
-    max_y = 1.1 * stack.GetMaximum()
+    y_scale_offset = 1.1
+    if plot_config.logy:
+        y_scale_offset = 100.
+    max_y = y_scale_offset * stack.GetMaximum()
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
-        max_y = max(max_y, 1.1 * data[1].GetMaximum())
+        max_y = max(max_y, y_scale_offset * data[1].GetMaximum())
         if plot_config.rebin:
             max_y = max(max_y, 1.3 * get_objects_from_canvas_by_name(canvas, data[1].GetName())[0].GetMaximum())
     if plot_config.ymax:
