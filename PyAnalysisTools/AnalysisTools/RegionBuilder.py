@@ -29,6 +29,7 @@ class Region(object):
         kwargs.setdefault("good_electron", None)
         kwargs.setdefault("inverted_electron", None)
         kwargs.setdefault("event_cuts", None)
+        kwargs.setdefault("weight", None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         if self.label is None:
@@ -228,6 +229,12 @@ class RegionBuilder(object):
                     region_pc.cuts = [region.convert2cut_string()]
                 else:
                     region_pc.cuts.append(region.convert2cut_string())
+                if region.weight:
+                    if region_pc.weight is not None and not region_pc.weight.lower() == "none":
+                        region_pc.weight += " * {:s}".format(region.weight)
+                    else:
+                        region_pc.weight = region.weight
+
                 region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
                 region_pc.decor_text = region.label
                 region_pc.region = region
