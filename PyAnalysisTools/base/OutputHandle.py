@@ -148,3 +148,4 @@ class OutputFileHandle(SysOutputHandle):
             self.objects[(tdir, obj.GetName())] = obj.CloneTree()
         else:
             self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")
+            ROOT.SetOwnership(self.objects[(tdir, obj.GetName())], False)

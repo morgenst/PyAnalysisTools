@@ -56,6 +56,7 @@ class RatioCalculator(object):
 
 class RatioPlotter(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("plot_config", None)
         if not "reference" in kwargs:
             _logger.error("Missing reference")
             raise InvalidInputError("Missing reference")
@@ -64,8 +65,9 @@ class RatioPlotter(object):
         self.compare = kwargs["compare"]
         if not isinstance(self.compare, list):
             self.compare = [self.compare]
-        if not self.plot_config.name.startswith("ratio"):
-            self.plot_config.name = "ratio_" + self.plot_config.name
+        if self.plot_config is not None:
+            if not self.plot_config.name.startswith("ratio"):
+                self.plot_config.name = "ratio_" + self.plot_config.name
         self.ratio_calculator = RatioCalculator(**kwargs)
 
     def make_ratio_plot(self):
@@ -76,11 +78,12 @@ class RatioPlotter(object):
             return self.make_ratio_tefficiency(ratios)
 
     def make_ratio_histogram(self, ratios):
-        self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
-        if len(self.compare) > 1:
-            colors = get_colors(self.compare)
-            self.plot_config.color = colors
-        self.plot_config.ordering = None
+        if self.plot_config:
+            self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+            if len(self.compare) > 1:
+                colors = get_colors(self.compare)
+                self.plot_config.color = colors
+            self.plot_config.ordering = None
         canvas = pt.plot_histograms(ratios, self.plot_config)
         return canvas
 

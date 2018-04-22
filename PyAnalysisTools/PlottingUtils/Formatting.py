@@ -215,6 +215,13 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
+def set_range_x(graph_obj, minimum, maximum):
+    if isinstance(graph_obj, ROOT.TEfficiency):
+        graph_obj.GetPaintedGraph().GetXaxis().SetRangeUser(minimum, maximum)
+    else:
+        graph_obj.GetXaxis().SetRangeUser(minimum, maximum)
+
+
 def get_min_y(graph_obj):
     if isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.THStack):
         return graph_obj.GetMinimum()
@@ -238,7 +245,12 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
     if maximum is None:
         set_minimum(graph_obj, minimum, axis)
         return
-    set_range_y(graph_obj, minimum, maximum)
+    if axis == "y":
+        set_range_y(graph_obj, minimum, maximum)
+    elif axis == "x":
+        set_range_x(graph_obj, minimum, maximum)
+    else:
+        _logger.error("Invalid axis choice: {:s}".format(axis))
 
 
 def auto_scale_y_axis(canvas, offset=1.1):
@@ -261,6 +273,9 @@ def add_legend_to_canvas(canvas, **kwargs):
 
     def convert_draw_option(process_config=None, plot_config=None):
         draw_option = plot_obj.GetDrawOption()
+        if (draw_option is None or draw_option == "") and isinstance(plot_obj, ROOT.TF1):
+            draw_option = ROOT.gROOT.GetFunction(plot_obj.GetName()).GetDrawOption()
+
         if is_stacked:
             draw_option = "Hist"
         legend_option = ""
@@ -284,7 +299,8 @@ def add_legend_to_canvas(canvas, **kwargs):
         if re.match(r"e\d", draw_option.lower()):
             legend_option += "F"
         if not legend_option:
-            _logger.error("Unable to parse legend option from {:s}".format(draw_option))
+            _logger.error("Unable to parse legend option from {:s} for object {:s}".format(draw_option,
+                                                                                           plot_obj.GetName()))
         return legend_option
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
@@ -298,6 +314,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
         plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
         stacks = get_objects_from_canvas_by_type(canvas, "THStack")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
     else:
