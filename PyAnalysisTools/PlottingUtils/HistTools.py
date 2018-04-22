@@ -128,7 +128,7 @@ def normalise(histograms, integration_range=None):
         histograms = normalise_hist(histograms, integration_range)
 
 
-def normalise_hist(hist, integration_range):
+def normalise_hist(hist, integration_range=[-1, -1]):
     if isinstance(hist, ROOT.TH2):
         return _normalise_2d_hist(hist, integration_range)
     if isinstance(hist, ROOT.TH1):

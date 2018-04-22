@@ -43,15 +43,10 @@ class SystematicsAnalyser(BasePlotter):
         self.parse_systematics(self.file_handles[0])
         for systematic in self.systematics:
             self.histograms = {}
-            fetched_histograms = mp.ThreadPool(min(self.ncpu,
-                                                   len(self.plot_configs))).map(partial(self.read_histograms,
-                                                                                        file_handles=self.file_handles,
-                                                                                        systematic=systematic),
-                                                                                self.plot_configs)
-
-            for plot_config, histograms in fetched_histograms:
-                histograms = filter(lambda hist: hist is not None, histograms)
-                self.categorise_histograms(plot_config, histograms)
+            fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs,
+                                                      systematic=systematic)
+            fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+            self.categorise_histograms(fetched_histograms)
             self.apply_lumi_weights(self.histograms)
 
             if self.process_configs is not None:
@@ -125,7 +120,6 @@ class SystematicsAnalyser(BasePlotter):
 
         def find_plot_config():
             return filter(lambda pc: pc.name == plot_config.name, self.systematic_hists[systematic].keys())[0]
-
         systematic_plot_config = find_plot_config()
         systematic_hist = self.systematic_hists[systematic][systematic_plot_config][process]
         return calculate_diff(nominal, systematic_hist)

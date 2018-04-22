@@ -219,6 +219,8 @@ class Plotter(BasePlotter):
         self.read_cutflows()
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
+            if self.systematics_analyser is not None:
+                self.systematics_analyser.plot_configs = self.plot_configs
         if len(self.modules_hist_fetching) == 0:
             fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
         else:
@@ -312,7 +314,7 @@ class Plotter(BasePlotter):
                         ratio_plot_config.name = "ratio_" + plot_config.name
                         ratio_plot_config.ytitle = "ratio"
                     ratio_plot_config.name = "ratio_" + plot_config.name
-                    ratio_plotter = RP.RatioPlotter(reference=data["Data"], compare=mc_total,
+                    ratio_plotter = RP.RatioPlotter(reference=mc_total, compare=data["Data"],
                                                     plot_config=ratio_plot_config)
                     canvas_ratio = ratio_plotter.make_ratio_plot()
                     if self.stat_unc_hist:

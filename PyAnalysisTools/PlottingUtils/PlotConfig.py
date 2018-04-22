@@ -126,6 +126,9 @@ class PlotConfig(object):
                     _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
 
 
+def get_default_plot_config(hist):
+    return PlotConfig(name=hist.GetName())
+
 
 class ProcessConfig(object):
     def __init__(self, **kwargs):
