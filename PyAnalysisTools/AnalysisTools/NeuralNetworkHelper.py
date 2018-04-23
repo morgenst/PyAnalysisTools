@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from array import array
+import ROOT
 from MLHelper import Root2NumpyConverter, TrainingReader
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs
@@ -225,25 +226,58 @@ class NNTrainer(object):
 
 class NNReader(object):
     def __init__(self, **kwargs):
-        self.file_handles = [FileHandle(file_name=fn, open_option="UPDATE", run_dir=kwargs["run_dir"])
+        self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"])
                              for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.model_train = load_model(os.path.join(os.path.abspath(kwargs["model_path"]), "model_train.h5"))
         self.model_eval = load_model(os.path.join(os.path.abspath(kwargs["model_path"]), "model_eval.h5"))
         self.converter = Root2NumpyConverter(kwargs["branches"])
         self.branch_name = kwargs["branch_name"]
+        self.friend_file_pattern = kwargs["friend_file_pattern"]
+        self.friend_name = kwargs["friend_name"]
+        self.output_path = kwargs["output_path"]
+
+    def build_friend_tree(self, file_handle):
+        friend_file_name = file_handle.file_name.replace("hist",
+                                                         self.friend_file_pattern).replace("ntuple",
+                                                                                           self.friend_file_pattern)
+        friend_file_name = os.path.join(self.output_path, friend_file_name.split("/")[-1])
+        if not os.path.exists(friend_file_name):
+            file_handle_friend = FileHandle(file_name=friend_file_name, open_option="RECREATE")
+
+        else:
+            file_handle_friend = FileHandle(file_name=friend_file_name, open_option="UPDATE")
+        try:
+            friend_tree = file_handle_friend.get_object_by_name(self.friend_name, "Nominal")
+        except ValueError:
+            friend_tree = ROOT.TTree(self.friend_name, "")
+        return file_handle_friend, friend_tree
+
+    def get_friend_tree(self, file_handle):
+        friend_fh, friend_tree = self.build_friend_tree(file_handle)
+        return friend_fh, friend_tree
 
     def run(self):
         for file_handle in self.file_handles:
             self.attach_NN_output(file_handle)
 
+    def apply_scaling(self, data):
+            mean = data.mean()
+            std = data.std()
+            data = (data - mean) / std
+            return data
+
     def attach_NN_output(self, file_handle):
         tree = file_handle.get_object_by_name(self.tree_name, "Nominal")
+        file_handle_friend, friend_tree = self.get_friend_tree(file_handle)
+
         data = self.converter.convert_to_array(tree)
-        prediction0 = self.model_train.predict(data)
-        prediction1 = self.model_eval.predict(data)
+        data = pd.DataFrame(data)
+        data = self.apply_scaling(data)
+        prediction0 = self.model_train.predict(data.values)
+        prediction1 = self.model_eval.predict(data.values)
         bdt = array('f', [0.])
-        branch = tree.Branch(self.branch_name, bdt, "{:s}/F".format(self.branch_name))
+        branch = friend_tree.Branch(self.branch_name, bdt, "{:s}/F".format(self.branch_name))
         total_entries = tree.GetEntries()
         multiple_triplets = 0
         for entry in range(total_entries):
@@ -257,7 +291,13 @@ class NNReader(object):
             else:
                 bdt[0] = -1
                 multiple_triplets += 1
+            friend_tree.Fill()
             branch.Fill()
-        tdir = file_handle.get_directory("Nominal")
+        try:
+            file_handle_friend.get_object_by_name("Nominal")
+        except:
+            file_handle_friend.tfile.mkdir("Nominal")
+        tdir = file_handle_friend.get_directory("Nominal")
         tdir.cd()
-        tree.Write()
+        friend_tree.Write()
+        file_handle_friend.close()
