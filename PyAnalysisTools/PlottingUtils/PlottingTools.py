@@ -11,7 +11,9 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config
 
 
 def retrieve_new_canvas(name, title, size_x=800, size_y=600):
-    return ROOT.TCanvas(name, title, size_x, size_y)
+    canvas = ROOT.TCanvas(name, title, size_x, size_y)
+    ROOT.SetOwnership(canvas, False)
+    return canvas
 
 
 def plot_obj(hist, plot_config, **kwargs):
@@ -50,15 +52,16 @@ def plot_objects(objects, plot_config, process_configs=None):
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
 
-def add_object_to_canvas(canvas, obj, plot_config, process_config=None):
+def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=None):
     if isinstance(obj, ROOT.TH1):
-        add_histogram_to_canvas(canvas, obj, plot_config, process_config)
+        add_histogram_to_canvas(canvas, obj, plot_config, process_config, index)
     if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
         add_graph_to_canvas(canvas, obj, plot_config)
 
 
 def plot_hist(hist, plot_config, **kwargs):
     kwargs.setdefault("y_max", 1.1 * hist.GetMaximum())
+    kwargs.setdefault("index", None)
     ymax = kwargs["y_max"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
@@ -68,7 +71,7 @@ def plot_hist(hist, plot_config, **kwargs):
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
     hist.SetMarkerSize(0.7)
-    FM.apply_style(hist, plot_config, process_config)
+    FM.apply_style(hist, plot_config, process_config, kwargs["index"])
     if ymax:
         _logger.info("Deprecated. Use plot_config.ymax")
         FM.set_maximum_y(hist, ymax)
@@ -269,6 +272,20 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
 
 
 def apply_style(obj, style_setter, style_attr, color):
+    """
+    Apply defined styles to plottable object
+
+    :param obj: plot object to be styled
+    :type obj: TGraph, TH1, ...
+    :param style_setter: attribute to be set, e.g. Fill, Marker, Line
+    :type style_setter: str
+    :param style_attr: attribute value
+    :type style_attr: str
+    :param color: color for attribute
+    :type color: int
+    :return: None
+    :rtype: None
+    """
     if style_attr is not None:
         for ss in style_setter:
             getattr(obj, "Set" + ss + "Style")(style_attr)
@@ -277,11 +294,11 @@ def apply_style(obj, style_setter, style_attr, color):
             getattr(obj, "Set" + ss + "Color")(color)
 
 
-def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None):
+def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None, index=None):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     hist = format_obj(hist, plot_config)
-    apply_style(hist, *get_style_setters_and_values(plot_config, process_config))
+    apply_style(hist, *get_style_setters_and_values(plot_config, process_config, index))
     if "same" not in draw_option:
         draw_option += "sames"
     hist.Draw(draw_option)
@@ -289,12 +306,23 @@ def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None):
 
 
 def plot_graph(graph, plot_config=None, **kwargs):
+    """
+    Plot a TGraph object
+
+    :param graph: object to be plotted
+    :type graph: TGraph
+    :param plot_config: plot configuration defining style
+    :type plot_config: PlotConfig
+    :param kwargs: additional arguments like canvas name and title
+    :type kwargs:
+    :return: canvas containing plotted and formatted TGraph
+    :rtype: TCanvas
+    """
     kwargs.setdefault("canvas_name", graph.GetName())
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
     draw_option = "a" + get_draw_option_as_root_str(plot_config)
-    #draw_option = "ap"
     graph.Draw(draw_option)
     if not "same" in draw_option:
         draw_option += "same"

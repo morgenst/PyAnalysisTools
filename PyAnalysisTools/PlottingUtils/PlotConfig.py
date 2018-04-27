@@ -235,6 +235,8 @@ def _parse_draw_option(plot_config, process_config):
 
 
 def get_draw_option_as_root_str(plot_config, process_config=None):
+    if hasattr(plot_config, "draw_option"):
+        return plot_config.draw_option
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
         draw_option = "p"
@@ -286,6 +288,8 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_setter = "Marker"
     elif draw_option.lower() == "line":
         style_setter = "Line"
+    if hasattr(plot_config, "style_setter"):
+        style_setter = plot_config.style_setter
     # else:
     #     style_attr = None
     if not isinstance(style_setter, list):

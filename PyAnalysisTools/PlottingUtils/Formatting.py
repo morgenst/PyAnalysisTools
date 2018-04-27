@@ -272,6 +272,12 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("columns", None)
 
     def convert_draw_option(process_config=None, plot_config=None):
+        def parse_option_from_format():
+            if kwargs["format"] == "line":
+                return "L"
+            elif kwargs["format"] == "marker":
+                return "P"
+
         draw_option = plot_obj.GetDrawOption()
         if (draw_option is None or draw_option == "") and isinstance(plot_obj, ROOT.TF1):
             draw_option = ROOT.gROOT.GetFunction(plot_obj.GetName()).GetDrawOption()
@@ -288,8 +294,8 @@ def add_legend_to_canvas(canvas, **kwargs):
                     legend_option += "L"
                 elif plot_config is not None and plot_config.format.lower() == "line":
                     legend_option += "L"
-                elif kwargs["format"] == "line":
-                    legend_option += "L"
+                elif kwargs["format"]:
+                    legend_option += parse_option_from_format()
             else:
                 legend_option += "F"
         if "l" in draw_option:
@@ -298,6 +304,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             legend_option += "P"
         if re.match(r"e\d", draw_option.lower()):
             legend_option += "F"
+        if not legend_option and kwargs["format"]:
+            legend_option = parse_option_from_format()
         if not legend_option:
             _logger.error("Unable to parse legend option from {:s} for object {:s}".format(draw_option,
                                                                                            plot_obj.GetName()))
@@ -315,6 +323,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
+        #plot_objects += get_objects_from_canvas_by_type(canvas, "TProfile")
         stacks = get_objects_from_canvas_by_type(canvas, "THStack")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
     else:
