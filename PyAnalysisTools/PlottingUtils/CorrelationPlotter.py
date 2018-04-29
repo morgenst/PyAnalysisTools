@@ -185,7 +185,7 @@ class CorrelationPlotter(object):
 
                 pc.draw = "Marker"
                 pc.color = [ROOT.kBlack, ROOT.kRed]
-                hist_base_name = "_".join(pc.name.split("_")[:-2])
+                hist_base_name = pc.name #"_".join(pc.name.split("_")[:-2])
                 if hist_base_name not in profile_plots:
                     canvas = pt.plot_hist(hist, pc, index=0)
                     p = get_objects_from_canvas_by_type(canvas, "TProfile")[0]
