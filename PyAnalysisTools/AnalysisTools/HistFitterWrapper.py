@@ -553,7 +553,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         f = ROOT.TFile.Open(os.path.join(self.output_dir,
                                          "results/{:s}_Output_upperlimit.root".format(self.configMgr.analysisName)), "READ")
         result = f.Get("hypo_Sig")
-        return result.UpperLimit()
+        return result.GetExpectedUpperLimit(), result.GetExpectedUpperLimit(1), result.GetExpectedUpperLimit(-1)
 
 
 class HistFitterShapeAnalysis(HistFitterWrapper):
