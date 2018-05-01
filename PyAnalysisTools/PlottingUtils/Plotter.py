@@ -59,7 +59,7 @@ class Plotter(BasePlotter):
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
         self.expand_process_configs()
-        self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
+        # self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
 
     def expand_process_configs(self):
         if self.process_configs is not None:
@@ -195,6 +195,8 @@ class Plotter(BasePlotter):
         self.read_cutflows()
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
+        print self.plot_configs
+        print self.file_handles
         if len(self.modules_hist_fetching) == 0:
             fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
                                                                                                    file_handles=self.file_handles),
@@ -221,7 +223,8 @@ class Plotter(BasePlotter):
             data = {k: v for k, v in data.iteritems() if v}
             if plot_config.normalise:
                 HT.normalise(data, integration_range=[0, -1])
-            HT.merge_overflow_bins(data)
+            if not ":" in plot_config.dist:
+                HT.merge_overflow_bins(data)
             signals = self.get_signal_hists(data)
             if plot_config.signal_scale is not None:
                 self.scale_signals(signals, plot_config)

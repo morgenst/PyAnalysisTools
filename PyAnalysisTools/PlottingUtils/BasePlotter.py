@@ -27,6 +27,7 @@ class BasePlotter(object):
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
                              for input_file in self.input_files]
+        print self.file_handles[0].process
 
     def parse_process_config(self):
         if self.process_config_file is None:

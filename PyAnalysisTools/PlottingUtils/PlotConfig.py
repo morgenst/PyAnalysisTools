@@ -1,4 +1,5 @@
 import ROOT
+import math
 import re
 from array import array
 from copy import copy
@@ -44,6 +45,8 @@ class PlotConfig(object):
             if k == "significance_config":
                 self.set_additional_config("significance_config", **v)
                 continue
+            if "xmin" in k or "xmax" in k:
+                v = eval(str(v))
             setattr(self, k.lower(), v)
         self.auto_decorate()
 
@@ -56,7 +59,8 @@ class PlotConfig(object):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
-        kwargs.setdefault("enable_legend", False)
+        kwargs.setdefault("enable_legend", True)
+        # kwargs.setdefault("enable_legend", False)
         setattr(self, attr_name, PlotConfig(**kwargs))
 
     def __str__(self):
@@ -111,14 +115,25 @@ class ProcessConfig(object):
 
 
 def expand_plot_config(plot_config):
-    if not isinstance(plot_config.dist, list):
-        _logger.debug("tried to expand plot config with single distribution")
-        return [plot_config]
+    # if not isinstance(plot_config.dist, list):
+    #     _logger.debug("tried to expand plot config with single distribution")
+    #     return [plot_config]
     plot_configs = []
-    for dist in plot_config.dist:
-        tmp_config = copy(plot_config)
-        tmp_config.dist = dist
-        plot_configs.append(tmp_config)
+    if hasattr(plot_config, "cuts_ref"):
+        print "values ", plot_config.cuts_ref.values()
+        #for cuts in plot_config.cuts_ref.values():
+        for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
+            if item not in plot_config.cuts_ref:
+                continue
+            cuts = plot_config.cuts_ref[item]
+            tmp_config = copy(plot_config)
+            tmp_config.cuts = cuts
+            plot_configs.append(tmp_config)
+    else:
+        for dist in plot_config.dist:
+            tmp_config = copy(plot_config)
+            tmp_config.dist = dist
+            plot_configs.append(tmp_config)
     return plot_configs
 
 
@@ -246,6 +261,7 @@ def get_histogram_definition(plot_config):
     if dimension == 0:
         hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
     elif dimension == 1:
+        print plot_config
         if isinstance(plot_config.xbins, list):
             hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) -1, array("d", plot_config.xbins),
                              plot_config.ybins, plot_config.ymin, plot_config.ymax)

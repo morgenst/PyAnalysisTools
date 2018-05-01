@@ -10,10 +10,12 @@ class RatioCalculator(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("rebin", None)
         self.reference = kwargs["reference"]
+        print self.reference
         self.compare = kwargs["compare"]
         self.rebin = kwargs["rebin"]
 
     def calculate_ratio(self):
+        print self.reference
         if isinstance(self.reference, ROOT.TEfficiency):
             calc_func = "calculate_ratio_tefficiency"
         elif isinstance(self.reference, ROOT.TH1):
@@ -81,7 +83,10 @@ class RatioPlotter(object):
             colors = get_colors(self.compare)
             self.plot_config.color = colors
         self.plot_config.ordering = None
-        canvas = pt.plot_histograms(ratios, self.plot_config)
+        self.plot_config.logy = False
+        self.plot_config.ymin = 0.
+        self.plot_config.ymax = 2.
+        canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
         return canvas
 
     def add_uncertainty_to_canvas(self, canvas, hist, plot_config):

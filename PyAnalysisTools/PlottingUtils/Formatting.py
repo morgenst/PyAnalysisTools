@@ -27,15 +27,15 @@ def apply_style(obj, plot_config, process_config):
 
 def decorate_canvas(canvas, plot_config):
     if hasattr(plot_config, "watermark"):
-        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
-    if hasattr(plot_config, "lumi"):
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.6, "y": 0.9})
-    if hasattr(plot_config, "grid") or hasattr(plot_config, "grid"):
+        add_atlas_label(canvas, plot_config.watermark, {"x": 0.16, "y": 0.96}, size=0.04, offset=0.1)
+    if hasattr(plot_config, "lumi") and plot_config.lumi>0.:
+        add_lumi_text(canvas, plot_config.lumi, {"x": 0.55, "y": 0.96})
+    if hasattr(plot_config, "grid") and plot_config.grid:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
 
-
+        
 def set_title_x(obj, title):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -43,7 +43,6 @@ def set_title_x(obj, title):
         obj.GetXaxis().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
-
 
 def set_title_y(obj, title):
     if not hasattr(obj, "GetYaxis"):
@@ -53,6 +52,61 @@ def set_title_y(obj, title):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+def set_title_z(obj, title):
+    if not hasattr(obj, "GetZaxis"):
+        raise TypeError
+    try:
+        obj.GetZaxis().SetTitle(title)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_x_offset(obj, offset):
+    if not hasattr(obj, "GetXaxis"):
+        raise TypeError
+    try:
+        obj.GetXaxis().SetTitleOffset(offset)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_y_offset(obj, offset):
+    if not hasattr(obj, "GetYaxis"):
+        raise TypeError
+    try:
+        obj.GetYaxis().SetTitleOffset(offset)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_z_offset(obj, offset):
+    if not hasattr(obj, "GetZaxis"):
+        raise TypeError
+    try:
+        obj.GetZaxis().SetTitleOffset(offset)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+        
+def set_title_x_size(obj, size):
+    if not hasattr(obj, "GetXaxis"):
+        raise TypeError
+    try:
+        obj.GetXaxis().SetTitleSize(size)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_y_size(obj, size):
+    if not hasattr(obj, "GetYaxis"):
+        raise TypeError
+    try:
+        obj.GetYaxis().SetTitleSize(size)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_z_size(obj, size):
+    if not hasattr(obj, "GetZaxis"):
+        raise TypeError
+    try:
+        obj.GetZaxis().SetTitleSize(size)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
 
 def set_style_options(obj, style):
     allowed_attributes = ["marker", "line"]
@@ -84,7 +138,7 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False):
     canvas.cd()
     text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
     text_energy = '#sqrt{s} = 13 TeV'
@@ -271,6 +325,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend.SetTextSize(0.025)
     labels = None
     stacks = []
+    print kwargs
     if "labels" in kwargs:
         labels = kwargs["labels"]
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
@@ -311,5 +366,18 @@ def add_legend_to_canvas(canvas, **kwargs):
             continue
         legend.AddEntry(plot_obj, label, convert_draw_option())
     canvas.cd()
+    if "fill_style" in kwargs:
+        print "yes, got fill style"
+        legend.SetFillStyle(kwargs["fill_style"])
+    legend.SetBorderSize(0)
     legend.Draw("sames")
     canvas.Update()
+
+def format_canvas(canvas, **kwargs):
+    if "margin" in kwargs:
+        for side, margin in kwargs["margin"].iteritems():
+            getattr(canvas, "Set{:s}Margin".format(side.capitalize()))(margin)
+    canvas.Modified()
+    canvas.Update()
+    return canvas
+

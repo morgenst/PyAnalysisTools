@@ -38,7 +38,7 @@ class ComparisonReader(object):
             self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
     def get_instance(self, plot_config):
-        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref") and len(self.input_files) == 1:
+        if ((hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref")) or hasattr(plot_config, "cuts_ref")) and len(self.input_files) == 1:
             _logger.debug("Using SingleFileMultiReader instance")
             return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_files:
@@ -64,7 +64,10 @@ class ComparisonReader(object):
         if self.systematics is None:
             self.systematics = "Nominal"
         try:
-            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, None,
+            cut_string = ""
+            if hasattr(plot_config, "cuts") and plot_config.cuts is not None:
+                cut_string = "&&".join(plot_config.cuts)
+            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string,
                                                     tdirectory=self.systematics)
             hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
@@ -116,7 +119,8 @@ class SingleFileMultiDistReader(ComparisonReader):
         self.file_handle = FileHandle(file_name=input_files, switch_off_process_name_analysis=True)
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
-
+        self.systematics = None
+        
     def get_data(self):
         try:
             reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref)
@@ -127,11 +131,17 @@ class SingleFileMultiDistReader(ComparisonReader):
             else:
                 reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])
                 compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
-        except ValueError:
-            plot_configs = expand_plot_config(self.plot_config)
-            plot_config_ref = copy(plot_configs[0])
+        except (ValueError, AttributeError):
+            #plot_configs = expand_plot_config(self.plot_config)
+            #plot_config_ref = copy(plot_configs[0])
+
+            plot_config_ref = copy(self.plot_config)
             plot_config_ref.name += "_reference"
-            plot_config_ref.dist = self.plot_config.dist_ref
+            if not hasattr(self.plot_config, "cuts_ref"):
+                plot_config_ref.dist = self.plot_config.dist_ref
+            print "expand"
+            plot_configs = expand_plot_config(self.plot_config)
+            print plot_configs
             reference = self.make_plot(self.file_handle, plot_config_ref)
             compare = [self.make_plot(self.file_handle, plot_config) for plot_config in plot_configs]
             reference.SetDirectory(0)
@@ -272,8 +282,27 @@ class ComparisonPlotter(BasePlotter):
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
-        self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
-                              ROOT.kRed+3, ROOT.kGreen-2]
+        self.color_palette = [
+            ROOT.kPink+7,
+            ROOT.kAzure+4,
+            ROOT.kSpring-9,
+            ROOT.kOrange-3,
+            ROOT.kCyan-6,
+            ROOT.kPink-7,
+            ROOT.kSpring-7,
+            ROOT.kPink-1,
+        ] #ROOT.kGray+3,
+        self.style_palette = [21,
+                              22,
+                              23,
+                              24,
+                              25,
+                              26,
+                              32,
+                              5]          
+        # self.style_palette = [21, 33, 22, 23, 34, 29] #ROOT.kGray+3, 
+        # self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
+        #                       ROOT.kRed+3, ROOT.kGreen-2]
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
@@ -289,7 +318,7 @@ class ComparisonPlotter(BasePlotter):
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.module_filters = [m for m in self.modules if m.type == "Filter"]
         self.analyse_plot_config()
-        #self.update_color_palette()
+        # self.update_color_palette()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
         if not kwargs["json"]:
             JSONHandle(kwargs["output_dir"], **kwargs).dump()
@@ -348,7 +377,9 @@ class ComparisonPlotter(BasePlotter):
         y_max = None
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
-            ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
+            print reference_hists
+            print hists
+            #ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
             plot_config.yscale = yscale
             if not hasattr(plot_config, "normalise"):
                 plot_config.ymax = ymax
@@ -362,13 +393,19 @@ class ComparisonPlotter(BasePlotter):
             plot_config.ytitle = reference_hists[0].GetPaintedGraph().GetYaxis().GetTitle()
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
-        canvas = PT.plot_obj(reference_hists[0], plot_config)
-        for hist in reference_hists[1:]:
-            PT.add_object_to_canvas(canvas, hist, plot_config)
+        #        canvas = PT.plot_obj(reference_hists[0], plot_config)
+        plot_config.color = ROOT.kGray+3
+        plot_config.style = 20
+        canvas = PT.plot_hist(reference_hists, plot_config)
+        print canvas
+        ROOT.SetOwnership(canvas, False)
+        # for hist in reference_hists[1:]:
+        #     PT.add_object_to_canvas(canvas, hist, plot_config)
         for hist in hists:
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
             try:
                 plot_config.color = self.color_palette[hists.index(hist)]
+                plot_config.style = self.style_palette[hists.index(hist)]
             except IndexError:
                 _logger.warning("Run of colors in palette. Using black as default")
                 plot_config.color = ROOT.kBlack
@@ -389,8 +426,10 @@ class ComparisonPlotter(BasePlotter):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                 len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
-        FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
-                                **plot_config.legend_options)
+        print plot_config
+        if plot_config.enable_legend: 
+            FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
+                                    **plot_config.legend_options)
         rebin = plot_config.rebin
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
@@ -398,7 +437,9 @@ class ComparisonPlotter(BasePlotter):
             plot_config = plot_config.ratio_config
         if not plot_config.name.startswith("ratio"):
             plot_config.name = "ratio_" + plot_config.name
-        canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
+        # canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
+        #                             plot_config=plot_config, rebin=rebin).make_ratio_plot()
+        canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
                                     plot_config=plot_config, rebin=rebin).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
