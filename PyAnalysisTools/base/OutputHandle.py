@@ -139,11 +139,9 @@ class OutputFileHandle(SysOutputHandle):
             if isinstance(obj, ROOT.TCanvas):
                 self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
-            #obj.Write()
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
-        #self.set_latest_link(self.overload)
 
     def register_object(self, obj, tdir=None):
         _logger.debug("Adding object %s" % obj.GetName())

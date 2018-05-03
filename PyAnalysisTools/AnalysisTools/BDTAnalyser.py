@@ -22,9 +22,13 @@ class BDTAnalyser(object):
         ROOT.gROOT.SetBatch(True)
 
     def analyse(self):
+        """
+        Main entry point to perform BDT analysis
+        """
         self.analyse_train_variables()
         self.perform_overtraining_check()
         self.perform_correlation_analysis()
+        self.analyse_roc_curves()
         self.output_handle.write_and_close()
 
     def perform_overtraining_check(self):
@@ -44,9 +48,9 @@ class BDTAnalyser(object):
                 variables[background_hist.GetName().replace("__Background", "")].append(background_hist)
             return variables
         signal_hists = file_handle.get_objects_by_pattern("[A-z]*__Signal",
-                                                          "Method_BDT/BDTG")
+                                                          "dataset/Method_BDTG/BDTG")
         background_hists = file_handle.get_objects_by_pattern("[A-z]*__Background",
-                                                              "Method_BDT/BDTG")
+                                                              "dataset/Method_BDTG/BDTG")
         variables_hists = classify()
         for variable_name, variable_hists in variables_hists.iteritems():
             plot_config = PC(name="{:s}_{:d}".format(variable_name, self.file_handles.index(file_handle)),
@@ -60,10 +64,10 @@ class BDTAnalyser(object):
             self.output_handle.register_object(canvas, tdir="train_variables")
 
     def analyse_overtraining(self, file_handle):
-        training_score_signal = file_handle.get_object_by_name("MVA_BDTG_Train_S", "Method_BDT/BDTG")
-        training_score_background = file_handle.get_object_by_name("MVA_BDTG_Train_B", "Method_BDT/BDTG")
-        eval_score_signal = file_handle.get_object_by_name("MVA_BDTG_S", "Method_BDT/BDTG")
-        eval_score_background = file_handle.get_object_by_name("MVA_BDTG_B", "Method_BDT/BDTG")
+        training_score_signal = file_handle.get_object_by_name("MVA_BDTG_Train_S", "dataset/Method_BDTG/BDTG")
+        training_score_background = file_handle.get_object_by_name("MVA_BDTG_Train_B", "dataset/Method_BDTG/BDTG")
+        eval_score_signal = file_handle.get_object_by_name("MVA_BDTG_S", "dataset/Method_BDTG/BDTG")
+        eval_score_background = file_handle.get_object_by_name("MVA_BDTG_B", "dataset/Method_BDTG/BDTG")
 
         ymax = 1.6 * max([training_score_signal.GetMaximum(), training_score_background.GetMaximum(),
                           eval_score_signal.GetMaximum(), eval_score_background.GetMaximum()])
@@ -99,8 +103,8 @@ class BDTAnalyser(object):
 
     def analyse_correlations(self, file_handle):
         index = self.file_handles.index(file_handle)
-        linear_corr_coeff_signal = file_handle.get_object_by_name("CorrelationMatrixS")
-        linear_corr_coeff_background = file_handle.get_object_by_name("CorrelationMatrixB")
+        linear_corr_coeff_signal = file_handle.get_object_by_name("CorrelationMatrixS", "dataset")
+        linear_corr_coeff_background = file_handle.get_object_by_name("CorrelationMatrixB", "dataset")
         plot_config = PC(name="linear_corr_coeff_signal_{:d}".format(index), title="signal", dist=None,
                          draw_option="COLZTEXT", ytitle="", ztitle="lin. correlation [%]")
         canvas_corr_coeff_signal = PT.plot_obj(linear_corr_coeff_signal, plot_config)
@@ -110,9 +114,9 @@ class BDTAnalyser(object):
         self.output_handle.register_object(canvas_corr_coeff_signal)
         self.output_handle.register_object(canvas_corr_coeff_background)
         correlation_hists_signal = file_handle.get_objects_by_pattern("scat_.*_Signal_Id",
-                                                                      "InputVariables_Id/CorrelationPlots")
+                                                                      "dataset/InputVariables_Id/CorrelationPlots")
         correlation_hists_background = file_handle.get_objects_by_pattern("scat_.*_Background_Id",
-                                                                          "InputVariables_Id/CorrelationPlots")
+                                                                          "dataset/InputVariables_Id/CorrelationPlots")
         plot_config_corr = PC(name="correlation_hist", dist=None, draw_option="COLZ", watermark="Internal")
         for hist in correlation_hists_signal:
             variable_info = hist.GetName().split("_")[1:-2]
@@ -131,6 +135,28 @@ class BDTAnalyser(object):
             canvas = PT.plot_obj(hist, plot_config_corr)
             FM.decorate_canvas(canvas, plot_config_corr)
             self.output_handle.register_object(canvas)
+
+    def analyse_roc_curves(self):
+        for file_handle in self.file_handles:
+            self.plot_roc_curves(file_handle)
+
+    def plot_roc_curves(self, file_handle):
+        def make_plot(dist, pc):
+            roc_eff = file_handle.get_objects_by_pattern(dist, "dataset/Method_BDTG/BDTG")
+            canvas = PT.plot_histograms(roc_eff, pc)
+            FM.decorate_canvas(canvas, pc)
+            self.output_handle.register_object(canvas, tdir="performance")
+
+        index = self.file_handles.index(file_handle)
+        pc_roc_eff = PC(name="roc_eff_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
+                        ytitle="Background efficiency", xtitle="Signal efficiency")
+        make_plot("MVA_BDTG_effBvsS", pc_roc_eff)
+        pc_roc_inveff = PC(name="roc_inveff_vs_eff_{:d}".format(index), dist=None, draw_option="Line", logy=True,
+                        ytitle="Inverse Background efficiency", xtitle="Signal efficiency")
+        make_plot("MVA_BDTG_invBeffvsSeff", pc_roc_inveff)
+        pc_roc_rejeff = PC(name="roc_rej_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
+                        ytitle="Background rejection", xtitle="Signal efficiency")
+        make_plot("MVA_BDTG_rejBvsS", pc_roc_rejeff)
 
     def fit_score(self):
         bdt_score = ROOT.RooRealVar(self.branch_name, "BDT score", -0.9, 1.)

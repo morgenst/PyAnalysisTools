@@ -28,8 +28,8 @@ def apply_style(obj, plot_config, process_config, index=None):
 def decorate_canvas(canvas, plot_config):
     if hasattr(plot_config, "watermark"):
         add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.05)
-    if hasattr(plot_config, "lumi") and plot_config.lumi is not None:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.6, "y": 0.9})
+    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
@@ -246,8 +246,10 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yl", 0.6)
     kwargs.setdefault("xh", 0.9)
     kwargs.setdefault("yh", 0.9)
+    kwargs.setdefault("format", None)
+    kwargs.setdefault("columns", None)
 
-    def convert_draw_option():
+    def convert_draw_option(process_config=None, plot_config=None):
         draw_option = plot_obj.GetDrawOption()
         if is_stacked:
             draw_option = "Hist"
@@ -256,7 +258,15 @@ def add_legend_to_canvas(canvas, **kwargs):
             # if plot_obj.GetFillStyle() == 1001:
             #     legend_option += "L"
             # else:
-            legend_option += "F"
+            if process_config is not None and (hasattr(process_config, "format") or hasattr(plot_config, "format")) or kwargs["format"]:
+                if process_config is not None and process_config.format.lower() == "line":
+                    legend_option += "L"
+                elif plot_config is not None and plot_config.format.lower() == "line":
+                    legend_option += "L"
+                elif kwargs["format"] == "line":
+                    legend_option += "L"
+            else:
+                legend_option += "F"
         if "l" in draw_option:
             legend_option += "L"
         if "p" in draw_option or "E" in draw_option:
@@ -269,6 +279,8 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     legend.SetTextSize(0.025)
+    if kwargs["columns"]:
+        legend.SetNColumns(kwargs["columns"])
     labels = None
     stacks = []
     if "labels" in kwargs:
@@ -290,12 +302,14 @@ def add_legend_to_canvas(canvas, **kwargs):
         plot_objects += stacked_objects
     for plot_obj in plot_objects:
         label = None
+        process_config = None
         if "stat.unc" in plot_obj.GetName() and plot_obj != plot_objects[-1]:
             plot_objects.append(plot_obj)
             continue
         if "process_configs" in kwargs and kwargs["process_configs"] is not None:
             try:
-                label = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"]).label
+                process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
+                label = process_config.label
             except AttributeError:
                 pass
         if "labels" is not None:
@@ -309,7 +323,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             is_stacked = True
         if label is None:
             continue
-        legend.AddEntry(plot_obj, label, convert_draw_option())
+        plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
+        legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
     canvas.cd()
     legend.Draw("sames")
     canvas.Update()

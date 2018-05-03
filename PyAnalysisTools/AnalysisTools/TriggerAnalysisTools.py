@@ -25,19 +25,22 @@ class TriggerFlattener(object):
         if not "tree_name" in kwargs:
             raise InvalidInputError("No tree name provided")
         kwargs.setdefault("additional_trees", [])
-        self.file_handle = FileHandle(file_name=kwargs["input_file"], open_option="UPDATE")
+        kwargs.setdefault("tmp_dir", None)
+        self.file_handle = FileHandle(file_name=kwargs["input_file"], run_dir=kwargs["tmp_dir"], open_option="UPDATE")
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
         self.additional_trees_names = kwargs["additional_trees"]
+        if self.additional_trees_names is None:
+            self.additional_trees_names = []
         for tn in self.additional_trees_names:
             setattr(self, tn, self.file_handle.get_object_by_name(tn, tdirectory="Nominal"))
         self.trigger_list = []
 
-    def flatten_all_branches(self):
-        branch_names = find_branches_matching_pattern(self.tree, "trigger_*")
+    def flatten_all_branches(self, skipAcceptance = False):
+        branch_names = find_branches_matching_pattern(self.tree, "trigger_.*")
         self.read_triggers()
         branch_names.remove("trigger_list")
-        self.expand_branches(branch_names)
+        self.expand_branches(branch_names, skipAcceptance)
 
     def read_triggers(self):
         for entry in range(self.tree.GetEntries()):
@@ -46,14 +49,23 @@ class TriggerFlattener(object):
                 if self.tree.trigger_list[item].replace("-", "_") not in self.trigger_list:
                     self.trigger_list.append(self.tree.trigger_list[item].replace("-", "_"))
 
-    def expand_branches(self, branch_names):
+    def expand_branches(self, branch_names, skipAcceptance = False):
         for branch_name in branch_names:
             for trigger_name in self.trigger_list:
                 new_name = branch_name.replace("trigger", trigger_name)
-                exec("data_holder_{:s} = array(\'f\', [0.])".format(new_name))
-                exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(*[new_name]*4))
-                for tn in self.additional_trees_names:
-                    exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(tn, new_name, tn, *[new_name] * 3))
+                if "acceptance" in  new_name :
+                    new_trigName = new_name
+                    if skipAcceptance :
+                        new_trigName = new_name.replace("_acceptance", "" )
+                    exec("data_holder_{:s} = array(\'i\', [0])".format(new_name))
+                    exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/I\")".format(new_name, new_trigName, new_name, new_trigName))
+                    for tn in self.additional_trees_names:
+                        exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/I\")".format(tn, new_name, tn, new_trigName, new_name, new_trigName))
+                else :
+                    exec("data_holder_{:s} = array(\'f\', [0.])".format(new_name))
+                    exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(*[new_name]*4))
+                    for tn in self.additional_trees_names:
+                        exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(tn, new_name, tn, *[new_name] * 3))
 
         for entry in range(self.tree.GetEntries()):
             self.tree.GetEntry(entry)
@@ -76,7 +88,7 @@ class TriggerFlattener(object):
             for missing_trigger in unprocessed_triggers:
                 for branch_name in branch_names:
                     new_name = branch_name.replace("trigger", missing_trigger)
-                    exec ("data_holder_{:s}[0] = -1111.".format(new_name))
+                    exec ("data_holder_{:s}[0] = -1111".format(new_name))
                     eval("branch_{:s}.Fill()".format(new_name))
                     for tn in self.additional_trees_names:
                         eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
@@ -144,7 +156,8 @@ class TriggerAcceptancePlotter(BasePlotter):
             for process_name in histograms.keys():
                 _ = find_process_config(process_name, self.process_configs)
         Plotter.merge(histograms, self.process_configs)
-        canvas = PT.plot_objects(histograms, self.plot_configs[0])
+        #canvas = PT.plot_objects(histograms, self.plot_configs[0])
+        canvas = PT.plot_stack(histograms, self.plot_configs[0])
         canvas.SetBottomMargin(0.2)
         canvas.Modified()
         FM.decorate_canvas(canvas, self.plot_configs[0])

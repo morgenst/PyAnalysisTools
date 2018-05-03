@@ -1,7 +1,5 @@
 import ROOT
 import copy
-import pathos.multiprocessing as mp
-from functools import partial
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -57,7 +55,8 @@ class Plotter(BasePlotter):
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
-        self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
         self.expand_process_configs()
@@ -68,10 +67,29 @@ class Plotter(BasePlotter):
             for fh in self.file_handles:
                     _ = find_process_config(fh.process, self.process_configs)
 
+    def add_mc_campaigns(self):
+        for process_config_name in self.process_configs.keys():
+            process_config = self.process_configs[process_config_name]
+            if process_config.is_data:
+                continue
+            for i, campaign in enumerate(["mc16a", "mc16c"]):
+                new_config = copy.copy(process_config)
+                new_config.name += campaign
+                new_config.label += " {:s}".format(campaign)
+                new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
+                if hasattr(process_config, "subprocesses"):
+                    new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
+                self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
+
     @staticmethod
     def filter_process_configs(file_handles, process_configs=None):
         if process_configs is None:
             return file_handles
+        unavailable_process = map(lambda fh: fh.process,
+                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                         file_handles))
+        for process in unavailable_process:
+            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None, file_handles)
 
     def initialise(self):
@@ -102,7 +120,6 @@ class Plotter(BasePlotter):
             plot_config.draw = "Marker"
         plot_config.logy = False
 
-        #ratios = [self.calculate_ratio(hist, reference) for hist in hists]
         if self.stat_unc_hist:
             plot_config_stat_unc_ratio = copy.copy(plot_config)
             plot_config_stat_unc_ratio.color = ROOT.kYellow
@@ -124,7 +141,7 @@ class Plotter(BasePlotter):
                     continue
                 if "data" in process.lower():
                     continue
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi,
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], self.lumi,
                                                                             self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
 
@@ -198,14 +215,11 @@ class Plotter(BasePlotter):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
         if len(self.modules_hist_fetching) == 0:
-            fetched_histograms = mp.ThreadPool(min(self.ncpu, len(self.plot_configs))).map(partial(self.read_histograms,
-                                                                                                   file_handles=self.file_handles),
-                                                                                           self.plot_configs)
+            fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
         else:
             fetched_histograms = [(self.plot_configs[0], self.modules_hist_fetching[0].fetch())]
-        for plot_config, histograms in fetched_histograms:
-            histograms = filter(lambda hist: hist is not None, histograms)
-            self.categorise_histograms(plot_config, histograms)
+        fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+        self.categorise_histograms(fetched_histograms)
         self.apply_lumi_weights(self.histograms)
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
@@ -225,7 +239,8 @@ class Plotter(BasePlotter):
                 HT.normalise(data, integration_range=[0, -1])
             HT.merge_overflow_bins(data)
             HT.merge_underflow_bins(data)
-            signals = self.get_signal_hists(data)
+            if plot_config.signal_extraction:
+                signals = self.get_signal_hists(data)
             if plot_config.signal_scale is not None:
                 self.scale_signals(signals, plot_config)
             if plot_config.outline == "stack" and not plot_config.is_multidimensional:
@@ -238,8 +253,9 @@ class Plotter(BasePlotter):
                 plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                                   color=ROOT.kBlack)
                 PT.add_object_to_canvas(canvas, self.stat_unc_hist, plot_config_stat_unc)
-                for signal in signals.iteritems():
-                    PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
+                if plot_config.signal_extraction:
+                    for signal in signals.iteritems():
+                        PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
                 self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
             elif plot_config.is_multidimensional:
                 self.make_multidimensional_plot(plot_config, data)
@@ -283,6 +299,8 @@ class Plotter(BasePlotter):
                         mc_total.Add(hist)
                     if hasattr(plot_config, "ratio_config"):
                         ratio_plot_config = plot_config.ratio_config
+                        if plot_config.logx:
+                            ratio_plot_config.logx = True
                     else:
                         ratio_plot_config = copy.copy(plot_config)
                         ratio_plot_config.name = "ratio_" + plot_config.name

@@ -15,10 +15,10 @@ class Root2NumpyConverter(object):
     def __init__(self, branches):
         self.branches = branches
 
-    def convert_to_array(self, tree):
+    def convert_to_array(self, tree, selection="@object_pt.size()==1", max_events=None):
         data = root_numpy.tree2array(tree, branches=self.branches,
-                                     selection="@object_pt.size()==1")
-        return pd.DataFrame(data).values
+                                     selection=selection, start=0, stop=max_events)
+        return data
 
     def merge(self, signals, bkgs):
         signal = np.concatenate(signals)
