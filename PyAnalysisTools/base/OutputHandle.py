@@ -68,6 +68,7 @@ class OutputHandle(SysOutputHandle):
 class OutputFileHandle(SysOutputHandle):
     def __init__(self, overload=None, **kwargs):
         super(self.__class__, self).__init__(**kwargs)
+        self.extension = ".pdf"
         self.objects = dict()
         self.attached = False
         self.overload = overload
@@ -76,6 +77,9 @@ class OutputFileHandle(SysOutputHandle):
         self.output_file = None
         kwargs.setdefault("make_plotbook", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
+
+    def set_output_extension(self, extension = ".pdf"):
+        self.extension = extension
 
     def attach_file(self):
         if not self.attached:
@@ -87,14 +91,13 @@ class OutputFileHandle(SysOutputHandle):
         #re-draw canvas to update internal reference in gPad
         canvas.Draw()
         ROOT.gPad.Update()
-        extension = ".png"
         if not name:
             name = canvas.GetName()
         output_path = self.output_dir
         if tdir is not None:
             output_path = os.path.join(output_path, tdir)
             ShellUtils.make_dirs(output_path)
-        canvas.SaveAs(os.path.join(output_path, name + extension))
+        canvas.SaveAs(os.path.join(output_path, name + self.extension))
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):

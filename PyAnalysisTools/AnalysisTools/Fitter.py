@@ -1,5 +1,6 @@
 import ROOT
 import PyAnalysisTools.PlottingUtils.Formatting as fm
+import copy
 from ROOT import RooFit
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.FitHelpers import *
@@ -7,7 +8,6 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
-
 
 class PDFConfig(object):
     def __init__(self, **kwargs):
@@ -152,23 +152,45 @@ class PDF2Gauss(PDF):
         sigma1 = ROOT.RooRealVar("sigma1", "sigma1", *self.sigma1)
         mean2 = ROOT.RooRealVar("mean2", "mean2", *self.mean2)
         sigma2 = ROOT.RooRealVar("sigma2", "sigma2", *self.sigma2)
-        decayrate = ROOT.RooRealVar("decayrate", "decayrate", -0.2, -5., 0)
+        decayrate = ROOT.RooRealVar("decayrate", "decayrate", -1.5e-3, -0.1, 0.)
+        decayrate2 = ROOT.RooRealVar("decayrate2", "decayrate2", 3e-7, 0., 1e-6)
+        coef1 = ROOT.RooRealVar("coef1", "coef1", 500., 0., 50000.)
+        coef2 = ROOT.RooRealVar("coef2", "coef2", 1000., 0., 50000.)
+        coef3 = ROOT.RooRealVar("coef3", "coef3", 3000., 0., 500000.)
+        self.quantity.setRange("BkgSideBandLeft", 1450., 1800.)
+        self.quantity.setRange("BkgSideBandRight", 2100., 2450.)
+        ROOT.SetOwnership(coef1, False)
+        ROOT.SetOwnership(coef2, False)
+        ROOT.SetOwnership(coef3, False)
         ROOT.SetOwnership(mean1, False)
         ROOT.SetOwnership(sigma1, False)
         ROOT.SetOwnership(mean2, False)
         ROOT.SetOwnership(sigma2, False)
         ROOT.SetOwnership(decayrate, False)
-        self.pdf1 = ROOT.RooGaussian("g1", "g1", self.quantity, mean1, sigma1)
-        self.pdf2 = ROOT.RooGaussian("g2", "g2", self.quantity, mean2, sigma2)
-        self.pdf3 = ROOT.RooExponential("exp", "exp", self.quantity, decayrate)
-        coef1 = ROOT.RooRealVar("coef1", "coef1", 2000, 0, 10000.)
-        coef2 = ROOT.RooRealVar("coef2", "coef2", 4000, 0., 10000.)
-        coef3 = ROOT.RooRealVar("coef3", "coef3", 20000, 0., 100000.)
-        ROOT.SetOwnership(coef1, False)
-        ROOT.SetOwnership(coef2, False)
-        ROOT.SetOwnership(coef3, False)
-        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3), ROOT.RooArgList(coef1, coef2, coef3))
-
+        ROOT.SetOwnership(decayrate2, False)
+        self.tmpgauss1 = ROOT.RooGaussian("tmpgauss1", "tmpgauss1", self.quantity, mean1, sigma2)
+        self.tmpgauss2 = ROOT.RooGaussian("tmpgauss2", "tmpgauss2", self.quantity, mean2, sigma2)
+        #############################################################
+        """# double exponential
+        decayrate_WEXP = ROOT.RooRealVar("decayrate_WEXP", "decayrate_WEXP", -1.5e-2, -0.1, 0.)
+        decayrate2_WEXP = ROOT.RooRealVar("decayrate2_WEXP", "decayrate2_WEXP", -1.5e-4, -0.1, 0.)
+        proportion_WEXP = ROOT.RooRealVar("proportion_WEXP", "proportion_WEXP", 0.5, 0., 1.)
+        ROOT.SetOwnership(decayrate_WEXP, False)
+        ROOT.SetOwnership(decayrate2_WEXP, False)
+        ROOT.SetOwnership(proportion_WEXP, False)
+        self.WEXP1 = ROOT.RooExponential("WEXP1", "WEXP1", self.quantity, decayrate_WEXP)
+        self.WEXP2 = ROOT.RooExponential("WEXP2", "WEXP2", self.quantity, decayrate2_WEXP)
+        self.tmpbkg = ROOT.RooAddPdf("tmpWEXP", "tmpWEXP", self.WEXP1, self.WEXP2, proportion_WEXP)
+        """
+        #############################################################
+        bkgset = ROOT.RooArgList(self.quantity, decayrate, decayrate2)
+        self.tmpbkg = ROOT.RooGenericPdf("tmpbackground", "exp(decayrate*triplet_refitted_m + decayrate2*triplet_refitted_m*triplet_refitted_m)", bkgset)
+        #############################################################
+        #Create Extended pdf for easier event count
+        self.pdf1 = ROOT.RooExtendPdf("gauss1", "gauss1", self.tmpgauss1, coef1)
+        self.pdf2 = ROOT.RooExtendPdf("gauss2", "gauss2", self.tmpgauss2, coef2)
+        self.pdf3 = ROOT.RooExtendPdf("background", "background", self.tmpbkg, coef3, "BkgSideBandLeft,BkgSideBandRight")
+        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3))
 
 class PDFGeneric(PDF):
     def __init__(self, **kwargs):
@@ -192,22 +214,18 @@ class Fitter(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("batch", True)
         kwargs.setdefault("blind", False)
-        kwargs.setdefault("selection", None)
         self.file_handles = [FileHandle(file_name=fn) for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.quantity = kwargs["quantity"]
-        self.selection = kwargs["selection"]
+        self.selection = []
         self.data = None
-        self.slicing_variables = []
         self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
+        self.mode = kwargs["mode"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
         if hasattr(self.pdf_config, "selection"):
             self.selection=self.pdf_config.selection
             print(self.selection)
-        if hasattr(self.pdf_config, "slicing_variables"):
-            self.slicing_variables=self.pdf_config.slicing_variables
-            print(self.slicing_variables)
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.blind = self.pdf_config.blind
         fm.load_atlas_style()
@@ -228,11 +246,10 @@ class Fitter(object):
             self.pdf = PDF2Gauss(**self.__dict__)
         self.model = self.pdf.build()
 
-    def fit(self, return_fit=False, return_count=False, extra_selection="1"):
-        selection_temp=list(self.selection)
-        selection_temp.append(extra_selection)
-        print self.file_handles, self.tree_name, self.quantity, self.blind, self.selection, extra_selection
-        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, selection_temp)
+    def fit(self, return_fit=False, extra_selection=[]):
+        selection=copy.deepcopy(self.selection)
+        print self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection
+        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection)
         self.build_model()
         if self.blind:
             # region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
@@ -240,55 +257,24 @@ class Fitter(object):
             # region.addThreshold(self.blind[0], "SideBand")
             # region.addThreshold(self.blind[1], "Signal")
             fit_result = self.model.fitTo(self.data, RooFit.Range(("left,right")), RooFit.Save(),
-                                          RooFit.PrintEvalErrors(-1))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
+                                          RooFit.PrintEvalErrors(-1), RooFit.NumCPU(2))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
         else:
-            fit_result = self.model.fitTo(self.data, RooFit.Save())
-        canvas = ROOT.TCanvas("c"+convert_to_valid_name(extra_selection), "", 800, 600)
-        canvas.cd()
+            fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(2))
+        canvas = ROOT.TCanvas("c", "", 800, 600)
         frame = self.var.frame()
         binning = ROOT.RooBinning(30, self.quantity[1], self.quantity[2])
         self.data.plotOn(frame, ROOT.RooFit.Binning(binning), RooFit.CutRange("left,right"))
-        self.model.plotOn(frame)
-        frame.SetTitle(extra_selection)
-        frame.Draw()
-        self.frame=frame
-        if return_count:
-            canvas.SetTitle(convert_to_valid_name(extra_selection))
-            n_Ds, n_Bkg = get_Ds_and_Bkg_count(self.model, 1950, 2000)
-            add_fit_parameters_to_canvas(canvas, self.model)
-            add_text_to_canvas(canvas, extra_selection, pos={"x": 0.2, "y": 0.9})
-            add_text_to_canvas(canvas, "N_{D_{s}}: " + "{:.0f}".format(n_Ds), pos={"x": 0.72, "y": 0.77})
-            add_text_to_canvas(canvas, "N_{Bkg}: " + "{:.0f}".format(n_Bkg), pos={"x": 0.72, "y": 0.72})
-        chi2 = frame.chiSquare()
-        add_text_to_canvas(canvas, "#chi^{2}: " + "{:.2f}".format(chi2), pos={"x": 0.72, "y": 0.67})
+        plot_all_components(self.model, frame)
+        format_and_draw_frame(canvas, frame, "m_{triplet} [MeV]")
+        add_chi2_to_canvas(canvas, frame)
+        if "DsPhiPi" in self.mode:
+           n_Ds, n_Ds_error = get_Ds_count(self.model)
+           n_D, n_D_error = get_D_count(self.model)
+           n_Bkg, n_Bkg_error = get_background_count(self.model)
+           add_parameters_to_canvas(canvas, self.model, n_D, n_D_error, n_Ds, n_Ds_error, n_Bkg, n_Bkg_error)
+        if "PerSlice" in self.mode:
+           return self.model, fit_result, canvas
         if return_fit:
-            return frame, fit_result
+           return frame, fit_result
         self.output_handle.register_object(canvas)
-        if return_count:
-            return n_Ds, n_Bkg
-        self.output_handle.write_and_close()
-
-    def fit_per_bin(self):
-        for slicing_variable in self.slicing_variables:
-            list_of_slices_and_bin_center = get_list_of_slices(slicing_variable)
-            canvas = ROOT.TCanvas(slicing_variable[0], slicing_variable[0], 800, 600)
-            hist_Ds_count = ROOT.TH1F("", "",
-                                      slicing_variable[1], slicing_variable[2], slicing_variable[3])
-            hist_Bkg_count = ROOT.TH1F("", "",
-                                       slicing_variable[1], slicing_variable[2], slicing_variable[3])
-            for individual_slice in list_of_slices_and_bin_center:
-                n_Ds, n_Bkg = self.fit(False, True, individual_slice[0])
-                if n_Ds:
-                  hist_Ds_count.Fill(individual_slice[1],n_Ds)
-                if n_Bkg:
-                  hist_Bkg_count.Fill(individual_slice[1],n_Bkg)
-            canvas.cd()
-            hist_Ds_count.SetLineColor(8)
-            hist_Ds_count.SetMarkerColor(8)
-            hist_Ds_count.GetXaxis().SetTitle(slicing_variable[0])
-            hist_Ds_count.GetYaxis().SetTitle("Ds/Bkg count")
-            hist_Ds_count.Draw("E0P")
-            hist_Bkg_count.Draw("E0Psame")
-            self.output_handle.register_object(hist_Ds_count)
-            self.output_handle.register_object(canvas)
         self.output_handle.write_and_close()
