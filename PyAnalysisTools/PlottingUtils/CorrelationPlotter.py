@@ -1,6 +1,7 @@
 import ROOT
 from copy import deepcopy
 from itertools import combinations
+from operator import itemgetter
 
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas, get_objects_from_canvas_by_type
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -67,15 +68,15 @@ class CorrelationPlotter(object):
 
     def fetch_correlation_hist(self, fh, plot_config):
         pc = deepcopy(plot_config)
-        pc.name = "{:s}_{:s}".format(pc.name, fh.process)
+        pc.name = "{:s}_{:s}".format(pc.name, fh.process_with_mc_campaign)
         hist = get_histogram_definition(pc)
         fh.fetch_and_link_hist_to_tree(self.tree_name, hist, pc.dist, tdirectory="Nominal")
         correlation_coefficient = hist.GetCorrelationFactor()
         #self.fill_correlation_coefficient(correlation_coefficient, *combination)
         try:
-            self.correlation_hists[fh.process].append(hist)
+            self.correlation_hists[fh.process_with_mc_campaign].append(hist)
         except KeyError:
-            self.correlation_hists[fh.process] = [hist]
+            self.correlation_hists[fh.process_with_mc_campaign] = [hist]
         if self.store_all:
             self.make_correlation_plot(hist, pc)
 
@@ -156,6 +157,20 @@ class CorrelationPlotter(object):
         def get_plot_config(hist):
             return filter(lambda pc: "_".join(pc.name.split("_")[1:]) in hist.GetName(), self.corr_plot_configs)[0]
 
+        def get_color(process):
+            if "mc16a" in process:
+                if process not in self.process_configs:
+                    base_process = process.replace(".mc16a", "")
+                    self.process_configs[process] = deepcopy(self.process_configs[base_process])
+                    self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(3)
+                    self.process_configs[process].label = self.process_configs[process].label + " (MC16a)"
+            if "mc16c" in process or "mc16d" in process:
+                base_process = process.replace(".mc16c", "")
+                self.process_configs[process] = deepcopy(self.process_configs[base_process])
+                self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(-3)
+                self.process_configs[process].label = self.process_configs[process].label + " (MC16c)"
+            return self.process_configs[process].color
+
         profiles = {}
         for process, hists in self.correlation_hists.iteritems():
             for hist in hists:
@@ -170,6 +185,7 @@ class CorrelationPlotter(object):
                 profiles[process].append(profileY)
         profile_plots = {}
         labels = []
+        colors = [(process, get_color(process)) for process in profiles.keys()]
         for process, hists in profiles.iteritems():
             labels.append(process)
             for hist in hists:
@@ -184,15 +200,17 @@ class CorrelationPlotter(object):
                     pc.ytitle = xtitle
 
                 pc.draw = "Marker"
-                pc.color = [ROOT.kBlack, ROOT.kRed]
+                pc.color = map(itemgetter(1), colors)
+                index = map(itemgetter(0), colors).index(process)
                 hist_base_name = pc.name #"_".join(pc.name.split("_")[:-2])
                 if hist_base_name not in profile_plots:
-                    canvas = pt.plot_hist(hist, pc, index=0)
+                    canvas = pt.plot_hist(hist, pc, index=index)
                     p = get_objects_from_canvas_by_type(canvas, "TProfile")[0]
+                    pc.lumi = self.lumi
                     fm.decorate_canvas(canvas, plot_config=pc)
                     profile_plots[hist_base_name] = canvas
                 else:
-                    pt.add_object_to_canvas(profile_plots[hist_base_name], hist, pc, index=1)
+                    pt.add_object_to_canvas(profile_plots[hist_base_name], hist, pc, index=index)
         p = get_objects_from_canvas_by_type(profile_plots.values()[0], "TProfile")[0]
         map(lambda c: fm.add_legend_to_canvas(c, process_configs=self.process_configs, format="marker"),
             profile_plots.values())
