@@ -989,3 +989,187 @@ class BcTruthAnalyser(object):
             self.histograms[process_id]["B_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv + resonance_neutrino_tlv).M() / 1000.)
 
         print "N processed entries: ", n_entries, " and hist entries: ", self.histograms[process_id]["B_mass"].GetEntries()
+
+
+class TruthAnalyerT3M(object):
+    def __init__(self, **kwargs):
+        self.input_files = kwargs["input_files"]
+        self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        self.histograms = dict()
+        self.plot_configs = dict()
+        self.references = dict()
+        self.tree_name = "CollectionTree"
+        process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
+        self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
+        self.current_process_config = None
+        self.setup()
+        self.book_plot_configs()
+        self.build_references()
+
+    @staticmethod
+    def setup():
+        ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
+        ROOT.xAOD.Init().ignore()
+
+    def book_histograms(self, process_id):
+        def book_histogram(name, n_bins, x_min, x_max):
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min, x_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
+
+        def book_histogram_2d(name, n_bins_x, x_min, x_max, n_bins_y, y_min, y_max):
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH2F("{:s}_{:d}".format(name, process_id), "",
+                                                          n_bins_x, x_min, x_max,
+                                                          n_bins_y, y_min, y_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
+
+        book_histogram("tau_e", 50, 0., 100.)
+        book_histogram("tau_phi", 50, -3.2, 3.2)
+        book_histogram("tau_eta", 50, -4.0, 4.0)
+        book_histogram("muon_e", 20, 0., 20.)
+        book_histogram("muon_eta", 50, -4.0, 4.0)
+        book_histogram("muon_phi", 50, -3.2, 3.2)
+        book_histogram("lead_muon_e", 20, 0., 20.)
+        book_histogram("lead_muon_eta", 50, -4.0, 4.0)
+        book_histogram("lead_muon_phi", 50, -3.2, 3.2)
+        book_histogram("sub_lead_muon_eta", 50, -4.0, 4.0)
+        book_histogram("sub_lead_muon_phi", 50, -3.2, 3.2)
+        book_histogram("sub_lead_muon_e", 20, 0., 20.)
+        book_histogram("third_lead_muon_e", 20, 0., 20.)
+        book_histogram("third_lead_muon_eta", 50, -4.0, 4.0)
+        book_histogram("third_lead_muon_phi", 50, -3.2, 3.2)
+        book_histogram_2d("tau_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("lead_muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("sub_lead_muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("third_lead_muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+
+    def book_plot_configs(self):
+        def book_plot_config(name, xtitle, **kwargs):
+            pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
+                            color=ROOT.kBlue, lumi=-1)
+            for args, val in kwargs.iteritems():
+                setattr(pc, args, val)
+            self.plot_configs[name] = pc
+
+        book_plot_config("tau_e", "#tau E [GeV]")
+        book_plot_config("tau_eta", "#tau #eta")
+        book_plot_config("tau_phi", "#tau #phi")
+        book_plot_config("muon_e", "#mu E [GeV]")
+        book_plot_config("muon_eta", "#mu #eta")
+        book_plot_config("muon_phi", "#mu #phi")
+        book_plot_config("lead_muon_e", "lead. #mu E [GeV]")
+        book_plot_config("lead_muon_eta", "lead. #mu #eta")
+        book_plot_config("lead_muon_phi", "lead. #mu #phi")
+        book_plot_config("sub_lead_muon_e", "sub-lead. #mu E [GeV]")
+        book_plot_config("sub_lead_muon_eta", "sub-lead. #mu #eta")
+        book_plot_config("sub_lead_muon_phi", "sub-lead. #mu #phi")
+        book_plot_config("third_lead_muon_e", "third-lead. #mu E [GeV]")
+        book_plot_config("third_lead_muon_eta", "third-lead. #mu #eta")
+        book_plot_config("third_lead_muon_phi", "third-lead. #mu #phi")
+        book_plot_config("tau_e_eta", "#tau E [GeV]", ytitle="#tau #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("muon_e_eta", "#mu E [GeV]", ytitle="#mu #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("lead_muon_e_eta", "lead. #mu E [GeV]", ytitle="lead. #mu #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("sub_lead_muon_e_eta", "sub-lead. #mu E [GeV]", ytitle="sub-lead. #mu #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("third_lead_muon_e_eta", "third-lead. #mu E [GeV]", ytitle="third=lead. #mu #eta",
+                         ztitle="Events", draw_option="COLZ")
+
+    def run(self):
+        for input_file in self.input_files:
+            print input_file
+            try:
+                self.analyse_file(input_file)
+            except TypeError:
+                print "Could not analyse {:s}".format(input_file)
+                continue
+        self.plot_histograms()
+        self.output_handle.write_and_close()
+
+    def build_references(self):
+        def find_br(process, mode):
+            decay2_mode = filter(lambda decay: sorted(decay[:-1], reverse=True) == mode, process.decay2_pdgid)[0]
+            return decay2_mode[-1]
+
+        for process_id, process in self.processes.iteritems():
+            reference_hist = ROOT.TH1F("decay_mode_reference_{:d}".format(process_id), "", 4, -1.5, 2.5)
+            reference_hist.SetBinContent(1, 0)
+            for mode_index in range(len(process.decay2_sorted)):
+                br = find_br(process, process.decay2_sorted[mode_index])
+                reference_hist.SetBinContent(mode_index + 2, br)
+            self.references[process_id] = reference_hist
+
+    def plot_histograms(self):
+        for process_id, histograms in self.histograms.iteritems():
+            for hist_name, hist in histograms.iteritems():
+                pc = self.plot_configs[hist_name]
+                if hist_name == "decay2_mode":
+                    pc.axis_labels = self.processes[process_id].get_bin_labels()
+                    pc.normalise = True
+                print hist_name, pc
+                canvas = PT.plot_obj(hist, pc)
+                if hist_name == "decay2_mode":
+                    pc_ref = copy(pc)
+                    pc_ref.color = ROOT.kRed
+                    PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
+                FT.decorate_canvas(canvas, pc)
+                self.output_handle.register_object(canvas, str(process_id))
+
+    def analyse_file(self, input_file):
+        f = ROOT.TFile.Open(input_file)
+        tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
+        self.current_process_config = None
+        for entry in xrange(tree.GetEntries()):
+            tree.GetEntry(entry)
+            process_id = tree.EventInfo.runNumber()
+            if process_id not in self.histograms:
+                self.book_histograms(process_id)
+            if self.current_process_config is None:
+                self.current_process_config = self.processes[process_id]
+            truth_particles = tree.TruthParticles
+            tau_decay = filter(lambda p: p.pdgId() == 15, truth_particles)
+            if len(tau_decay) == 0:
+                print "Suspicious event. Could not find tau for process ", process_id
+                continue
+            tau_decay_vertex = tau_decay[0].decayVtxLink().outgoingParticleLinks()
+            self.histograms[process_id]["tau_e"].Fill(tau_decay[0].e() / 1000.)
+            self.histograms[process_id]["tau_eta"].Fill(tau_decay[0].eta())
+            self.histograms[process_id]["tau_phi"].Fill(tau_decay[0].phi())
+            self.histograms[process_id]["tau_e_eta"].Fill(tau_decay[0].e() / 1000., tau_decay[0].eta())
+
+            muon_kinematics = list()
+            try:
+                for i in range(3):
+                    muon_kinematics.append([filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)[i].e() / 1000.,
+                                            filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)[i].eta(),
+                                            filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)[i].phi()])
+            except IndexError:
+                print "Could not find any muon for first resonance decay in process", process_id
+                continue
+            muon_kinematics.sort(key=lambda i: i[0], reverse=True)
+            for i in range(3):
+                self.histograms[process_id]["muon_e"].Fill(muon_kinematics[i][0])
+                self.histograms[process_id]["muon_eta"].Fill(muon_kinematics[i][1])
+                self.histograms[process_id]["muon_phi"].Fill(muon_kinematics[i][2])
+                self.histograms[process_id]["muon_e_eta"].Fill(muon_kinematics[i][0], muon_kinematics[i][1])
+            self.histograms[process_id]["lead_muon_e"].Fill(muon_kinematics[0][0])
+            self.histograms[process_id]["lead_muon_eta"].Fill(muon_kinematics[0][1])
+            self.histograms[process_id]["lead_muon_phi"].Fill(muon_kinematics[0][2])
+            self.histograms[process_id]["lead_muon_e_eta"].Fill(muon_kinematics[0][0], muon_kinematics[0][1])
+            self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_kinematics[1][0])
+            self.histograms[process_id]["sub_lead_muon_eta"].Fill(muon_kinematics[1][1])
+            self.histograms[process_id]["sub_lead_muon_phi"].Fill(muon_kinematics[1][2])
+            self.histograms[process_id]["sub_lead_muon_e_eta"].Fill(muon_kinematics[1][0], muon_kinematics[1][1])
+            self.histograms[process_id]["third_lead_muon_e"].Fill(muon_kinematics[2][0])
+            self.histograms[process_id]["third_lead_muon_eta"].Fill(muon_kinematics[2][1])
+            self.histograms[process_id]["third_lead_muon_phi"].Fill(muon_kinematics[2][2])
+            self.histograms[process_id]["third_lead_muon_e_eta"].Fill(muon_kinematics[2][0], muon_kinematics[2][1])
+        f.Close()
