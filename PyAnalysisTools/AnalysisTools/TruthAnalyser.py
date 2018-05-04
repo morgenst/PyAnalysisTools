@@ -1114,7 +1114,6 @@ class TruthAnalyerT3M(object):
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
                     pc.normalise = True
-                print hist_name, pc
                 canvas = PT.plot_obj(hist, pc)
                 if hist_name == "decay2_mode":
                     pc_ref = copy(pc)
