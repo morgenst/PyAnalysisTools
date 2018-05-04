@@ -81,7 +81,7 @@ class CorrelationPlotter(object):
             self.make_correlation_plot(hist, pc)
 
     def make_correlation_plot(self, hist, plot_config):
-        canvas = pt.plot_hist(hist, plot_config)
+        canvas = pt.plot_obj(hist, plot_config)
         self.output_handle.register_object(canvas)
 
     def merge_hists(self):
@@ -133,7 +133,8 @@ class CorrelationPlotter(object):
     def prepare_correlation_coefficient_hist(self, variables):
         bins=len(variables)
         self.plot_config = PlotConfig(name="linear_correlation_coefficients", dist=":",
-                                      xmin=0, xmax=bins, xbins=bins, ymin=0, ymax=bins, ybins=bins, draw="COLZTEXT")
+                                      xmin=0, xmax=bins, xbins=bins, ymin=0, ymax=bins, ybins=bins,
+                                      draw_option="COLZTEXT")
         self.correlation_coeff_hist = self.get_histogram_definition(self.plot_config)
         for ibin in range(len(variables)):
             self.correlation_coeff_hist.GetXaxis().SetBinLabel(ibin + 1, variables[ibin])
@@ -147,8 +148,8 @@ class CorrelationPlotter(object):
                                      name="correlation_%s_%s" % (pc_var_x.name, pc_var_y.name),
                                      xmin=pc_var_x.xmin, xmax=pc_var_x.xmax, xbins=pc_var_x.bins,
                                      ymin=pc_var_y.xmin, ymax=pc_var_y.xmax, ybins=pc_var_y.bins,
-                                     draw="COLZ", xtitle=pc_var_x.xtitle, ytitle=pc_var_y.xtitle,
-                                     watermark="Internal")
+                                     draw_option="COLZ", xtitle=pc_var_x.xtitle, ytitle=pc_var_y.xtitle,
+                                     watermark="Internal", ztitle="Entries")
             return plot_config
         self.variable_combinations = list(combinations(self.variable_pcs, 2))
         self.corr_plot_configs = [build_correlation_plot_config(comb) for comb in self.variable_combinations]
