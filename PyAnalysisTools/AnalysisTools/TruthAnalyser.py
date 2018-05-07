@@ -679,7 +679,7 @@ class LQTruthAnalyser(object):
             if process_id not in self.histograms:
                 self.book_histograms(process_id)
             truth_particles = tree.TruthParticles
-            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 42, truth_particles)
+            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 1101 or p.pdgId() == 42, truth_particles)
             map(lambda p: self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.), LQ)
             if len(LQ) == 0:
                 run_tchannel()
