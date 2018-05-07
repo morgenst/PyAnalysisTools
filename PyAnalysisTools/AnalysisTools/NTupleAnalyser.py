@@ -17,6 +17,7 @@ class NTupleAnalyser(object):
         if not "dataset_list" in kwargs:
             raise InvalidInputError("No dataset list provided")
         self.datasets = YAMLLoader.read_yaml(kwargs["dataset_list"])
+        self.datasets = dict(filter(lambda kv: "pilot" not in kv[0], self.datasets.iteritems()))
         self.input_path = kwargs["input_path"]
 
     @staticmethod
