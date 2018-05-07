@@ -29,6 +29,7 @@ class Region(object):
         kwargs.setdefault("good_electron", None)
         kwargs.setdefault("inverted_electron", None)
         kwargs.setdefault("event_cuts", None)
+        kwargs.setdefault("split_mc_data", False)
         kwargs.setdefault("weight", None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
@@ -63,8 +64,7 @@ class Region(object):
     def __hash__(self):
         return hash(self.name)
 
-    @staticmethod
-    def convert_cut_list_to_string(cut_list):
+    def convert_cut_list_to_string(self, cut_list):
         """
         Convert list of cuts into proper selection string which can be parsed by ROOT
 
@@ -73,7 +73,10 @@ class Region(object):
         :return: selection string
         :rtype: string
         """
-        return " && ".join(cut_list)
+        if not self.split_mc_data:
+            return " && ".join(cut_list)
+        return " && ".join(filter(lambda cut: "data:" not in cut.lower(), cut_list)), \
+               " && ".join(cut_list).replace("Data:", "").replace("data:", "")
 
     def convert_lepton_selections(self):
         """

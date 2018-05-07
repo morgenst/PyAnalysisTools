@@ -15,7 +15,7 @@ from array import array
 import ROOT
 from MLHelper import Root2NumpyConverter, TrainingReader
 from PyAnalysisTools.base import _logger
-from PyAnalysisTools.base.ShellUtils import make_dirs
+from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
@@ -79,6 +79,8 @@ class NNTrainer(object):
         self.store_arrays = not kwargs["disable_array_safe"]
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
+        copy(kwargs["training_config_file"], self.output_path)
+        copy(kwargs["variable_set"], self.output_path)
         if self.store_arrays and not self.reader.numpy_input:
             self.input_store_path = os.path.join(self.output_path, "inputs")
             make_dirs(self.input_store_path)
@@ -204,10 +206,11 @@ class NNTrainer(object):
             data = signal
             data.append(background)
             if "/" in variable_name:
-                variable_name = "_".join(variable_name.split("/")).replace(" ","")
+                variable_name = "_".join(variable_name.split("/")).replace(" ", "")
             var_range = np.percentile(data, [2.5, 97.5])
             plt.hist(map(float, signal.values), 100, range=var_range, histtype='step', label='signal', normed=True)
-            plt.hist(map(float, background.values), 100, range=var_range, histtype='step', label='background', normed=True)
+            plt.hist(map(float, background.values), 100, range=var_range, histtype='step', label='background',
+                     normed=True)
             if data.ptp() > 1000.:
                 plt.yscale('log')
             plt.legend(["signal", "background"], loc="upper right")
@@ -261,7 +264,8 @@ class NNReader(object):
         for file_handle in self.file_handles:
             self.attach_NN_output(file_handle)
 
-    def apply_scaling(self, data):
+    @staticmethod
+    def apply_scaling(data):
             mean = data.mean()
             std = data.std()
             data = (data - mean) / std
