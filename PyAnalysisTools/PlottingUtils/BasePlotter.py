@@ -19,13 +19,14 @@ class BasePlotter(object):
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
+        kwargs.setdefault("plot_config_files", [])
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
-        if any([not pc.merge_mc_campaigns for pc in self.plot_configs]):
+        if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]):
             self.add_mc_campaigns()
             self.split_mc_campaigns = True
         self.load_atlas_style()
@@ -171,6 +172,7 @@ class BasePlotter(object):
             return None
         return hist
 
+    #TODO: very likely a type -> should be file_handles
     def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
         comb = product(file_handle, plot_configs)
