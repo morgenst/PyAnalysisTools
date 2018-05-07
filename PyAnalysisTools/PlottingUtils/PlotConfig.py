@@ -249,20 +249,21 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
     return draw_option
 
 
-def get_style_setters_and_values(plot_config, process_config=None, index=None):
-    def transform_color(color):
-        if isinstance(color, str):
-            offset = 0
-            if "+" in color:
-                color, offset = color.split("+")
-            if "-" in color:
-                color, offset = color.split("-")
-                offset = "-" + offset
-            color = getattr(ROOT, color.rstrip()) + int(offset)
-        if isinstance(color, list):
-            return transform_color(color[index])
-        return color
+def transform_color(color, index=None):
+    if isinstance(color, str):
+        offset = 0
+        if "+" in color:
+            color, offset = color.split("+")
+        if "-" in color:
+            color, offset = color.split("-")
+            offset = "-" + offset
+        color = getattr(ROOT, color.rstrip()) + int(offset)
+    if isinstance(color, list):
+        return transform_color(color[index])
+    return color
 
+
+def get_style_setters_and_values(plot_config, process_config=None, index=None):
     style_setter = None
     style_attr, color = None, None
     draw_option = _parse_draw_option(plot_config, process_config)
@@ -349,3 +350,9 @@ def find_process_config(process_name, process_configs):
             process_configs[match.group()] = process_config.add_subprocess(match.group())
             return process_configs[match.group()]
     return None
+
+
+def expand_process_configs(processes, process_configs):
+    for process in processes:
+        _ = find_process_config(process, process_configs)
+    return process_configs
