@@ -26,9 +26,11 @@ class TriggerFlattener(object):
             raise InvalidInputError("No tree name provided")
         kwargs.setdefault("additional_trees", [])
         kwargs.setdefault("tmp_dir", None)
+        kwargs.setdefault("branch_name", "trigger_list")
         self.file_handle = FileHandle(file_name=kwargs["input_file"], run_dir=kwargs["tmp_dir"], open_option="UPDATE")
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
+        self.branch_name = kwargs["branch_name"]
         self.additional_trees_names = kwargs["additional_trees"]
         if self.additional_trees_names is None:
             self.additional_trees_names = []
@@ -45,9 +47,10 @@ class TriggerFlattener(object):
     def read_triggers(self):
         for entry in range(self.tree.GetEntries()):
             self.tree.GetEntry(entry)
-            for item in range(len(self.tree.trigger_list)):
-                if self.tree.trigger_list[item].replace("-", "_") not in self.trigger_list:
-                    self.trigger_list.append(self.tree.trigger_list[item].replace("-", "_"))
+            exec("trig_list_branch = self.tree.{:s}".format(self.branch_name))
+            for item in range(len(trig_list_branch)):
+                if trig_list_branch[item].replace('-', '_') not in self.trigger_list:
+                    self.trigger_list.append(trig_list_branch[item].replace("-", "_"))
 
     def expand_branches(self, branch_names, skipAcceptance = False):
         for branch_name in branch_names:
@@ -72,8 +75,10 @@ class TriggerFlattener(object):
             for tree_name in self.additional_trees_names:
                 getattr(self, tree_name).GetEntry(entry)
             unprocessed_triggers = copy(self.trigger_list)
-            for item in range(len(self.tree.trigger_list)):
-                trig_name = self.tree.trigger_list[item].replace("-", "_")
+            exec("trig_list_branch = self.tree.{:s}".format(self.branch_name))
+
+            for item in range(len(trig_list_branch)):
+                trig_name = trig_list_branch[item].replace("-", "_")
                 if trig_name not in unprocessed_triggers:
                     _logger.warning("{:s} not in unprocessed trigger list. Likely there went something wrong in the "
                                     "branch filling".format((trig_name)))
