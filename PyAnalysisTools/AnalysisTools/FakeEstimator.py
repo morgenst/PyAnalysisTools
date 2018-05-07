@@ -432,3 +432,91 @@ class MuonFakeCalculator(object):
         self.plot_fake_factors_2D()
         self.plotter.output_handle.write_and_close()
         self.output_handle.write_and_close()
+
+
+class ElectronFakeProvider(object):
+    def __init__(self, **kwargs):
+        self.file_handle = FileHandle(file_name=kwargs["fake_factor_file"])
+        self.fake_factor = {}
+        self.read_fake_factors()
+
+    def read_fake_factors(self):
+        for i in range(3):
+            name = "fake_factor_pt_eta_geq{:d}_jets_dR0.3".format(i)
+            canvas_fake_factor = self.file_handle.get_object_by_name(name)
+            self.fake_factor[i] = get_objects_from_canvas_by_name(canvas_fake_factor, name)[0]
+
+    def retrieve_fake_factor(self, pt, eta, is_denom, n_jets):
+        if not is_denom or pt > 50000.:
+            return 1.
+        if n_jets > 2:
+            n_jets = 2
+        b = self.fake_factor[n_jets].FindBin(pt / 1000., eta)
+        return self.fake_factor[n_jets].GetBinContent(b)
+
+
+class ElectronFakeDecorator(object):
+    """
+    Apply electron fake factors
+    """
+    def __init__(self, **kwargs):
+        input_files = filter(lambda fn: "data" in fn, kwargs["input_files"])
+        self.input_file_handles = [FileHandle(file_name=input_file, open_option="UPDATE",
+                                              run_dir=kwargs["run_dir"]) for input_file in input_files]
+        self.estimator = ElectronFakeProvider(**kwargs)
+        self.tree_name = kwargs["tree_name"]
+        self.fake_factors = ROOT.std.vector('float')()
+        self.branch_name = kwargs["branch_name"]
+        self.branch_name_total = "{:s}_total".format(kwargs["branch_name"])
+        self.tree = None
+        self.branch = None
+        self.branch_total = None
+        self.total_sf = array('f', [1.])
+
+    def decorate_event(self):
+        self.fake_factors.clear()
+        self.total_sf[0] = 1.
+        for n_electron in range(self.tree.electron_n):
+            #muon_isolFixedCutLoose == 0 & & muon_is_prompt == 1 & & abs(muon_d0sig) > 3 & & mc_weight >= 0
+            fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
+                                                              self.tree.muon_eta[n_muon],
+                                                              self.tree.muon_isolFixedCutLoose[n_muon] == 0,
+                                                              0)
+                                                              #self.tree.muon_n_jet_dr2[n_muon])
+            self.total_sf[0] *= fake_factor
+            self.fake_factors.push_back(fake_factor)
+                                                                            #get_n_jets_dr(n_muon, 0.3)))
+
+    def event_loop(self):
+        total_entries = self.tree.GetEntries()
+        for entry in range(total_entries):
+            _logger.debug("Process event {:d}".format(entry))
+            self.tree.GetEntry(entry)
+            self.decorate_event()
+            self.branch.Fill()
+            self.branch_total.Fill()
+
+    def dump(self, file_handle):
+        tdir = file_handle.get_directory("Nominal")
+        tdir.cd()
+        self.tree.Write()
+        file_handle.close()
+
+    def initialise(self, file_handle):
+        self.tree = file_handle.get_objects_by_pattern(self.tree_name, "Nominal")[0]
+        self.branch = self.tree.Branch(self.branch_name, self.fake_factors)
+        self.branch_total = self.tree.Branch(self.branch_name_total,
+                                             self.total_sf,
+                                             "{:s}/F".format(self.branch_name_total))
+
+    def execute(self):
+        for file_handle in self.input_file_handles:
+            try:
+                self.initialise(file_handle)
+                self.event_loop()
+                self.dump(file_handle)
+            except Exception as e:
+                print(traceback.format_exc())
+                raise e
+            finally:
+                file_handle.close()
