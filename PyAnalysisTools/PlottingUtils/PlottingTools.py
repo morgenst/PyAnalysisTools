@@ -494,32 +494,32 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         name = canvas.GetName() + "_ratio"
     c = retrieve_new_canvas(name, title)
     c.Draw()
-    pad1 = ROOT.TPad("pad1", "top pad", 0.0, y_frac, 1., 1.)
+    pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
     pad1.SetBottomMargin(0.05)
     pad1.Draw()
-    pad2 = ROOT.TPad("pad2", "bottom pad", 0, 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac)
-    pad2.SetTopMargin(0.5)
+    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac)
     pad2.SetBottomMargin(0.1)
     pad2.Draw()
     pad1.cd()
     object_handle.get_objects_from_canvas(canvas)
     try:
         stack = object_handle.get_objects_from_canvas_by_type(canvas, "THStack")[0]
-        stack.GetXaxis().SetTitleSize(0)
-        stack.GetXaxis().SetLabelSize(0)
-        scale = 1. / (1. - y_frac)
-        scale_frame_text(stack, scale)
     except IndexError:
         try:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TEfficiency")[0]
         except IndexError:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+    stack.GetXaxis().SetTitleSize(0)
+    stack.GetXaxis().SetLabelSize(0)
+    stack.SetMinimum(max(stack.GetMinimum(), 0.1))
+    scale = 1. / (1. - y_frac)
+    scale_frame_text(stack, scale)
     canvas.DrawClonePad()
 
     pad2.cd()
     hratio.GetYaxis().SetNdivisions(505)
-    hratio.GetXaxis().SetNdivisions(505)
-    scale = 1. / y_frac - 1.5
+    scale = 1. / (((1 - y_frac) * (canvas.GetBottomMargin()) / y_frac + 1) * y_frac)
+
     reset_frame_text(hratio)
     scale_frame_text(hratio, scale)
     ratio.Update()
