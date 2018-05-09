@@ -40,7 +40,6 @@ class PlotConfig(object):
         kwargs.setdefault("Lumi", 1.)
         kwargs.setdefault("signal_extraction", True)
         kwargs.setdefault("merge_mc_campaigns", True)
-
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
@@ -55,14 +54,13 @@ class PlotConfig(object):
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
-
         self.auto_decorate()
 
     def is_set_to_value(self, attr, value):
         if not hasattr(self, attr):
             return False
         return getattr(self, attr) == value
-
+        
     def set_additional_config(self, attr_name, **kwargs):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")

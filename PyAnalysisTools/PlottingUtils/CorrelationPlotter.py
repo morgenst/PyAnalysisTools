@@ -144,7 +144,7 @@ class CorrelationPlotter(object):
         def build_correlation_plot_config(comb):
             pc_var_x = comb[0]
             pc_var_y = comb[1]
-            plot_config = PlotConfig(dist="%s:%s" % (pc_var_x.dist, pc_var_y.dist),
+            plot_config = PlotConfig(dist="%s:%s" % (pc_var_y.dist, pc_var_x.dist),
                                      name="correlation_%s_%s" % (pc_var_x.name, pc_var_y.name),
                                      xmin=pc_var_x.xmin, xmax=pc_var_x.xmax, xbins=pc_var_x.bins,
                                      ymin=pc_var_y.xmin, ymax=pc_var_y.xmax, ybins=pc_var_y.bins,
@@ -196,6 +196,8 @@ class CorrelationPlotter(object):
                     pc.ytitle = "<{:s}>".format(pc.ytitle)
                 if "profileY" in hist.GetName():
                     pc.name = pc.name.replace("correlation", "profileY")
+                    pc.xmin, pc.ymin = pc.ymin, pc.xmin
+                    pc.xmax, pc.ymax = pc.ymax, pc.xmax
                     xtitle = "<{:s}>".format(pc.xtitle)
                     pc.xtitle = pc.ytitle
                     pc.ytitle = xtitle
