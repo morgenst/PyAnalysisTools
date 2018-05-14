@@ -48,12 +48,13 @@ class SystematicsAnalyser(BasePlotter):
             fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
             self.categorise_histograms(fetched_histograms)
             self.apply_lumi_weights(self.histograms)
-
             if self.process_configs is not None:
                 for hist_set in self.histograms.values():
                     for process_name in hist_set.keys():
                         _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms()
+            map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
+            map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
             self.systematic_hists[systematic] = deepcopy(self.histograms)
 
     def calculate_total_systematics(self):

@@ -84,7 +84,7 @@ class BasePlotter(object):
 
     def fetch_histograms(self, data, systematic="Nominal"):
         file_handle, plot_config = data
-        if "data" in file_handle.process.lower() and plot_config.no_data:
+        if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
         if not plot_config.merge_mc_campaigns:
@@ -114,9 +114,10 @@ class BasePlotter(object):
         file_handle.open()
         try:
             hist = get_histogram_definition(plot_config)
-        except ValueError:
+        except ValueError as e:
             _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
             range settings.".format(plot_config.name))
+            print traceback.print_exc()
             return None
         try:
             weight = None
