@@ -41,6 +41,7 @@ class PlotConfig(object):
         kwargs.setdefault("signal_scale", None)
         kwargs.setdefault("Lumi", 1.)
         kwargs.setdefault("signal_extraction", True)
+        kwargs.setdefault("xtitle", None)
         kwargs.setdefault("merge_mc_campaigns", True)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
@@ -101,6 +102,10 @@ class PlotConfig(object):
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
             self.is_multidimensional = True if ":" in self.dist.replace("::", "") else False
+        if self.xtitle is None and hasattr(self, "dist") and self.dist:
+            self.xtitle = self.dist
+        elif self.xtitle is None:
+            self.xtitle = ""
 
     def merge_configs(self, other):
         """
