@@ -48,7 +48,6 @@ class CutflowAnalyser(object):
             self.process_configs = parse_and_build_process_config(kwargs["process_config"])
         self.file_handles = [FH(file_name=fn, dataset_info=self.dataset_config_file )for fn in self.file_list]
         self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
-        print self.file_handles
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -80,6 +79,20 @@ class CutflowAnalyser(object):
         self.calculate_cut_efficiencies()
 
     def merge_histograms(self, hist_dict):
+        # def merge(hist_dict):
+        #     for process, process_config in process_configs.iteritems():
+        #         if not hasattr(process_config, "subprocesses"):
+        #             continue
+        #         for sub_process in process_config.subprocesses:
+        #             if sub_process not in histograms.keys():
+        #                 continue
+        #             if process not in histograms.keys():
+        #                 new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
+        #                 histograms[process] = histograms[sub_process].Clone(new_hist_name)
+        #             else:
+        #                 histograms[process].Add(histograms[sub_process])
+        #             histograms.pop(sub_process)
+
         def merge(histograms):
             for process, process_config in self.process_configs.iteritems():
                 if not hasattr(process_config, "subprocesses"):
@@ -93,6 +106,9 @@ class CutflowAnalyser(object):
                                 histograms[process] = dict((syst,
                                                             dict((sel, None) for sel in histograms[sub_process][syst].keys()))
                                                            for syst in histograms[sub_process].keys())
+                            if selection not in histograms[process][systematic]:
+                                print "could not find selection ", selection, " for process ", process
+                                continue
                             if histograms[process][systematic][selection] is None:
                                 new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(sub_process, process)
                                 histograms[process][systematic][selection] = histograms[sub_process][systematic][selection].Clone(new_hist_name)
@@ -241,7 +257,7 @@ class CutflowAnalyser(object):
             selections = available_cutflows
         elif "," in user_input:
             selections = [available_cutflows[i-1] for i in map(int, user_input.split(","))]
-        elif "," in user_input:
+        elif "," not in user_input:
             selections = [available_cutflows[i-1] for i in map(int, user_input.split())]
         else:
             print "{:s}Invalid input {:s}. Going for default.\033[0m".format("\033[91m", user_input)

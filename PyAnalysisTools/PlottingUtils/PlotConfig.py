@@ -22,6 +22,8 @@ class PlotConfig(object):
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("rebin", None)
+        kwargs.setdefault("ratio", None)
+        kwargs.setdefault("ignore_rebin", False)
         kwargs.setdefault("weight", False)
         kwargs.setdefault("enable_legend", False)
         kwargs.setdefault("blind", None)
@@ -96,11 +98,11 @@ class PlotConfig(object):
         :rtype: list
         """
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
-                "merge_mc_campaigns", "signal_extraction"]
+                "merge_mc_campaigns", "signal_extraction", "ratio"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
-            self.is_multidimensional = True if ":" in self.dist else False
+            self.is_multidimensional = True if ":" in self.dist.replace("::", "") else False
 
     def merge_configs(self, other):
         """
@@ -299,7 +301,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
 
 
 def get_histogram_definition(plot_config):
-    dimension = plot_config.dist.count(":")
+    dimension = plot_config.dist.replace("::", "").count(":")
     hist = None
     hist_name = plot_config.name
     if dimension == 0:

@@ -155,6 +155,9 @@ def format_hist(hist, plot_config):
     if hasattr(plot_config, "unit"):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
+    yscale = 1.1
+    if plot_config.logy:
+        yscale = 100.
     if isinstance(hist, ROOT.TH2):
         if hasattr(plot_config, "ztitle"):
             hist.GetZaxis().SetTitle(plot_config.ztitle)
@@ -170,9 +173,8 @@ def format_hist(hist, plot_config):
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
-    if plot_config.rebin and not isinstance(hist, ROOT.THStack):
+    if plot_config.rebin and not isinstance(hist, ROOT.THStack) and not plot_config.ignore_rebin:
         hist = HT.rebin(hist, plot_config.rebin)
-        yscale = 1.1
         if hasattr(plot_config, "yscale"):
             yscale = yscale
         ymax = yscale*hist.GetMaximum()
@@ -224,7 +226,7 @@ def plot_histograms(hists, plot_config, process_configs=None):
         #     style_setter = "Line"
         if plot_config.ignore_style:
             style_setter = "Line"
-        FM.apply_style(hist, plot_config, process_config, index=hist_defs.index((process, hist)))
+        FM.apply_style(hist, plot_config, process_config, index=index)
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
@@ -397,7 +399,7 @@ def plot_stack(hists, plot_config, **kwargs):
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
         max_y = max(max_y, y_scale_offset * data[1].GetMaximum())
-        if plot_config.rebin:
+        if plot_config.rebin and not plot_config.ignore_rebin:
             max_y = max(max_y, 1.3 * get_objects_from_canvas_by_name(canvas, data[1].GetName())[0].GetMaximum())
     if plot_config.ymax:
         max_y = plot_config.ymax
