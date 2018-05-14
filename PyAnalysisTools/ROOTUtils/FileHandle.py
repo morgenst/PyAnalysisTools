@@ -44,6 +44,7 @@ class FileHandle(object):
         kwargs.setdefault("friend_directory", None)
         kwargs.setdefault("friend_pattern", None)
         kwargs.setdefault("friend_tree_names", None)
+        kwargs.setdefault("split_mc", False)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
@@ -77,6 +78,8 @@ class FileHandle(object):
                     self.process_with_mc_campaign += ".mc16a"
                 if self.mc16c:
                     self.process_with_mc_campaign += ".mc16c"
+            if kwargs["split_mc"]:
+                self.process = self.process_with_mc_campaign
         if kwargs["friend_directory"]:
             self.attach_friend_files(kwargs["friend_directory"])
 

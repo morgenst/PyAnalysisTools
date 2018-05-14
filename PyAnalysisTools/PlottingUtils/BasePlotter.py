@@ -31,7 +31,8 @@ class BasePlotter(object):
             self.split_mc_campaigns = True
         self.load_atlas_style()
         self.event_yields = {}
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"])
+        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
+                                        split_mc=self.split_mc_campaigns)
                              for input_file in self.input_files]
 
     def parse_process_config(self):
@@ -161,7 +162,7 @@ class BasePlotter(object):
             _logger.debug("try to access config for process %s" % file_handle.process)
             if self.process_configs is None:
                 return hist
-            process_config = find_process_config(file_handle.process, self.process_configs)
+            process_config = find_process_config(file_handle.process_with_mc_campaign, self.process_configs)
             if process_config is None:
                 _logger.error("Could not find process config for {:s}".format(file_handle.process))
                 return None

@@ -60,12 +60,11 @@ class Plotter(BasePlotter):
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
         self.filter_empty_trees()
-        self.expand_process_configs()
 
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
-                    _ = find_process_config(fh.process, self.process_configs)
+                _ = find_process_config(fh.process_with_mc_campaign, self.process_configs)
 
     def add_mc_campaigns(self):
         for process_config_name in self.process_configs.keys():
@@ -80,17 +79,19 @@ class Plotter(BasePlotter):
                 if hasattr(process_config, "subprocesses"):
                     new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
                 self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
+            self.process_configs.pop(process_config_name)
 
     @staticmethod
     def filter_process_configs(file_handles, process_configs=None):
         if process_configs is None:
             return file_handles
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                  filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None, file_handles)
+        return filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is not None,
+                      file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
