@@ -13,10 +13,20 @@ except Exception as e:
 
 class NTupleAnalyser(object):
     def __init__(self, **kwargs):
+        """
+        Constructor
+
+        :param kwargs: arguments
+        :type kwargs: dict
+        dataset_list: yml file containing datasetlist of expected processed samples
+        input_path: path containing ntuples to cross check against AMI
+        """
         self.check_valid_proxy()
         if not "dataset_list" in kwargs:
             raise InvalidInputError("No dataset list provided")
         self.datasets = YAMLLoader.read_yaml(kwargs["dataset_list"])
+        self.datasets = dict(filter(lambda kv: "pilot" not in kv[0], self.datasets.iteritems()))
+        self.datasets = dict(filter(lambda kv: "resubmit" not in kv[0], self.datasets.iteritems()))
         self.input_path = kwargs["input_path"]
 
     @staticmethod

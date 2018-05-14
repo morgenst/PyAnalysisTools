@@ -71,6 +71,12 @@ class Writer:
 
 
 def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, ncpu=10):
+    make_dirs(output_path)
+    if len(os.listdir(merge_dir)) > 0:
+        do_delete = raw_input("Merge directory contains already files. Shall I delete those?: [y|n]")
+        if do_delete.lower() == "y" or do_delete.lower() == "yes":
+            map(lambda d: remove_directory(os.path.join(merge_dir, d)), os.listdir(merge_dir))
+
     pool = Pool(processes=min(ncpu, len(data)))
     pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
                      merge_dir=merge_dir, force=force), data.items())

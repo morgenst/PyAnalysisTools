@@ -18,7 +18,8 @@ from systematic import Systematic
 from math import sqrt
 import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, \
+    transform_color
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -457,7 +458,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("bkg_name", "Bkg")
         kwargs.setdefault("analysis_name", "foo")
         kwargs.setdefault("output_dir", kwargs["output_dir"])
-        kwargs.setdefault("nbkg",  0.911)
+        kwargs.setdefault("bkg_yields",  0.911)
         kwargs.setdefault("call", 0)
         kwargs.setdefault("scan", False)
         kwargs.setdefault("use_asimov", True)
@@ -473,13 +474,30 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.call += 1
         self.run_fit()
 
+    def setup_single_background(self, **kwargs):
+        nbkg_yields = kwargs["bkg_yields"]
+        nbkg_err = sqrt(nbkg_yields)  # 0.376*nbkg  # (Absolute) Statistical error on bkg estimate
+        bkgSample = Sample(self.bkg_name, kGreen - 9)
+        bkgSample.setStatConfig(True)
+        bkgSample.buildHisto([nbkg_yields], "UserRegion", "cuts", 0.5)
+        bkgSample.buildStatErrors([nbkg_err], "UserRegion", "cuts")
+        return bkgSample
+
+    def setup_multi_background(self, **kwargs):
+        bkg_samples = []
+        for bkg_name, bkg_yield in kwargs["bkg_yields"].iteritems():
+            print "color: ", transform_color(kwargs["process_configs"][bkg_name].color)
+            bkg_sample = Sample(bkg_name, transform_color(kwargs["process_configs"][bkg_name].color))
+            bkg_sample.setStatConfig(True)
+            bkg_sample.buildHisto([bkg_yield], "UserRegion", "cuts", 0.5)
+            bkg_sample.buildStatErrors([sqrt(bkg_yield)], "UserRegion", "cuts")
+            bkg_samples.append(bkg_sample)
+        return bkg_samples
+
     def setup_regions(self, **kwargs):
-        nbkg = kwargs["nbkg"]  # Number of predicted bkg events
-        ndata = nbkg  # Number of events observed in data
-        nsig = 1.  # Number of predicted signal events
-        nbkg_err = sqrt(nbkg)  # 0.376*nbkg  # (Absolute) Statistical error on bkg estimate
-        nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
-        lumi_error = 0.039  # Relative luminosity uncertainty
+        kwargs.setdefault("sig_name", "Sig")
+        kwargs.setdefault("sig_yield", 1.)
+        nbkg_yields = kwargs["bkg_yields"]
 
         self.reset_config_mgr()
         self.configMgr.cutsDict["UserRegion"] = 1.
@@ -501,24 +519,27 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         self.configMgr.writeXML = True
 
-        ##########################
+        if isinstance(nbkg_yields, float):
+            bkg_samples = [self.setup_single_background(**kwargs)]
+            ndata = nbkg_yields  # Number of events observed in data
 
-        # Give the analysis a name
-        #self.configMgr.analysisName = self.name
-        # self.configMgr.outputFileName = os.path.join(self.output_dir, "results",
-        #                                              "{:s}_Output.root".format(self.configMgr.analysisName))
-        # Define samples
-        bkgSample = Sample(self.bkg_name, kGreen - 9)
-        bkgSample.setStatConfig(True)
-        bkgSample.buildHisto([nbkg], "UserRegion", "cuts", 0.5)
-        bkgSample.buildStatErrors([nbkg_err], "UserRegion", "cuts")
+        elif isinstance(nbkg_yields, dict):
+            bkg_samples = self.setup_multi_background(**kwargs)
+            ndata = 0
+
+        nsig = kwargs["sig_yield"]  # Number of predicted signal events
+        nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
+        lumi_error = 0.039  # Relative luminosity uncertainty
+
+
         # bkgSample.addSystematic(corb)
         # bkgSample.addSystematic(ucb)
 
-        sigSample = Sample("Sig", kPink)
-        sigSample.setNormFactor("mu_Sig", 1., 0., 10.)
+        sigSample = Sample(kwargs["sig_name"], kPink)
+        sigSample.setNormFactor("mu_Sig", 1., 0., 1.)
         sigSample.setStatConfig(True)
         # sigSample.setNormByTheory()
+        print nsig
         sigSample.buildHisto([nsig], "UserRegion", "cuts", 0.5)
         sigSample.buildStatErrors([nsig_err], "UserRegion", "cuts")
 
@@ -528,7 +549,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         # Define top-level
         ana = self.configMgr.addFitConfig("SPlusB")
-        ana.addSamples([bkgSample, sigSample, dataSample])
+        ana.addSamples(bkg_samples + [sigSample, dataSample])
         ana.setSignalSample(sigSample)
 
         # Define measurement
@@ -536,24 +557,23 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         meas.addPOI("mu_Sig")
         # meas.addParamSetting("Lumi",True,1)
 
-        # Add the channel
         chan = ana.addChannel("cuts", ["UserRegion"], 1, 0.5, 1.5)
         ana.addSignalChannels([chan])
         self.initialise()
 
-        # These lines are needed for the user analysis to run
-        # Make sure file is re-made when executing HistFactory
         if self.configMgr.executeHistFactory:
             file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
             if os.path.isfile(file_name):
                 os.remove(file_name)
-        # del self.configMgr
 
-    def get_upper_limit(self):
+    def get_upper_limit(self, name="hypo_Sig"):
         f = ROOT.TFile.Open(os.path.join(self.output_dir,
                                          "results/{:s}_Output_upperlimit.root".format(self.configMgr.analysisName)), "READ")
-        result = f.Get("hypo_Sig")
-        return result.GetExpectedUpperLimit(), result.GetExpectedUpperLimit(1), result.GetExpectedUpperLimit(-1)
+        result = f.Get(name)
+        try:
+            return result.GetExpectedUpperLimit(), result.GetExpectedUpperLimit(1), result.GetExpectedUpperLimit(-1)
+        except AttributeError:
+            return -1., 0., 0.
 
 
 class HistFitterShapeAnalysis(HistFitterWrapper):

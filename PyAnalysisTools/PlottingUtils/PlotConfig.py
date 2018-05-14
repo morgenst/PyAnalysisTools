@@ -22,6 +22,8 @@ class PlotConfig(object):
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("rebin", None)
+        kwargs.setdefault("ratio", None)
+        kwargs.setdefault("ignore_rebin", False)
         kwargs.setdefault("weight", False)
         kwargs.setdefault("enable_legend", False)
         kwargs.setdefault("blind", None)
@@ -94,11 +96,11 @@ class PlotConfig(object):
         :rtype: list
         """
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
-                "merge_mc_campaigns", "signal_extraction"]
+                "merge_mc_campaigns", "signal_extraction", "ratio"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
-            self.is_multidimensional = True if ":" in self.dist else False
+            self.is_multidimensional = True if ":" in self.dist.replace("::", "") else False
 
     def merge_configs(self, other):
         """
@@ -247,20 +249,21 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
     return draw_option
 
 
-def get_style_setters_and_values(plot_config, process_config=None, index=None):
-    def transform_color(color):
-        if isinstance(color, str):
-            offset = 0
-            if "+" in color:
-                color, offset = color.split("+")
-            if "-" in color:
-                color, offset = color.split("-")
-                offset = "-" + offset
-            color = getattr(ROOT, color.rstrip()) + int(offset)
-        if isinstance(color, list):
-            return transform_color(color[index])
-        return color
+def transform_color(color, index=None):
+    if isinstance(color, str):
+        offset = 0
+        if "+" in color:
+            color, offset = color.split("+")
+        if "-" in color:
+            color, offset = color.split("-")
+            offset = "-" + offset
+        color = getattr(ROOT, color.rstrip()) + int(offset)
+    if isinstance(color, list):
+        return transform_color(color[index])
+    return color
 
+
+def get_style_setters_and_values(plot_config, process_config=None, index=None):
     style_setter = None
     style_attr, color = None, None
     draw_option = _parse_draw_option(plot_config, process_config)
@@ -296,7 +299,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
 
 
 def get_histogram_definition(plot_config):
-    dimension = plot_config.dist.count(":")
+    dimension = plot_config.dist.replace("::", "").count(":")
     hist = None
     hist_name = plot_config.name
     if dimension == 0:
@@ -347,3 +350,9 @@ def find_process_config(process_name, process_configs):
             process_configs[match.group()] = process_config.add_subprocess(match.group())
             return process_configs[match.group()]
     return None
+
+
+def expand_process_configs(processes, process_configs):
+    for process in processes:
+        _ = find_process_config(process, process_configs)
+    return process_configs
