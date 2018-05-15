@@ -1,4 +1,6 @@
 import ROOT
+from copy import deepcopy
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -10,6 +12,7 @@ class RegionSummaryModule(object):
         self.tree_name = kwargs["tree_name"]
         self.regions = RegionBuilder(**kwargs["region_config"]).regions
         self.hist = self.build_hist()
+        self.plot_config = kwargs["plot_configs"][0]
         self.type = "HistFetching"
         self.pc = PlotConfig(name="weighted_yield", dist="weight", weigth="weight", bins=1, xmin=0, xmax=100000)
         self.plotter = BasePlotter(input_files=[], plot_config_files=[], **kwargs)
@@ -27,11 +30,16 @@ class RegionSummaryModule(object):
     def fetch(self):
         histograms = []
         for file_handle in self.file_handles:
-            tree = file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
             yield_hist = self.get_hist(file_handle.process)
             for region in self.regions:
                 self.pc.cuts = [region.convert2cut_string()]
-                _, hist = self.plotter.fetch_histograms(file_handle, self.pc)
+                pc = deepcopy(self.pc)
+                pc.name += region.name
+                _, _, hist = self.plotter.fetch_histograms((file_handle, pc))
+                if hist is None:
+                    _logger.error("Could not retrieve hist from {:s}".format(file_handle.file_name))
+                    continue
                 yield_hist.Fill(region.label, hist.Integral())
-            histograms.append((file_handle.process, yield_hist))
+            histograms.append((self.plot_config, file_handle.process, yield_hist))
+
         return histograms
