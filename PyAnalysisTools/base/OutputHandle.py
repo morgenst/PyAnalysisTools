@@ -2,6 +2,7 @@ import os
 import re
 import time
 import ROOT
+import math
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base import ShellUtils
 from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
@@ -75,6 +76,7 @@ class OutputFileHandle(SysOutputHandle):
         kwargs.setdefault("output_file", "output.root")
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
+        self.n_plots_per_page = 12
         kwargs.setdefault("make_plotbook", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
 
@@ -99,14 +101,29 @@ class OutputFileHandle(SysOutputHandle):
             ShellUtils.make_dirs(output_path)
         canvas.SaveAs(os.path.join(output_path, name + self.extension))
 
+    def dump_plot_book(self, canvases):
+        output_file_path = os.path.join(self.output_dir,"plot_book.pdf")
+        canvases[0].Print(output_file_path+"(","pdf")
+        for i in range(1,len(canvases)-1):
+            canvases[i].Print(output_file_path,"pdf")
+        canvases[-1].Print(output_file_path+")","pdf")
+
+    def set_n_plots_per_page(self, n_plots_per_page):
+        self.n_plots_per_page = n_plots_per_page
+
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
-        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", 1500, 2000)
-        plot_book_canvas.Divide(3, 4)
+        n = self.n_plots_per_page
+        nx = int(round(math.sqrt(n)))
+        ny = int(math.ceil(n/float(nx)))
+        if nx < ny:
+           nx, ny = ny, nx
+        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", nx*800, ny*600)
+        plot_book_canvas.Divide(nx, ny)
         for i in range(len(bucket)):
             plot_book_canvas.cd(i+1)
             bucket[i].DrawClonePad()
-        self.dump_canvas(plot_book_canvas)
+        return plot_book_canvas
 
     def make_plot_book(self):
         all_canvases = filter(lambda obj: isinstance(obj, ROOT.TCanvas), self.objects.values())
@@ -114,12 +131,15 @@ class OutputFileHandle(SysOutputHandle):
         plots = list(set(all_canvases) - set(ratio_plots))
         plots.sort(key=lambda i: i.GetName())
         ratio_plots.sort(key=lambda i: i.GetName())
-        plots = [plots[i:i+9] for i in range(0, len(plots), 12)]
-        ratio_plots = [ratio_plots[i:i + 9] for i in range(0, len(ratio_plots), 9)]
+        n = self.n_plots_per_page
+        plots = [plots[i:i + n] for i in range(0, len(plots), n)]
+        ratio_plots = [ratio_plots[i:i + n] for i in range(0, len(ratio_plots), n)]
+        canvases = []
         for plot_bucket in plots:
-            self._make_plot_book(plot_bucket, plots.index(plot_bucket))
+            canvases.append(self._make_plot_book(plot_bucket, plots.index(plot_bucket)))
         for plot_bucket in ratio_plots:
-            self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio")
+            canvases.appedn(self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio"))
+        self.dump_plot_book(canvases)
 
     def write_to_file(self, obj, tdir=None):
         if tdir is not None:
