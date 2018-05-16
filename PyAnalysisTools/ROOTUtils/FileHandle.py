@@ -1,6 +1,7 @@
 import os
 import re
 import time
+import ROOT
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
@@ -66,6 +67,7 @@ class FileHandle(object):
         self.friends = None
         self.friend_tree_names = kwargs["friend_tree_names"]
         self.friend_pattern = kwargs["friend_pattern"]
+        self.friend_files = []
         if self.friend_tree_names is not None and not isinstance(self.friend_tree_names, list):
             self.friend_tree_names = [self.friend_tree_names]
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
@@ -284,11 +286,16 @@ class FileHandle(object):
         if self.friend_tree_names is None:
             _logger.error("No friend tree names provided, but requested to link them.")
             return
-        for f in self.friends:
+        for friend_file in self.friend_files:
             friend_trees = filter(lambda t: t is not None,
-                                  [self.get_object_by_name(tn, tdirectory, f) for tn in self.friend_tree_names])
+                                  [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names])
             for tree in friend_trees:
                 nominal_tree.AddFriend(tree)
+
+    def reset_friends(self):
+        for f in self.friends:
+            friend_file = TFile.Open(f, "READ")
+            self.friend_files.append(friend_file)
 
     def attach_friend_files(self, directory):
         self.friends = []
@@ -297,7 +304,7 @@ class FileHandle(object):
         for pattern in self.friend_pattern:
             friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
                               available_files)[0]
-            self.friends.append(TFile.Open(os.path.join(directory, friend_fn), "READ"))
+            self.friends.append(os.path.join(directory, friend_fn))
 
     @staticmethod
     def release_object_from_file(obj):

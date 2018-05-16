@@ -19,6 +19,9 @@ class BasePlotter(object):
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
+        kwargs.setdefault("friend_directory", None)
+        kwargs.setdefault("fried_tree_names", None)
+        kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
@@ -32,7 +35,9 @@ class BasePlotter(object):
         self.load_atlas_style()
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
-                                        split_mc=self.split_mc_campaigns)
+                                        split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                        friend_tree_names=kwargs["friend_tree_names"],
+                                        friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
 
     def parse_process_config(self):
@@ -113,6 +118,7 @@ class BasePlotter(object):
         :rtype: THX
         """
         file_handle.open()
+        file_handle.reset_friends()
         try:
             hist = get_histogram_definition(plot_config)
         except ValueError as e:
