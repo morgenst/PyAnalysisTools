@@ -76,6 +76,7 @@ class OutputFileHandle(SysOutputHandle):
         kwargs.setdefault("output_file", "output.root")
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
+        self.plot_book_name = "plot_book"
         self.n_plots_per_page = 12
         kwargs.setdefault("make_plotbook", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
@@ -102,17 +103,24 @@ class OutputFileHandle(SysOutputHandle):
         canvas.SaveAs(os.path.join(output_path, name + self.extension))
 
     def dump_plot_book(self, canvases):
-        output_file_path = os.path.join(self.output_dir,"plot_book.pdf")
-        canvases[0].Print(output_file_path+"(","pdf")
-        for i in range(1,len(canvases)-1):
-            canvases[i].Print(output_file_path,"pdf")
-        canvases[-1].Print(output_file_path+")","pdf")
+        output_file_path = os.path.join(self.output_dir, self.plot_book_name + ".pdf")
+        if len(canvases) > 1:
+           canvases[0].Print(output_file_path+"(","pdf")
+           for i in range(1,len(canvases)-1):
+               canvases[i].Print(output_file_path,"pdf")
+           canvases[-1].Print(output_file_path+")","pdf")
+        elif len(canvases) is 1:
+           canvases[0].Print(output_file_path,"pdf")
+
+    def set_plot_book_name(self, plot_book_name):
+        self.plot_book_name = plot_book_name
 
     def set_n_plots_per_page(self, n_plots_per_page):
         self.n_plots_per_page = n_plots_per_page
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
+        ROOT.gStyle.SetLineScalePS(0.4)
         n = self.n_plots_per_page
         nx = int(round(math.sqrt(n)))
         ny = int(math.ceil(n/float(nx)))
@@ -138,7 +146,7 @@ class OutputFileHandle(SysOutputHandle):
         for plot_bucket in plots:
             canvases.append(self._make_plot_book(plot_bucket, plots.index(plot_bucket)))
         for plot_bucket in ratio_plots:
-            canvases.appedn(self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio"))
+            canvases.append(self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio"))
         self.dump_plot_book(canvases)
 
     def write_to_file(self, obj, tdir=None):

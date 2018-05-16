@@ -24,6 +24,7 @@ class OverlayPlotterDsPhiPi(object):
                self.file_dict[key] =  ROOT.TFile(self.input_dict[key]["Path"])
        self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
        self.output_handle.set_n_plots_per_page(20)
+
    def get_hist_from_file(self, file, canvas_name, hist_name, legend):
        canvas = ROOT.TCanvas("tmp"+canvas_name+legend, "", 800, 600)
        file.GetObject(canvas_name, canvas)
@@ -91,15 +92,12 @@ class OverlayPlotterDsPhiPi(object):
 
    def make_plots(self):
        gROOT.SetBatch(True)
-       canvas_list = []
        if self.variable_config:
           for variable in sorted(self.variable_config.keys()):
               hist_list = self.get_hist_list(variable)
               canvas = self.format_and_draw_hist(hist_list, variable)
               self.legend.Draw("same")
-              canvas_list.append(canvas)
               self.output_handle.register_object(canvas)
-          ROOT.gStyle.SetLineScalePS(0.4)
           self.output_handle.make_plot_book()
        else:
           hist_list = self.get_hist_list(None)
