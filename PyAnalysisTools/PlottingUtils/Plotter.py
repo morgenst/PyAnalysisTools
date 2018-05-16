@@ -42,7 +42,6 @@ class Plotter(BasePlotter):
         kwargs.setdefault("module_config_file", None)
 
         super(Plotter, self).__init__(**kwargs)
-        self.modules = load_modules(kwargs["module_config_file"], self)
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
@@ -52,14 +51,15 @@ class Plotter(BasePlotter):
         self.systematics_analyser = None
         if kwargs["enable_systematics"]:
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
-        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
-        #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
         self.filter_empty_trees()
+        self.modules = load_modules(kwargs["module_config_file"], self)
+        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
 
     def expand_process_configs(self):
         if self.process_configs is not None:
@@ -334,7 +334,7 @@ class Plotter(BasePlotter):
         if len(self.modules_hist_fetching) == 0:
             fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
         else:
-            fetched_histograms = [(self.plot_configs[0], self.modules_hist_fetching[0].fetch())]
+            fetched_histograms = self.modules_hist_fetching[0].fetch()
         fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
         self.categorise_histograms(fetched_histograms)
         if not self.lumi < 0:

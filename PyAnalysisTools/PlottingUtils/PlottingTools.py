@@ -161,8 +161,15 @@ def format_hist(hist, plot_config):
     if isinstance(hist, ROOT.TH2):
         if hasattr(plot_config, "ztitle"):
             hist.GetZaxis().SetTitle(plot_config.ztitle)
+        if hasattr(plot_config, "ztitle_offset"):
+            FM.set_title_z_offset(hist, plot_config.ztitle_offset)
+        if hasattr(plot_config, "ztitle_size"):
+            FM.set_title_z_size(hist, plot_config.ztitle_size)
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
+        if hasattr(plot_config, "zmin") and hasattr(plot_config, "zmax"):
+            FM.set_range_z(hist, plot_config.zmin, plot_config.zmax)
+
     if hasattr(plot_config, "normalise") and plot_config.normalise:
         HT.normalise(hist, plot_config.normalise_range)
         yscale = 1.1
