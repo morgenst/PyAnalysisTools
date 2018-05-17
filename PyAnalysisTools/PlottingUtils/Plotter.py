@@ -301,20 +301,25 @@ class Plotter(BasePlotter):
                 plot_config_stat_unc_ratio.draw = "E2"
                 plot_config_stat_unc_ratio.logy = False
                 stat_unc_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
+                stat_unc_ratio.SetMarkerColor(ROOT.kYellow)
                 if self.systematics_analyser is None:
                     canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
                                                                            plot_config_stat_unc_ratio)
             if self.systematics_analyser is not None:
+                syst_color = ROOT.kRed
                 plot_config_syst_unc_ratio = copy.copy(ratio_plot_config)
                 plot_config_syst_unc_ratio.name = ratio_plot_config.name.replace("ratio", "syst_unc")
-                plot_config_syst_unc_ratio.color = ROOT.kRed
+                plot_config_syst_unc_ratio.color = syst_color
                 plot_config_syst_unc_ratio.style = 1001
                 plot_config_syst_unc_ratio.draw = "E2"
                 plot_config_syst_unc_ratio.logy = False
                 syst_sm_total_up, syst_sm_total_down = self.systematics_analyser.get_relative_unc_on_SM_total(
                     plot_config, data)
-                ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up)
-                ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up)
+                ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up,
+                                                                  syst_color)
+                ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up,
+                                                                    syst_color)
+
                 canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio,
                                                                        [ratio_syst_up, ratio_syst_down,
                                                                         stat_unc_ratio],

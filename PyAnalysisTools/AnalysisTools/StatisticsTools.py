@@ -47,10 +47,12 @@ def get_statistical_uncertainty_ratio(stat_unc_hist):
             stat_unc_hist_ratio.SetBinError(b, stat_unc_hist.GetBinError(b) / stat_unc_hist.GetBinContent(b))
         else:
             stat_unc_hist_ratio.SetBinError(b, 0.)
+    stat_unc_hist_ratio.SetMarkerStyle(20)
+    stat_unc_hist_ratio.SetMarkerSize(0)
     return stat_unc_hist_ratio
 
 
-def get_relative_systematics_ratio(nominal, stat_unc, systematic):
+def get_relative_systematics_ratio(nominal, stat_unc, systematic, color=None):
     ratio_hist = nominal.Clone("ratio_{:s}".format(systematic.GetName()))
     for b in range(nominal.GetNbinsX()+1):
         nominal_yield = nominal.GetBinContent(b)
@@ -61,6 +63,11 @@ def get_relative_systematics_ratio(nominal, stat_unc, systematic):
         uncertainty += stat_unc.GetBinError(b)
         ratio_hist.SetBinContent(b, 1.)
         ratio_hist.SetBinError(b, uncertainty)
+    ratio_hist.SetMarkerStyle(20)
+    ratio_hist.SetMarkerSize(0)
+    if color:
+        ratio_hist.SetMarkerColor(color)
+        ratio_hist.SetMarkerColorAlpha(color, 0)
     return ratio_hist
 
 
