@@ -151,6 +151,7 @@ class NNTrainer(object):
         self.apply_scaling()
         if self.do_control_plots:
             self.make_control_plots("postscaling")
+        #TODO: implement sample weights via sample_weight option
         history_train = self.model_0.fit(self.data_train.values, self.label_train.reshape((self.label_train.shape[0], 1)),
                                          epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
                                          validation_data=(self.data_eval.values, self.label_eval))
@@ -241,6 +242,7 @@ class NNReader(object):
         self.output_path = kwargs["output_path"]
 
     def build_friend_tree(self, file_handle):
+        self.is_new_tree = False
         friend_file_name = file_handle.file_name.replace("hist",
                                                          self.friend_file_pattern).replace("ntuple",
                                                                                            self.friend_file_pattern)
@@ -253,6 +255,7 @@ class NNReader(object):
         try:
             friend_tree = file_handle_friend.get_object_by_name(self.friend_name, "Nominal")
         except ValueError:
+            self.is_new_tree = True
             friend_tree = ROOT.TTree(self.friend_name, "")
         return file_handle_friend, friend_tree
 
@@ -295,7 +298,8 @@ class NNReader(object):
             else:
                 bdt[0] = -1
                 multiple_triplets += 1
-            friend_tree.Fill()
+            if self.is_new_tree:
+                friend_tree.Fill()
             branch.Fill()
         try:
             file_handle_friend.get_object_by_name("Nominal")
