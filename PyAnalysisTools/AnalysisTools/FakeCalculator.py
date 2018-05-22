@@ -70,11 +70,20 @@ class MuonFakeCalculator(object):
             denominator = HT.rebin(denominator, pc.rebin)
         numerator_hist.Divide(denominator)
         pc.name = pc.name.replace("numerator", "fake_factor")
-        pc.draw_option = "p"
-        pc.ytitle = "Fake factor"
-        pc.logy = False
-        pc.ymin = 0.
-        pc.ymax = 2.
+        print numerator_hist
+        if not isinstance(numerator_hist, ROOT.TH2F):
+            pc.draw_option = "p"
+            pc.ytitle = "Fake factor"
+            pc.logy = False
+            pc.ymin = 0.
+            pc.ymax = 2.
+        else:
+            print "go to else"
+            pc.draw_option = "COLZ"
+            pc.ztitle = "Fake factor"
+            pc.logy = False
+            pc.zmin = 0.
+            pc.zmax = 2.
         canvas = pt.plot_obj(numerator_hist, pc)
         self.plotter.output_handle.register_object(canvas)
 

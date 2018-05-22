@@ -195,30 +195,32 @@ class RegionBuilder(object):
         kwargs.setdefault("split_z_mass", False)
         kwargs.setdefault("same_flavour_only", False)
         if kwargs["auto_generate"]:
-            self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
-                                      kwargs["same_flavour_only"])
+            # self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
+            #                           kwargs["same_flavour_only"])
+            self.auto_generate_region(**kwargs)
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
                 self.regions.append(Region(name=region_name, **region_def))
         self.type = "PCModifier"
 
-    def auto_generate_region(self, n_leptons, disable_taus, split_z_mass, same_flavour_only):
+    def auto_generate_region(self, **kwargs):
+        n_leptons = kwargs["nleptons"]
         for digits in product("".join(map(str, range(n_leptons+1))), repeat=3):
             comb = map(int, digits)
             if sum(comb) == n_leptons:
-                if same_flavour_only and not comb.count(0) == 2:
+                if kwargs["same_flavour_only"] and not comb.count(0) == 2:
                     continue
                 name = "".join([a*b for a, b in zip(["e", "m", "t"], comb)])
-                if disable_taus and comb[2] > 0:
+                if kwargs["disable_taus"] and comb[2] > 0:
                     continue
-                if split_z_mass:
+                if kwargs["split_z_mass"]:
                     self.regions.append(Region(name=name + "_onZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
-                                               n_tau=comb[2], disable_taus=disable_taus, is_on_z=True))
+                                               n_tau=comb[2], is_on_z=True, **kwargs))
                     self.regions.append(Region(name=name + "_offZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
-                                               n_tau=comb[2], disable_taus=disable_taus, is_on_z=False))
+                                               n_tau=comb[2], is_on_z=False, **kwargs))
                 else:
                     self.regions.append(Region(name=name, n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
-                                               n_tau=comb[2], disable_taus=disable_taus))
+                                               n_tau=comb[2], **kwargs))
 
     def build_custom_region(self):
         pass

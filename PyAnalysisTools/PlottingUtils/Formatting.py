@@ -215,6 +215,12 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
+def set_range_z(graph_obj, minimum, maximum):
+    if isinstance(graph_obj, ROOT.TH1):
+        graph_obj.SetMaximum(maximum)
+        graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
+
+
 def set_range_x(graph_obj, minimum, maximum):
     if isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetXaxis().SetRangeUser(minimum, maximum)
