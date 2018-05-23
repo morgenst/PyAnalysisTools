@@ -85,16 +85,28 @@ class OutputFileHandle(SysOutputHandle):
 
     def dump_canvas(self, canvas, name=None, tdir=None):
         #re-draw canvas to update internal reference in gPad
-        canvas.Draw()
-        ROOT.gPad.Update()
         extension = ".pdf"
-        if not name:
-            name = canvas.GetName()
         output_path = self.output_dir
         if tdir is not None:
             output_path = os.path.join(output_path, tdir)
             ShellUtils.make_dirs(output_path)
-        canvas.SaveAs(os.path.join(output_path, name + extension))
+        if not isinstance(canvas, list):
+            canvas.Draw()
+            ROOT.gPad.Update()
+            if not name:
+                name = canvas.GetName()
+            canvas.SaveAs(os.path.join(output_path, name + extension))
+            return
+        for c in canvas:
+            c.Draw()
+            ROOT.gPad.Update()
+            if canvas.index(c) == 0:
+                c.SaveAs(os.path.join(output_path, name + extension + "("))
+                continue
+            if canvas.index(c) == len(canvas) - 1:
+                c.SaveAs(os.path.join(output_path, name + extension + ")"))
+                continue
+            c.SaveAs(os.path.join(output_path, name + extension))
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
@@ -103,7 +115,7 @@ class OutputFileHandle(SysOutputHandle):
         for i in range(len(bucket)):
             plot_book_canvas.cd(i+1)
             bucket[i].DrawClonePad()
-        self.dump_canvas(plot_book_canvas)
+        return plot_book_canvas
 
     def make_plot_book(self):
         all_canvases = filter(lambda obj: isinstance(obj, ROOT.TCanvas), self.objects.values())
@@ -111,12 +123,13 @@ class OutputFileHandle(SysOutputHandle):
         plots = list(set(all_canvases) - set(ratio_plots))
         plots.sort(key=lambda i: i.GetName())
         ratio_plots.sort(key=lambda i: i.GetName())
-        plots = [plots[i:i+9] for i in range(0, len(plots), 12)]
+        plots = [plots[i:i+12] for i in range(0, len(plots), 12)]
         ratio_plots = [ratio_plots[i:i + 9] for i in range(0, len(ratio_plots), 9)]
-        for plot_bucket in plots:
-            self._make_plot_book(plot_bucket, plots.index(plot_bucket))
-        for plot_bucket in ratio_plots:
-            self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket), prefix="plot_book_ratio")
+        self.dump_canvas([self._make_plot_book(plot_bucket, plots.index(plot_bucket)) for plot_bucket in plots],
+                         name="plot_book")
+        self.dump_canvas([self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket),
+                                               prefix="plot_book_ratio") for plot_bucket in ratio_plots],
+                         name="plot_book_ratio")
 
     def write_to_file(self, obj, tdir=None):
         if tdir is not None:
