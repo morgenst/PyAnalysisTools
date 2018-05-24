@@ -240,6 +240,7 @@ class NNReader(object):
         self.friend_file_pattern = kwargs["friend_file_pattern"]
         self.friend_name = kwargs["friend_name"]
         self.output_path = kwargs["output_path"]
+        make_dirs(self.output_path)
 
     def build_friend_tree(self, file_handle):
         self.is_new_tree = False
