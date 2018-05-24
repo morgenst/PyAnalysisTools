@@ -30,11 +30,15 @@ class CorrelationPlotter(object):
             InvalidInputError("Missing tree name")
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("process_config_file", None)
+        kwargs.setdefault("friend_directory", None)
+        kwargs.setdefault("friend_tree_names", None)
+        kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("store_all", not kwargs["disable_intermediate_plots"])
-        self.file_handles = [FileHandle(file_name=fn,
-                                        dataset_info=kwargs["xs_config_file"]) for fn in kwargs["input_files"]]
+        self.file_handles = [FileHandle(file_name=fn, dataset_info=kwargs["xs_config_file"],
+                                        friend_directory=kwargs["friend_directory"],
+                                        friend_tree_names=kwargs["friend_tree_names"],
+                                        friend_pattern=kwargs["friend_file_pattern"]) for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
-        #kwargs.setdefault("output_file", "correlation_%s.root" % self.file_handle.parse_process())
         for k, v in kwargs.iteritems():
             if k in ["input_files", "tree"]:
                 continue
@@ -42,7 +46,7 @@ class CorrelationPlotter(object):
         self.process_configs = self.parse_process_config()
 
         self.variable_pcs, common_config = parse_and_build_plot_config(kwargs["variable_list"])
-        self.output_handle = OutputFileHandle(output_dir=kwargs["output_path"])
+        self.output_handle = OutputFileHandle(output_dir=kwargs["output_path"], make_plotbook=True)
         self.correlation_hists = {}
         self.build_correlation_plot_configs()
         self.expand_process_configs()
@@ -56,7 +60,7 @@ class CorrelationPlotter(object):
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
-                    _ = find_process_config(fh.process, self.process_configs)
+                _ = find_process_config(fh.process, self.process_configs)
 
     def __del__(self):
         self.output_handle.write_and_close()
@@ -69,16 +73,19 @@ class CorrelationPlotter(object):
     def fetch_correlation_hist(self, fh, plot_config):
         pc = deepcopy(plot_config)
         pc.name = "{:s}_{:s}".format(pc.name, fh.process_with_mc_campaign)
+        fh.reset_friends()
         hist = get_histogram_definition(pc)
         fh.fetch_and_link_hist_to_tree(self.tree_name, hist, pc.dist, tdirectory="Nominal")
         correlation_coefficient = hist.GetCorrelationFactor()
         #self.fill_correlation_coefficient(correlation_coefficient, *combination)
+        hist.SetDirectory(0)
         try:
             self.correlation_hists[fh.process_with_mc_campaign].append(hist)
         except KeyError:
             self.correlation_hists[fh.process_with_mc_campaign] = [hist]
         if self.store_all:
             self.make_correlation_plot(hist, pc)
+        fh.release_friends()
 
     def make_correlation_plot(self, hist, plot_config):
         canvas = pt.plot_obj(hist, plot_config)
@@ -91,22 +98,30 @@ class CorrelationPlotter(object):
 
     def merge(self, histograms, process_configs):
         for process, process_config in process_configs.iteritems():
+
             if not hasattr(process_config, "subprocesses"):
                 continue
             for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
+                #TODO: this is a ridiculously stupid implementation
+                if sub_process not in histograms.keys() and sub_process + ".mc16a" not in histograms.keys() and sub_process + ".mc16c" not in histograms.keys():
                     continue
-                if process not in histograms.keys():
-                    for hist in histograms[sub_process]:
-                        new_hist_name = hist.GetName().replace(sub_process, process)
-                        try:
-                            histograms[process].append(hist.Clone(new_hist_name))
-                        except:
-                            histograms[process] = [hist.Clone(new_hist_name)]
-                else:
-                    for index, hist in enumerate(histograms[sub_process]):
-                        histograms[process][index].Add(hist)
-                histograms.pop(sub_process)
+                for extension in ["", ".mc16a", ".mc16c"]:
+                    tmp_sub_process = sub_process + extension
+                    if process not in histograms.keys():
+                        if tmp_sub_process not in histograms.keys():
+                            continue
+                        for hist in histograms[tmp_sub_process]:
+                            new_hist_name = hist.GetName().replace(tmp_sub_process, process)
+                            try:
+                                histograms[process].append(hist.Clone(new_hist_name))
+                            except:
+                                histograms[process] = [hist.Clone(new_hist_name)]
+                    else:
+                        if tmp_sub_process not in histograms.keys():
+                            continue
+                        for index, hist in enumerate(histograms[tmp_sub_process]):
+                            histograms[process][index].Add(hist)
+                    histograms.pop(tmp_sub_process)
 
     def make_correlation_plots(self, variables=None):
         def get_plot_config(hist):
@@ -187,6 +202,7 @@ class CorrelationPlotter(object):
         profile_plots = {}
         labels = []
         colors = [(process, get_color(process)) for process in profiles.keys()]
+        marker_styles = range(20, 34)
         for process, hists in profiles.iteritems():
             labels.append(process)
             for hist in hists:
@@ -205,7 +221,8 @@ class CorrelationPlotter(object):
                 pc.draw = "Marker"
                 pc.color = map(itemgetter(1), colors)
                 index = map(itemgetter(0), colors).index(process)
-                hist_base_name = pc.name #"_".join(pc.name.split("_")[:-2])
+                pc.style = marker_styles[index]
+                hist_base_name = pc.name
                 if hist_base_name not in profile_plots:
                     canvas = pt.plot_hist(hist, pc, index=index)
                     p = get_objects_from_canvas_by_type(canvas, "TProfile")[0]

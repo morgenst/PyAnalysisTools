@@ -84,6 +84,7 @@ class FileHandle(object):
                 self.process = self.process_with_mc_campaign
         if kwargs["friend_directory"]:
             self.attach_friend_files(kwargs["friend_directory"])
+        self.trees_with_friends = None
 
     def open(self, file_name=None):
         if file_name is not None:
@@ -289,13 +290,24 @@ class FileHandle(object):
         for friend_file in self.friend_files:
             friend_trees = filter(lambda t: t is not None,
                                   [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names])
+            if self.trees_with_friends is None:
+                self.trees_with_friends = []
             for tree in friend_trees:
                 nominal_tree.AddFriend(tree)
+                self.trees_with_friends.append((nominal_tree, tree))
 
     def reset_friends(self):
         for f in self.friends:
             friend_file = TFile.Open(f, "READ")
             self.friend_files.append(friend_file)
+
+    def release_friends(self):
+        if self.trees_with_friends is None:
+            return
+        for tree, friend in self.trees_with_friends:
+            tree.RemoveFriend(friend)
+        self.trees_with_friends = None
+        self.friend_files = []
 
     def attach_friend_files(self, directory):
         self.friends = []
