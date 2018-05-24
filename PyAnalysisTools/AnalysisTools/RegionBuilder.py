@@ -116,14 +116,16 @@ class Region(object):
         cut_list = []
         electron_selector = "electron_n == electron_n"
         muon_selector = "muon_n == muon_n"
-        if self.good_muon:
+        if hasattr(self, "good_muon_cut_string"):
             muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
-        if self.good_electron:
+        if hasattr(self, "good_electron_cut_string"):
             electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
 
         cut = ""
         if self.event_cuts is not None:
             cut_list += self.event_cuts
+        if self.event_cuts is None and hasattr(self, "event_cut_string"):
+            cut_list.append(self.event_cut_string)
         if self.is_on_z is not None:
             cut_list.append("Sum$(inv_Z_mask==1) > 0" if self.is_on_z else "Sum$(inv_Z_mask==1) == 0")
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
@@ -134,21 +136,6 @@ class Region(object):
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
         return " && ".join(cut_list)
-
-
-
-        # if self.disable_taus:
-        #     return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
-        #                                                                                    self.operator,
-        #                                                                                    self.n_electron,
-        #                                                                                    muon_selector,
-        #                                                                                    self.muon_operator,
-        #                                                                                    self.n_muon)
-
-        return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
-                                                                                  self.n_electron, muon_selector,
-                                                                                  self.muon_operator, self.n_muon,
-                                                                                  self.operator, self.n_tau)
 
     def build_label(self):
         """
