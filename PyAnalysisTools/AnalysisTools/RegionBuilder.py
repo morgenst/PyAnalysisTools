@@ -76,7 +76,7 @@ class Region(object):
         if not self.split_mc_data:
             return " && ".join(cut_list)
         return " && ".join(filter(lambda cut: "data:" not in cut.lower(), cut_list)), \
-               " && ".join(cut_list).replace("Data:", "").replace("data:", "")
+               " && ".join(cut_list).replace("Data:", "").replace("data:", "").replace("DATA:", "")
 
     def convert_lepton_selections(self):
         """
@@ -104,26 +104,10 @@ class Region(object):
         :return: cut selection as ROOT compatible string
         :rtype: string
         """
-        # electron_selector = "electron_n == electron_n"
-        # muon_selector = "muon_n == muon_n"
-        # if self.good_muon:
-        #     muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
-        # if self.good_electron:
-        #     electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
-        #
-        # cut = ""
-        # if self.event_cuts is not None:
-        #     cut = self.event_cut_string + " && "
-        # if self.is_on_z is not None:
-        #     cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
-        # if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
-        #     return cut + "{:s} + {:s} + tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
-        #                                                        self.n_lep)
-        # if not self.disable_muons:
-        #     cut += "{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon)
-        # if not self.disable_electrons:
-        #     cut += " {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron)
-        # return cut
+        if self.split_mc_data:
+            self.split_mc_data = False
+            self.convert_lepton_selections()
+            self.event_cut_string = self.convert_cut_list_to_string(self.event_cuts)
         if self.disable_leptons:
             return self.event_cut_string
 
@@ -148,21 +132,6 @@ class Region(object):
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
         return " && ".join(cut_list)
-
-
-
-        # if self.disable_taus:
-        #     return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
-        #                                                                                    self.operator,
-        #                                                                                    self.n_electron,
-        #                                                                                    muon_selector,
-        #                                                                                    self.muon_operator,
-        #                                                                                    self.n_muon)
-
-        return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
-                                                                                  self.n_electron, muon_selector,
-                                                                                  self.muon_operator, self.n_muon,
-                                                                                  self.operator, self.n_tau)
 
     def build_label(self):
         """
@@ -194,12 +163,13 @@ class RegionBuilder(object):
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("split_z_mass", False)
         kwargs.setdefault("same_flavour_only", False)
+        kwargs.setdefault("modify_mc_data_split", False)
         if kwargs["auto_generate"]:
-            # self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
-            #                           kwargs["same_flavour_only"])
             self.auto_generate_region(**kwargs)
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
+                if kwargs["modify_mc_data_split"]:
+                    region_def["split_mc_data"] = False
                 self.regions.append(Region(name=region_name, **region_def))
         self.type = "PCModifier"
 
