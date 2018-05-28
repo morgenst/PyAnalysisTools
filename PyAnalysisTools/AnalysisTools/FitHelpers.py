@@ -1,15 +1,15 @@
 import ROOT
-import math
 from ROOT import RooFit
 from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas, add_atlas_label
 
-def convert(file_handles, tree_name, quantity, blind, selections, extra_selection):
+def convert(file_handles, tree_name, quantity, blind, selections, extra_selection, weight_name=None):
     var = ROOT.RooRealVar(quantity[0], quantity[0], quantity[1], quantity[2])
+    weight = ROOT.RooRealVar("weight", "weight", 1)
     if blind:
        var.setRange("left", quantity[1], blind[0])
        var.setRange("right", blind[1], quantity[2])
-    var_arg = ROOT.RooArgSet(var)
-    data = ROOT.RooDataSet("data", "data", var_arg)
+    var_arg = ROOT.RooArgSet(var, weight)
+    data = ROOT.RooDataSet("data", "data", var_arg, "weight")
     cut = "1"
     selections += extra_selection
     if selections:
@@ -26,7 +26,10 @@ def convert(file_handles, tree_name, quantity, blind, selections, extra_selectio
                     value = getattr(tree, quantity[0])[t]
                     if quantity[1]<value and value<quantity[2] :
                         ROOT.RooAbsRealLValue.__assign__(var, value)
-                        data.add(var_arg, 1.0)
+                        if weight_name:
+                           data.add(var_arg, getattr(tree, weight_name))
+                        else:
+                           data.add(var_arg, 1.0)
             except TypeError:
                 value = getattr(tree, quantity[0])
                 ROOT.RooAbsRealLValue.__assign__(var, value)
@@ -39,57 +42,25 @@ def get_integral(model, var, min=-1, max=-1):
     integral = model.createIntegral(var_set, RooFit.NormSet(var_set), RooFit.Range("integral"))
     return integral
 
-def get_Ds_count(model):
-    gauss_coef = model.getVariables().find("coef2")
-    n_Ds = gauss_coef.getVal()
-    n_Ds_error = gauss_coef.getError()
-    if math.isnan(n_Ds):
-       n_Ds = 0
-    if math.isnan(n_Ds_error):
-       n_Ds_error = 0
-    return n_Ds, n_Ds_error
-
-def get_D_count(model):
-    gauss_coef = model.getVariables().find("coef1")
-    n_D = gauss_coef.getVal()
-    n_D_error = gauss_coef.getError()
-    if math.isnan(n_D):
-       n_D = 0
-    if math.isnan(n_D_error):
-       n_D_error = 0
-    return n_D, n_D_error
-
-def get_Ds_width(model):
-    gauss_sigma = model.getVariables().find("sigma2")
-    w_Ds = gauss_sigma.getVal()
-    w_Ds_error = gauss_sigma.getError()
-    return w_Ds, w_Ds_error
-
-def get_Ds_mass(model):
-    gauss_mean = model.getVariables().find("mean2")
-    m_Ds = gauss_mean.getVal()
-    m_Ds_error = gauss_mean.getError()
-    return m_Ds, m_Ds_error
-
-def get_background_count(model):
-    bkg_coef = model.getVariables().find("coef3")
-    n_Bkg = bkg_coef.getVal()
-    n_Bkg_error = bkg_coef.getError()
-    return n_Bkg, n_Bkg_error
+def get_parameter_value_and_error(model, parameter):
+    model_variables = model.getVaraibles().find(parameter)
+    return model_variables.getVal(), model_variables.getError()
 
 def add_chi2_to_canvas(canvas, frame):
     chi2 = frame.chiSquare()
-    add_text_to_canvas(canvas, "#chi^{2}: " + "{:.2f}".format(chi2), pos={"x": 0.72, "y": 0.52})
+    add_text_to_canvas(canvas, "#chi^{2}: " + "%.2g"%(chi2), pos={"x": 0.66, "y": 0.57})
 
-def add_parameters_to_canvas(canvas, model, n_D, n_D_error, n_Ds, n_Ds_error, n_Bkg, n_Bkg_error):
-    parameters = model.getVariables()
-    add_text_to_canvas(canvas, "M_{D}: " + "{:.1f}".format(parameters.find("mean1").getVal())+"("+"{:.1f}".format(parameters.find("mean1").getError())+")", pos={"x": 0.72, "y": 0.87})
-    add_text_to_canvas(canvas, "M_{Ds}: " + "{:.1f}".format(parameters.find("mean2").getVal())+"("+"{:.1f}".format(parameters.find("mean2").getError())+")", pos={"x": 0.72, "y": 0.82})
-    add_text_to_canvas(canvas, "#sigma_{D}: " + "{:.1f}".format(parameters.find("sigma2").getVal())+"("+"{:.1f}".format(parameters.find("sigma2").getError())+")", pos={"x": 0.72, "y": 0.77})
-    add_text_to_canvas(canvas, "#sigma_{Ds}: " + "{:.1f}".format(parameters.find("sigma2").getVal())+"("+"{:.1f}".format(parameters.find("sigma2").getError())+")", pos={"x": 0.72, "y": 0.72})
-    add_text_to_canvas(canvas, "N_{D}: " + "{:.0f}".format(n_D)+"("+"{:.0f}".format(n_D_error)+")", pos={"x": 0.72, "y": 0.67})
-    add_text_to_canvas(canvas, "N_{Ds}: " + "{:.0f}".format(n_Ds)+"("+"{:.0f}".format(n_Ds_error)+")", pos={"x": 0.72, "y": 0.62})
-    add_text_to_canvas(canvas, "N_{Bkg}: " + "{:.0f}".format(n_Bkg)+"("+"{:.0f}".format(n_Bkg_error)+")", pos={"x": 0.72, "y": 0.57})
+def rename(name):
+    list = {'decayrate':'c_1', 'decayrate2':'c_2', 'mean':'m_{Ds}','nBkg':'N_{Bkg}', 'nDs':'N_{Ds}','sigma':'#sigma_{Ds}', 'nD':'N_{D}'}
+    return list.get(name, "undef")
+
+def add_parameters_to_canvas(canvas, model):
+    it = model.getVariables().createIterator()
+    pos = {"x": 0.66, "y": 0.87}
+    for parameter in iter(it.Next, None):
+        if "_m" not in parameter.GetName() and "decay" not in parameter.GetName():
+           add_text_to_canvas(canvas, rename(parameter.GetName())+ ": "+"%.1f"%(parameter.getVal())+"("+"%.1f"%(parameter.getError())+")", pos)
+           pos["y"] -= 0.05
 
 def format_and_draw_frame(canvas, frame, xtitle):
     frame.GetXaxis().SetTitle(xtitle)

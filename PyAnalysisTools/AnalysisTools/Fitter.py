@@ -142,55 +142,36 @@ class PDF2Gauss(PDF):
         kwargs.setdefault("pdf_name", "2gauss")
         self.name = kwargs["pdf_name"]
         self.quantity = kwargs["var"]
-        self.mean1 = kwargs["pdf_config"].mean1
-        self.sigma1 = kwargs["pdf_config"].sigma1
-        self.mean2 = kwargs["pdf_config"].mean2
-        self.sigma2 = kwargs["pdf_config"].sigma2
+        self.mean = kwargs["pdf_config"].mean
+        self.sigma = kwargs["pdf_config"].sigma
 
     def build(self):
-        mean1 = ROOT.RooRealVar("mean1", "mean1", *self.mean1)
-        sigma1 = ROOT.RooRealVar("sigma1", "sigma1", *self.sigma1)
-        mean2 = ROOT.RooRealVar("mean2", "mean2", *self.mean2)
-        sigma2 = ROOT.RooRealVar("sigma2", "sigma2", *self.sigma2)
-        decayrate = ROOT.RooRealVar("decayrate", "decayrate", -1.5e-3, -0.1, 0.)
-        decayrate2 = ROOT.RooRealVar("decayrate2", "decayrate2", 3e-7, 0., 1e-6)
-        coef1 = ROOT.RooRealVar("coef1", "coef1", 500., 0., 50000.)
-        coef2 = ROOT.RooRealVar("coef2", "coef2", 1000., 0., 50000.)
-        coef3 = ROOT.RooRealVar("coef3", "coef3", 3000., 0., 500000.)
-        self.quantity.setRange("BkgSideBandLeft", 1450., 1800.)
-        self.quantity.setRange("BkgSideBandRight", 2100., 2450.)
-        ROOT.SetOwnership(coef1, False)
-        ROOT.SetOwnership(coef2, False)
-        ROOT.SetOwnership(coef3, False)
-        ROOT.SetOwnership(mean1, False)
-        ROOT.SetOwnership(sigma1, False)
-        ROOT.SetOwnership(mean2, False)
-        ROOT.SetOwnership(sigma2, False)
-        ROOT.SetOwnership(decayrate, False)
-        ROOT.SetOwnership(decayrate2, False)
-        self.tmpgauss1 = ROOT.RooGaussian("tmpgauss1", "tmpgauss1", self.quantity, mean1, sigma2)
-        self.tmpgauss2 = ROOT.RooGaussian("tmpgauss2", "tmpgauss2", self.quantity, mean2, sigma2)
-        #############################################################
-        """# double exponential
-        decayrate_WEXP = ROOT.RooRealVar("decayrate_WEXP", "decayrate_WEXP", -1.5e-2, -0.1, 0.)
-        decayrate2_WEXP = ROOT.RooRealVar("decayrate2_WEXP", "decayrate2_WEXP", -1.5e-4, -0.1, 0.)
-        proportion_WEXP = ROOT.RooRealVar("proportion_WEXP", "proportion_WEXP", 0.5, 0., 1.)
-        ROOT.SetOwnership(decayrate_WEXP, False)
-        ROOT.SetOwnership(decayrate2_WEXP, False)
-        ROOT.SetOwnership(proportion_WEXP, False)
-        self.WEXP1 = ROOT.RooExponential("WEXP1", "WEXP1", self.quantity, decayrate_WEXP)
-        self.WEXP2 = ROOT.RooExponential("WEXP2", "WEXP2", self.quantity, decayrate2_WEXP)
-        self.tmpbkg = ROOT.RooAddPdf("tmpWEXP", "tmpWEXP", self.WEXP1, self.WEXP2, proportion_WEXP)
-        """
-        #############################################################
-        bkgset = ROOT.RooArgList(self.quantity, decayrate, decayrate2)
-        self.tmpbkg = ROOT.RooGenericPdf("tmpbackground", "exp(decayrate*triplet_refitted_m + decayrate2*triplet_refitted_m*triplet_refitted_m)", bkgset)
-        #############################################################
-        #Create Extended pdf for easier event count
-        self.pdf1 = ROOT.RooExtendPdf("gauss1", "gauss1", self.tmpgauss1, coef1)
-        self.pdf2 = ROOT.RooExtendPdf("gauss2", "gauss2", self.tmpgauss2, coef2)
-        self.pdf3 = ROOT.RooExtendPdf("background", "background", self.tmpbkg, coef3, "BkgSideBandLeft,BkgSideBandRight")
-        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3))
+        w = ROOT.RooWorkspace("w")
+        w.add = getattr(w, "import")
+        #build gaussian models
+        mean = ROOT.RooRealVar("mean", "mean", *self.mean)
+        sigma = ROOT.RooRealVar("sigma", "sigma", *self.sigma)
+        gauss2 = ROOT.RooGaussian("gauss2", "gauss2", self.quantity, mean, sigma)
+        w.add(gauss2)
+        w.factory("EDIT::gauss1(gauss2, mean=expr('mean-m_diff',mean,m_diff[98.5,97,100]))")
+        #build background model
+        decayrate = ROOT.RooRealVar("decayrate", "decayrate", -1.5e-3, -0.01, -1e-4)
+        decayrate2 = ROOT.RooRealVar("decayrate2", "decayrate2", 3e-7, 1e-10, 8e-7)
+        background = ROOT.RooGenericPdf("background", "exp(decayrate*triplet_refitted_m + decayrate2*triplet_refitted_m*triplet_refitted_m)", ROOT.RooArgList(self.quantity, decayrate, decayrate2))
+        w.add(background)
+        #build final model
+        isData = True
+        if isData:
+           w.factory("SUM::model(nD[500,0,20000]*gauss1, nDs[2000,0,20000]*gauss2, nBkg[10000,0,500000]*background)")
+           w.factory("EDIT::model(model, nD=expr('alpha*nDs', alpha[0.3,0.2,0.4], nDs))")
+        else:
+           w.factory("SUM::model(nBkg[10000,0,500000]*background)")
+           #w.factory("SUM::model(nDs[2000,0,20000]*gauss2)")
+           #w.factory("EDIT::model(model, nD=expr('0.3333*nDs',nDs))")
+        w.Print()
+        ROOT.SetOwnership(w, False)
+        return w.pdf("model")
+
 
 class PDFGeneric(PDF):
     def __init__(self, **kwargs):
@@ -219,13 +200,15 @@ class Fitter(object):
         self.quantity = kwargs["quantity"]
         self.selection = []
         self.data = None
+        self.weight = None
         self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
         self.mode = kwargs["mode"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
         if hasattr(self.pdf_config, "selection"):
             self.selection=self.pdf_config.selection
-            print(self.selection)
+        if hasattr(self.pdf_config, "weight"):
+            self.weight=self.pdf_config.weight
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.blind = self.pdf_config.blind
         fm.load_atlas_style()
@@ -249,7 +232,7 @@ class Fitter(object):
     def fit(self, return_fit=False, extra_selection=[]):
         selection=copy.deepcopy(self.selection)
         print self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection
-        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection)
+        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection, self.weight)
         self.build_model()
         if self.blind:
             # region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
@@ -268,10 +251,7 @@ class Fitter(object):
         format_and_draw_frame(canvas, frame, "m_{triplet} [MeV]")
         add_chi2_to_canvas(canvas, frame)
         if "DsPhiPi" in self.mode:
-           n_Ds, n_Ds_error = get_Ds_count(self.model)
-           n_D, n_D_error = get_D_count(self.model)
-           n_Bkg, n_Bkg_error = get_background_count(self.model)
-           add_parameters_to_canvas(canvas, self.model, n_D, n_D_error, n_Ds, n_Ds_error, n_Bkg, n_Bkg_error)
+           add_parameters_to_canvas(canvas, self.model)
         if "PerSlice" in self.mode:
            return self.model, fit_result, canvas
         if return_fit:
