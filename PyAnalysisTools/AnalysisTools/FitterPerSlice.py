@@ -84,7 +84,7 @@ class FitterPerSlice(object):
            #perform fit
            model, fit_result, canvas_slice = self.fitter.fit(False, [individual_slice])
            #add fit name to canvas
-           fit_name = variable_config["dist"]+"_"+'{0:3f}'.format(bin_center)
+           fit_name = variable_config["dist"]+"_"+'{0:010.3f}'.format(bin_center)
            add_text_to_canvas(canvas_slice, fit_name, pos={"x": 0.16, "y": 0.96})
            canvas_slice.SetName(fit_name)
            #append individual fits, individual parameters

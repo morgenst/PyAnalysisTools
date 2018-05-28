@@ -51,7 +51,7 @@ def add_chi2_to_canvas(canvas, frame):
     add_text_to_canvas(canvas, "#chi^{2}: " + "%.2g"%(chi2), pos={"x": 0.66, "y": 0.57})
 
 def rename(name):
-    list = {'decayrate':'c_1', 'decayrate2':'c_2', 'mean':'m_{Ds}','nBkg':'N_{Bkg}', 'nDs':'N_{Ds}','sigma':'#sigma_{Ds}', 'nD':'N_{D}'}
+    list = {'decayrate':'c_1', 'decayrate2':'c_2', 'mean':'m_{Ds}','nBkg':'N_{Bkg}', 'nDs':'N_{Ds}','sigma':'#sigma_{Ds}', 'nD':'N_{D}', 'alpha':'N_{D}/N_{Ds}', 'm_diff':"#Deltam"}
     return list.get(name, "undef")
 
 def add_parameters_to_canvas(canvas, model):

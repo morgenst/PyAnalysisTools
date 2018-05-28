@@ -145,7 +145,7 @@ class PDF2Gauss(PDF):
         self.mean = kwargs["pdf_config"].mean
         self.sigma = kwargs["pdf_config"].sigma
 
-    def build(self):
+    def build(self, mode = ""):
         w = ROOT.RooWorkspace("w")
         w.add = getattr(w, "import")
         #build gaussian models
@@ -160,14 +160,13 @@ class PDF2Gauss(PDF):
         background = ROOT.RooGenericPdf("background", "exp(decayrate*triplet_refitted_m + decayrate2*triplet_refitted_m*triplet_refitted_m)", ROOT.RooArgList(self.quantity, decayrate, decayrate2))
         w.add(background)
         #build final model
-        isData = True
-        if isData:
+        if "isBackground" in mode:
+           w.factory("SUM::model(nBkg[10000,0,500000]*background)")
+        if "isMC" in mode:
+           w.factory("SUM::model(nDs[2000,0,20000]*gauss2)")
+        else:
            w.factory("SUM::model(nD[500,0,20000]*gauss1, nDs[2000,0,20000]*gauss2, nBkg[10000,0,500000]*background)")
            w.factory("EDIT::model(model, nD=expr('alpha*nDs', alpha[0.3,0.2,0.4], nDs))")
-        else:
-           w.factory("SUM::model(nBkg[10000,0,500000]*background)")
-           #w.factory("SUM::model(nDs[2000,0,20000]*gauss2)")
-           #w.factory("EDIT::model(model, nD=expr('0.3333*nDs',nDs))")
         w.Print()
         ROOT.SetOwnership(w, False)
         return w.pdf("model")
@@ -227,12 +226,11 @@ class Fitter(object):
             self.pdf = PDFLinear(**self.__dict__)
         if self.pdf_config.pdf == "2gauss":
             self.pdf = PDF2Gauss(**self.__dict__)
-        self.model = self.pdf.build()
+        self.model = self.pdf.build(self.mode)
 
     def fit(self, return_fit=False, extra_selection=[]):
-        selection=copy.deepcopy(self.selection)
-        print self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection
-        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, selection, extra_selection, self.weight)
+        print self.file_handles, self.tree_name, self.quantity, self.blind, self.selection, extra_selection
+        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, copy.deepcopy(self.selection), extra_selection, self.weight)
         self.build_model()
         if self.blind:
             # region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
