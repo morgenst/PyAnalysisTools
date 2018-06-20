@@ -67,6 +67,8 @@ class Plotter(BasePlotter):
                 _ = find_process_config(fh.process_with_mc_campaign, self.process_configs)
 
     def add_mc_campaigns(self):
+        if self.process_configs is None:
+            return
         for process_config_name in self.process_configs.keys():
             process_config = self.process_configs[process_config_name]
             if process_config.is_data:
