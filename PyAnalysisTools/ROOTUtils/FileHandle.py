@@ -46,6 +46,7 @@ class FileHandle(object):
         kwargs.setdefault("friend_pattern", None)
         kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("split_mc", False)
+        kwargs.setdefault("dataset_info", None)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
@@ -135,7 +136,6 @@ class FileHandle(object):
                     self.mc = True
                     return tmp[0].process_name
             if process_name.isdigit():
-                return None
                 self.is_data = True
                 return "Data"
 
@@ -297,6 +297,8 @@ class FileHandle(object):
                 self.trees_with_friends.append((nominal_tree, tree))
 
     def reset_friends(self):
+        if self.friends is None:
+            return
         for f in self.friends:
             friend_file = TFile.Open(f, "READ")
             self.friend_files.append(friend_file)
