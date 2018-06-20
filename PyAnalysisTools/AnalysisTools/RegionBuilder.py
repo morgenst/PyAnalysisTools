@@ -175,6 +175,7 @@ class RegionBuilder(object):
         kwargs.setdefault("common_selection", None)
         if kwargs["auto_generate"]:
             self.auto_generate_region(**kwargs)
+
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
                 if kwargs["modify_mc_data_split"]:
