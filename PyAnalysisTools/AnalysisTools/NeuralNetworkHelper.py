@@ -18,12 +18,14 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 np.seterr(divide='ignore', invalid='ignore')
 
 
 class LimitConfig(object):
     def __init__(self, name, **kwargs):
+        kwargs.setdefault("nlayers", 3)
         self.name = name
         for attr, value in kwargs.iteritems():
             if attr == "optimiser":
@@ -46,11 +48,11 @@ class LimitConfig(object):
 
 
 class NeuralNetwork(object):
-    def __init__(self, num_features, limit_config, num_layers=3):
+    def __init__(self, num_features, limit_config):
         self.inputs = inputs = Input(shape=num_features)
         model = Sequential()
         model.add(Dense(64, input_dim=num_features[1], activation=limit_config.activation))
-        for i in range(num_layers - 1):
+        for i in range(limit_config.nlayers - 1):
             model.add(Dense(64, activation=limit_config.activation))
             model.add(Dropout(0.5))
         model.add(Dense(1, activation=limit_config.final_activation))
@@ -61,21 +63,22 @@ class NeuralNetwork(object):
 class NNTrainer(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("n_features", None)
-        kwargs.setdefault("layers", 2)
         kwargs.setdefault("units", 10)
         kwargs.setdefault("epochs", 10)
         kwargs.setdefault("control_plots", False)
+        kwargs.setdefault("disable_scaling", False)
         self.reader = TrainingReader(**kwargs)
         self.converter = Root2NumpyConverter(kwargs["variables"])
         self.n_features = kwargs["n_features"]
-        self.layers = kwargs["layers"]
         self.units = kwargs["units"]
         self.epochs = kwargs["epochs"]
         self.max_events = kwargs["max_events"]
+        self.disable_rescaling = kwargs["disable_scaling"]
         self.plot = True
         self.do_control_plots = kwargs["control_plots"]
         self.output_path = so.resolve_output_dir(output_dir=kwargs["output_path"], sub_dir_name="NNtrain")
         self.limit_config = self.build_limit_config(kwargs["training_config_file"])
+        self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         self.store_arrays = not kwargs["disable_array_safe"]
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
@@ -87,7 +90,6 @@ class NNTrainer(object):
         if self.reader.numpy_input:
             self.input_store_path = "/".join(kwargs["input_file"][0].split("/")[:-1])
 
-
     @staticmethod
     def build_limit_config(config_file_name):
         configs = YAMLLoader.read_yaml(config_file_name)
@@ -97,8 +99,9 @@ class NNTrainer(object):
     def build_input(self):
         if not self.reader.numpy_input:
             trees = self.reader.get_trees()
-            arrays = [[self.converter.convert_to_array(tree, max_events=self.max_events) for tree in items]
-                      for items in trees]
+            arrays = [[self.converter.convert_to_array(tree, max_events=self.max_events,
+                                                       selection=self.selection[trees.index(items) % 2])
+                       for tree in items] for items in trees]
             self.data_train, self.label_train = self.converter.merge(arrays[0], arrays[1])
             self.data_eval, self.label_eval = self.converter.merge(arrays[2], arrays[3])
             if self.store_arrays:
@@ -115,8 +118,8 @@ class NNTrainer(object):
         self.data_eval = pd.DataFrame(self.data_eval)
 
     def build_models(self):
-        self.model_0 = NeuralNetwork(self.data_train.shape, self.limit_config, num_layers=self.layers).kerasmodel
-        self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config, num_layers=self.layers).kerasmodel
+        self.model_0 = NeuralNetwork(self.data_train.shape, self.limit_config).kerasmodel
+        self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config).kerasmodel
 
     def apply_scaling(self):
         train_mean_0 = self.data_train[self.label_train == 0].mean()
@@ -148,7 +151,8 @@ class NNTrainer(object):
         self.build_models()
         if self.do_control_plots:
             self.make_control_plots("prescaling")
-        self.apply_scaling()
+        if not self.disable_rescaling:
+            self.apply_scaling()
         if self.do_control_plots:
             self.make_control_plots("postscaling")
         #TODO: implement sample weights via sample_weight option
@@ -240,6 +244,8 @@ class NNReader(object):
         self.friend_file_pattern = kwargs["friend_file_pattern"]
         self.friend_name = kwargs["friend_name"]
         self.output_path = kwargs["output_path"]
+        self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
+        make_dirs(self.output_path)
 
     def build_friend_tree(self, file_handle):
         self.is_new_tree = False
@@ -268,10 +274,8 @@ class NNReader(object):
             self.attach_NN_output(file_handle)
 
     @staticmethod
-    def apply_scaling(data):
-            mean = data.mean()
-            std = data.std()
-            data = (data - mean) / std
+    def apply_scaling(data, mean, sigma):
+            data = (data - mean) / sigma
             return data
 
     def attach_NN_output(self, file_handle):
@@ -279,8 +283,13 @@ class NNReader(object):
         file_handle_friend, friend_tree = self.get_friend_tree(file_handle)
 
         data = self.converter.convert_to_array(tree)
+        selection = self.selection[0] if file_handle.is_mc else self.selection[1]
+        data_selected = self.converter.convert_to_array(tree, selection)
+        data_selected = pd.DataFrame(data_selected)
+        mean = data_selected.mean()
+        sigma = data_selected.std()
         data = pd.DataFrame(data)
-        data = self.apply_scaling(data)
+        data = self.apply_scaling(data, mean, sigma)
         prediction0 = self.model_train.predict(data.values)
         prediction1 = self.model_eval.predict(data.values)
         bdt = array('f', [0.])

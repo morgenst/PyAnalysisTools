@@ -82,7 +82,7 @@ class Region(object):
         if not self.split_mc_data:
             return " && ".join(cut_list)
         return " && ".join(filter(lambda cut: "data:" not in cut.lower(), cut_list)), \
-               " && ".join(cut_list).replace("Data:", "").replace("data:", "")
+               " && ".join(cut_list).replace("Data:", "").replace("data:", "").replace("DATA:", "")
 
     def convert_lepton_selections(self):
         """
@@ -110,6 +110,10 @@ class Region(object):
         :return: cut selection as ROOT compatible string
         :rtype: string
         """
+        if self.split_mc_data:
+            self.split_mc_data = False
+            self.convert_lepton_selections()
+            self.event_cut_string = self.convert_cut_list_to_string(self.event_cuts)
         if self.disable_leptons:
             return self.event_cut_string
 
@@ -167,14 +171,15 @@ class RegionBuilder(object):
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("split_z_mass", False)
         kwargs.setdefault("same_flavour_only", False)
+        kwargs.setdefault("modify_mc_data_split", False)
         kwargs.setdefault("common_selection", None)
         if kwargs["auto_generate"]:
-            # self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
-            #                           kwargs["same_flavour_only"])
             self.auto_generate_region(**kwargs)
 
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
+                if kwargs["modify_mc_data_split"]:
+                    region_def["split_mc_data"] = False
                 self.regions.append(Region(name=region_name, common_selection=kwargs["common_selection"], **region_def))
         self.type = "PCModifier"
 
