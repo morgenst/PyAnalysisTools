@@ -20,7 +20,7 @@ class BasePlotter(object):
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault("friend_directory", None)
-        kwargs.setdefault("fried_tree_names", None)
+        kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
         for attr, value in kwargs.iteritems():
@@ -81,6 +81,9 @@ class BasePlotter(object):
         """
         for file_handle in self.file_handles:
             process = file_handle.process
+            if process is None:
+                _logger.warning("Could not parse process for file {:s}". format(file_handle.file_name))
+                continue
             if self.split_mc_campaigns:
                 process = file_handle.process_with_mc_campaign
             if file_handle.process in self.event_yields:
