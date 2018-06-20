@@ -20,7 +20,7 @@ class BasePlotter(object):
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault("friend_directory", None)
-        kwargs.setdefault("fried_tree_names", None)
+        kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
         for attr, value in kwargs.iteritems():
@@ -29,7 +29,7 @@ class BasePlotter(object):
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
-        if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]):
+        if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) and self.process_config_file is not None:
             self.add_mc_campaigns()
             self.split_mc_campaigns = True
         self.load_atlas_style()
@@ -142,7 +142,9 @@ class BasePlotter(object):
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
                     if "data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
-                selection_cuts += "&&".join(plot_config.cuts)
+                if len(plot_config.cuts) > 0:
+                    selection_cuts += "&&".join(plot_config.cuts)
+
             if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
                 if selection_cuts == "":
                     selection_cuts = "!({:s})".format(" && ".join(plot_config.blind))
@@ -153,6 +155,7 @@ class BasePlotter(object):
                     hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
                 else:
                     hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process_with_mc_campaign))
+                selection_cuts = selection_cuts.rstrip().rstrip("&&")
                 file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
             except RuntimeError:
