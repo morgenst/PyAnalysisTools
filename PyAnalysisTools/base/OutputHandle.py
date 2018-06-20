@@ -75,7 +75,9 @@ class OutputFileHandle(SysOutputHandle):
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
         kwargs.setdefault("make_plotbook", False)
+        kwargs.setdefault("set_title_name", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
+        self.set_title_name = kwargs["set_title_name"]
 
     def attach_file(self):
         if not self.attached:
@@ -114,6 +116,11 @@ class OutputFileHandle(SysOutputHandle):
         plot_book_canvas.Divide(3, 4)
         for i in range(len(bucket)):
             plot_book_canvas.cd(i+1)
+            if self.set_title_name:
+                bucket[i].SetTitle(bucket[i].GetName())
+                print bucket[i].GetTitle()
+                bucket[i].Update()
+                bucket[i].Modified()
             bucket[i].DrawClonePad()
         return plot_book_canvas
 
