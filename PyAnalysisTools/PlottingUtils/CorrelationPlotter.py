@@ -46,7 +46,7 @@ class CorrelationPlotter(object):
         self.process_configs = self.parse_process_config()
 
         self.variable_pcs, common_config = parse_and_build_plot_config(kwargs["variable_list"])
-        self.output_handle = OutputFileHandle(output_dir=kwargs["output_path"], make_plotbook=True)
+        self.output_handle = OutputFileHandle(output_dir=kwargs["output_path"], make_plotbook=True, set_title_name=True)
         self.correlation_hists = {}
         self.build_correlation_plot_configs()
         self.expand_process_configs()
