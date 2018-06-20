@@ -30,13 +30,14 @@ class Region(object):
         kwargs.setdefault("inverted_electron", None)
         kwargs.setdefault("event_cuts", None)
         kwargs.setdefault("split_mc_data", False)
+        kwargs.setdefault("common_selection", None)
         kwargs.setdefault("weight", None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         if self.label is None:
             self.build_label()
-        if self.event_cuts:
-            self.event_cut_string = self.convert_cut_list_to_string(self.event_cuts)
+        if self.event_cuts or self.common_selection and "event_cuts" in self.common_selection:
+            self.event_cut_string = self.convert_cut_list_to_string(self.event_cuts, "event_cuts")
         if self.disable_leptons:
             return
         if kwargs["operator"] == "eq":
@@ -64,7 +65,7 @@ class Region(object):
     def __hash__(self):
         return hash(self.name)
 
-    def convert_cut_list_to_string(self, cut_list):
+    def convert_cut_list_to_string(self, cut_list, selection=None):
         """
         Convert list of cuts into proper selection string which can be parsed by ROOT
 
@@ -73,6 +74,11 @@ class Region(object):
         :return: selection string
         :rtype: string
         """
+        if cut_list is None:
+            cut_list = []
+        if self.common_selection is not None and selection is not None:
+            if selection in self.common_selection:
+                cut_list += self.common_selection[selection]
         if not self.split_mc_data:
             return " && ".join(cut_list)
         return " && ".join(filter(lambda cut: "data:" not in cut.lower(), cut_list)), \
@@ -87,13 +93,13 @@ class Region(object):
         :rtype: None
         """
 
-        if self.good_muon:
+        if self.good_muon or self.common_selection and "good_muon" in self.common_selection:
             # good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
-            self.good_muon_cut_string = self.convert_cut_list_to_string(self.good_muon)
+            self.good_muon_cut_string = self.convert_cut_list_to_string(self.good_muon, "good_muon")
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
-        if self.good_electron:
-            self.good_electron_cut_string = self.convert_cut_list_to_string(self.good_electron)
+        if self.good_electron or self.common_selection and "good_electron" in self.common_selection:
+            self.good_electron_cut_string = self.convert_cut_list_to_string(self.good_electron, "good_electron")
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
 
@@ -104,40 +110,22 @@ class Region(object):
         :return: cut selection as ROOT compatible string
         :rtype: string
         """
-        # electron_selector = "electron_n == electron_n"
-        # muon_selector = "muon_n == muon_n"
-        # if self.good_muon:
-        #     muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
-        # if self.good_electron:
-        #     electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
-        #
-        # cut = ""
-        # if self.event_cuts is not None:
-        #     cut = self.event_cut_string + " && "
-        # if self.is_on_z is not None:
-        #     cut = "Sum$(inv_Z_mask==1) > 0 && " if self.is_on_z else "Sum$(inv_Z_mask==1) == 0 && "
-        # if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
-        #     return cut + "{:s} + {:s} + tau_n {:s} {:d}".format(electron_selector, muon_selector, self.operator,
-        #                                                        self.n_lep)
-        # if not self.disable_muons:
-        #     cut += "{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon)
-        # if not self.disable_electrons:
-        #     cut += " {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron)
-        # return cut
         if self.disable_leptons:
             return self.event_cut_string
 
         cut_list = []
         electron_selector = "electron_n == electron_n"
         muon_selector = "muon_n == muon_n"
-        if self.good_muon:
+        if hasattr(self, "good_muon_cut_string"):
             muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
-        if self.good_electron:
+        if hasattr(self, "good_electron_cut_string"):
             electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
 
         cut = ""
         if self.event_cuts is not None:
             cut_list += self.event_cuts
+        if self.event_cuts is None and hasattr(self, "event_cut_string"):
+            cut_list.append(self.event_cut_string)
         if self.is_on_z is not None:
             cut_list.append("Sum$(inv_Z_mask==1) > 0" if self.is_on_z else "Sum$(inv_Z_mask==1) == 0")
         if self.n_lep > sum([self.n_muon, self.n_electron, self.n_tau]):
@@ -148,21 +136,6 @@ class Region(object):
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
         return " && ".join(cut_list)
-
-
-
-        # if self.disable_taus:
-        #     return cut + "{:s} && electron_n {:s} {:d} && {:s} && muon_n {:s} {:d}".format(electron_selector,
-        #                                                                                    self.operator,
-        #                                                                                    self.n_electron,
-        #                                                                                    muon_selector,
-        #                                                                                    self.muon_operator,
-        #                                                                                    self.n_muon)
-
-        return cut + "{:s} {:s} {:d} && {:s} {:s} {:d} && tau_n {:s} {:d}".format(electron_selector, self.operator,
-                                                                                  self.n_electron, muon_selector,
-                                                                                  self.muon_operator, self.n_muon,
-                                                                                  self.operator, self.n_tau)
 
     def build_label(self):
         """
@@ -194,13 +167,15 @@ class RegionBuilder(object):
         kwargs.setdefault("disable_taus", False)
         kwargs.setdefault("split_z_mass", False)
         kwargs.setdefault("same_flavour_only", False)
+        kwargs.setdefault("common_selection", None)
         if kwargs["auto_generate"]:
             # self.auto_generate_region(kwargs["nleptons"], kwargs["disable_taus"], kwargs["split_z_mass"],
             #                           kwargs["same_flavour_only"])
             self.auto_generate_region(**kwargs)
+
         if "regions" in kwargs:
             for region_name, region_def in kwargs["regions"].iteritems():
-                self.regions.append(Region(name=region_name, **region_def))
+                self.regions.append(Region(name=region_name, common_selection=kwargs["common_selection"], **region_def))
         self.type = "PCModifier"
 
     def auto_generate_region(self, **kwargs):

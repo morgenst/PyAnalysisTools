@@ -293,6 +293,8 @@ class FileHandle(object):
                 nominal_tree.AddFriend(tree)
 
     def reset_friends(self):
+        if self.friends is None:
+            return
         for f in self.friends:
             friend_file = TFile.Open(f, "READ")
             self.friend_files.append(friend_file)
