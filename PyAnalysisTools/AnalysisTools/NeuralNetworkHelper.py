@@ -13,13 +13,14 @@ import numpy as np
 import pandas as pd
 from array import array
 import ROOT
-from MLHelper import Root2NumpyConverter, TrainingReader
+from MLHelper import Root2NumpyConverter, TrainingReader, DataScaler
+#from sklearn.metrics import roc_curve, auc, roc_auc_score, classification_report
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -49,11 +50,11 @@ class LimitConfig(object):
 
 class NeuralNetwork(object):
     def __init__(self, num_features, limit_config):
-        self.inputs = inputs = Input(shape=num_features)
         model = Sequential()
-        model.add(Dense(64, input_dim=num_features[1], activation=limit_config.activation))
+        width = 32
+        model.add(Dense(units=width, input_dim=num_features, activation=limit_config.activation))
         for i in range(limit_config.nlayers - 1):
-            model.add(Dense(64, activation=limit_config.activation))
+            model.add(Dense(width, activation=limit_config.activation))
             model.add(Dropout(0.5))
         model.add(Dense(1, activation=limit_config.final_activation))
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
@@ -68,7 +69,8 @@ class NNTrainer(object):
         kwargs.setdefault("control_plots", False)
         kwargs.setdefault("disable_scaling", False)
         self.reader = TrainingReader(**kwargs)
-        self.converter = Root2NumpyConverter(kwargs["variables"])
+        self.variable_list = kwargs["variables"]
+        self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
         self.n_features = kwargs["n_features"]
         self.units = kwargs["units"]
         self.epochs = kwargs["epochs"]
@@ -80,6 +82,7 @@ class NNTrainer(object):
         self.limit_config = self.build_limit_config(kwargs["training_config_file"])
         self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         self.store_arrays = not kwargs["disable_array_safe"]
+        self.scaler = DataScaler(kwargs["scale_algo"])
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
         copy(kwargs["training_config_file"], self.output_path)
@@ -102,39 +105,69 @@ class NNTrainer(object):
             arrays = [[self.converter.convert_to_array(tree, max_events=self.max_events,
                                                        selection=self.selection[trees.index(items) % 2])
                        for tree in items] for items in trees]
-            self.data_train, self.label_train = self.converter.merge(arrays[0], arrays[1])
-            self.data_eval, self.label_eval = self.converter.merge(arrays[2], arrays[3])
+            self.df_data_train, self.label_train = self.converter.merge(arrays[0], arrays[1])
+            self.df_data_eval, self.label_eval = self.converter.merge(arrays[2], arrays[3])
             if self.store_arrays:
-                np.save(os.path.join(self.input_store_path, "data_train.npy"), self.data_train)
+                np.save(os.path.join(self.input_store_path, "data_train.npy"), self.df_data_train)
                 np.save(os.path.join(self.input_store_path, "label_train.npy"), self.label_train)
-                np.save(os.path.join(self.input_store_path, "data_eval.npy"), self.data_eval)
+                np.save(os.path.join(self.input_store_path, "data_eval.npy"), self.df_data_eval)
                 np.save(os.path.join(self.input_store_path, "label_eval.npy"), self.label_eval)
         else:
-            self.data_train = np.load(os.path.join(self.input_store_path, "data_train.npy"))
+            self.df_data_train = np.load(os.path.join(self.input_store_path, "data_train.npy"))
             self.label_train = np.load(os.path.join(self.input_store_path, "label_train.npy"))
-            self.data_eval = np.load(os.path.join(self.input_store_path, "data_eval.npy"))
+            self.df_data_eval = np.load(os.path.join(self.input_store_path, "data_eval.npy"))
             self.label_eval = np.load(os.path.join(self.input_store_path, "label_eval.npy"))
-        self.data_train = pd.DataFrame(self.data_train)
-        self.data_eval = pd.DataFrame(self.data_eval)
+        self.df_data_train = pd.DataFrame(self.df_data_train)
+        self.df_data_eval = pd.DataFrame(self.df_data_eval)
 
     def build_models(self):
-        self.model_0 = NeuralNetwork(self.data_train.shape, self.limit_config).kerasmodel
-        self.model_1 = NeuralNetwork(self.data_eval.shape, self.limit_config).kerasmodel
+        # self.model_0 = NeuralNetwork(self.df_data_train.shape, self.limit_config).kerasmodel
+        # self.model_1 = NeuralNetwork(self.df_data_eval.shape, self.limit_config).kerasmodel
+        self.model_0 = NeuralNetwork(self.npa_data_train.shape[1], self.limit_config).kerasmodel
+        self.model_1 = NeuralNetwork(self.npa_data_eval.shape[1], self.limit_config).kerasmodel
 
     def apply_scaling(self):
-        train_mean_0 = self.data_train[self.label_train == 0].mean()
-        train_mean_1 = self.data_train[self.label_train == 1].mean()
-        train_std_0 = self.data_train[self.label_train == 0].std()
-        train_std_1 = self.data_train[self.label_train == 1].std()
-        self.data_train[self.label_train == 0] = (self.data_train[self.label_train == 0] - train_mean_0) / train_std_0
-        self.data_train[self.label_train == 1] = (self.data_train[self.label_train == 1] - train_mean_1) / train_std_1
-        eval_mean_0 = self.data_eval[self.label_eval == 0].mean()
-        eval_mean_1 = self.data_eval[self.label_eval == 1].mean()
-        eval_std_0 = self.data_eval[self.label_eval == 0].std()
-        eval_std_1 = self.data_eval[self.label_eval == 1].std()
-        self.data_eval[self.label_eval == 0] = (self.data_eval[self.label_eval == 0] - eval_mean_0) / eval_std_0
-        self.data_eval[self.label_eval == 1] = (self.data_eval[self.label_eval == 1] - eval_mean_1) / eval_std_1
-        
+        self.npa_data_train, self.label_train = self.scaler.apply_scaling(self.npa_data_train, self.label_train)
+        self.npa_data_eval, self.label_eval = self.scaler.apply_scaling(self.npa_data_eval, self.label_eval)
+
+
+    # def apply_default_scaling(self):
+    #     train_mean = self.df_data_train.mean()
+    #     train_std = self.df_data_train.std()
+    #     self.df_data_train = (self.df_data_train - train_mean) / train_std
+    #     eval_mean = self.df_data_eval.mean()
+    #     eval_std = self.df_data_eval.std()
+    #     self.df_data_eval = (self.df_data_eval - eval_mean) / eval_std
+    #     #scale_data = {"train_mean": train_mean, "train_std": train_std, "eval_mean": eval_mean, "eval_std": eval_std}
+    #     scale_data = [train_mean.to_json(), train_std.to_json(), eval_mean.to_json(), eval_std.to_json()]
+    #     print type(train_mean)
+    #     #scale_data = {'result': json.loads(scale_data.to_json(orient='records'))}
+    #     print scale_data
+    #     YAMLDumper.dump_yaml(scale_data, os.path.join(self.output_path, "train_data_scaling.yml"))
+
+    # def apply_sklearn_scaling(self):
+    #     #scaler = StandardScaler()
+    #     scaler = MinMaxScaler(feature_range=(0, 1))
+    #     self.npa_data_train = scaler.fit_transform(self.npa_data_train)
+    #     self.npa_data_eval = scaler.fit_transform(self.npa_data_eval)
+    #     le = LabelEncoder()
+    #     self.label_train = le.fit_transform(self.label_train)
+    #     self.label_eval = le.fit_transform(self.label_eval)
+
+    # def apply_split_scaling(self):
+    #     train_mean_0 = self.df_data_train[self.label_train == 0].mean()
+    #     train_mean_1 = self.df_data_train[self.label_train == 1].mean()
+    #     train_std_0 = self.df_data_train[self.label_train == 0].std()
+    #     train_std_1 = self.df_data_train[self.label_train == 1].std()
+    #     self.df_data_train[self.label_train == 0] = (self.df_data_train[self.label_train == 0] - train_mean_0) / train_std_0
+    #     self.df_data_train[self.label_train == 1] = (self.df_data_train[self.label_train == 1] - train_mean_1) / train_std_1
+    #     eval_mean_0 = self.df_data_eval[self.label_eval == 0].mean()
+    #     eval_mean_1 = self.df_data_eval[self.label_eval == 1].mean()
+    #     eval_std_0 = self.df_data_eval[self.label_eval == 0].std()
+    #     eval_std_1 = self.df_data_eval[self.label_eval == 1].std()
+    #     self.df_data_eval[self.label_eval == 0] = (self.df_data_eval[self.label_eval == 0] - eval_mean_0) / eval_std_0
+    #     self.df_data_eval[self.label_eval == 1] = (self.df_data_eval[self.label_eval == 1] - eval_mean_1) / eval_std_1
+    #
     def plot_train_control(self, history, name):
         plt.plot(history.history['loss'])
         plt.plot(history.history['val_loss'])
@@ -148,6 +181,10 @@ class NNTrainer(object):
 
     def train(self):
         self.build_input()
+        self.npa_data_train = self.df_data_train[self.variable_list].as_matrix()
+        self.npa_data_eval = self.df_data_eval[self.variable_list].as_matrix()
+        weight_train = self.df_data_train['weight']
+        weight_eval = self.df_data_eval['weight']
         self.build_models()
         if self.do_control_plots:
             self.make_control_plots("prescaling")
@@ -156,12 +193,14 @@ class NNTrainer(object):
         if self.do_control_plots:
             self.make_control_plots("postscaling")
         #TODO: implement sample weights via sample_weight option
-        history_train = self.model_0.fit(self.data_train.values, self.label_train.reshape((self.label_train.shape[0], 1)),
+        history_train = self.model_0.fit(self.npa_data_train, self.label_train,
                                          epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
-                                         validation_data=(self.data_eval.values, self.label_eval))
-        history_eval = self.model_1.fit(self.data_eval.values, self.label_eval.reshape((self.label_eval.shape[0], 1)),
+                                         validation_data=(self.npa_data_eval, self.label_eval),
+                                         sample_weight=weight_train)
+        history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
                                         epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
-                                        validation_data=(self.data_train.values, self.label_train))
+                                        validation_data=(self.npa_data_train, self.label_train),
+                                        sample_weight=weight_eval)
         if self.plot:
             self.plot_train_control(history_train, "train")
             self.plot_train_control(history_eval, "eval")
@@ -197,14 +236,38 @@ class NNTrainer(object):
         if not self.plot:
             return
         _logger.info("Evaluating predictions")
-        preds_train = self.model_0.predict(self.data_eval.values)
+        # preds_train = self.model_0.predict(self.df_data_eval.values)
+        preds_train = self.model_0.predict(self.npa_data_eval)
         preds_sig_train = preds_train[self.label_eval == 1]
         preds_bkg_train = preds_train[self.label_eval == 0]
         make_plot(preds_sig_train, preds_bkg_train, "train")
-        preds_eval = self.model_1.predict(self.data_eval.values)
-        preds_sig_eval = preds_eval[self.label_eval == 1]
-        preds_bkg_eval = preds_eval[self.label_eval == 0]
+        #preds_eval = self.model_1.predict(self.df_data_eval.values)
+        preds_eval = self.model_1.predict(self.npa_data_train)
+        preds_sig_eval = preds_eval[self.label_train == 1]
+        preds_bkg_eval = preds_eval[self.label_train == 0]
         make_plot(preds_sig_eval, preds_bkg_eval, "eval")
+        # self.make_roc_curve(self.label_train, preds_train, "train")
+        # self.make_roc_curve(self.label_eval, preds_eval, "eval")
+
+    # def make_roc_curve(self, y, yhat, label):
+    #     fpr, tpr, thresholds = roc_curve(y, yhat)
+    #
+    #     roc_auc = auc(fpr, tpr)
+    #     print "ROC AUC: %0.3f" % roc_auc
+    #     plt.plot(fpr, tpr, color='darkorange', lw=2, label='Full curve (area = %0.2f)' % roc_auc)
+    #     plt.plot([0, 0], [1, 1], color='navy', lw=2, linestyle='--')
+    #     plt.xlim([-0.05, 1.0])
+    #     plt.ylim([0.0, 1.05])
+    #     plt.ylabel('True Positive Rate')
+    #     plt.xlabel('False Positive Rate')
+    #     plt.title('ROC curves for Signal vs Background')
+    #     # plt.plot([0.038], [0.45], marker='*', color='red',markersize=5, label="Cut-based",linestyle="None")
+    #     # plt.plot([0.038, 0.038], [0,1], color='red', lw=1, linestyle='--') # same background rejection point
+    #     plt.legend(loc="lower right")
+    #     plt.savefig(os.path.join(self.output_path, "plots/roc_{:s}.png".format(label)))
+    #     plt.show()
+    #     plt.clf()
+    #     plt.close()
 
     def make_control_plots(self, prefix):
         def make_plot(prefix, variable_name, signal, background):
@@ -225,11 +288,13 @@ class NNTrainer(object):
             plt.savefig(os.path.join(self.output_path, "plots/{:s}_{:s}.png".format(prefix, variable_name)))
             plt.close()
 
-        for key in self.data_train.keys():
-            make_plot("{}_{}".format(prefix, "train"), key, self.data_train[key][self.label_train == 1],
-                      self.data_train[key][self.label_train == 0])
-            make_plot("{}_{}".format(prefix, "eval"), key, self.data_eval[key][self.label_eval == 1],
-                      self.data_eval[key][self.label_eval == 0])
+        df_data_train = pd.DataFrame(self.npa_data_train)
+        df_data_eval = pd.DataFrame(self.npa_data_eval)
+        for key, name in enumerate(self.variable_list):
+            make_plot("{}_{}".format(prefix, "train"), name, df_data_train[key][self.label_train == 1],
+                      df_data_train[key][self.label_train == 0])
+            make_plot("{}_{}".format(prefix, "eval"), name, df_data_eval[key][self.label_eval == 1],
+                      df_data_eval[key][self.label_eval == 0])
 
 
 class NNReader(object):
@@ -237,12 +302,14 @@ class NNReader(object):
         self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"])
                              for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
-        self.model_train = load_model(os.path.join(os.path.abspath(kwargs["model_path"]), "model_train.h5"))
-        self.model_eval = load_model(os.path.join(os.path.abspath(kwargs["model_path"]), "model_eval.h5"))
-        self.converter = Root2NumpyConverter(kwargs["branches"])
+        self.model_train = load_model(os.path.join(os.path.abspath(kwargs["input_path"]), "models/model_train.h5"))
+        self.model_eval = load_model(os.path.join(os.path.abspath(kwargs["input_path"]), "models/model_eval.h5"))
+        self.variable_list = kwargs["branches"]
+        self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
         self.branch_name = kwargs["branch_name"]
         self.friend_file_pattern = kwargs["friend_file_pattern"]
         self.friend_name = kwargs["friend_name"]
+        self.input_path = os.path.abspath(kwargs["input_path"])
         self.output_path = kwargs["output_path"]
         self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         make_dirs(self.output_path)
@@ -273,10 +340,24 @@ class NNReader(object):
         for file_handle in self.file_handles:
             self.attach_NN_output(file_handle)
 
-    @staticmethod
-    def apply_scaling(data, mean, sigma):
-            data = (data - mean) / sigma
-            return data
+    #def apply_scaling(self, data, typ=0):
+    def apply_scaling(self, data, mean, sigma, typ=0):
+        train_scaling = YAMLLoader.read_yaml(os.path.join(self.input_path, "train_data_scaling.yml"))
+        mean = pd.read_json(train_scaling[0+typ], typ='series')
+        sigma = pd.read_json(train_scaling[1+typ], typ='series')
+        # mean = data.mean()
+        # sigma = data.std()
+        print mean, sigma
+        data = (data - mean) / sigma
+        return data
+
+    def apply_scaling2(self):
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        #sscaler = StandardScaler()
+        X = scaler.fit_transform(X)
+
+        le = LabelEncoder()
+        y = le.fit_transform(y_tmp)
 
     def attach_NN_output(self, file_handle):
         tree = file_handle.get_object_by_name(self.tree_name, "Nominal")
@@ -286,12 +367,28 @@ class NNReader(object):
         selection = self.selection[0] if file_handle.is_mc else self.selection[1]
         data_selected = self.converter.convert_to_array(tree, selection)
         data_selected = pd.DataFrame(data_selected)
+        data = pd.DataFrame(data)
+        print data_selected.head()
+        print data.mean()
         mean = data_selected.mean()
         sigma = data_selected.std()
-        data = pd.DataFrame(data)
+        # data_train = pd.DataFrame(data)
+        # data_eval = pd.DataFrame(data)
+        # self.apply_scaling(data_train, 0)
+        # self.apply_scaling(data_eval, 2)
+        # print data_eval
+        # print data_train
+        #self.apply_scaling(data, 0)
+        #data = pd.DataFrame(data)
         data = self.apply_scaling(data, mean, sigma)
+        # prediction0 = self.model_train.predict(data_eval.values)
+        # prediction1 = self.model_eval.predict(data_train.values)
         prediction0 = self.model_train.predict(data.values)
         prediction1 = self.model_eval.predict(data.values)
+        # prediction0 = self.model_train.predict(data_selected.values)
+        # prediction1 = self.model_eval.predict(data_selected.values)
+
+        print prediction1, prediction0
         bdt = array('f', [0.])
         branch = friend_tree.Branch(self.branch_name, bdt, "{:s}/F".format(self.branch_name))
         total_entries = tree.GetEntries()
