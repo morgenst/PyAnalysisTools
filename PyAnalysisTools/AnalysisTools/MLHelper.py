@@ -15,7 +15,7 @@ class Root2NumpyConverter(object):
     def __init__(self, branches):
         self.branches = branches
 
-    def convert_to_array(self, tree, selection="@object_pt.size()==1", max_events=None):
+    def convert_to_array(self, tree, selection="", max_events=None):
         data = root_numpy.tree2array(tree, branches=self.branches,
                                      selection=selection, start=0, stop=max_events)
         return data
