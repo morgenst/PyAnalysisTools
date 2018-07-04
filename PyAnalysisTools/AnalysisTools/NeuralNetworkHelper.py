@@ -238,7 +238,6 @@ class NNTrainer(object):
         if not self.plot:
             return
         _logger.info("Evaluating predictions")
-        # preds_train = self.model_0.predict(self.df_data_eval.values)
         preds_train = self.model_0.predict(self.npa_data_eval)
         preds_sig_train = preds_train[self.label_eval == 1]
         preds_bkg_train = preds_train[self.label_eval == 0]
@@ -304,6 +303,7 @@ class NNTrainer(object):
             make_plot("{}_{}".format(prefix, "eval"), "weight", self.weight_eval[self.label_eval == 1],
                       self.weight_eval[self.label_eval == 0])
 
+
 class NNReader(object):
     def __init__(self, **kwargs):
         self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"])
@@ -313,6 +313,7 @@ class NNReader(object):
         self.model_eval = load_model(os.path.join(os.path.abspath(kwargs["input_path"]), "models/model_eval.h5"))
         self.variable_list = kwargs["branches"]
         self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
+        self.converter_selection = Root2NumpyConverter(["event_number"])
         self.branch_name = kwargs["branch_name"]
         self.friend_file_pattern = kwargs["friend_file_pattern"]
         self.friend_name = kwargs["friend_name"]
@@ -320,6 +321,7 @@ class NNReader(object):
         self.output_path = kwargs["output_path"]
         self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         make_dirs(self.output_path)
+        self.scaler = DataScaler(kwargs["scale_algo"])
 
     def build_friend_tree(self, file_handle):
         self.is_new_tree = False
@@ -347,69 +349,35 @@ class NNReader(object):
         for file_handle in self.file_handles:
             self.attach_NN_output(file_handle)
 
-    #def apply_scaling(self, data, typ=0):
-    def apply_scaling(self, data, mean, sigma, typ=0):
-        train_scaling = YAMLLoader.read_yaml(os.path.join(self.input_path, "train_data_scaling.yml"))
-        mean = pd.read_json(train_scaling[0+typ], typ='series')
-        sigma = pd.read_json(train_scaling[1+typ], typ='series')
-        # mean = data.mean()
-        # sigma = data.std()
-        print mean, sigma
-        data = (data - mean) / sigma
-        return data
-
-    def apply_scaling2(self):
-        scaler = MinMaxScaler(feature_range=(0, 1))
-        #sscaler = StandardScaler()
-        X = scaler.fit_transform(X)
-
-        le = LabelEncoder()
-        y = le.fit_transform(y_tmp)
+    def apply_scaling(self):
+        self.npa_data, _ = self.scaler.apply_scaling(self.npa_data, None)
 
     def attach_NN_output(self, file_handle):
         tree = file_handle.get_object_by_name(self.tree_name, "Nominal")
         file_handle_friend, friend_tree = self.get_friend_tree(file_handle)
-
-        data = self.converter.convert_to_array(tree)
         selection = self.selection[0] if file_handle.is_mc else self.selection[1]
         data_selected = self.converter.convert_to_array(tree, selection)
+        selected_event_numbers = pd.DataFrame(self.converter_selection.convert_to_array(tree, selection)).as_matrix()
         data_selected = pd.DataFrame(data_selected)
-        data = pd.DataFrame(data)
-        print data_selected.head()
-        print data.mean()
-        mean = data_selected.mean()
-        sigma = data_selected.std()
-        # data_train = pd.DataFrame(data)
-        # data_eval = pd.DataFrame(data)
-        # self.apply_scaling(data_train, 0)
-        # self.apply_scaling(data_eval, 2)
-        # print data_eval
-        # print data_train
-        #self.apply_scaling(data, 0)
-        #data = pd.DataFrame(data)
-        data = self.apply_scaling(data, mean, sigma)
-        # prediction0 = self.model_train.predict(data_eval.values)
-        # prediction1 = self.model_eval.predict(data_train.values)
-        prediction0 = self.model_train.predict(data.values)
-        prediction1 = self.model_eval.predict(data.values)
-        # prediction0 = self.model_train.predict(data_selected.values)
-        # prediction1 = self.model_eval.predict(data_selected.values)
-
-        print prediction1, prediction0
+        self.npa_data = data_selected[self.variable_list].as_matrix()
+        self.apply_scaling()
+        prediction0 = self.model_train.predict(self.npa_data)
+        prediction1 = prediction0
         bdt = array('f', [0.])
         branch = friend_tree.Branch(self.branch_name, bdt, "{:s}/F".format(self.branch_name))
         total_entries = tree.GetEntries()
         multiple_triplets = 0
+        self.converter.convert_to_array(tree, selection)
         for entry in range(total_entries):
             tree.GetEntry(entry)
             is_train = tree.train_flag == 0
-            if not len(tree.object_pt) > 1:
+            if not len(tree.object_pt) > 1 and tree.event_number in selected_event_numbers:
                 if not is_train:
                     bdt[0] = prediction1[entry-multiple_triplets]
                 else:
                     bdt[0] = prediction0[entry-multiple_triplets]
             else:
-                bdt[0] = -1
+                bdt[0] = -2
                 multiple_triplets += 1
             if self.is_new_tree:
                 friend_tree.Fill()
