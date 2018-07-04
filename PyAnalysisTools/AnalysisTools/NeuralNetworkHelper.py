@@ -92,6 +92,8 @@ class NNTrainer(object):
             make_dirs(self.input_store_path)
         if self.reader.numpy_input:
             self.input_store_path = "/".join(kwargs["input_file"][0].split("/")[:-1])
+        self.weight_train = None
+        self.weight_eval = None
 
     @staticmethod
     def build_limit_config(config_file_name):
@@ -183,8 +185,8 @@ class NNTrainer(object):
         self.build_input()
         self.npa_data_train = self.df_data_train[self.variable_list].as_matrix()
         self.npa_data_eval = self.df_data_eval[self.variable_list].as_matrix()
-        weight_train = self.df_data_train['weight']
-        weight_eval = self.df_data_eval['weight']
+        self.weight_train = self.df_data_train['weight']
+        self.weight_eval = self.df_data_eval['weight']
         self.build_models()
         if self.do_control_plots:
             self.make_control_plots("prescaling")
@@ -196,11 +198,11 @@ class NNTrainer(object):
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
                                          epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
                                          validation_data=(self.npa_data_eval, self.label_eval),
-                                         sample_weight=weight_train)
+                                         sample_weight=self.weight_train)
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
                                         epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
                                         validation_data=(self.npa_data_train, self.label_train),
-                                        sample_weight=weight_eval)
+                                        sample_weight=self.weight_eval)
         if self.plot:
             self.plot_train_control(history_train, "train")
             self.plot_train_control(history_eval, "eval")
@@ -295,7 +297,12 @@ class NNTrainer(object):
                       df_data_train[key][self.label_train == 0])
             make_plot("{}_{}".format(prefix, "eval"), name, df_data_eval[key][self.label_eval == 1],
                       df_data_eval[key][self.label_eval == 0])
-
+        if self.weight_train is not None:
+            make_plot("{}_{}".format(prefix, "train"), "weight", self.weight_train[self.label_train == 1],
+                      self.weight_train[self.label_train == 0])
+        if self.weight_eval is not None:
+            make_plot("{}_{}".format(prefix, "eval"), "weight", self.weight_eval[self.label_eval == 1],
+                      self.weight_eval[self.label_eval == 0])
 
 class NNReader(object):
     def __init__(self, **kwargs):
