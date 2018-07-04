@@ -1,3 +1,5 @@
+import traceback
+
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
@@ -993,6 +995,7 @@ class BcTruthAnalyser(object):
 
 class TruthAnalyerT3M(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("selection", "None")
         self.input_files = kwargs["input_files"]
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.histograms = dict()
@@ -1005,6 +1008,13 @@ class TruthAnalyerT3M(object):
         self.setup()
         self.book_plot_configs()
         self.build_references()
+        if kwargs["selection"] == "None":
+            self.pattern = ""
+        elif kwargs["selection"] == "low_pt":
+            self.pattern = "low_pt"
+        elif kwargs["selection"] == "low_p":
+            self.pattern = "low_p"
+
 
     @staticmethod
     def setup():
@@ -1015,14 +1025,15 @@ class TruthAnalyerT3M(object):
         def book_histogram(name, n_bins, x_min, x_max):
             if process_id not in self.histograms:
                 self.histograms[process_id] = dict()
-            self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min, x_max)
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}{:s}_{:d}".format(self.pattern, name, process_id), "",
+                                                          n_bins, x_min, x_max)
             ROOT.SetOwnership(self.histograms[process_id][name], False)
             self.histograms[process_id][name].SetDirectory(0)
 
         def book_histogram_2d(name, n_bins_x, x_min, x_max, n_bins_y, y_min, y_max):
             if process_id not in self.histograms:
                 self.histograms[process_id] = dict()
-            self.histograms[process_id][name] = ROOT.TH2F("{:s}_{:d}".format(name, process_id), "",
+            self.histograms[process_id][name] = ROOT.TH2F("{:s}{:s}_{:d}".format(self.pattern, name, process_id), "",
                                                           n_bins_x, x_min, x_max,
                                                           n_bins_y, y_min, y_max)
             ROOT.SetOwnership(self.histograms[process_id][name], False)
@@ -1088,7 +1099,8 @@ class TruthAnalyerT3M(object):
             print input_file
             try:
                 self.analyse_file(input_file)
-            except TypeError:
+            except TypeError as e:
+                print traceback.print_exc()
                 print "Could not analyse {:s}".format(input_file)
                 continue
         self.plot_histograms()
@@ -1138,22 +1150,34 @@ class TruthAnalyerT3M(object):
             if len(tau_decay) == 0:
                 print "Suspicious event. Could not find tau for process ", process_id
                 continue
+            muon_kinematics = list()
             tau_decay_vertex = tau_decay[0].decayVtxLink().outgoingParticleLinks()
+            try:
+                muons = filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)
+                for i in range(3):
+                    tlv = ROOT.TLorentzVector()
+                    tlv.SetPxPyPzE(muons[i].px() / 1000., muons[i].py() / 1000., muons[i].pz() / 1000.,
+                                   muons[i].e() / 1000.)
+                    muon_kinematics.append([muons[i].e() / 1000.,
+                                           muons[i].eta(),
+                                           muons[i].phi(),
+                                           tlv.Pt()])
+            except IndexError:
+                print "Could not find any muon for first resonance decay in process", process_id
+                continue
+            muon_kinematics.sort(key=lambda i: i[0], reverse=True)
+
+            if self.pattern == "low_pt":
+                if muon_kinematics[1][3] < 4.:
+                    continue
+            if self.pattern == "low_p":
+                if muon_kinematics[1][1] > 2.7 and muon_kinematics[1][0] < 20.:
+                    continue
             self.histograms[process_id]["tau_e"].Fill(tau_decay[0].e() / 1000.)
             self.histograms[process_id]["tau_eta"].Fill(tau_decay[0].eta())
             self.histograms[process_id]["tau_phi"].Fill(tau_decay[0].phi())
             self.histograms[process_id]["tau_e_eta"].Fill(tau_decay[0].e() / 1000., tau_decay[0].eta())
 
-            muon_kinematics = list()
-            try:
-                for i in range(3):
-                    muon_kinematics.append([filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)[i].e() / 1000.,
-                                            filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)[i].eta(),
-                                            filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)[i].phi()])
-            except IndexError:
-                print "Could not find any muon for first resonance decay in process", process_id
-                continue
-            muon_kinematics.sort(key=lambda i: i[0], reverse=True)
             for i in range(3):
                 self.histograms[process_id]["muon_e"].Fill(muon_kinematics[i][0])
                 self.histograms[process_id]["muon_eta"].Fill(muon_kinematics[i][1])
