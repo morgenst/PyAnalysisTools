@@ -1171,7 +1171,9 @@ class TruthAnalyerT3M(object):
                 if muon_kinematics[1][3] < 4.:
                     continue
             if self.pattern == "low_p":
-                if muon_kinematics[1][1] > 2.7 and muon_kinematics[1][0] < 20.:
+                if abs(muon_kinematics[1][1]) > 2.7 and muon_kinematics[1][0] < 20.:
+                    continue
+                if abs(muon_kinematics[1][1]) < 2.7 and muon_kinematics[1][3] < 4.:
                     continue
             self.histograms[process_id]["tau_e"].Fill(tau_decay[0].e() / 1000.)
             self.histograms[process_id]["tau_eta"].Fill(tau_decay[0].eta())
