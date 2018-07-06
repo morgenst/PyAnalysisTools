@@ -32,7 +32,6 @@ class BasePlotter(object):
         if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) and self.process_config_file is not None:
             self.add_mc_campaigns()
             self.split_mc_campaigns = True
-        self.load_atlas_style()
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
