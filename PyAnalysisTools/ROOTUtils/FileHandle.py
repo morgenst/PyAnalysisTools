@@ -65,6 +65,7 @@ class FileHandle(object):
         self.is_mc = False
         self.mc16a = False
         self.mc16c = False
+        self.mc16d = False
         self.friends = None
         self.friend_tree_names = kwargs["friend_tree_names"]
         self.friend_pattern = kwargs["friend_pattern"]
@@ -81,6 +82,8 @@ class FileHandle(object):
                     self.process_with_mc_campaign += ".mc16a"
                 if self.mc16c:
                     self.process_with_mc_campaign += ".mc16c"
+                if self.mc16d:
+                    self.process_with_mc_campaign += ".mc16d"
             if kwargs["split_mc"]:
                 self.process = self.process_with_mc_campaign
         if kwargs["friend_directory"]:
@@ -143,6 +146,8 @@ class FileHandle(object):
             self.mc16a = True
         if "mc16c" in self.file_name.lower():
             self.mc16c = True
+        if "mc16d" in self.file_name.lower():
+            self.mc16d = True
         process_name = self.file_name.split("-")[-1].split(".")[0]
         if switch_off_analysis:
             return process_name
