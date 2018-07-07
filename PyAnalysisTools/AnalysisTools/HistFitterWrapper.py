@@ -237,7 +237,6 @@ class HistFitterWrapper(object):
                                 Systs = self.systematics
                             else:
                                 _logger.info("no systematic has been specified.... all the systematics will be considered")
-                                print sam.systDict
                                 Systs = ""
                                 for i in sam.systDict.keys():
                                     Systs += i
@@ -410,7 +409,6 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.bkg_name = kwargs["bkg_name"]
 
     def run(self, **kwargs):
-        print "##################### RUN #####################"
         if self.call > 0:
             self.setup_output(**kwargs)
         # stdout, stderr = sys.stdout, sys.stderr
@@ -466,6 +464,9 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.configMgr.nPoints = 50  # number of values scanned of signal-strength for upper-limit determination of signal strength.
 
         self.configMgr.writeXML = True
+        self.configMgr.blindSR = True
+        self.configMgr.blindCR = False
+        self.configMgr.blindVR = False
 
         if isinstance(nbkg_yields, float):
             bkg_samples = [self.setup_single_background(**kwargs)]
@@ -487,7 +488,6 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         sigSample.setNormFactor("mu_Sig", 1., 0., 1.)
         sigSample.setStatConfig(True)
         # sigSample.setNormByTheory()
-        print "N signal: ", nsig
         sigSample.buildHisto([nsig], "SR", "yield", 0.5)
         sigSample.buildStatErrors([nsig_err], "SR", "yield")
 
@@ -518,7 +518,6 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             #     os.remove(file_name)
     def setup_control_regions(self, **kwargs):
         data = kwargs["control_regions"]
-        cr_samples = []
         cr_channels = []
         ana = kwargs["ana"]
         for reg, yields in data.iteritems():
@@ -526,24 +525,19 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             for process, yld in yields.iteritems():
                 if process.lower() == "data":
                     continue
-                print process, yld[0], kwargs["process_configs"], reg
                 sample = None
-                if ana.getSample(process):
+                try:
                     _ = self.build_sample(process, yld[0], kwargs["process_configs"], reg, ana.getSample(process))
-                else:
+                except Exception:
                     sample = self.build_sample(process, yld[0], kwargs["process_configs"], reg)
-                if not sample:
-                    print "could not find sample ", process
-                    continue
+                    if not sample:
+                        print "could not find sample ", process
+                        continue
                 if sample is not None:
-                    cr_samples.append(sample)
-                    print "adding sample", cr_samples
-                    ana.addSamples(cr_samples)
+                    ana.addSamples(sample)
             try:
                 data_yld = filter(lambda kv: kv[0].lower() == "data", yields.iteritems())[0][1][0]
                 if isinstance(data_yld, numbers.Number):
-                    # dataSample = Sample("Data", kBlack)
-                    # dataSample.setData()
                     dataSample = ana.getSample("Data")
                     dataSample.buildHisto([data_yld], reg, "yield", 0.5)
             except IndexError:
@@ -576,9 +570,9 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         self.configMgr.writeXML = True
         self.analysis_name = kwargs["name"]
 
-        self.configMgr.blindSR = False  # Blind the SRs (default is False)
-        self.configMgr.blindCR = False  # Blind the CRs (default is False)
-        self.configMgr.blindVR = False  # Blind the VRs (default is False)
+        self.configMgr.blindSR = True
+        self.configMgr.blindCR = False
+        self.configMgr.blindVR = False
         # self.configMgr.useSignalInBlindedData = True
         cur_dir = os.path.abspath(os.path.curdir)
 
