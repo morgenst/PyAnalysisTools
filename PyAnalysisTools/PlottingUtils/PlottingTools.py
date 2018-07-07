@@ -25,6 +25,49 @@ def plot_obj(hist, plot_config, **kwargs):
         return plot_graph(hist, plot_config, **kwargs)
 
 
+def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False):
+    if cut_string is None:
+        cut_string = ""
+    if weight:
+        mc_weights = None
+        if "MC:" in weight:
+            weight = weight.split("*")
+            mc_weights = filter(lambda w: "MC:" in w, weight)
+            for mc_w in mc_weights:
+                weight.remove(mc_w)
+            weight = "*".join(weight)
+            if not is_data:
+                mc_weights = map(lambda mc_w: mc_w.replace("MC:", ""), mc_weights)
+                for mc_w in mc_weights:
+                    weight += "* {:s}".format(mc_w)
+        if "DATA:" in weight:
+            weight = weight.split("*")
+            data_weights = filter(lambda w: "DATA:" in w, weight)
+            for data_w in data_weights:
+                weight.remove(data_w)
+            weight = "*".join(weight)
+            if is_data:
+                data_weights = map(lambda data_w: data_w.replace("DATA:", ""), data_weights)
+                for data_w in data_weights:
+                    weight += "* {:s}".format(data_w)
+        if cut_string == "":
+            cut_string = weight
+        else:
+            cut_string = "%s * (%s)" % (weight, cut_string)
+    n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
+    _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." % (n_selected_events,
+                                                                                       tree.GetName(),
+                                                                                       var_name,
+                                                                                       cut_string))
+    if n_selected_events != hist.GetEntries():
+        _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
+                      "initialised after histogram definition has been received")
+        raise RuntimeError("Inconsistency in TTree::Project")
+    if n_selected_events == -1:
+        _logger.error("Unable to project %s from tree %s with cut %s" % (var_name, tree_name, cut_string))
+        raise RuntimeError("TTree::Project failed")
+    return hist
+
 def plot_objects(objects, plot_config, process_configs=None):
     """
     Base interface to plot multiple objects
