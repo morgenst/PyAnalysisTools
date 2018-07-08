@@ -23,7 +23,8 @@ class DataScaler(object):
 
     def apply_scaling(self, X, y):
         le = LabelEncoder()
-        y = le.fit_transform(y)
+        if y is not None:
+            y = le.fit_transform(y)
         if self.scale_algo == "min_max":
             return self.apply_min_max_scaler(X), y
         elif self.scale_algo == "standard":
