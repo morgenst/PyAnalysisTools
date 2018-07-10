@@ -1,4 +1,6 @@
 import re
+import traceback
+
 import ROOT
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
@@ -12,6 +14,7 @@ def load_atlas_style():
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
         ROOT.SetAtlasStyle()
     except Exception as e:
+        print traceback.print_exc()
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
