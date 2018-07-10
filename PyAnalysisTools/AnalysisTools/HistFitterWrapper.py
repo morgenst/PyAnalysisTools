@@ -485,7 +485,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         # bkgSample.addSystematic(ucb)
 
         sigSample = Sample(kwargs["sig_name"], kPink)
-        sigSample.setNormFactor("mu_Sig", 1., 0., 1.)
+        sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
         sigSample.setStatConfig(True)
         # sigSample.setNormByTheory()
         sigSample.buildHisto([nsig], "SR", "yield", 0.5)
