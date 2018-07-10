@@ -1,3 +1,6 @@
+import numbers
+import sys
+
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 
@@ -69,9 +72,9 @@ class HistFitterWrapper(object):
         kwargs.setdefault("draw", "before,after,corrMatrix")
         kwargs.setdefault("draw_before", False)
         kwargs.setdefault("draw_after", False)
-        kwargs.setdefault("drawCorrelationMatrix", False)
+        kwargs.setdefault("drawCorrelationMatrix", True)
         kwargs.setdefault("drawSeparateComponents", False)
-        kwargs.setdefault("drawLogLikelihood", False)
+        kwargs.setdefault("drawLogLikelihood", True)
         kwargs.setdefault("drawSystematics", False)
         kwargs.setdefault("pickedSRs", [])
         kwargs.setdefault("runToys", False)
@@ -170,33 +173,6 @@ class HistFitterWrapper(object):
         if self.discovery_hypotest:
             self.configMgr.doDiscoveryHypoTest = True
 
-        if self.draw:
-            drawArgs = self.draw.split(",")
-            if len(drawArgs) == 1 and (drawArgs[0] == "allPlots" or drawArgs[0] == "all"):
-                self.draw_before = True
-                self.draw_after = True
-                drawCorrelationMatrix = True
-                drawSeparateComponents = True
-                drawLogLikelihood = True
-                drawSystematics = True
-            elif len(drawArgs) > 0:
-                for drawArg in drawArgs:
-                    if drawArg == "before":
-                        self.draw_before = True
-                    elif drawArg == "after":
-                        self.draw_after = True
-                    elif drawArg == "corrMatrix":
-                        drawCorrelationMatrix = True
-                    elif drawArg == "sepComponents":
-                        drawSeparateComponents = True
-                    elif drawArg == "likelihood":
-                        drawLogLikelihood = True
-                    elif drawArg == "systematics":
-                        drawSystematics = True
-                    else:
-                        _logger.fatal(
-                            "Wrong draw argument: '%s'. Possible draw arguments are 'allPlots' or comma separated 'before after corrMatrix sepComponents likelihood'" % drawArg)
-
         if self.no_empty:
             self.configMgr.removeEmptyBins = True
 
@@ -207,34 +183,8 @@ class HistFitterWrapper(object):
         if self.use_asimov:
             self.configMgr.useAsimovSet = True
 
-        # if self.grid_points and self.grid_points != "":
-        #     sigSamples = self.grid_points.split(",")
-        #     _logger.info("Grid points specified: %s" % sigSamples)
-
-        # if self.regions and self.regions != "" and self.regions != "all":
-        #     pickedSRs = self.regions.split(",")
-        # else:
-        #     pickedSRs = []  # MB: used by 0-lepton fit
-        #
-        # if len(pickedSRs) > 0:
-        #     _logger.info("Selected signal regions: %s" % pickedSRs)
-
         if self.run_toys:
             runToys = True
-
-        # if self.background:
-        #     bkgArgs = self.background.split(',')
-        #     if len(bkgArgs) == 2:
-        #         self.configMgr.SetBkgParName(bkgArgs[0])
-        #         self.configMgr.SetBkgCorrVal(float(bkgArgs[1]))
-        #         self.configMgr.SetBkgChlName("")
-        #     elif len(bkgArgs) >= 3 and len(bkgArgs) % 3 == 0:
-        #         for iChan in xrange(len(bkgArgs) / 3):
-        #             iCx = iChan * 3
-        #             self.configMgr.AddBkgChlName(bkgArgs[iCx])
-        #             self.configMgr.AddBkgParName(bkgArgs[iCx + 1])
-        #             self.configMgr.AddBkgCorrVal(float(bkgArgs[iCx + 2]))
-        #             continue
 
         if self.minos:
             minosArgs = self.minos.split(",")
@@ -247,18 +197,12 @@ class HistFitterWrapper(object):
         # if self.constant:
         #     doFixParameters = True
         #     fixedPars = self.constant
-        #
-        # if self.cmd:
-        #     self.info("Python commands executed: %s" % self.cmd)
-        #     exec (self.cmd)  ## python execute
 
         gROOT.SetBatch(not self.interactive)
 
         """
         mandatory user-defined configuration file
         """
-        #execfile(self.configFile[0])  # [0] since any extra arguments (sys.argv[-1], etc.) are caught here
-
         """
         standard execution from now on
         """
@@ -293,7 +237,6 @@ class HistFitterWrapper(object):
                                 Systs = self.systematics
                             else:
                                 _logger.info("no systematic has been specified.... all the systematics will be considered")
-                                print sam.systDict
                                 Systs = ""
                                 for i in sam.systDict.keys():
                                     Systs += i
@@ -367,7 +310,7 @@ class HistFitterWrapper(object):
             _logger.debug(
                     " GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
-                    "   where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, ReduceCorrMatrix are booleans")
+                    "where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, ReduceCorrMatrix are booleans")
             pass
 
         """
@@ -454,7 +397,6 @@ class HistFitterWrapper(object):
 
 class HistFitterCountingExperiment(HistFitterWrapper):
     def __init__(self, **kwargs):
-        #super(HistFitterCountingExperiment, self).__init__(**kwargs)
         kwargs.setdefault("bkg_name", "Bkg")
         kwargs.setdefault("analysis_name", "foo")
         kwargs.setdefault("output_dir", kwargs["output_dir"])
@@ -467,48 +409,52 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.bkg_name = kwargs["bkg_name"]
 
     def run(self, **kwargs):
-        print "##################### RUN #####################"
         if self.call > 0:
             self.setup_output(**kwargs)
+        # stdout, stderr = sys.stdout, sys.stderr
+        # sys.stdout = sys.stderr = open(os.path.join(self.output_dir, "HistFitter.log"), "w")
         self.setup_regions(**kwargs)
         self.call += 1
         self.run_fit()
+        #sys.stdout, sys.stderr = stdout, stderr
+
+    def build_sample(self, name, yld, process_configs, region, sample=None):
+        if not isinstance(yld, numbers.Number):
+            return
+        if sample is None:
+            sample = Sample(name, transform_color(process_configs[name].color))
+        sample.setStatConfig(True)
+        sample.buildHisto([yld], region, "yield", 0.5)
+        sample.buildStatErrors([sqrt(yld)], region, "yield")
+        return sample
 
     def setup_single_background(self, **kwargs):
         nbkg_yields = kwargs["bkg_yields"]
-        nbkg_err = sqrt(nbkg_yields)  # 0.376*nbkg  # (Absolute) Statistical error on bkg estimate
+        nbkg_err = sqrt(nbkg_yields)
         bkgSample = Sample(self.bkg_name, kGreen - 9)
         bkgSample.setStatConfig(True)
-        bkgSample.buildHisto([nbkg_yields], "UserRegion", "cuts", 0.5)
-        bkgSample.buildStatErrors([nbkg_err], "UserRegion", "cuts")
+        bkgSample.buildHisto([nbkg_yields], "SR", "yield", 0.5)
+        bkgSample.buildStatErrors([nbkg_err], "SR", "yield")
         return bkgSample
 
     def setup_multi_background(self, **kwargs):
         bkg_samples = []
         for bkg_name, bkg_yield in kwargs["bkg_yields"].iteritems():
-            print "color: ", transform_color(kwargs["process_configs"][bkg_name].color)
-            bkg_sample = Sample(bkg_name, transform_color(kwargs["process_configs"][bkg_name].color))
-            bkg_sample.setStatConfig(True)
-            bkg_sample.buildHisto([bkg_yield], "UserRegion", "cuts", 0.5)
-            bkg_sample.buildStatErrors([sqrt(bkg_yield)], "UserRegion", "cuts")
+            bkg_sample = self.build_sample(bkg_name, bkg_yield, kwargs["process_configs"], "SR")
+            if not bkg_sample:
+                continue
             bkg_samples.append(bkg_sample)
         return bkg_samples
 
     def setup_regions(self, **kwargs):
         kwargs.setdefault("sig_name", "Sig")
         kwargs.setdefault("sig_yield", 1.)
+        kwargs.setdefault("control_regions", None)
         nbkg_yields = kwargs["bkg_yields"]
 
         self.reset_config_mgr()
-        self.configMgr.cutsDict["UserRegion"] = 1.
+        self.configMgr.cutsDict["SR"] = 1.
         self.configMgr.weights = "1."
-        # Set uncorrelated systematics for bkg and signal (1 +- relative uncertainties)
-        # ucb = Systematic("ucb", self.configMgr.weights, 1.2, 0.8, "user", "userOverallSys")
-        # ucs = Systematic("ucs", self.configMgr.weights, 1.1, 0.9, "user", "userOverallSys")
-
-        # correlated systematic between background and signal (1 +- relative uncertainties)
-        # corb = Systematic("cor", self.configMgr.weights, [1.1], [0.9], "user", "userHistoSys")
-        # cors = Systematic("cor", self.configMgr.weights, [1.15], [0.85], "user", "userHistoSys")
 
         # Setting the parameters of the hypothesis test
         self.configMgr.doExclusion = False  # True=exclusion, False=discovery
@@ -518,10 +464,13 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.configMgr.nPoints = 50  # number of values scanned of signal-strength for upper-limit determination of signal strength.
 
         self.configMgr.writeXML = True
+        self.configMgr.blindSR = True
+        self.configMgr.blindCR = False
+        self.configMgr.blindVR = False
 
         if isinstance(nbkg_yields, float):
             bkg_samples = [self.setup_single_background(**kwargs)]
-            ndata = nbkg_yields  # Number of events observed in data
+            ndata = nbkg_yields
 
         elif isinstance(nbkg_yields, dict):
             bkg_samples = self.setup_multi_background(**kwargs)
@@ -539,32 +488,62 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
         sigSample.setStatConfig(True)
         # sigSample.setNormByTheory()
-        print nsig
-        sigSample.buildHisto([nsig], "UserRegion", "cuts", 0.5)
-        sigSample.buildStatErrors([nsig_err], "UserRegion", "cuts")
+        sigSample.buildHisto([nsig], "SR", "yield", 0.5)
+        sigSample.buildStatErrors([nsig_err], "SR", "yield")
 
         dataSample = Sample("Data", kBlack)
         dataSample.setData()
-        dataSample.buildHisto([ndata], "UserRegion", "cuts", 0.5)
+        dataSample.buildHisto([ndata], "SR", "yield", 0.5)
 
         # Define top-level
         ana = self.configMgr.addFitConfig("SPlusB")
         ana.addSamples(bkg_samples + [sigSample, dataSample])
         ana.setSignalSample(sigSample)
 
+        if kwargs["control_regions"] is not None:
+            self.setup_control_regions(ana=ana, **kwargs)
+
         # Define measurement
         meas = ana.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=lumi_error)
         meas.addPOI("mu_Sig")
         # meas.addParamSetting("Lumi",True,1)
 
-        chan = ana.addChannel("cuts", ["UserRegion"], 1, 0.5, 1.5)
+        chan = ana.addChannel("yield", ["SR"], 1, 0.5, 1.5)
         ana.addSignalChannels([chan])
         self.initialise()
 
         if self.configMgr.executeHistFactory:
             file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
-            if os.path.isfile(file_name):
-                os.remove(file_name)
+            # if os.path.isfile(file_name):
+            #     os.remove(file_name)
+    def setup_control_regions(self, **kwargs):
+        data = kwargs["control_regions"]
+        cr_channels = []
+        ana = kwargs["ana"]
+        for reg, yields in data.iteritems():
+            self.configMgr.cutsDict[reg] = 1.
+            for process, yld in yields.iteritems():
+                if process.lower() == "data":
+                    continue
+                sample = None
+                try:
+                    _ = self.build_sample(process, yld[0], kwargs["process_configs"], reg, ana.getSample(process))
+                except Exception:
+                    sample = self.build_sample(process, yld[0], kwargs["process_configs"], reg)
+                    if not sample:
+                        print "could not find sample ", process
+                        continue
+                if sample is not None:
+                    ana.addSamples(sample)
+            try:
+                data_yld = filter(lambda kv: kv[0].lower() == "data", yields.iteritems())[0][1][0]
+                if isinstance(data_yld, numbers.Number):
+                    dataSample = ana.getSample("Data")
+                    dataSample.buildHisto([data_yld], reg, "yield", 0.5)
+            except IndexError:
+                print "No data found for ", reg
+            cr_channels.append(ana.addChannel("yield", [reg], 1, 0.5, 1.5))
+        ana.addBkgConstrainChannels(cr_channels)
 
     def get_upper_limit(self, name="hypo_Sig"):
         f = ROOT.TFile.Open(os.path.join(self.output_dir,
@@ -590,15 +569,10 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         FitType = self.configMgr.FitType
         self.configMgr.writeXML = True
         self.analysis_name = kwargs["name"]
-        # ------------------------------------------------------------------------------------------------------
-        # Possibility to blind the control, validation and signal regions.
-        # We only have one signal region in this config file, thus only blinding the signal region makes sense.
-        # the other two commands are only given for information here.
-        # ------------------------------------------------------------------------------------------------------
 
-        self.configMgr.blindSR = False  # Blind the SRs (default is False)
-        self.configMgr.blindCR = False  # Blind the CRs (default is False)
-        self.configMgr.blindVR = False  # Blind the VRs (default is False)
+        self.configMgr.blindSR = True
+        self.configMgr.blindCR = False
+        self.configMgr.blindVR = False
         # self.configMgr.useSignalInBlindedData = True
         cur_dir = os.path.abspath(os.path.curdir)
 
