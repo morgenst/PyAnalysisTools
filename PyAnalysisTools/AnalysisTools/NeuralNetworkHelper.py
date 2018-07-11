@@ -68,6 +68,7 @@ class NNTrainer(object):
         kwargs.setdefault("epochs", 10)
         kwargs.setdefault("control_plots", False)
         kwargs.setdefault("disable_scaling", False)
+        kwargs.setdefault("verbosity", 1)
         self.reader = TrainingReader(**kwargs)
         self.variable_list = kwargs["variables"]
         self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
@@ -78,11 +79,15 @@ class NNTrainer(object):
         self.disable_rescaling = kwargs["disable_scaling"]
         self.plot = True
         self.do_control_plots = kwargs["control_plots"]
-        self.output_path = so.resolve_output_dir(output_dir=kwargs["output_path"], sub_dir_name="NNtrain")
+        self.output_path = self.get_resolved_output_path(kwargs["output_path"])
+        if kwargs["icomb"] is not None:
+            self.output_path = os.path.join(self.output_path, str(kwargs["icomb"]))
         self.limit_config = self.build_limit_config(kwargs["training_config_file"])
         self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         self.store_arrays = not kwargs["disable_array_safe"]
         self.scaler = DataScaler(kwargs["scale_algo"])
+        self.disable_event_weights = kwargs["disable_event_weights"]
+        self.verbosity = kwargs["verbosity"]
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
         copy(kwargs["training_config_file"], self.output_path)
@@ -94,6 +99,10 @@ class NNTrainer(object):
             self.input_store_path = "/".join(kwargs["input_file"][0].split("/")[:-1])
         self.weight_train = None
         self.weight_eval = None
+
+    @staticmethod
+    def get_resolved_output_path(output_path):
+        return so.resolve_output_dir(output_dir=output_path, sub_dir_name="NNtrain")
 
     @staticmethod
     def build_limit_config(config_file_name):
@@ -123,8 +132,6 @@ class NNTrainer(object):
         self.df_data_eval = pd.DataFrame(self.df_data_eval)
 
     def build_models(self):
-        # self.model_0 = NeuralNetwork(self.df_data_train.shape, self.limit_config).kerasmodel
-        # self.model_1 = NeuralNetwork(self.df_data_eval.shape, self.limit_config).kerasmodel
         self.model_0 = NeuralNetwork(self.npa_data_train.shape[1], self.limit_config).kerasmodel
         self.model_1 = NeuralNetwork(self.npa_data_eval.shape[1], self.limit_config).kerasmodel
 
@@ -132,44 +139,6 @@ class NNTrainer(object):
         self.npa_data_train, self.label_train = self.scaler.apply_scaling(self.npa_data_train, self.label_train)
         self.npa_data_eval, self.label_eval = self.scaler.apply_scaling(self.npa_data_eval, self.label_eval)
 
-
-    # def apply_default_scaling(self):
-    #     train_mean = self.df_data_train.mean()
-    #     train_std = self.df_data_train.std()
-    #     self.df_data_train = (self.df_data_train - train_mean) / train_std
-    #     eval_mean = self.df_data_eval.mean()
-    #     eval_std = self.df_data_eval.std()
-    #     self.df_data_eval = (self.df_data_eval - eval_mean) / eval_std
-    #     #scale_data = {"train_mean": train_mean, "train_std": train_std, "eval_mean": eval_mean, "eval_std": eval_std}
-    #     scale_data = [train_mean.to_json(), train_std.to_json(), eval_mean.to_json(), eval_std.to_json()]
-    #     print type(train_mean)
-    #     #scale_data = {'result': json.loads(scale_data.to_json(orient='records'))}
-    #     print scale_data
-    #     YAMLDumper.dump_yaml(scale_data, os.path.join(self.output_path, "train_data_scaling.yml"))
-
-    # def apply_sklearn_scaling(self):
-    #     #scaler = StandardScaler()
-    #     scaler = MinMaxScaler(feature_range=(0, 1))
-    #     self.npa_data_train = scaler.fit_transform(self.npa_data_train)
-    #     self.npa_data_eval = scaler.fit_transform(self.npa_data_eval)
-    #     le = LabelEncoder()
-    #     self.label_train = le.fit_transform(self.label_train)
-    #     self.label_eval = le.fit_transform(self.label_eval)
-
-    # def apply_split_scaling(self):
-    #     train_mean_0 = self.df_data_train[self.label_train == 0].mean()
-    #     train_mean_1 = self.df_data_train[self.label_train == 1].mean()
-    #     train_std_0 = self.df_data_train[self.label_train == 0].std()
-    #     train_std_1 = self.df_data_train[self.label_train == 1].std()
-    #     self.df_data_train[self.label_train == 0] = (self.df_data_train[self.label_train == 0] - train_mean_0) / train_std_0
-    #     self.df_data_train[self.label_train == 1] = (self.df_data_train[self.label_train == 1] - train_mean_1) / train_std_1
-    #     eval_mean_0 = self.df_data_eval[self.label_eval == 0].mean()
-    #     eval_mean_1 = self.df_data_eval[self.label_eval == 1].mean()
-    #     eval_std_0 = self.df_data_eval[self.label_eval == 0].std()
-    #     eval_std_1 = self.df_data_eval[self.label_eval == 1].std()
-    #     self.df_data_eval[self.label_eval == 0] = (self.df_data_eval[self.label_eval == 0] - eval_mean_0) / eval_std_0
-    #     self.df_data_eval[self.label_eval == 1] = (self.df_data_eval[self.label_eval == 1] - eval_mean_1) / eval_std_1
-    #
     def plot_train_control(self, history, name):
         plt.plot(history.history['loss'])
         plt.plot(history.history['val_loss'])
@@ -185,8 +154,9 @@ class NNTrainer(object):
         self.build_input()
         self.npa_data_train = self.df_data_train[self.variable_list].as_matrix()
         self.npa_data_eval = self.df_data_eval[self.variable_list].as_matrix()
-        self.weight_train = self.df_data_train['weight']
-        self.weight_eval = self.df_data_eval['weight']
+        if not self.disable_event_weights:
+            self.weight_train = self.df_data_train['weight']
+            self.weight_eval = self.df_data_eval['weight']
         self.build_models()
         if self.do_control_plots:
             self.make_control_plots("prescaling")
@@ -195,12 +165,13 @@ class NNTrainer(object):
         if self.do_control_plots:
             self.make_control_plots("postscaling")
         #TODO: implement sample weights via sample_weight option
+
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
-                                         epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
+                                         epochs=self.epochs, verbose=self.verbosity, batch_size=32, shuffle=True,
                                          validation_data=(self.npa_data_eval, self.label_eval),
                                          sample_weight=self.weight_train)
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
-                                        epochs=self.epochs, verbose=1, batch_size=32, shuffle=True,
+                                        epochs=self.epochs, verbose=self.verbosity, batch_size=32, shuffle=True,
                                         validation_data=(self.npa_data_train, self.label_train),
                                         sample_weight=self.weight_eval)
         if self.plot:
