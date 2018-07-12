@@ -47,17 +47,16 @@ class FitterPerSlice(object):
 
    def fill_parameter_collection(self, model, parameter_collection):
        it = model.getVariables().createIterator()
-       if not parameter_collection.keys():
-          for parameter in iter(it.Next, None):
-              parameter_collection[parameter.GetName()] = []
        for parameter in iter(it.Next, None):
+           if parameter.GetName() not in parameter_collection.keys():
+              parameter_collection[parameter.GetName()] = []
            val_and_error = {'val':parameter.getVal(), 'error':parameter.getError()}
            parameter_collection[parameter.GetName()].append(val_and_error)
 
    def make_parameter_plots(self, parameter_collection, variable_config):
        hists_parameters = []
        for key in parameter_collection:
-           hist = ROOT.TH1F(variable_config["key"]+key, "",
+           hist = ROOT.TH1F(variable_config["key"]+"_"+key, "",
                             variable_config["bins"], variable_config["xmin"],
                             variable_config["xmax"])
            ROOT.SetOwnership(hist, False)
@@ -105,3 +104,4 @@ class FitterPerSlice(object):
        for canvas in list_canvas:
            self.output_handle.register_object(canvas)
        self.output_handle.write_and_close()
+       return self.output_handle.output_file.GetName()

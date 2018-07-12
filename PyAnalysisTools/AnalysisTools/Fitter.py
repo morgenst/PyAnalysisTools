@@ -153,7 +153,7 @@ class PDF2Gauss(PDF):
         sigma = ROOT.RooRealVar("sigma", "sigma", *self.sigma)
         gauss2 = ROOT.RooGaussian("gauss2", "gauss2", self.quantity, mean, sigma)
         w.add(gauss2)
-        w.factory("EDIT::gauss1(gauss2, mean=expr('mean-m_diff',mean,m_diff[98.5,97,100]))")
+        w.factory("EDIT::gauss1(gauss2, mean=expr('mean-m_diff',mean,m_diff[98,92,104]))")#97-100
         #build background model
         decayrate = ROOT.RooRealVar("decayrate", "decayrate", -1.5e-3, -0.01, -1e-4)
         decayrate2 = ROOT.RooRealVar("decayrate2", "decayrate2", 3e-7, 1e-10, 8e-7)
@@ -165,8 +165,8 @@ class PDF2Gauss(PDF):
         if "isMC" in mode:
            w.factory("SUM::model(nDs[2000,0,20000]*gauss2)")
         else:
-           w.factory("SUM::model(nD[500,0,20000]*gauss1, nDs[2000,0,20000]*gauss2, nBkg[10000,0,500000]*background)")
-           w.factory("EDIT::model(model, nD=expr('alpha*nDs', alpha[0.3,0.2,0.4], nDs))")
+           w.factory("SUM::model(nD[500,0,20000]*gauss1, nDs[2000,0,20000]*gauss2, nBkg[10000,0,1000000]*background)")
+           w.factory("EDIT::model(model, nD=expr('alpha*nDs', alpha[0.3,0.1,0.5], nDs))")
         w.Print()
         ROOT.SetOwnership(w, False)
         return w.pdf("model")
@@ -238,9 +238,9 @@ class Fitter(object):
             # region.addThreshold(self.blind[0], "SideBand")
             # region.addThreshold(self.blind[1], "Signal")
             fit_result = self.model.fitTo(self.data, RooFit.Range(("left,right")), RooFit.Save(),
-                                          RooFit.PrintEvalErrors(-1), RooFit.NumCPU(2))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
+                                          RooFit.PrintEvalErrors(-1), RooFit.NumCPU(5))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
         else:
-            fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(2))
+            fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(5))
         canvas = ROOT.TCanvas("c", "", 800, 600)
         frame = self.var.frame()
         binning = ROOT.RooBinning(30, self.quantity[1], self.quantity[2])

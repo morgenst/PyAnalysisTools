@@ -120,7 +120,7 @@ class OutputFileHandle(SysOutputHandle):
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
-        ROOT.gStyle.SetLineScalePS(0.4)
+        ROOT.gStyle.SetLineScalePS(0.5)
         n = self.n_plots_per_page
         nx = int(round(math.sqrt(n)))
         ny = int(math.ceil(n/float(nx)))
@@ -179,3 +179,6 @@ class OutputFileHandle(SysOutputHandle):
             self.objects[(tdir, obj.GetName())] = obj.CloneTree()
         else:
             self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")
+
+    def clear_objects(self):
+        self.objects = dict()
