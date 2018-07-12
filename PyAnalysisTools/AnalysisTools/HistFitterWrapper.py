@@ -20,7 +20,7 @@ from configWriter import fitConfig, Measurement, Channel, Sample
 from systematic import Systematic
 from math import sqrt
 import os
-from PyAnalysisTools.base.ShellUtils import make_dirs, copy
+from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, \
     transform_color
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
@@ -293,20 +293,18 @@ class HistFitterWrapper(object):
 
                 if not fitFound:
                     _logger.fatal("Unable to find fitConfig with name %s, bailing out" % self.fitname)
-            noFit = False
-            if not self.fit:
-                noFit = True
+
             for i in xrange(len(self.configMgr.fitConfigs)):
                 if not runAll and i != idx:
                     _logger.debug("Skipping fit config {0}".format(self.configMgr.fitConfigs[i].name))
                     continue
 
                 _logger.info("Running on fitConfig %s" % self.configMgr.fitConfigs[i].name)
-                _logger.info("Setting noFit = {0}".format(noFit))
+                _logger.info("Setting noFit = {0}".format(not self.fit))
                 self.GenerateFitAndPlotCPP(self.configMgr.fitConfigs[i], self.configMgr.analysisName, self.draw_before,
                                                self.draw_after, self.drawCorrelationMatrix, self.drawSeparateComponents,
                                                 self.drawLogLikelihood, self.minos, self.minosPars, self.doFixParameters,
-                                               self.fixedPars, self.configMgr.ReduceCorrMatrix, noFit)
+                                               self.fixedPars, self.configMgr.ReduceCorrMatrix, not self.fit)
             _logger.debug(
                     " GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
@@ -353,7 +351,6 @@ class HistFitterWrapper(object):
             pass
 
         _logger.info("Leaving HistFitter... Bye!")
-
 
     def GenerateFitAndPlotCPP(self, fc, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents,
                               drawLogLikelihood, minos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix, noFit):
@@ -404,19 +401,26 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("call", 0)
         kwargs.setdefault("scan", False)
         kwargs.setdefault("use_asimov", True)
+        kwargs.setdefault("create_workspace", True)
         super(HistFitterCountingExperiment, self).__init__(**kwargs)
 
         self.bkg_name = kwargs["bkg_name"]
 
     def run(self, **kwargs):
+        def fileno(file_or_fd):
+            fd = getattr(file_or_fd, 'fileno', lambda: file_or_fd)()
+            if not isinstance(fd, int):
+                raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
+            return fd
         if self.call > 0:
             self.setup_output(**kwargs)
-        # stdout, stderr = sys.stdout, sys.stderr
-        # sys.stdout = sys.stderr = open(os.path.join(self.output_dir, "HistFitter.log"), "w")
-        self.setup_regions(**kwargs)
-        self.call += 1
-        self.run_fit()
-        #sys.stdout, sys.stderr = stdout, stderr
+
+        with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
+            with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
+                    std_stream_redirected(ferr, sys.stderr):
+                self.setup_regions(**kwargs)
+                self.call += 1
+                self.run_fit()
 
     def build_sample(self, name, yld, process_configs, region, sample=None):
         if not isinstance(yld, numbers.Number):
@@ -514,8 +518,9 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         if self.configMgr.executeHistFactory:
             file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
-            # if os.path.isfile(file_name):
-            #     os.remove(file_name)
+            if os.path.isfile(file_name):
+                os.remove(file_name)
+
     def setup_control_regions(self, **kwargs):
         data = kwargs["control_regions"]
         cr_channels = []
