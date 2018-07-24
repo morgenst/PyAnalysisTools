@@ -332,6 +332,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TGraph")
         #plot_objects += get_objects_from_canvas_by_type(canvas, "TProfile")
         stacks = get_objects_from_canvas_by_type(canvas, "THStack")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
