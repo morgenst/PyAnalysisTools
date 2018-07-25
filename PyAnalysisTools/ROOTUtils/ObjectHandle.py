@@ -9,6 +9,16 @@ def get_objects_from_canvas(canvas):
 
 
 def get_objects_from_canvas_by_type(canvas, typename):
+    """
+    Read objects in canvas and filter by typename
+    :param canvas: canvas
+    :type canvas: TCanvas
+    :param typename: type of object to be filtered
+    :type typename: str
+    :return: objects of type typename in canvas
+    :rtype: list[typename]
+    """
+    
     obj = get_objects_from_canvas(canvas)
     obj = filter(lambda o: o is not None, obj)
     if isinstance(typename, list):
