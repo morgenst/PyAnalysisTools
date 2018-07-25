@@ -84,6 +84,12 @@ class Region(object):
         return " && ".join(filter(lambda cut: "data:" not in cut.lower(), cut_list)), \
                " && ".join(cut_list).replace("Data:", "").replace("data:", "").replace("DATA:", "")
 
+    def get_cut_list(self):
+        if self.event_cuts and self.common_selection is None:
+            return self.event_cuts
+        if self.common_selection and "event_cuts" in self.common_selection:
+            return self.common_selection["event_cuts"]
+        
     def convert_lepton_selections(self):
         """
         build lepton selection depending on available definitions for good (signal-like) and bad (background side-band)

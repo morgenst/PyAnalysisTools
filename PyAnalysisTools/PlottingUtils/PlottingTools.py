@@ -68,6 +68,7 @@ def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False
         raise RuntimeError("TTree::Project failed")
     return hist
 
+
 def plot_objects(objects, plot_config, process_configs=None):
     """
     Base interface to plot multiple objects
@@ -90,8 +91,8 @@ def plot_objects(objects, plot_config, process_configs=None):
         first_obj = objects[0]
     if isinstance(first_obj, ROOT.TH1):
         return plot_histograms(objects, plot_config, process_configs)
-    if isinstance(first_obj, ROOT.TEfficiency):
-        return plot_graphs(objects.values(), plot_config)
+    if isinstance(first_obj, ROOT.TEfficiency) or isinstance(first_obj, ROOT.TGraph):
+        return plot_graphs(objects, plot_config)
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
 
@@ -238,9 +239,11 @@ def format_hist(hist, plot_config):
 
 
 def plot_graphs(graphs, plot_config):
+    if isinstance(graphs, dict):
+        graphs = graphs.values()
     canvas = plot_graph(graphs[0], plot_config)
-    for graph in graphs[1:]:
-        add_graph_to_canvas(canvas, graph, plot_config)
+    for index, graph in enumerate(graphs[1:]):
+        add_graph_to_canvas(canvas, graph, plot_config, index+1)
     return canvas
 
 
@@ -378,24 +381,25 @@ def plot_graph(graph, plot_config=None, **kwargs):
     canvas.cd()
     draw_option = "a" + get_draw_option_as_root_str(plot_config)
     graph.Draw(draw_option)
-    if not "same" in draw_option:
-        draw_option += "same"
-    apply_style(graph, *get_style_setters_and_values(plot_config))
+    # if not "same" in draw_option:
+    #     draw_option += "same"
+    apply_style(graph, *get_style_setters_and_values(plot_config, index=0))
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
+    graph.Draw(draw_option)
     canvas.Update()
     return canvas
 
 
-def add_graph_to_canvas(canvas, graph, plot_config):
+def add_graph_to_canvas(canvas, graph, plot_config, index=None):
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
     if not "same" in draw_option:
         draw_option += "same"
-    apply_style(graph, *get_style_setters_and_values(plot_config))
+    apply_style(graph, *get_style_setters_and_values(plot_config, index=index))
     graph.Draw(draw_option)
     ROOT.SetOwnership(graph, False)
     canvas.Update()

@@ -1,7 +1,7 @@
 import os
 from subprocess import check_output, CalledProcessError
 from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
 try:
@@ -24,10 +24,12 @@ class NTupleAnalyser(object):
         self.check_valid_proxy()
         if not "dataset_list" in kwargs:
             raise InvalidInputError("No dataset list provided")
-        self.datasets = YAMLLoader.read_yaml(kwargs["dataset_list"])
+        self.dataset_list_file = kwargs["dataset_list"]
+        self.datasets = YAMLLoader.read_yaml(self.dataset_list_file)
         self.datasets = dict(filter(lambda kv: "pilot" not in kv[0], self.datasets.iteritems()))
         self.datasets = dict(filter(lambda kv: "resubmit" not in kv[0], self.datasets.iteritems()))
         self.input_path = kwargs["input_path"]
+        self.resubmit = kwargs["resubmit"]
 
     @staticmethod
     def check_valid_proxy():
@@ -104,6 +106,19 @@ class NTupleAnalyser(object):
             missing_fraction = float(ds[-2])/float(ds[-1]) * 100.
             print ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction
 
+    def prepare_resubmit(self, failed_ds):
+        """
+        add failed or incomplete samples back to dataset input file under resubmit tag
+        :param failed_ds: failed dataset summary information
+        :type failed_ds: list
+        :return: None
+        :rtype: None
+        """
+        datasets = [ds[0] for ds in failed_ds]
+        original_datasets = YAMLLoader.read_yaml(self.dataset_list_file)
+        original_datasets["resubmit"] = datasets
+        YAMLDumper.dump_yaml(original_datasets, self.dataset_list_file, default_flow_style=False)
+
     def run(self):
         """
         Entry point executing ntuple completeness check
@@ -118,3 +133,5 @@ class NTupleAnalyser(object):
         mp.ThreadPool(10).map(self.get_events, self.datasets)
         incomplete_datasets = filter(lambda ds: not ds[-2] ==ds[-1], self.datasets)
         self.print_summary(missing_datasets, incomplete_datasets)
+        if self.resubmit:
+            self.prepare_resubmit(missing_datasets + incomplete_datasets)
