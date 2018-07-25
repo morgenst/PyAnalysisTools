@@ -73,7 +73,7 @@ class Plotter(BasePlotter):
             process_config = self.process_configs[process_config_name]
             if process_config.is_data:
                 continue
-            for i, campaign in enumerate(["mc16a", "mc16c"]):
+            for i, campaign in enumerate(["mc16a", "mc16c", "mc16d"]):
                 new_config = copy.copy(process_config)
                 new_config.name += campaign
                 new_config.label += " {:s}".format(campaign)

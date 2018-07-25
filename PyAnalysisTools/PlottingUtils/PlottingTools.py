@@ -123,6 +123,8 @@ def plot_hist(hist, plot_config, **kwargs):
     if plot_config.ymax:
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
+        if hist.GetMinimum() == 0.:
+            hist.SetMinimum(0.001)
         canvas.SetLogy()
     if hasattr(plot_config, "logx") and plot_config.logx:
         canvas.SetLogx()
@@ -537,8 +539,8 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         try:
             hratio = object_handle.get_objects_from_canvas_by_type(ratio, supported_types)[0]
         except:
-            _logger.error("Could not find any supported hist type in canvas ", ratio.GetName())
-            exit(0)
+            _logger.error("Could not find any supported hist type in canvas {:s}".format(ratio.GetName()))
+            return
     else:
         hratio = ratio
 
