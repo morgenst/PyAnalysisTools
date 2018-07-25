@@ -37,6 +37,8 @@ class CommonCutFlowAnalyser(object):
         self.expand_process_configs()
         map(self.load_dxaod_cutflows, self.file_handles)
         self.dtype = [("cut", "S300"), ("yield", "f4"), ("yield_unc", "f4"), ("eff", float), ("eff_total", float)]
+        if kwargs["output_dir"] is not None:
+            self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
 
     def load_dxaod_cutflows(self, file_handle):
         process = file_handle.process
@@ -161,7 +163,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                                                               ("eff_total", float)])  # todo: array dtype for string not a good choiceyields
 
     def apply_cross_section_weight(self, systematic, region):
-
         for process in self.cutflows[systematic][region].keys():
             try:
                 lumi_weight = self.get_cross_section_weight(process.split(".")[0])
@@ -169,7 +170,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 _logger.error("None type parsed for ", process)
                 continue
             self.cutflows[systematic][region][process]["yield"] *= lumi_weight
-
 
     def make_cutflow_table(self, systematic):
         cutflow_tables = dict()
@@ -237,7 +237,17 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 self.cutflows[systematics][region] = merge(yields)
 
     def plot_signal_yields(self):
-        print self.cutflows
+        signal_processes = filter(lambda prc: prc.type.lower() == "signal", self.process_configs.values())
+        signal_generated_events = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
+                                         self.event_numbers.iteritems()))
+        for region, cutflows in self.cutflows["Nominal"].iteritems():
+            signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
+                                        cutflows.iteritems()))
+            canvas_cuts, canvas_final = get_signal_acceptance(signal_yields, signal_generated_events, None)
+            canvas_cuts.SetName(canvas_cuts.GetName().replace("/","").replace(" ","").replace(">","_gt_").replace("<","_lt_").replace(".","") + "_{:s}".format(region))
+            canvas_final.SetName(canvas_final.GetName().replace("/","").replace(" ","").replace(">","_gt_").replace("<","_lt_").replace(".","") + "_{:s}".format(region))
+            self.output_handle.register_object(canvas_cuts)
+            self.output_handle.register_object(canvas_final)
 
     def execute(self):
         self.read_event_yields()
@@ -250,7 +260,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         self.calculate_sm_total()
 
         self.make_cutflow_tables()
-        print self.cutflows
+        self.output_handle.write_and_close()
 
 
 class CutflowAnalyser(object):
