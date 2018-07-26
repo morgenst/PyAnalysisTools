@@ -12,7 +12,7 @@ trigger:
   stage: trigger
   image: appropriate/curl
   script:
-    - curl -X POST -F token=$P_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
+    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
     
 # Set the behaviour of the CI build.
 # variables:
