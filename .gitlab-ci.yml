@@ -2,34 +2,41 @@
 
 # "Global" build stages.
 stages:
-  - package
-  - docker
-  - run
-  - release
-
-# Set the behaviour of the CI build.
-variables:
-  GIT_STRATEGY: fetch
-  GIT_SUBMODULE_STRATEGY: recursive
-
-# Configuration for the CMake build jobs:
-package:
-  stage: package
-  tags:
-    - docker
-  image: atlas/analysisbase:21.2.19
-  before_script:
-    - source /home/atlas/release_setup.sh
+#   - package
+#   - docker
+#   - run
+#   - release
+  - trigger
+  
+trigger:
+  stage: trigger
+  image: appropriate/curl
   script:
-    - source setup.sh
+    - curl -X POST -F token=$P_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline"
+    
+# Set the behaviour of the CI build.
+# variables:
+#   GIT_STRATEGY: fetch
+#   GIT_SUBMODULE_STRATEGY: recursive
 
-# Setup for building a Docker image from the repository's compiled code.
-docker:
-  stage: docker
-  tags:
-    - docker-image-build
-  dependencies:
-    - package
-  script: echo
-  variables:
-    TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+# # Configuration for the CMake build jobs:
+# package:
+#   stage: package
+#   tags:
+#     - docker
+#   image: atlas/analysisbase:21.2.19
+#   before_script:
+#     - source /home/atlas/release_setup.sh
+#   script:
+#     - source setup.sh
+
+# # Setup for building a Docker image from the repository's compiled code.
+# docker:
+#   stage: docker
+#   tags:
+#     - docker-image-build
+#   dependencies:
+#     - package
+#   script: echo
+#   variables:
+#     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
