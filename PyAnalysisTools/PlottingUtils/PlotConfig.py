@@ -267,7 +267,6 @@ def transform_color(color, index=None):
         if "-" in color:
             color, offset = color.split("-")
             offset = "-" + offset
-        print "transform ", color, " to: ",  getattr(ROOT, color.rstrip()) + int(offset)
         color = getattr(ROOT, color.rstrip()) + int(offset)
 
     if isinstance(color, list):

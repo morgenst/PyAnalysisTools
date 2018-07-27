@@ -352,6 +352,8 @@ class ComparisonPlotter(BasePlotter):
             plot_config.yscale = yscale
             if not hasattr(plot_config, "normalise"):
                 plot_config.ymax = ymax
+            if plot_config.normalise and plot_config.logy:
+                plot_config.ymin = 0.0001
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
             ctmp.cd()
@@ -363,6 +365,7 @@ class ComparisonPlotter(BasePlotter):
             index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
             ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
         canvas = PT.plot_obj(reference_hists[0], plot_config)
+        canvas.Update()
         for hist in reference_hists[1:]:
             PT.add_object_to_canvas(canvas, hist, plot_config)
         for hist in hists:
