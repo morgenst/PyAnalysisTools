@@ -135,6 +135,11 @@ def get_default_plot_config(hist):
     return PlotConfig(name=hist.GetName())
 
 
+def get_default_color_scheme():
+    return [ROOT.kBlack, ROOT.kYellow-3, ROOT.kRed+2, ROOT.kTeal - 2, ROOT.kSpring-8, ROOT.kCyan, ROOT.kBlue-6,
+            ROOT.kRed, ROOT.kGreen, ROOT.kBlue, ROOT.kGray]
+
+
 class ProcessConfig(object):
     def __init__(self, **kwargs):
         for k, v in kwargs.iteritems():
@@ -262,7 +267,9 @@ def transform_color(color, index=None):
         if "-" in color:
             color, offset = color.split("-")
             offset = "-" + offset
+        print "transform ", color, " to: ",  getattr(ROOT, color.rstrip()) + int(offset)
         color = getattr(ROOT, color.rstrip()) + int(offset)
+
     if isinstance(color, list):
         return transform_color(color[index])
     return color
@@ -282,6 +289,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         color = transform_color(process_config.color)
     if hasattr(plot_config, "color"):
         color = transform_color(plot_config.color, index)
+        
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
