@@ -2,7 +2,7 @@ import ROOT
 import re
 from math import log10
 from array import array
-from copy import copy
+from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -57,9 +57,19 @@ class PlotConfig(object):
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
+        self.is_multidimensional = False
         self.auto_decorate()
 
     def is_set_to_value(self, attr, value):
+        """
+        Checks if attribute is set to value
+        :param attr: attribute
+        :type attr: str
+        :param value: value of attribute
+        :type value: any
+        :return: True/False
+        :rtype: boolean
+        """
         if not hasattr(self, attr):
             return False
         return getattr(self, attr) == value
@@ -72,17 +82,36 @@ class PlotConfig(object):
         setattr(self, attr_name, PlotConfig(**kwargs))
 
     def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
         obj_str = "Plot config: {:s} \n".format(self.name)
         for attribute, value in self.__dict__.items():
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
     def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: plot config object to compare to
+        :type other: PlotConfig
+        :return: True/False
+        :rtype: boolean
+        """
         if isinstance(self, other.__class__):
             return self.__dict__ == other.__dict__
         return False
 
     def __ne__(self, other):
+        """
+        Comparison operator (negative)
+        :param other: plot config object to compare to
+        :type other: PlotConfig
+        :return: True/False
+        :rtype: boolean
+        """
         return not self.__eq__(other)
 
     def __hash__(self):
@@ -219,6 +248,15 @@ def merge_plot_configs(plot_configs):
 
 
 def propagate_common_config(common_config, plot_configs):
+    """
+    Propagate common config settings to all plot configs
+    :param common_config: Common settings shared among plot configs
+    :type common_config: PlotConfig
+    :param plot_configs: all defined plot configs
+    :type plot_configs: PlotConfig
+    :return: Nothing
+    :rtype: None
+    """
     def integrate(plot_config, attr, value):
         if attr == "weight":
             if plot_config.weight is not None and not plot_config.weight.lower() == "none":
@@ -226,6 +264,9 @@ def propagate_common_config(common_config, plot_configs):
             else:
                 plot_config.weight = value
         if hasattr(plot_config, attr) and attr not in PlotConfig.get_overwritable_options():
+            return
+        if attr == "ratio_config":
+            plot_config.ratio_config = deepcopy(value)
             return
         setattr(plot_config, attr, value)
 

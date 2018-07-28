@@ -331,6 +331,7 @@ class ComparisonPlotter(BasePlotter):
         reference_hists = data[0]
         hists = data[1]
         labels = None
+        print "beginning new ratio pc ", plot_config.ratio_config, id(plot_config.ratio_config)
         for mod in self.ref_modules:
             reference_hists = mod.execute(reference_hists)
         for mod in self.modules_data_providers:
@@ -398,11 +399,16 @@ class ComparisonPlotter(BasePlotter):
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
         if hasattr(plot_config, "ratio_config"):
-            plot_config = plot_config.ratio_config
-        if not plot_config.name.startswith("ratio"):
-            plot_config.name = "ratio_" + plot_config.name
+            ratio_plot_config = plot_config.ratio_config
+            if plot_config.logx:
+                ratio_plot_config.logx = True
+        else:
+            ratio_plot_config = copy.copy(plot_config)
+            ratio_plot_config.name = "ratio_" + plot_config.name
+            ratio_plot_config.ytitle = "ratio"
+        ratio_plot_config.name = "ratio_" + plot_config.name
         canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
-                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
+                                    plot_config=ratio_plot_config, rebin=rebin).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)
