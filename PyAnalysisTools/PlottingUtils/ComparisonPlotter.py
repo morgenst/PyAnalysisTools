@@ -331,7 +331,6 @@ class ComparisonPlotter(BasePlotter):
         reference_hists = data[0]
         hists = data[1]
         labels = None
-        print "beginning new ratio pc ", plot_config.ratio_config, id(plot_config.ratio_config)
         for mod in self.ref_modules:
             reference_hists = mod.execute(reference_hists)
         for mod in self.modules_data_providers:
