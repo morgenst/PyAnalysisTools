@@ -38,7 +38,7 @@ class ComparisonReader(object):
             self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
     def get_instance(self, plot_config):
-        if ((hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref")) or hasattr(plot_config, "cuts_ref")) and len(self.input_files) == 1:
+        if ((hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref")) or hasattr(plot_config, "cuts_ref")) and len(self.input_files) == 1 and len(self.reference_files) == 0:
             _logger.debug("Using SingleFileMultiReader instance")
             return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
         if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_files:
@@ -139,10 +139,10 @@ class SingleFileMultiDistReader(ComparisonReader):
             plot_config_ref.name += "_reference"
             if not hasattr(self.plot_config, "cuts_ref"):
                 plot_config_ref.dist = self.plot_config.dist_ref
-            print "expand"
+            #print "expand"
             plot_configs = expand_plot_config(self.plot_config)
-            print plot_configs
-            reference = self.make_plot(self.file_handle, plot_config_ref)
+            if hasattr(plot_configs[0], "enable_cut_ref_merge") and plot_configs[0].enable_cut_ref_merge:
+                reference = [self.make_plot(self.file_handle, plot_config_ref) for plot_config in plot_configs]
             compare = [self.make_plot(self.file_handle, plot_config) for plot_config in plot_configs]
             reference.SetDirectory(0)
             map(lambda obj: obj.SetDirectory(0), compare)
@@ -234,22 +234,41 @@ class MultiFileSingleDistReader(ComparisonReader):
             compare = [get_objects_from_canvas_by_type(compare_canvas, obj_type)[0]
                        for compare_canvas in compare_canvases]
         except ValueError:
-            plot_config_ref = copy(self.plot_config)
-            plot_config_ref.name += "_reference"
-            reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
-                         file_handle in self.reference_file_handles}
-            compare = {file_handle.process: self.make_plot(file_handle, self.plot_config)
-                       for file_handle in self.file_handles}
+            #Single cut
+            if not hasattr(self.plot_config, "cuts_ref"):
+                plot_config_ref = copy(self.plot_config)
+                plot_config_ref.name += "_reference"
 
-            if hasattr(self, "process_configs") and self.process_configs is not None:
-                ComparisonReader.merge_histograms(reference, self.reference_process_configs)
-                ComparisonReader.merge_histograms(compare, self.process_configs)
-            if isinstance(reference, dict):
-                map(lambda obj: obj.SetDirectory(0), reference.values())
-                map(lambda obj: obj.SetDirectory(0), compare.values())
+
+                reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
+                             file_handle in self.reference_file_handles}
+                compare = {file_handle.process: self.make_plot(file_handle, self.plot_config)
+                           for file_handle in self.file_handles}
+
+                if hasattr(self, "process_configs") and self.process_configs is not None:
+                    ComparisonReader.merge_histograms(reference, self.reference_process_configs)
+                    ComparisonReader.merge_histograms(compare, self.process_configs)
+                if isinstance(reference, dict):
+                    map(lambda obj: obj.SetDirectory(0), reference.values())
+                    map(lambda obj: obj.SetDirectory(0), compare.values())
+                else:
+                    map(lambda obj: obj.SetDirectory(0), reference)
+                    map(lambda obj: obj.SetDirectory(0), compare)
             else:
-                map(lambda obj: obj.SetDirectory(0), reference)
-                map(lambda obj: obj.SetDirectory(0), compare)
+                plot_configs = expand_plot_config(self.plot_config)
+                plot_configs_ref = [copy(pc) for pc in plot_configs]
+                for pc in plot_configs_ref:
+                    pc.name += "_reference"
+                reference = {file_handle.process: [self.make_plot(file_handle, pc, self.reference_tree_name) for pc in plot_configs_ref] for
+                             file_handle in self.reference_file_handles}
+                compare = {file_handle.process: [self.make_plot(file_handle, pc) for pc in plot_configs]
+                           for file_handle in self.file_handles}
+                for objs in reference.values():
+                    for obj in objs:
+                        obj.SetDirectory(0)
+                for objs in compare.values():
+                    for obj in objs:
+                        obj.SetDirectory(0)
         return reference, compare
 
 
@@ -357,6 +376,7 @@ class ComparisonPlotter(BasePlotter):
         self.output_handle.write_and_close()
 
     def make_comparison_plot(self, plot_config, data, plot_config_compare = None):
+        print data
         reference_hists = data[0]
         hists = data[1]
         labels = None
@@ -374,14 +394,36 @@ class ComparisonPlotter(BasePlotter):
             labels = reference_hists_dict.keys() + hists_dict.keys()
             if any(isinstance(l, ProcessConfig) for l in labels):
                 labels = map(lambda p: p.label, labels)
+        elif not isinstance(reference_hists, list):
+            reference_hists = [reference_hists]
+        if isinstance(reference_hists[0], list):
+            #labels = reference_hists_dict.keys() + hists_dict.keys()
+            labels = ["coll reco ", "cosmic reco "]
+            if any(isinstance(l, ProcessConfig) for l in labels):
+                labels = map(lambda p: p.label, labels)
+
+            reference_hists = reference_hists[0]
+            hists = hists[0]
+            tmp_labels = []
+            for cut_name in plot_config.cuts_ref.keys():
+                for h in reference_hists:
+                    if "_{:s}_".format(cut_name) in h.GetName():
+                        tmp_labels.append(labels[0] + cut_name)
+            for cut_name in plot_config.cuts_ref.keys():
+                for h in hists:
+                    print h.GetName()
+                    if "_{:s}_".format(cut_name) in h.GetName():
+                        tmp_labels.append(labels[1] + cut_name)
+            plot_config.labels = tmp_labels
+            tmp = reference_hists[1:] + hists
+            hists = tmp
+            reference_hists=[reference_hists[0]]
         y_max = None
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
-            print reference_hists
-            print hists
-            #ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
+            ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
             plot_config.yscale = yscale
-            if not hasattr(plot_config, "normalise"):
+            if not plot_config.normalise:
                 plot_config.ymax = ymax
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
@@ -396,7 +438,8 @@ class ComparisonPlotter(BasePlotter):
         #        canvas = PT.plot_obj(reference_hists[0], plot_config)
         plot_config.color = ROOT.kGray+3
         plot_config.style = 20
-        canvas = PT.plot_hist(reference_hists, plot_config)
+        #canvas = PT.plot_hist(reference_hists, plot_config)
+        canvas = PT.plot_objects(reference_hists, plot_config)
         print canvas
         ROOT.SetOwnership(canvas, False)
         # for hist in reference_hists[1:]:
@@ -420,13 +463,16 @@ class ComparisonPlotter(BasePlotter):
             labels = ["reference"] + [""] * len(hists)
         if hasattr(plot_config, "labels"):
             labels = plot_config.labels
-        if hasattr(plot_config, "labels"):
-            labels = plot_config.labels
+        # if hasattr(plot_config, "labels"):
+        #     labels = plot_config.labels
         if len(labels) != len(hists) + len(reference_hists):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                 len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
+        
         print plot_config
+        print labels
+        #exit()
         if plot_config.enable_legend: 
             FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
                                     **plot_config.legend_options)
@@ -437,10 +483,10 @@ class ComparisonPlotter(BasePlotter):
             plot_config = plot_config.ratio_config
         if not plot_config.name.startswith("ratio"):
             plot_config.name = "ratio_" + plot_config.name
-        # canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
-        #                             plot_config=plot_config, rebin=rebin).make_ratio_plot()
-        canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
+        canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
                                     plot_config=plot_config, rebin=rebin).make_ratio_plot()
+        # canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
+        #                             plot_config=plot_config, rebin=rebin).make_ratio_plot()
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)

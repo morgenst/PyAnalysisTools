@@ -23,14 +23,40 @@ def plot_obj(hist, plot_config, **kwargs):
 
 
 def plot_objects(objects, plot_config, process_configs=None):
+    """
+    Base interface to plot multiple objects
+
+    :param objects: objects to be plotted, e.g. TH1, TEfficiency
+    :type objects: list or dict
+    :param plot_config: plot configuration
+    :type plot_config: PlotConfig
+    :param process_configs: physics processes configuration containing e.g. colors and plot styles
+    :type process_configs: ProcessConfig
+    :return: canvas with plotted objects
+    :rtype: TCanvas
+    """
     if len(objects) == 0:
         _logger.warning("Requested plot objects with zero objects")
         return
-    if isinstance(objects.values()[0], ROOT.TH1):
+    if isinstance(objects, dict):
+        first_obj = objects.values()[0]
+    elif isinstance(objects, list):
+        first_obj = objects[0]
+    if isinstance(first_obj, ROOT.TH1):
         return plot_histograms(objects, plot_config, process_configs)
-    if isinstance(objects.values()[0], ROOT.TEfficiency):
+    if isinstance(first_obj, ROOT.TEfficiency):
         return plot_graphs(objects.values(), plot_config)
     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
+    
+# def plot_objects(objects, plot_config, process_configs=None):
+#     if len(objects) == 0:
+#         _logger.warning("Requested plot objects with zero objects")
+#         return
+#     if isinstance(objects.values()[0], ROOT.TH1):
+#         return plot_histograms(objects, plot_config, process_configs)
+#     if isinstance(objects.values()[0], ROOT.TEfficiency):
+#         return plot_graphs(objects.values(), plot_config)
+#     _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
 
 
 def add_object_to_canvas(canvas, obj, plot_config, process_config=None):
@@ -41,11 +67,11 @@ def add_object_to_canvas(canvas, obj, plot_config, process_config=None):
 
 
 def plot_hist(hist, plot_config, **kwargs):
-    kwargs.setdefault("y_max", 1.1 * hist.GetMaximum())
+    kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum())
     ymax = kwargs["y_max"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
-    ROOT.SetOwnership(hist, False)
+    ROOT.SetOwnership(hist[0], False)
     process_config = None
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     hist = format_obj(hist, plot_config)
@@ -195,12 +221,15 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     is_first = True
+    max_y = None
     if isinstance(hists, dict):
         hist_defs = hists.items()
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
     if not switchOff:
-        max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
+        max_y = 1.4 * max([item[1].GetMaximum() for item in hist_defs])
+        print hist_defs
+        print "maxima: ", [item[1].GetMaximum() for item in hist_defs]
     if plot_config.ordering is not None:
         sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
@@ -254,9 +283,14 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 canvas.SetLogx()
             if hasattr(plot_config, "ymax"):
                 hist.SetMaximum(plot_config.ymax)
+            # elif y_max is not None:
+            #     print "setting max: ", max_y
+            #     hist.SetMaximum(max_y)    
+            #     FM.set_maximum_y(hist, max_y)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.1)    
             format_hist(hist, plot_config)
+            print "Hist max is: ", hist.GetMaximum()
             canvas.Update()
         is_first = False
     return canvas

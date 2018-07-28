@@ -15,7 +15,6 @@ class RatioCalculator(object):
         self.rebin = kwargs["rebin"]
 
     def calculate_ratio(self):
-        print self.reference
         if isinstance(self.reference, ROOT.TEfficiency):
             calc_func = "calculate_ratio_tefficiency"
         elif isinstance(self.reference, ROOT.TH1):
@@ -27,6 +26,20 @@ class RatioCalculator(object):
         else:
             ratios.append(getattr(self, calc_func)(self.compare))
         return ratios
+
+    # def calculate_ratio(self):
+    #     print "ratio: ", self.reference
+    #     if isinstance(self.reference, ROOT.TEfficiency):
+    #         calc_func = "calculate_ratio_tefficiency"
+    #     elif isinstance(self.reference, ROOT.TH1):
+    #         calc_func = "calculate_ratio_hist"
+    #     ratios = []
+    #     if isinstance(self.compare, list):
+    #         for obj in self.compare:
+    #             ratios.append(getattr(self, calc_func)(obj))
+    #     else:
+    #         ratios.append(getattr(self, calc_func)(self.compare))
+    #     return ratios
 
     def calculate_ratio_tefficiency(self, compare):
         ratio_graph = self.reference.GetPaintedGraph().Clone("ratio_" + compare.GetName())

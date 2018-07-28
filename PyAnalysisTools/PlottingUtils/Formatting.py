@@ -323,6 +323,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     legend.SetTextSize(0.025)
+    legend.SetFillStyle(0)
     labels = None
     stacks = []
     print kwargs

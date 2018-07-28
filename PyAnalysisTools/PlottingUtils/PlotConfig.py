@@ -71,7 +71,7 @@ class PlotConfig(object):
 
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise"]
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise", "cuts"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
@@ -120,15 +120,23 @@ def expand_plot_config(plot_config):
     #     return [plot_config]
     plot_configs = []
     if hasattr(plot_config, "cuts_ref"):
-        print "values ", plot_config.cuts_ref.values()
-        #for cuts in plot_config.cuts_ref.values():
-        for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
-            if item not in plot_config.cuts_ref:
-                continue
-            cuts = plot_config.cuts_ref[item]
-            tmp_config = copy(plot_config)
-            tmp_config.cuts = cuts
-            plot_configs.append(tmp_config)
+        if "dummy1" in plot_config.cuts_ref:
+            #for cuts in plot_config.cuts_ref.values():
+            for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
+                if item not in plot_config.cuts_ref:
+                    continue
+                cuts = plot_config.cuts_ref[item]
+                tmp_config = copy(plot_config)
+                tmp_config.cuts = cuts
+                plot_configs.append(tmp_config)
+        else:
+            for cut_name, cut in plot_config.cuts_ref.iteritems():
+                cuts = plot_config.cuts_ref[cut_name]
+                tmp_config = copy(plot_config)
+                tmp_config.cuts = plot_config.cuts + cuts
+                tmp_config.enable_cut_ref_merge = True
+                tmp_config.name += "_{:s}_".format(cut_name)
+                plot_configs.append(tmp_config)
     else:
         for dist in plot_config.dist:
             tmp_config = copy(plot_config)
@@ -255,7 +263,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
 
 
 def get_histogram_definition(plot_config):
-    dimension = plot_config.dist.count(":")
+    dimension = plot_config.dist.replace("::", "").count(":")
     hist = None
     hist_name = plot_config.name
     if dimension == 0:
