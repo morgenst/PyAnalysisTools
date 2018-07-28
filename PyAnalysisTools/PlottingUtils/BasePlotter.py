@@ -38,6 +38,7 @@ class BasePlotter(object):
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
+        print self.file_handles[0].process
 
     def parse_process_config(self):
         if self.process_config_file is None:

@@ -105,11 +105,13 @@ def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=No
 
 def plot_hist(hist, plot_config, **kwargs):
     kwargs.setdefault("y_max", 1.1 * hist.GetMaximum())
+    #kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum()) - sm dev
     kwargs.setdefault("index", None)
     ymax = kwargs["y_max"]
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     ROOT.SetOwnership(hist, False)
+    #ROOT.SetOwnership(hist[0], False) -sm dev
     process_config = None
     draw_option = get_draw_option_as_root_str(plot_config, process_config)
     hist = format_obj(hist, plot_config)
@@ -124,6 +126,11 @@ def plot_hist(hist, plot_config, **kwargs):
     if plot_config.ymax:
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
+        hist.SetMaximum(hist.GetMaximum() * 10.)
+        if hasattr(plot_config, "ymin"):
+            hist.SetMinimum(max(0.1, plot_config.ymin))
+        else:
+            hist.SetMinimum(0.1)
         if hist.GetMinimum() == 0.:
             hist.SetMinimum(0.001)
         canvas.SetLogy()
@@ -198,9 +205,17 @@ def format_hist(hist, plot_config):
     xtitle, ytitle = get_title_from_plot_config(plot_config)
     if xtitle:
         FM.set_title_x(hist, xtitle)
+    if hasattr(plot_config, "xtitle_offset"):
+        FM.set_title_x_offset(hist, plot_config.xtitle_offset)
+    if hasattr(plot_config, "xtitle_size"):
+        FM.set_title_x_size(hist, plot_config.xtitle_size)
     if hasattr(plot_config, "unit"):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
+    if hasattr(plot_config, "ytitle_offset"):
+        FM.set_title_y_offset(hist, plot_config.ytitle_offset)
+    if hasattr(plot_config, "ytitle_size"):
+        FM.set_title_y_size(hist, plot_config.ytitle_size)
     yscale = 1.1
     if plot_config.logy:
         yscale = 100.
@@ -251,17 +266,19 @@ def add_signal_to_canvas(signal, canvas, plot_config, process_configs):
     add_histogram_to_canvas(canvas, signal[1], plot_config, process_configs[signal[0]])
 
 
-def plot_histograms(hists, plot_config, process_configs=None):
+def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     if plot_config is None:
         plot_config = get_default_plot_config(hists[0])
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
     is_first = True
+    max_y = None
     if isinstance(hists, dict):
         hist_defs = hists.items()
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
-    max_y = 1.1 * max([item[1].GetMaximum() for item in hist_defs])
+    if not switchOff:
+        max_y = 1.4 * max([item[1].GetMaximum() for item in hist_defs])
     if plot_config.ordering is not None:
         sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
@@ -286,14 +303,18 @@ def plot_histograms(hists, plot_config, process_configs=None):
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.ymin)
-            FM.set_maximum_y(hist, max_y)
+            if switchOff:
+                FM.set_maximum_y(hist, plot_config.ymax)
+            else:
+                FM.set_maximum_y(hist, max_y)
             if plot_config.xmin and not plot_config.xmax:
                 FM.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
                 FM.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
             if plot_config.logy:
+                hist.SetMaximum(hist.GetMaximum() * 10.)
                 if hasattr(plot_config, "ymin"):
-                    hist.SetMinimum(max(1., plot_config.ymin))
+                    hist.SetMinimum(max(0.1, plot_config.ymin))
                 else:
                     hist.SetMinimum(0.0001)
                 canvas.SetLogy()
@@ -302,6 +323,8 @@ def plot_histograms(hists, plot_config, process_configs=None):
             format_hist(hist, plot_config)
             if plot_config.ymax:
                  hist.SetMaximum(plot_config.ymax)
+            else:
+                hist.SetMaximum(hist.GetMaximum() * 1.1)
             canvas.Update()
         is_first = False
     if hasattr(plot_config, "normalise") and plot_config.normalise is True:
