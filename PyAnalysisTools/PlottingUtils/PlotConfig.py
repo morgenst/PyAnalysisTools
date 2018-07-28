@@ -1,6 +1,7 @@
 import ROOT
 import math
 import re
+from math import log10
 from array import array
 from copy import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -12,7 +13,8 @@ class PlotConfig(object):
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
-        kwargs.setdefault("draw", "hist")
+        if not "draw" in kwargs:
+            kwargs.setdefault("Draw", "hist")
         kwargs.setdefault("outline", "hist")
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
@@ -21,7 +23,10 @@ class PlotConfig(object):
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("rebin", None)
+        kwargs.setdefault("ratio", None)
+        kwargs.setdefault("ignore_rebin", False)
         kwargs.setdefault("weight", False)
+        kwargs.setdefault("enable_legend", False)
         kwargs.setdefault("blind", None)
         kwargs.setdefault("legend_options", dict())
         kwargs.setdefault("make_plot_book", False)
@@ -30,11 +35,15 @@ class PlotConfig(object):
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("xmin", None)
+        kwargs.setdefault("ymax", None)
         kwargs.setdefault("normalise_range", None)
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
         kwargs.setdefault("Lumi", 1.)
+        kwargs.setdefault("signal_extraction", True)
+        kwargs.setdefault("xtitle", None)
+        kwargs.setdefault("merge_mc_campaigns", True)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
@@ -47,6 +56,9 @@ class PlotConfig(object):
                 continue
             if "xmin" in k or "xmax" in k:
                 v = eval(str(v))
+            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
+                setattr(self, k.lower(), eval(v))
+                continue
             setattr(self, k.lower(), v)
         self.auto_decorate()
 
@@ -59,8 +71,7 @@ class PlotConfig(object):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
-        kwargs.setdefault("enable_legend", True)
-        # kwargs.setdefault("enable_legend", False)
+        kwargs.setdefault("enable_legend", False)
         setattr(self, attr_name, PlotConfig(**kwargs))
 
     def __str__(self):
@@ -69,22 +80,62 @@ class PlotConfig(object):
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
+    def __eq__(self, other):
+        if isinstance(self, other.__class__):
+            return self.__dict__ == other.__dict__
+        return False
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.name)
+
     @staticmethod
     def get_overwritable_options():
-        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise", "cuts"]
+        """
+        Get properties which can be overwriten by specific plot config
+
+        :return: overwritable properties
+        :rtype: list
+        """
+        return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
+                "merge_mc_campaigns", "signal_extraction", "ratio", "cuts"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
-            self.is_multidimensional = True if ":" in self.dist else False
+            self.is_multidimensional = True if ":" in self.dist.replace("::", "") else False
+        if self.xtitle is None and hasattr(self, "dist") and self.dist:
+            self.xtitle = self.dist
+        elif self.xtitle is None:
+            self.xtitle = ""
 
-    def _merge(self, other):
+    def merge_configs(self, other):
+        """
+        Merge two plot configs
+
+        :param other: plot config to be merged in self
+        :type other: PlotConfig
+        :return: None
+        :rtype: None
+        """
         for attr, val in other.__dict__.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                _logger.warn("Different settings for attrinute {:s} in common configs: {:s} vs. {:s}".format(attr, val,
-                                                                                                             getattr(self, attr)))
+                dec = raw_input("Different settings for attribute {:s} in common configs. "
+                                "Please choose 1) {:s} or 2) {:s}: ".format(attr, str(val), str(getattr(self, attr))))
+                if dec == "1":
+                    setattr(self, attr, val)
+                elif dec == "2":
+                    continue
+                else:
+                    _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
+
+
+def get_default_plot_config(hist):
+    return PlotConfig(name=hist.GetName())
 
 
 class ProcessConfig(object):
@@ -115,9 +166,9 @@ class ProcessConfig(object):
 
 
 def expand_plot_config(plot_config):
-    # if not isinstance(plot_config.dist, list):
-    #     _logger.debug("tried to expand plot config with single distribution")
-    #     return [plot_config]
+    if not isinstance(plot_config.dist, list):
+        _logger.debug("tried to expand plot config with single distribution")
+        return [plot_config]
     plot_configs = []
     if hasattr(plot_config, "cuts_ref"):
         if "dummy1" in plot_config.cuts_ref:
@@ -148,10 +199,10 @@ def expand_plot_config(plot_config):
 def parse_and_build_plot_config(config_file):
     try:
         parsed_config = YAMLLoader.read_yaml(config_file)
-        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
+        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
@@ -180,7 +231,7 @@ def merge_plot_configs(plot_configs):
             merged_common_config = common_config
             continue
         merged_plot_config += plot_config
-        merged_common_config._merge(common_config)
+        merged_common_config.merge_configs(common_config)
     return merged_plot_config, merged_common_config
 
 
@@ -210,6 +261,8 @@ def _parse_draw_option(plot_config, process_config):
 
 
 def get_draw_option_as_root_str(plot_config, process_config=None):
+    if hasattr(plot_config, "draw_option"):
+        return plot_config.draw_option
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
         draw_option = "p"
@@ -217,22 +270,26 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
         draw_option = "E"
     elif draw_option == "Line":
         draw_option = "l"
+    elif draw_option == "hist":
+        draw_option = "HIST"
     return draw_option
 
 
-def get_style_setters_and_values(plot_config, process_config=None, index=None):
-    def transform_color(color):
-        if isinstance(color, str):
-            offset = 0
-            if "+" in color:
-                color, offset = color.split("+")
-            if "-" in color:
-                color, offset = color.split("-")
-            color = getattr(ROOT, color.rstrip()) + int(offset)
-        if isinstance(color, list):
-            return transform_color(color[index])
-        return color
+def transform_color(color, index=None):
+    if isinstance(color, str):
+        offset = 0
+        if "+" in color:
+            color, offset = color.split("+")
+        if "-" in color:
+            color, offset = color.split("-")
+            offset = "-" + offset
+        color = getattr(ROOT, color.rstrip()) + int(offset)
+    if isinstance(color, list):
+        return transform_color(color[index])
+    return color
 
+
+def get_style_setters_and_values(plot_config, process_config=None, index=None):
     style_setter = None
     style_attr, color = None, None
     draw_option = _parse_draw_option(plot_config, process_config)
@@ -245,16 +302,21 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
     if hasattr(plot_config, "color"):
-        color = transform_color(plot_config.color)
+        color = transform_color(plot_config.color, index)
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
-        if style_attr:
+        if hasattr(process_config, "format"):
+            style_setter = process_config.format.capitalize()
+        elif style_attr:
             style_setter = "Fill"
         else:
-            style_setter = ["Line", "Marker", "Fill"]
+            #style_setter = ["Line", "Marker", "Fill"]
+            style_setter = ["Line"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
         style_setter = "Marker"
     elif draw_option.lower() == "line":
         style_setter = "Line"
+    if hasattr(plot_config, "style_setter"):
+        style_setter = plot_config.style_setter
     # else:
     #     style_attr = None
     if not isinstance(style_setter, list):
@@ -267,11 +329,19 @@ def get_histogram_definition(plot_config):
     hist = None
     hist_name = plot_config.name
     if dimension == 0:
-        hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
+        if not plot_config.logx:
+            hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
+        else:
+            logxmin = log10(plot_config.xmin)
+            logxmax = log10(plot_config.xmax)
+            binwidth = (logxmax - logxmin) / plot_config.bins
+            xbins = []
+            for i in range(0, plot_config.bins+1):
+                xbins.append(plot_config.xmin + pow(10, logxmin + i * binwidth))
+            hist = ROOT.TH1F(hist_name, "", plot_config.bins, array('d', xbins))
     elif dimension == 1:
-        print plot_config
         if isinstance(plot_config.xbins, list):
-            hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) -1, array("d", plot_config.xbins),
+            hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) - 1, array("d", plot_config.xbins),
                              plot_config.ybins, plot_config.ymin, plot_config.ymax)
         else:
             hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
@@ -284,11 +354,12 @@ def get_histogram_definition(plot_config):
         _logger.error("Unable to create histogram for plot_config %s for variable %s" % (plot_config.name,
                                                                                          plot_config.dist))
         raise InvalidInputError("Invalid plot configuration")
+    hist.Sumw2()
     return hist
 
 
 def find_process_config(process_name, process_configs):
-    if process_configs is None:
+    if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
         return process_configs[process_name]
@@ -305,3 +376,9 @@ def find_process_config(process_name, process_configs):
             process_configs[match.group()] = process_config.add_subprocess(match.group())
             return process_configs[match.group()]
     return None
+
+
+def expand_process_configs(processes, process_configs):
+    for process in processes:
+        _ = find_process_config(process, process_configs)
+    return process_configs

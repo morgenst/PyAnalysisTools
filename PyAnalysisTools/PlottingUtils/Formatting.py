@@ -1,4 +1,6 @@
 import re
+import traceback
+
 import ROOT
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
@@ -12,11 +14,12 @@ def load_atlas_style():
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
         ROOT.SetAtlasStyle()
     except Exception as e:
+        print traceback.print_exc()
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
-def apply_style(obj, plot_config, process_config):
-    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config)
+def apply_style(obj, plot_config, process_config, index=None):
+    style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
     if style_attr is not None:
         for setter in style_setter:
             getattr(obj, "Set" + setter + "Style")(style_attr)
@@ -26,16 +29,26 @@ def apply_style(obj, plot_config, process_config):
 
 
 def decorate_canvas(canvas, plot_config):
+    """
+    Canvas decoration for ATLAS label, luminosity, grid settings and additional texts
+
+    :param canvas: input canvas
+    :type canvas: TCanvas
+    :param plot_config: config containing settings for decoration
+    :type plot_config: PlotConfig
+    :return: None
+    :rtype: None
+    """
     if hasattr(plot_config, "watermark"):
-        add_atlas_label(canvas, plot_config.watermark, {"x": 0.16, "y": 0.96}, size=0.04, offset=0.1)
-    if hasattr(plot_config, "lumi") and plot_config.lumi>0.:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.55, "y": 0.96})
-    if hasattr(plot_config, "grid") and plot_config.grid:
+        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
+    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
+    if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
 
-        
+
 def set_title_x(obj, title):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -43,6 +56,7 @@ def set_title_x(obj, title):
         obj.GetXaxis().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_y(obj, title):
     if not hasattr(obj, "GetYaxis"):
@@ -83,7 +97,7 @@ def set_title_z_offset(obj, offset):
         obj.GetZaxis().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
-        
+
 def set_title_x_size(obj, size):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -138,7 +152,7 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False):
     canvas.cd()
     text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
     text_energy = '#sqrt{s} = 13 TeV'
@@ -259,6 +273,19 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
+def set_range_z(graph_obj, minimum, maximum):
+    if isinstance(graph_obj, ROOT.TH1):
+        graph_obj.SetMaximum(maximum)
+        graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
+
+
+def set_range_x(graph_obj, minimum, maximum):
+    if isinstance(graph_obj, ROOT.TEfficiency):
+        graph_obj.GetPaintedGraph().GetXaxis().SetRangeUser(minimum, maximum)
+    else:
+        graph_obj.GetXaxis().SetRangeUser(minimum, maximum)
+
+
 def get_min_y(graph_obj):
     if isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.THStack):
         return graph_obj.GetMinimum()
@@ -282,7 +309,12 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
     if maximum is None:
         set_minimum(graph_obj, minimum, axis)
         return
-    set_range_y(graph_obj, minimum, maximum)
+    if axis == "y":
+        set_range_y(graph_obj, minimum, maximum)
+    elif axis == "x":
+        set_range_x(graph_obj, minimum, maximum)
+    else:
+        _logger.error("Invalid axis choice: {:s}".format(axis))
 
 
 def auto_scale_y_axis(canvas, offset=1.1):
@@ -300,9 +332,20 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yl", 0.6)
     kwargs.setdefault("xh", 0.9)
     kwargs.setdefault("yh", 0.9)
+    kwargs.setdefault("format", None)
+    kwargs.setdefault("columns", None)
 
-    def convert_draw_option():
+    def convert_draw_option(process_config=None, plot_config=None):
+        def parse_option_from_format():
+            if kwargs["format"] == "line":
+                return "L"
+            elif kwargs["format"] == "marker":
+                return "P"
+
         draw_option = plot_obj.GetDrawOption()
+        if (draw_option is None or draw_option == "") and isinstance(plot_obj, ROOT.TF1):
+            draw_option = ROOT.gROOT.GetFunction(plot_obj.GetName()).GetDrawOption()
+
         if is_stacked:
             draw_option = "Hist"
         legend_option = ""
@@ -310,28 +353,43 @@ def add_legend_to_canvas(canvas, **kwargs):
             # if plot_obj.GetFillStyle() == 1001:
             #     legend_option += "L"
             # else:
-            legend_option += "F"
+            if process_config is not None and (hasattr(process_config, "format") or hasattr(plot_config, "format")) or kwargs["format"]:
+                if process_config is not None and process_config.format.lower() == "line":
+                    legend_option += "L"
+                elif plot_config is not None and plot_config.format.lower() == "line":
+                    legend_option += "L"
+                elif kwargs["format"]:
+                    legend_option += parse_option_from_format()
+            else:
+                legend_option += "F"
         if "l" in draw_option:
             legend_option += "L"
         if "p" in draw_option or "E" in draw_option:
             legend_option += "P"
         if re.match(r"e\d", draw_option.lower()):
             legend_option += "F"
+        if not legend_option and kwargs["format"]:
+            legend_option = parse_option_from_format()
         if not legend_option:
-            _logger.error("Unable to parse legend option from {:s}".format(draw_option))
+            _logger.error("Unable to parse legend option from {:s} for object {:s}".format(draw_option,
+                                                                                           plot_obj.GetName()))
         return legend_option
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
     legend.SetTextSize(0.025)
+    if kwargs["columns"]:
+        legend.SetNColumns(kwargs["columns"])
     legend.SetFillStyle(0)
     labels = None
     stacks = []
-    print kwargs
     if "labels" in kwargs:
         labels = kwargs["labels"]
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
         plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TGraph")
+        #plot_objects += get_objects_from_canvas_by_type(canvas, "TProfile")
         stacks = get_objects_from_canvas_by_type(canvas, "THStack")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
     else:
@@ -346,12 +404,14 @@ def add_legend_to_canvas(canvas, **kwargs):
         plot_objects += stacked_objects
     for plot_obj in plot_objects:
         label = None
+        process_config = None
         if "stat.unc" in plot_obj.GetName() and plot_obj != plot_objects[-1]:
             plot_objects.append(plot_obj)
             continue
         if "process_configs" in kwargs and kwargs["process_configs"] is not None:
             try:
-                label = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"]).label
+                process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
+                label = process_config.label
             except AttributeError:
                 pass
         if "labels" is not None:
@@ -365,7 +425,8 @@ def add_legend_to_canvas(canvas, **kwargs):
             is_stacked = True
         if label is None:
             continue
-        legend.AddEntry(plot_obj, label, convert_draw_option())
+        plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
+        legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
     canvas.cd()
     if "fill_style" in kwargs:
         print "yes, got fill style"

@@ -1,11 +1,13 @@
 import os
 import re
 import time
+import ROOT
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
-
+from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
+from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
 
 _memoized = {}
 
@@ -40,13 +42,18 @@ class FileHandle(object):
         kwargs.setdefault("open_option", "READ")
         kwargs.setdefault("run_dir", None)
         kwargs.setdefault("switch_off_process_name_analysis", False)
+        kwargs.setdefault("friend_directory", None)
+        kwargs.setdefault("friend_pattern", None)
+        kwargs.setdefault("friend_tree_names", None)
+        kwargs.setdefault("split_mc", False)
+        kwargs.setdefault("dataset_info", None)
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
         #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
-            self.dataset_info = YAMLLoader.read_yaml(kwargs["dataset_info"])
+            self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
         self.open_option = kwargs["open_option"]
         self.tfile = None
         self.initial_file_name = None
@@ -54,11 +61,39 @@ class FileHandle(object):
         self.open()
         self.year = None
         self.period = None
+        self.is_data = False
+        self.is_mc = False
+        self.mc16a = False
+        self.mc16c = False
+        self.mc16d = False
+        self.friends = None
+        self.friend_tree_names = kwargs["friend_tree_names"]
+        self.friend_pattern = kwargs["friend_pattern"]
+        self.friend_files = []
+        if self.friend_tree_names is not None and not isinstance(self.friend_tree_names, list):
+            self.friend_tree_names = [self.friend_tree_names]
+        if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
+            self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
+            self.process_with_mc_campaign = self.process
+            if self.process is not None:
+                if self.mc16a:
+                    self.process_with_mc_campaign += ".mc16a"
+                if self.mc16c:
+                    self.process_with_mc_campaign += ".mc16c"
+                if self.mc16d:
+                    self.process_with_mc_campaign += ".mc16d"
+            if kwargs["split_mc"]:
+                self.process = self.process_with_mc_campaign
+        if kwargs["friend_directory"]:
+            self.attach_friend_files(kwargs["friend_directory"])
+        self.trees_with_friends = None
 
-    def open(self):
-        if not os.path.exists(self.absFName):
+    def open(self, file_name=None):
+        if file_name is not None:
+            return TFile.Open(file_name, "READ")
+        if not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
         if self.tfile is not None and self.tfile.IsOpen():
             return
@@ -93,6 +128,7 @@ class FileHandle(object):
             if "data" in process_name:
                 try:
                     self.year, _, self.period = process_name.split("_")[0:3]
+                    self.is_data = True
                     return ".".join([self.year, self.period])
                 except ValueError:
                     _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
@@ -104,9 +140,18 @@ class FileHandle(object):
                     tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
                                  self.dataset_info.values())
                 if len(tmp) == 1:
+                    self.mc = True
                     return tmp[0].process_name
             if process_name.isdigit():
+                self.is_data = True
                 return "Data"
+
+        if "mc16a" in self.file_name.lower():
+            self.mc16a = True
+        if "mc16c" in self.file_name.lower():
+            self.mc16c = True
+        if "mc16d" in self.file_name.lower():
+            self.mc16d = True
         process_name = self.file_name.split("-")[-1].split(".")[0]
         if switch_off_analysis:
             return process_name
@@ -159,18 +204,26 @@ class FileHandle(object):
                 branch_names.append(branch.GetName())
         return branch_names
 
-    def get_object_by_name(self, obj_name, tdirectory=None):
+    def get_object_by_name(self, obj_name, tdirectory=None, friend_file=None):
         self.open()
-        tdir = self.tfile
+        if friend_file is None:
+            tdir = self.tfile
+        else:
+            tdir = friend_file
         if tdirectory:
             try:
-                tdir = self.get_object_by_name(tdirectory)
+                if friend_file:
+                    tdir = self.get_object_by_name(tdirectory, friend_file=friend_file)
+                else:
+                    tdir = self.get_object_by_name(tdirectory)
             except ValueError as e:
                 raise e
         obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
-            raise ValueError("Object " + obj_name + " does not exist in file " + os.path.join(self.path,
-                                                                                              self.file_name))
+            raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
+                                                                                                tdirectory,
+                                                                                                os.path.join(self.path,
+                                                                                                             self.file_name)))
         return obj
 
     def get_number_of_total_events(self, unweighted=False):
@@ -183,30 +236,58 @@ class FileHandle(object):
             _logger.error("Unable to parse cutflow Nominal/DxAOD from file %s" % self.file_name)
             raise e
 
+    def get_daod_events(self):
+        try:
+            cutflow_hist = self.get_object_by_name("EventLoop_EventCount")
+            return cutflow_hist.GetBinContent(1)
+        except ValueError as e:
+            _logger.error("Unable to parse EventLoop_EventCount from file %s" % self.file_name)
+            raise e
+
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
         tree = self.get_object_by_name(tree_name, tdirectory)
+        if self.friends is not None:
+            self.link_friend_trees(tree, tdirectory)
         _logger.debug("Parsed tree %s from file %s containing %i entries" % (tree_name, self.file_name,
                                                                              tree.GetEntries()))
-        if cut_string is None:
-            cut_string = ""
-        if weight:
-            if cut_string == "":
-                cut_string = weight
-            else:
-                cut_string = "%s * (%s)" % (weight, cut_string)
-        n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
-        _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." % (n_selected_events,
-                                                                                           tree_name,
-                                                                                           var_name,
-                                                                                           cut_string))
-        if n_selected_events != hist.GetEntries():
-            _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
-                          "initialised after histogram definition has been received")
-            raise RuntimeError("Inconsistency in TTree::Project")
-        if n_selected_events == -1:
-            _logger.error("Unable to project %s from tree %s with cut %s" % (var_name, tree_name, cut_string))
-            raise RuntimeError("TTree::Project failed")
-        return hist
+        return project_hist(tree, hist, var_name, cut_string, weight, self.is_data)
+
+    def link_friend_trees(self, nominal_tree, tdirectory):
+        if self.friend_tree_names is None:
+            _logger.error("No friend tree names provided, but requested to link them.")
+            return
+        for friend_file in self.friend_files:
+            friend_trees = filter(lambda t: t is not None,
+                                  [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names])
+            if self.trees_with_friends is None:
+                self.trees_with_friends = []
+            for tree in friend_trees:
+                nominal_tree.AddFriend(tree)
+                self.trees_with_friends.append((nominal_tree, tree))
+
+    def reset_friends(self):
+        if self.friends is None:
+            return
+        for f in self.friends:
+            friend_file = TFile.Open(f, "READ")
+            self.friend_files.append(friend_file)
+
+    def release_friends(self):
+        if self.trees_with_friends is None:
+            return
+        for tree, friend in self.trees_with_friends:
+            tree.RemoveFriend(friend)
+        self.trees_with_friends = None
+        self.friend_files = []
+
+    def attach_friend_files(self, directory):
+        self.friends = []
+        available_files = os.listdir(directory)
+        base_file_name = self.file_name.split("/")[-1]
+        for pattern in self.friend_pattern:
+            friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
+                              available_files)[0]
+            self.friends.append(os.path.join(directory, friend_fn))
 
     @staticmethod
     def release_object_from_file(obj):

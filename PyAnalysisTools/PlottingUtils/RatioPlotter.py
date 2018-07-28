@@ -10,7 +10,6 @@ class RatioCalculator(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("rebin", None)
         self.reference = kwargs["reference"]
-        print self.reference
         self.compare = kwargs["compare"]
         self.rebin = kwargs["rebin"]
 
@@ -26,20 +25,6 @@ class RatioCalculator(object):
         else:
             ratios.append(getattr(self, calc_func)(self.compare))
         return ratios
-
-    # def calculate_ratio(self):
-    #     print "ratio: ", self.reference
-    #     if isinstance(self.reference, ROOT.TEfficiency):
-    #         calc_func = "calculate_ratio_tefficiency"
-    #     elif isinstance(self.reference, ROOT.TH1):
-    #         calc_func = "calculate_ratio_hist"
-    #     ratios = []
-    #     if isinstance(self.compare, list):
-    #         for obj in self.compare:
-    #             ratios.append(getattr(self, calc_func)(obj))
-    #     else:
-    #         ratios.append(getattr(self, calc_func)(self.compare))
-    #     return ratios
 
     def calculate_ratio_tefficiency(self, compare):
         ratio_graph = self.reference.GetPaintedGraph().Clone("ratio_" + compare.GetName())
@@ -71,6 +56,7 @@ class RatioCalculator(object):
 
 class RatioPlotter(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault("plot_config", None)
         if not "reference" in kwargs:
             _logger.error("Missing reference")
             raise InvalidInputError("Missing reference")
@@ -79,8 +65,9 @@ class RatioPlotter(object):
         self.compare = kwargs["compare"]
         if not isinstance(self.compare, list):
             self.compare = [self.compare]
-        if not self.plot_config.name.startswith("ratio"):
-            self.plot_config.name = "ratio_" + self.plot_config.name
+        if self.plot_config is not None:
+            if not self.plot_config.name.startswith("ratio"):
+                self.plot_config.name = "ratio_" + self.plot_config.name
         self.ratio_calculator = RatioCalculator(**kwargs)
 
     def make_ratio_plot(self):
@@ -91,15 +78,22 @@ class RatioPlotter(object):
             return self.make_ratio_tefficiency(ratios)
 
     def make_ratio_histogram(self, ratios):
-        self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
-        if len(self.compare) > 1:
-            colors = get_colors(self.compare)
-            self.plot_config.color = colors
-        self.plot_config.ordering = None
-        self.plot_config.logy = False
-        self.plot_config.ymin = 0.
-        self.plot_config.ymax = 2.
-        canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
+        if self.plot_config:
+            self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+            if len(self.compare) > 1:
+                colors = get_colors(self.compare)
+                self.plot_config.color = colors
+            self.plot_config.ordering = None
+        canvas = pt.plot_histograms(ratios, self.plot_config)
+        # self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+        # if len(self.compare) > 1:
+        #     colors = get_colors(self.compare)
+        #     self.plot_config.color = colors
+        # self.plot_config.ordering = None
+        # self.plot_config.logy = False
+        # self.plot_config.ymin = 0.
+        # self.plot_config.ymax = 2.
+        #canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
         return canvas
 
     def add_uncertainty_to_canvas(self, canvas, hist, plot_config):

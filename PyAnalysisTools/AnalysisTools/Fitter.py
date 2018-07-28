@@ -136,6 +136,37 @@ class PDFAdd(PDF):
         ROOT.SetOwnership(nbkg, False)
         return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1, self.pdf2), ROOT.RooArgList(nbkg, nsig))
 
+class PDF2Gauss(PDF):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("pdf_name", "2gauss")
+        self.name = kwargs["pdf_name"]
+        self.quantity = kwargs["var"]
+        self.mean1 = kwargs["pdf_config"].mean1
+        self.sigma1 = kwargs["pdf_config"].sigma1
+        self.mean2 = kwargs["pdf_config"].mean2
+        self.sigma2 = kwargs["pdf_config"].sigma2
+
+    def build(self):
+        mean1 = ROOT.RooRealVar("mean1", "mean1", *self.mean1)
+        sigma1 = ROOT.RooRealVar("sigma1", "sigma1", *self.sigma1)
+        mean2 = ROOT.RooRealVar("mean2", "mean2", *self.mean2)
+        sigma2 = ROOT.RooRealVar("sigma2", "sigma2", *self.sigma2)
+        decayrate = ROOT.RooRealVar("decayrate", "decayrate", -0.2, -5., 0)
+        ROOT.SetOwnership(mean1, False)
+        ROOT.SetOwnership(sigma1, False)
+        ROOT.SetOwnership(mean2, False)
+        ROOT.SetOwnership(sigma2, False)
+        ROOT.SetOwnership(decayrate, False)
+        self.pdf1 = ROOT.RooGaussian("g1", "g1", self.quantity, mean1, sigma1)
+        self.pdf2 = ROOT.RooGaussian("g2", "g2", self.quantity, mean2, sigma2)
+        self.pdf3 = ROOT.RooExponential("exp", "exp", self.quantity, decayrate)
+        coef1 = ROOT.RooRealVar("coef1", "coef1", 2000, 0, 10000.)
+        coef2 = ROOT.RooRealVar("coef2", "coef2", 4000, 0., 10000.)
+        coef3 = ROOT.RooRealVar("coef3", "coef3", 20000, 0., 100000.)
+        ROOT.SetOwnership(coef1, False)
+        ROOT.SetOwnership(coef2, False)
+        ROOT.SetOwnership(coef3, False)
+        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3), ROOT.RooArgList(coef1, coef2, coef3))
 
 class PDFGeneric(PDF):
     def __init__(self, **kwargs):
@@ -163,12 +194,14 @@ class Fitter(object):
         self.file_handles = [FileHandle(file_name=fn) for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.quantity = kwargs["quantity"]
+        self.selection = kwargs["selection"]
         self.data = None
         self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
+        if hasattr(self.pdf_config, "selection"):
+            self.selection=self.pdf_config.selection
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
-        self.selection = kwargs["selection"]
         self.blind = self.pdf_config.blind
         fm.load_atlas_style()
         set_batch_mode(kwargs["batch"])
@@ -189,6 +222,8 @@ class Fitter(object):
             self.pdf = PDFAdd(**self.__dict__)
         if self.pdf_config.pdf == "linear":
             self.pdf = PDFLinear(**self.__dict__)
+        if self.pdf_config.pdf == "2gauss":
+            self.pdf = PDF2Gauss(**self.__dict__)
         self.model = self.pdf.build()
 
     def fit(self, return_fit=False):
@@ -207,7 +242,7 @@ class Fitter(object):
         canvas = ROOT.TCanvas("c", "", 800, 600)
         canvas.cd()
         frame = self.var.frame()
-        binning = ROOT.RooBinning(100, 1031., 2529.)
+        binning = ROOT.RooBinning(50, self.quantity[1], self.quantity[2])
         self.data.plotOn(frame, ROOT.RooFit.Binning(binning), RooFit.CutRange("left,right"))
         self.model.plotOn(frame)
         frame.SetTitle("")
