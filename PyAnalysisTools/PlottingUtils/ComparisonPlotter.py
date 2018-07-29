@@ -1,6 +1,7 @@
 import ROOT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
+from PyAnalysisTools.PlottingUtils import HistTools as HT
 from copy import copy
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -377,6 +378,12 @@ class ComparisonPlotter(BasePlotter):
     def make_comparison_plot(self, plot_config, data, plot_config_compare = None):
         reference_hists = data[0]
         hists = data[1]
+        for ref in [i for sub in reference_hists.values() for i in sub]:
+            HT.merge_overflow_bins(ref)
+            HT.merge_underflow_bins(ref)
+        for hist in [i for sub in hists.values() for i in sub]:
+            HT.merge_overflow_bins(hist)
+            HT.merge_underflow_bins(hist)        
         labels = None
         for mod in self.ref_modules:
             reference_hists = mod.execute(reference_hists)
