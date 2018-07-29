@@ -100,7 +100,7 @@ class PlotConfig(object):
         :rtype: list
         """
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
-                "merge_mc_campaigns", "signal_extraction", "ratio", "cuts"]
+                "merge_mc_campaigns", "signal_extraction", "ratio", "cuts", "enable_legend"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
@@ -166,9 +166,9 @@ class ProcessConfig(object):
 
 
 def expand_plot_config(plot_config):
-    if not isinstance(plot_config.dist, list):
-        _logger.debug("tried to expand plot config with single distribution")
-        return [plot_config]
+    # if not isinstance(plot_config.dist, list):
+    #     _logger.debug("tried to expand plot config with single distribution")
+    #     return [plot_config]
     plot_configs = []
     if hasattr(plot_config, "cuts_ref"):
         if "dummy1" in plot_config.cuts_ref:
