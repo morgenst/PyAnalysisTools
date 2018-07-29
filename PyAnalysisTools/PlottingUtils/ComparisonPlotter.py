@@ -378,12 +378,10 @@ class ComparisonPlotter(BasePlotter):
     def make_comparison_plot(self, plot_config, data, plot_config_compare = None):
         reference_hists = data[0]
         hists = data[1]
-        for ref in [i for sub in reference_hists.values() for i in sub]:
-            HT.merge_overflow_bins(ref)
-            HT.merge_underflow_bins(ref)
-        for hist in [i for sub in hists.values() for i in sub]:
-            HT.merge_overflow_bins(hist)
-            HT.merge_underflow_bins(hist)        
+        HT.merge_overflow_bins(reference_hists)
+        HT.merge_underflow_bins(reference_hists)
+        HT.merge_overflow_bins(hists)
+        HT.merge_underflow_bins(hists)        
         labels = None
         for mod in self.ref_modules:
             reference_hists = mod.execute(reference_hists)
