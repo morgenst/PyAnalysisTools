@@ -1,6 +1,7 @@
 import ROOT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
+from PyAnalysisTools.PlottingUtils import HistTools as HT
 from copy import copy
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -139,7 +140,6 @@ class SingleFileMultiDistReader(ComparisonReader):
             plot_config_ref.name += "_reference"
             if not hasattr(self.plot_config, "cuts_ref"):
                 plot_config_ref.dist = self.plot_config.dist_ref
-            #print "expand"
             plot_configs = expand_plot_config(self.plot_config)
             if hasattr(plot_configs[0], "enable_cut_ref_merge") and plot_configs[0].enable_cut_ref_merge:
                 reference = [self.make_plot(self.file_handle, plot_config_ref) for plot_config in plot_configs]
@@ -376,9 +376,14 @@ class ComparisonPlotter(BasePlotter):
         self.output_handle.write_and_close()
 
     def make_comparison_plot(self, plot_config, data, plot_config_compare = None):
-        print data
         reference_hists = data[0]
         hists = data[1]
+        for ref in [i for sub in reference_hists.values() for i in sub]:
+            HT.merge_overflow_bins(ref)
+            HT.merge_underflow_bins(ref)
+        for hist in [i for sub in hists.values() for i in sub]:
+            HT.merge_overflow_bins(hist)
+            HT.merge_underflow_bins(hist)        
         labels = None
         for mod in self.ref_modules:
             reference_hists = mod.execute(reference_hists)
@@ -411,13 +416,13 @@ class ComparisonPlotter(BasePlotter):
                         tmp_labels.append(labels[0] + cut_name)
             for cut_name in plot_config.cuts_ref.keys():
                 for h in hists:
-                    print h.GetName()
                     if "_{:s}_".format(cut_name) in h.GetName():
                         tmp_labels.append(labels[1] + cut_name)
             plot_config.labels = tmp_labels
-            tmp = reference_hists[1:] + hists
-            hists = tmp
-            reference_hists=[reference_hists[0]]
+            if not (hasattr(plot_config.ratio_config, 'multi_ref') and plot_config.ratio_config.multi_ref):
+                tmp = reference_hists[1:] + hists
+                hists = tmp
+                reference_hists=[reference_hists[0]]
         y_max = None
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
             yscale = 1.3
@@ -439,16 +444,30 @@ class ComparisonPlotter(BasePlotter):
         plot_config.color = ROOT.kGray+3
         plot_config.style = 20
         #canvas = PT.plot_hist(reference_hists, plot_config)
-        canvas = PT.plot_objects(reference_hists, plot_config)
-        print canvas
+        offset = 0
+        # if not isinstance(reference_hists, list):
+        #     canvas = PT.plot_objects(reference_hists, plot_config)
+        # else:
+        canvas = PT.plot_objects([reference_hists[0]], plot_config)
+        for hist in reference_hists[1:]:
+            hist.SetName(hist.GetName() + "_%i" % reference_hists.index(hist))
+            try:
+                plot_config.color = self.color_palette[reference_hists.index(hist)-1]
+                plot_config.style = self.style_palette[reference_hists.index(hist)-1]
+            except IndexError:
+                _logger.warning("Run of colors in palette. Using black as default")
+                plot_config.color = ROOT.kBlack
+            PT.add_object_to_canvas(canvas, hist, plot_config, self.process_configs)
+            offset += 1
+            
         ROOT.SetOwnership(canvas, False)
         # for hist in reference_hists[1:]:
         #     PT.add_object_to_canvas(canvas, hist, plot_config)
         for hist in hists:
             hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
             try:
-                plot_config.color = self.color_palette[hists.index(hist)]
-                plot_config.style = self.style_palette[hists.index(hist)]
+                plot_config.color = self.color_palette[hists.index(hist) + offset]
+                plot_config.style = self.style_palette[hists.index(hist) + offset]
             except IndexError:
                 _logger.warning("Run of colors in palette. Using black as default")
                 plot_config.color = ROOT.kBlack
@@ -470,9 +489,6 @@ class ComparisonPlotter(BasePlotter):
                                                                                                 len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
         
-        print plot_config
-        print labels
-        #exit()
         if plot_config.enable_legend: 
             FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
                                     **plot_config.legend_options)
@@ -483,10 +499,15 @@ class ComparisonPlotter(BasePlotter):
             plot_config = plot_config.ratio_config
         if not plot_config.name.startswith("ratio"):
             plot_config.name = "ratio_" + plot_config.name
-        canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
+
+        if hasattr(plot_config, "multi_ref") and plot_config.multi_ref:
+            canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
                                     plot_config=plot_config, rebin=rebin).make_ratio_plot()
-        # canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
-        #                             plot_config=plot_config, rebin=rebin).make_ratio_plot()
+
+        else:
+            canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
+                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
+
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)
