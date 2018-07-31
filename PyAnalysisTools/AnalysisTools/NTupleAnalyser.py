@@ -4,6 +4,7 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
+from tabulate.tabulate import tabulate
 try:
     import pyAMI.client
 except Exception as e:
@@ -95,16 +96,19 @@ class NTupleAnalyser(object):
         :rtype: None
         """
         print "--------------- Missing datasets ---------------"
-        for ds in missing:
-            print ds[0]
+        print tabulate([[ds[0]] for ds in missing], tablefmt='rst')
         print "------------------------------------------------"
         print
         print
         print
         print "--------------- Incomplete datasets ---------------"
+        data = []
         for ds in incomplete:
             missing_fraction = float(ds[-2])/float(ds[-1]) * 100.
-            print ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction
+            data.append((ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction))
+        print tabulate(data, tablefmt='rst', floatfmt='.2f',
+                       headers=["Dataset", "Processed event", "Total avail. events", "missing fraction [%]",
+                                "available fraction [%]"])
 
     def prepare_resubmit(self, failed_ds):
         """
