@@ -4,7 +4,7 @@ from math import log10
 from array import array
 from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 
 class PlotConfig(object):
@@ -210,7 +210,7 @@ def expand_plot_config(plot_config):
 
 def parse_and_build_plot_config(config_file):
     try:
-        parsed_config = YAMLLoader.read_yaml(config_file)
+        parsed_config = yl.read_yaml(config_file)
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
@@ -221,11 +221,23 @@ def parse_and_build_plot_config(config_file):
         raise
 
 
-def parse_and_build_process_config(process_config_file):
+def parse_and_build_process_config(process_config_files):
+    """
+    Parse yml file containing process definition and build ProcessConfig object
+    :param process_config_files: process configuration yml files
+    :type process_config_files: list
+    :return: Process config
+    :rtype: ProcessConfig
+    """
     try:
-        _logger.debug("Parsing process config")
-        parsed_process_config = YAMLLoader.read_yaml(process_config_file)
-        process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
+        _logger.debug("Parsing process configs")
+        if not isinstance(process_config_files, list):
+            parsed_process_config = yl.read_yaml(process_config_files)
+            process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
+        else:
+            parsed_process_configs = [yl.read_yaml(pcf) for pcf in process_config_files]
+            process_configs = {k: ProcessConfig(name=k, **v) for parsed_config in parsed_process_configs
+                               for k, v in parsed_config.iteritems()}
         for process_config in process_configs.values():
             process_configs.update(process_config.retrieve_subprocess_config())
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
