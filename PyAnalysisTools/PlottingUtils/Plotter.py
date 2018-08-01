@@ -53,7 +53,8 @@ class Plotter(BasePlotter):
             self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
-        self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
+        self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs,
+                                                        self.split_mc_campaigns)
         self.filter_empty_trees()
         self.modules = load_modules(kwargs["module_config_file"], self)
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
@@ -84,15 +85,19 @@ class Plotter(BasePlotter):
             self.process_configs.pop(process_config_name)
 
     @staticmethod
-    def filter_process_configs(file_handles, process_configs=None):
+    def filter_process_configs(file_handles, process_configs=None, split_mc_campaigns=False):
         if process_configs is None:
             return file_handles
+        process_info = "process"
+        if split_mc_campaigns:
+            process_info = "process_with_mc_campaign"
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is None,
+                                  filter(lambda fh: find_process_config(getattr(fh, process_info),
+                                                                        process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is not None,
+        return filter(lambda fh: find_process_config(getattr(fh, process_info), process_configs) is not None,
                       file_handles)
 
     def initialise(self):
