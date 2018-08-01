@@ -7,6 +7,11 @@ class Region(object):
         kwargs.setdefault("n_lep", -1)
         kwargs.setdefault("n_electron", -1)
         kwargs.setdefault("n_muon", -1)
+        #limit specific settings to help HistFactory setup
+        kwargs.setdefault("norm_region", False)
+        kwargs.setdefault("norm_backgrounds", [])
+
+
         self.name = kwargs["name"]
         self.n_lep = kwargs["n_lep"]
         self.n_electron = kwargs["n_electron"]

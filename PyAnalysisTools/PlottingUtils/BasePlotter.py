@@ -16,7 +16,8 @@ class BasePlotter(object):
         self.plot_configs = None
         self.lumi = None
         kwargs.setdefault("batch", True)
-        kwargs.setdefault("process_config_file", None)
+        kwargs.setdefault("process_config_file", None) #deprecated, for now kept for backwards compatibility
+        kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault("friend_directory", None)
@@ -29,7 +30,8 @@ class BasePlotter(object):
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
-        if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) and self.process_config_file is not None:
+        if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) \
+                and self.process_config_files is not None:
             self.add_mc_campaigns()
             self.split_mc_campaigns = True
         self.event_yields = {}
@@ -41,9 +43,15 @@ class BasePlotter(object):
         print self.file_handles[0].process
 
     def parse_process_config(self):
-        if self.process_config_file is None:
+        if self.process_config_files is None and self.process_config_file is not None:
             return None
-        process_config = parse_and_build_process_config(self.process_config_file)
+        if self.process_config_file is not None:
+            _logger.error("Single Process configs are deprecated. Please update you argument parser to "
+                          "process_config_files (NOTE the additional s).")
+        if self.process_config_files is None:
+            process_config = parse_and_build_process_config(self.process_config_file)
+        else:
+            process_config = parse_and_build_process_config(self.process_config_files)
         return process_config
 
     def parse_plot_config(self):

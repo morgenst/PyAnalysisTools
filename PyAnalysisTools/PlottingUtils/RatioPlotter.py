@@ -4,6 +4,7 @@ from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import PlottingTools as pt
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils.HistTools import get_colors
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 
 
 class RatioCalculator(object):
@@ -108,15 +109,16 @@ class RatioPlotter(object):
         #canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
         return canvas
 
-    def add_uncertainty_to_canvas(self, canvas, hist, plot_config):
+    def add_uncertainty_to_canvas(self, canvas, hist, plot_config, n_systematics = 1):
         ratio_hist = fm.get_objects_from_canvas_by_type(canvas, "TH1F")[0]
         if not isinstance(hist, list):
             hist = [hist]
             plot_config = [plot_config]
-        canvas = pt.plot_hist(hist[0], plot_config[0])
+        canvas = pt.plot_hist(hist[0], plot_config[0], index=0)
         if len(hist) > 1:
-            for pc, unc_hist in zip(plot_config[1:], hist[1:]):
-                pt.add_histogram_to_canvas(canvas, unc_hist, pc)
+            for i, unc_hist in enumerate(hist[1:]):
+                pc = plot_config[i/n_systematics]
+                pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i - i/n_systematics * n_systematics)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
         return canvas
 
@@ -150,3 +152,25 @@ class RatioPlotter(object):
                 self.plot_config.color = colors[ratios.index(ratio)]
             pt.add_graph_to_canvas(ratio_canvas, ratio, self.plot_config)
         return ratio_canvas
+
+    @staticmethod
+    def overlay_out_of_range_arrow(canvas):
+        hist = pt.get_objects_from_canvas_by_name(canvas, "Data")[0]
+        y_min, y_max = hist.GetMinimum(), hist.GetMaximum()
+        canvas.cd()
+        for b in range(hist.GetNbinsX() + 1):
+            bin_content = hist.GetBinContent(b)
+            if bin_content > y_min and bin_content < y_max:
+                continue
+            bin_center = hist.GetXaxis().GetBinCenter(b)
+            if bin_content < y_min:
+                a = ROOT.TArrow(bin_center, y_min, bin_center, y_min+0.3, 0.03, "<")
+                print "Draw arraow at ", bin_center, y_min, bin_center, y_min+0.3, 0.03, "<"
+            elif bin_content < y_min:
+                a = ROOT.TArrow(bin_center, y_max - 0.3, bin_center, y_max, 0.03, ">")
+                print "Draw arraow at ", bin_center, y_max - 0.3, bin_center, y_max, 0.03, ">"
+            ROOT.SetOwnership(a, False)
+            a.Draw("sames")
+        canvas.Modified()
+        canvas.Update()
+        return canvas

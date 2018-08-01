@@ -121,7 +121,7 @@ class SingleFileMultiDistReader(ComparisonReader):
         self.plot_config = plot_config
         self.tree_name = kwargs["tree_name"]
         self.systematics = None
-        
+
     def get_data(self):
         try:
             reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref)
@@ -318,8 +318,8 @@ class ComparisonPlotter(BasePlotter):
                               25,
                               26,
                               32,
-                              5]          
-        # self.style_palette = [21, 33, 22, 23, 34, 29] #ROOT.kGray+3, 
+                              5]
+        # self.style_palette = [21, 33, 22, 23, 34, 29] #ROOT.kGray+3,
         # self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
         #                       ROOT.kRed+3, ROOT.kGreen-2]
         for attr, value in kwargs.iteritems():
@@ -381,7 +381,7 @@ class ComparisonPlotter(BasePlotter):
         HT.merge_overflow_bins(reference_hists)
         HT.merge_underflow_bins(reference_hists)
         HT.merge_overflow_bins(hists)
-        HT.merge_underflow_bins(hists)        
+        HT.merge_underflow_bins(hists)
         labels = None
         for mod in self.ref_modules:
             reference_hists = mod.execute(reference_hists)
@@ -428,6 +428,8 @@ class ComparisonPlotter(BasePlotter):
             plot_config.yscale = yscale
             if not plot_config.normalise:
                 plot_config.ymax = ymax
+            if plot_config.normalise and plot_config.logy:
+                plot_config.ymin = 0.0001
         else:
             ctmp = ROOT.TCanvas("ctmp", "ctmp")
             ctmp.cd()
@@ -457,7 +459,7 @@ class ComparisonPlotter(BasePlotter):
                 plot_config.color = ROOT.kBlack
             PT.add_object_to_canvas(canvas, hist, plot_config, self.process_configs)
             offset += 1
-            
+
         ROOT.SetOwnership(canvas, False)
         # for hist in reference_hists[1:]:
         #     PT.add_object_to_canvas(canvas, hist, plot_config)
@@ -486,25 +488,31 @@ class ComparisonPlotter(BasePlotter):
             _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
                                                                                                 len(hists) + 1))
             labels += [""] * (len(hists) - len(labels))
-        
-        if plot_config.enable_legend: 
+
+        if plot_config.enable_legend:
             FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
                                     **plot_config.legend_options)
         rebin = plot_config.rebin
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
         if hasattr(plot_config, "ratio_config"):
-            plot_config = plot_config.ratio_config
-        if not plot_config.name.startswith("ratio"):
-            plot_config.name = "ratio_" + plot_config.name
+            ratio_plot_config = plot_config.ratio_config
+            if plot_config.logx:
+                ratio_plot_config.logx = True
+        else:
+            ratio_plot_config = copy.copy(plot_config)
+            ratio_plot_config.name = "ratio_" + plot_config.name
+            ratio_plot_config.ytitle = "ratio"
+        if not ratio_plot_config.name.startswith("ratio"):
+            ratio_plot_config.name = "ratio_" + plot_config.name
 
-        if hasattr(plot_config, "multi_ref") and plot_config.multi_ref:
+        if hasattr(ratio_plot_config, "multi_ref") and ratio_plot_config.multi_ref:
             canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
-                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
+                                        plot_config=ratio_plot_config, rebin=rebin).make_ratio_plot()
 
         else:
             canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
-                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
+                                        plot_config=ratio_plot_config, rebin=rebin).make_ratio_plot()
 
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)

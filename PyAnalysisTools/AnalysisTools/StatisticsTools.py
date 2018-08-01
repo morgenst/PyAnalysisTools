@@ -8,7 +8,7 @@ import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme
 
 
 def consistency_check_bins(obj1, obj2):
@@ -130,9 +130,11 @@ def get_signal_acceptance(signal_yields, generated_events, process_config):
             acceptance_hists.append((cut_name, make_acceptance_graph([(signal[icut][0],
                                                                       signal[icut][2]) for signal in acceptance])))
             acceptance_hists[-1][-1].SetName(cut_name)
-    pc = PlotConfig(name="acceptance_all_cuts", color=[1, 2, 3, 4, 5], labels=[data[0] for data in acceptance_hists],
+    pc = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
+                    labels=[data[0] for data in acceptance_hists],
                     xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker", lumi=80., watermark="Internal",
                     ymin=0., ymax=1.)
+    
     canvas = pt.plot_objects([data[1] for data in acceptance_hists], pc)
     fm.add_legend_to_canvas(canvas, labels=pc.labels)
     fm.decorate_canvas(canvas, plot_config=pc)

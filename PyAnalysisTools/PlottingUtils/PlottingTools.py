@@ -133,6 +133,9 @@ def plot_hist(hist, plot_config, **kwargs):
             hist.SetMinimum(0.1)
         if hist.GetMinimum() == 0.:
             hist.SetMinimum(0.001)
+        if plot_config.normalise:
+            hist.SetMinimum(0.000001)
+            FM.set_minimum_y(hist, plot_config.ymin)
         canvas.SetLogy()
     if hasattr(plot_config, "logx") and plot_config.logx:
         canvas.SetLogx()
@@ -592,7 +595,8 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
     stack.GetXaxis().SetTitleSize(0)
     stack.GetXaxis().SetLabelSize(0)
-    stack.SetMinimum(max(stack.GetMinimum(), 0.1))
+    if not canvas.GetLogy():
+        stack.SetMinimum(max(stack.GetMinimum(), 0.1))
     scale = 1. / (1. - y_frac)
     scale_frame_text(stack, scale)
     canvas.DrawClonePad()
