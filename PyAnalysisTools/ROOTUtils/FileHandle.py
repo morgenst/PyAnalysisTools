@@ -34,7 +34,7 @@ def memoize(f):
         return _memoized[key]
     return memoized
 
-#@memoize
+
 class FileHandle(object):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("path", "./")
