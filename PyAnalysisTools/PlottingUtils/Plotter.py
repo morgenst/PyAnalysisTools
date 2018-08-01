@@ -23,16 +23,17 @@ class Plotter(BasePlotter):
     def __init__(self, **kwargs):
         if "input_files" not in kwargs:
             _logger.error("No input files provided")
-            raise  InvalidInputError("No input files")
+            raise InvalidInputError("No input files")
         if "plot_config_files" not in kwargs:
             _logger.error("No plot config files provided. Nothing to parse")
             raise InvalidInputError("No plot config file")
-        if "process_config_file" not in kwargs:
+        if "process_config_files" not in kwargs:
             _logger.warning("No process config file provided. Unable to read process specific options.")
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("systematics", "Nominal")
+        kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("ncpu", 1)
@@ -48,9 +49,9 @@ class Plotter(BasePlotter):
         self.stat_unc_hist = None
         self.histograms = {}
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
-        self.systematics_analyser = None
+        self.syst_analyser = None
         if kwargs["enable_systematics"]:
-            self.systematics_analyser = SystematicsAnalyser(**self.__dict__)
+            self.syst_analyser = SystematicsAnalyser(**self.__dict__)
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs,
@@ -309,10 +310,10 @@ class Plotter(BasePlotter):
                 plot_config_stat_unc_ratio.logy = False
                 stat_unc_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
                 stat_unc_ratio.SetMarkerColor(ROOT.kYellow)
-                if self.systematics_analyser is None:
+                if self.syst_analyser is None:
                     canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
                                                                            plot_config_stat_unc_ratio)
-            if self.systematics_analyser is not None:
+            if self.syst_analyser is not None:
                 syst_color = ROOT.kRed
                 plot_config_syst_unc_ratio = copy.copy(ratio_plot_config)
                 plot_config_syst_unc_ratio.name = ratio_plot_config.name.replace("ratio", "syst_unc")
@@ -320,20 +321,21 @@ class Plotter(BasePlotter):
                 plot_config_syst_unc_ratio.style = 1001
                 plot_config_syst_unc_ratio.draw = "E2"
                 plot_config_syst_unc_ratio.logy = False
-                syst_sm_total_up, syst_sm_total_down = self.systematics_analyser.get_relative_unc_on_SM_total(
+                syst_sm_total_up_categotised, syst_sm_total_down_categotised, colors = self.syst_analyser.get_relative_unc_on_SM_total(
                     plot_config, data)
-                ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up,
-                                                                  syst_color)
-                ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up,
-                                                                    syst_color)
-
+                print "sys hist: ", syst_sm_total_up_categotised, syst_sm_total_down_categotised
+                ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up_categotised)
+                ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_down_categotised)
+                plot_config_syst_unc_ratio.color = colors
                 canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio,
-                                                                       [ratio_syst_up, ratio_syst_down,
-                                                                        stat_unc_ratio],
+                                                                       ratio_syst_up + ratio_syst_down + [stat_unc_ratio],
                                                                        [plot_config_syst_unc_ratio,
                                                                         plot_config_syst_unc_ratio,
-                                                                        plot_config_stat_unc_ratio])
+                                                                        plot_config_stat_unc_ratio],
+                                                                       n_systematics=len(ratio_syst_up))
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
+            #canvas_ratio = ratio_plotter.overlay_out_of_range_arrow(canvas_ratio)
+            #canvas_ratio.SaveAs("foo_"+canvas_ratio.GetName()+".pdf")
             canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
             self.output_handle.register_object(canvas_combined)
 
@@ -341,8 +343,8 @@ class Plotter(BasePlotter):
         self.read_cutflows()
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
-            if self.systematics_analyser is not None:
-                self.systematics_analyser.plot_configs = self.plot_configs
+            if self.syst_analyser is not None:
+                self.syst_analyser.plot_configs = self.plot_configs
         if len(self.modules_hist_fetching) == 0:
             fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
         else:
@@ -356,10 +358,10 @@ class Plotter(BasePlotter):
         #workaround due to missing worker node communication of regex process parsing
         if self.process_configs is not None:
             self.merge_histograms()
-        if self.systematics_analyser is not None:
-            self.systematics_analyser.retrieve_sys_hists(self.file_handles)
-            self.systematics_analyser.calculate_variations(self.histograms)
-            self.systematics_analyser.calculate_total_systematics()
+        if self.syst_analyser is not None:
+            self.syst_analyser.retrieve_sys_hists(self.file_handles)
+            self.syst_analyser.calculate_variations(self.histograms)
+            self.syst_analyser.calculate_total_systematics()
 
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)

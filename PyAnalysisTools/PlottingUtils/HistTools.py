@@ -78,7 +78,11 @@ def __rebin_asymmetric_2d_hist(hist, n_binsx, bins_x):
 def merge_overflow_bins(hists, x_max=None):
     if type(hists) == dict:
         for item in hists.values():
-            _merge_overflow_bins_1d(item, x_max)
+            if isinstance(item, list):
+                for i in item:
+                    _merge_overflow_bins_1d(i, x_max)
+            else:
+                _merge_overflow_bins_1d(item, x_max)
     else:
         _merge_overflow_bins_1d(hists, x_max)
 
@@ -90,13 +94,17 @@ def _merge_overflow_bins_1d(hist, x_max=None):
         last_visible_bin = hist.FindBin(x_max)
     else:
         last_visible_bin = hist.GetNbinsX()
-    hist.SetBinContent(last_visible_bin, hist.GetBinContent(last_visible_bin) + hist.Integral(last_visible_bin, -1))
+    hist.SetBinContent(last_visible_bin, hist.Integral(last_visible_bin, -1))
 
 
 def merge_underflow_bins(hists, x_min=None):
     if type(hists) == dict:
         for item in hists.values():
-            _merge_underflow_bins_1d(item, x_min)
+            if isinstance(item, list):
+                for i in item:
+                    _merge_underflow_bins_1d(i, x_min)
+            else:
+                _merge_underflow_bins_1d(item, x_min)
     else:
         _merge_underflow_bins_1d(hists, x_min)
 
@@ -108,7 +116,7 @@ def _merge_underflow_bins_1d(hist, x_min=None):
         first_visible_bin = hist.FindBin(x_min)
     else:
         first_visible_bin = 1
-    hist.SetBinContent(first_visible_bin, hist.GetBinContent(first_visible_bin) + hist.Integral(0, first_visible_bin))
+    hist.SetBinContent(first_visible_bin, hist.Integral(0, first_visible_bin))
 
 
 def scale(hist, weight):

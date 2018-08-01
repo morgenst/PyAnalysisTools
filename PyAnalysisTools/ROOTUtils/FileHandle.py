@@ -34,7 +34,7 @@ def memoize(f):
         return _memoized[key]
     return memoized
 
-#@memoize
+
 class FileHandle(object):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("path", "./")
@@ -121,6 +121,10 @@ class FileHandle(object):
 
     def parse_process(self, switch_off_analysis=False):
         def analyse_process_name():
+            if "user.shanisch" in process_name:
+                self.year = process_name.split(".")[2]
+                self.period = "periodB"
+                return ".".join([self.year, self.period])    
             if "data" in process_name:
                 try:
                     self.year, _, self.period = process_name.split("_")[0:3]

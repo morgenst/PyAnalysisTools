@@ -1,9 +1,10 @@
 import os
 from subprocess import check_output, CalledProcessError
 from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
+from tabulate.tabulate import tabulate
 try:
     import pyAMI.client
 except Exception as e:
@@ -24,10 +25,12 @@ class NTupleAnalyser(object):
         self.check_valid_proxy()
         if not "dataset_list" in kwargs:
             raise InvalidInputError("No dataset list provided")
-        self.datasets = YAMLLoader.read_yaml(kwargs["dataset_list"])
+        self.dataset_list_file = kwargs["dataset_list"]
+        self.datasets = YAMLLoader.read_yaml(self.dataset_list_file)
         self.datasets = dict(filter(lambda kv: "pilot" not in kv[0], self.datasets.iteritems()))
         self.datasets = dict(filter(lambda kv: "resubmit" not in kv[0], self.datasets.iteritems()))
         self.input_path = kwargs["input_path"]
+        self.resubmit = kwargs["resubmit"]
 
     @staticmethod
     def check_valid_proxy():
@@ -93,16 +96,35 @@ class NTupleAnalyser(object):
         :rtype: None
         """
         print "--------------- Missing datasets ---------------"
-        for ds in missing:
-            print ds[0]
+        print tabulate([[ds[0]] for ds in missing], tablefmt='rst')
         print "------------------------------------------------"
         print
         print
         print
         print "--------------- Incomplete datasets ---------------"
+        data = []
         for ds in incomplete:
             missing_fraction = float(ds[-2])/float(ds[-1]) * 100.
-            print ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction
+            data.append((ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction))
+        print tabulate(data, tablefmt='rst', floatfmt='.2f',
+                       headers=["Dataset", "Processed event", "Total avail. events", "missing fraction [%]",
+                                "available fraction [%]"])
+
+    def prepare_resubmit(self, incomplete, missing):
+        """
+        add failed or incomplete samples back to new dataset input file
+        :param incomplete: list of incomplete datasets
+        :type incomplete: list
+        :param missing: list of missing aka failed datasets
+        :type missing: list
+        :return: None
+        :rtype: None
+        """
+        incomplete = [ds[0] for ds in incomplete]
+        missing = [ds[0] for ds in missing]
+        datasets = {'incomplete': incomplete, 'missing': missing}
+        YAMLDumper.dump_yaml(datasets, self.dataset_list_file.replace('.yml', '_resubmit.yml'),
+                             default_flow_style=False)
 
     def run(self):
         """
@@ -118,3 +140,5 @@ class NTupleAnalyser(object):
         mp.ThreadPool(10).map(self.get_events, self.datasets)
         incomplete_datasets = filter(lambda ds: not ds[-2] ==ds[-1], self.datasets)
         self.print_summary(missing_datasets, incomplete_datasets)
+        if self.resubmit:
+            self.prepare_resubmit(incomplete_datasets, missing_datasets)

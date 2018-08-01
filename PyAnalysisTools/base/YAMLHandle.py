@@ -36,12 +36,12 @@ class YAMLDumper(object):
             setattr(self, k, v)
 
     @staticmethod
-    def dump_yaml(data, file_name):
+    def dump_yaml(data, file_name, **kwargs):
         try:
             _logger.debug("Try to open file %s" % file_name)
             out_file = open(file_name, "w+")
             _logger.debug("Try to dump data to file %s" % file_name)
-            yaml.dump(data, out_file)
+            yaml.dump(data, out_file, **kwargs)
             out_file.close()
         except Exception as e:
             _logger.error("Failed to dump data to file %s" % file_name)

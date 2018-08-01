@@ -5,11 +5,11 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 
 
-try:
-    import configManager
-except ImportError:
-    print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
-    exit(1)
+# try:
+#     import configManager
+# except ImportError:
+#     print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
+#     exit(1)
 
 
 import ROOT
@@ -20,7 +20,7 @@ from configWriter import fitConfig, Measurement, Channel, Sample
 from systematic import Systematic
 from math import sqrt
 import os
-from PyAnalysisTools.base.ShellUtils import make_dirs, copy
+from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, \
     transform_color
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
@@ -96,6 +96,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
+        kwargs.setdefault("multi_core", False)
 
         #FitType = self.configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
@@ -110,12 +111,15 @@ class HistFitterWrapper(object):
         del self.configMgr
 
     def setup_output(self, **kwargs):
-        if not self.scan:
-            self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
-        elif self.scan:
-            if self.base_output_dir is None:
-                self.base_output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
-            self.output_dir = os.path.join(self.base_output_dir, str(self.call))
+        if not kwargs["multi_core"]:
+            if not self.scan:
+                self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+            elif self.scan:
+                if self.base_output_dir is None:
+                    self.base_output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+                self.output_dir = os.path.join(self.base_output_dir, str(self.call))
+        else:
+            self.output_dir = kwargs["output_dir"]
         self.prepare_output()
 
     def parse_configs(self):
@@ -129,6 +133,11 @@ class HistFitterWrapper(object):
         self.expand_process_configs()
 
     def reset_config_mgr(self):
+        try:
+            import configManager
+        except ImportError:
+            print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
+            exit(1)
         self.configMgr = configManager.configMgr
         self.configMgr.__init__()
         self.configMgr.analysisName = self.analysis_name
@@ -293,36 +302,40 @@ class HistFitterWrapper(object):
 
                 if not fitFound:
                     _logger.fatal("Unable to find fitConfig with name %s, bailing out" % self.fitname)
-            noFit = False
-            if not self.fit:
-                noFit = True
+
             for i in xrange(len(self.configMgr.fitConfigs)):
                 if not runAll and i != idx:
                     _logger.debug("Skipping fit config {0}".format(self.configMgr.fitConfigs[i].name))
                     continue
 
                 _logger.info("Running on fitConfig %s" % self.configMgr.fitConfigs[i].name)
-                _logger.info("Setting noFit = {0}".format(noFit))
-                self.GenerateFitAndPlotCPP(self.configMgr.fitConfigs[i], self.configMgr.analysisName, self.draw_before,
-                                               self.draw_after, self.drawCorrelationMatrix, self.drawSeparateComponents,
-                                                self.drawLogLikelihood, self.minos, self.minosPars, self.doFixParameters,
-                                               self.fixedPars, self.configMgr.ReduceCorrMatrix, noFit)
+                _logger.info("Setting noFit = {0}".format(not self.fit))
+                self.generate_fit_and_plot(self.configMgr.fitConfigs[i], self.configMgr.analysisName, self.draw_before,
+                                           self.draw_after, self.drawCorrelationMatrix, self.drawSeparateComponents,
+                                           self.drawLogLikelihood, self.minos, self.minosPars, self.doFixParameters,
+                                           self.fixedPars, self.configMgr.ReduceCorrMatrix, not self.fit)
             _logger.debug(
-                    " GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
+                    "GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, "
+                    "drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, "
+                    "minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
-                    "where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, ReduceCorrMatrix are booleans")
-            pass
+                    "where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, "
+                    "drawLogLikelihood, ReduceCorrMatrix are booleans")
 
         """
-        calculating and printing upper limits for model-(in)dependent signal fit configurations (aka Exclusion/Discovery fit setup)
+        calculating and printing upper limits for model-(in)dependent signal fit configurations 
+        (aka Exclusion/Discovery fit setup)
         """
         if not self.disable_limit_plot:
             for fc in self.configMgr.fitConfigs:
                 if len(fc.validationChannels) > 0:
                     raise (Exception, "Validation regions should be turned off for setting an upper limit!")
                 pass
-            self.configMgr.cppMgr.doUpperLimitAll()
-            pass
+            if not self.scan:
+                self.configMgr.cppMgr.doUpperLimitAll()
+            else:
+                print self.call
+                self.configMgr.cppMgr.doUpperLimit(self.call - 1)
 
         """
         run exclusion or discovery hypotest
@@ -339,60 +352,59 @@ class HistFitterWrapper(object):
             if self.hypotest:
                 self.configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), True)
 
-            pass
-
         if self.run_toys and self.configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and self.fit is False:
             self.configMgr.cppMgr.runToysAll()
-            pass
 
         if self.interactive:
             from code import InteractiveConsole
             from ROOT import Util
             cons = InteractiveConsole(locals())
             cons.interact("Continuing interactive session... press Ctrl+d to exit")
-            pass
 
         _logger.info("Leaving HistFitter... Bye!")
 
-
-    def GenerateFitAndPlotCPP(self, fc, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents,
-                              drawLogLikelihood, minos, minosPars, doFixParameters, fixedPars, ReduceCorrMatrix, noFit):
+    def generate_fit_and_plot(self, fc, ana_name, draw_before_fit, draw_after_fit, draw_correlation_matrix,
+                              draw_separate_components, draw_log_likelihood, minos, minos_pars, do_fix_parameters,
+                              fixed_pars, reduce_corr_matrix, no_fit):
         """
         function call to top-level C++ side function Util.GenerateFitAndPlot()
 
         @param fc FitConfig name connected to fit and plot details
-        @param anaName Analysis name defined in config file, mainly used for output file/dir naming
-        @param drawBeforeFit Boolean deciding whether before-fit plots are produced
-        @param drawAfterFit Boolean deciding whether after-fit plots are produced
-        @param drawCorrelationMatrix Boolean deciding whether correlation matrix plot is produced
-        @param drawSeparateComponents Boolean deciding whether separate component (=sample) plots are produced
-        @param drawLogLikelihood Boolean deciding whether log-likelihood plots are produced
+        @param ana_name Analysis name defined in config file, mainly used for output file/dir naming
+        @param draw_before_fit Boolean deciding whether before-fit plots are produced
+        @param draw_after_fit Boolean deciding whether after-fit plots are produced
+        @param draw_correlation_matrix Boolean deciding whether correlation matrix plot is produced
+        @param draw_separate_components Boolean deciding whether separate component (=sample) plots are produced
+        @param draw_log_likelihood Boolean deciding whether log-likelihood plots are produced
         @param minos Boolean deciding whether asymmetric errors are calculated, eg whether MINOS is run
-        @param minosPars When minos is called, defining what parameters need asymmetric error calculation
-        @param doFixParameters Boolean deciding if some parameters are fixed to a value given or not
-        @param fixedPars String of parameter1:value1,parameter2:value2 giving information on which parameter to fix to which value if dofixParameter == True
-        @param ReduceCorrMatrix Boolean deciding whether reduced correlation matrix plot is produced
-        @param noFit Don't re-run fit but use after-fit workspace
+        @param minos_pars When minos is called, defining what parameters need asymmetric error calculation
+        @param do_fix_parameters Boolean deciding if some parameters are fixed to a value given or not
+        @param fixed_pars String of parameter1:value1,parameter2:value2 giving information on which parameter to fix to
+        which value if dofixParameter == True
+        @param reduce_corr_matrix Boolean deciding whether reduced correlation matrix plot is produced
+        @param no_fit Don't re-run fit but use after-fit workspace
         """
 
         from ROOT import Util
 
-        _logger.debug('GenerateFitAndPlotCPP: anaName %s ' % anaName)
-        _logger.debug("GenerateFitAndPlotCPP: drawBeforeFit %s " % drawBeforeFit)
-        _logger.debug("GenerateFitAndPlotCPP: drawAfterFit %s " % drawAfterFit)
-        _logger.debug("GenerateFitAndPlotCPP: drawCorrelationMatrix %s " % drawCorrelationMatrix)
-        _logger.debug("GenerateFitAndPlotCPP: drawSeparateComponents %s " % drawSeparateComponents)
-        _logger.debug("GenerateFitAndPlotCPP: drawLogLikelihood %s " % drawLogLikelihood)
+        _logger.debug('GenerateFitAndPlotCPP: anaName %s ' % ana_name)
+        _logger.debug("GenerateFitAndPlotCPP: drawBeforeFit %s " % draw_before_fit)
+        _logger.debug("GenerateFitAndPlotCPP: drawAfterFit %s " % draw_after_fit)
+        _logger.debug("GenerateFitAndPlotCPP: drawCorrelationMatrix %s " % draw_correlation_matrix)
+        _logger.debug("GenerateFitAndPlotCPP: drawSeparateComponents %s " % draw_separate_components)
+        _logger.debug("GenerateFitAndPlotCPP: drawLogLikelihood %s " % draw_log_likelihood)
         _logger.debug("GenerateFitAndPlotCPP: minos %s " % minos)
-        _logger.debug("GenerateFitAndPlotCPP: minosPars %s " % minosPars)
-        _logger.debug("GenerateFitAndPlotCPP: doFixParameters %s " % doFixParameters)
-        _logger.debug("GenerateFitAndPlotCPP: fixedPars %s " % fixedPars)
-        _logger.debug("GenerateFitAndPlotCPP: ReduceCorrMatrix %s " % ReduceCorrMatrix)
-        _logger.debug("GenerateFitAndPlotCPP: noFit {0}".format(noFit))
+        _logger.debug("GenerateFitAndPlotCPP: minosPars %s " % minos_pars)
+        _logger.debug("GenerateFitAndPlotCPP: doFixParameters %s " % do_fix_parameters)
+        _logger.debug("GenerateFitAndPlotCPP: fixedPars %s " % fixed_pars)
+        _logger.debug("GenerateFitAndPlotCPP: ReduceCorrMatrix %s " % reduce_corr_matrix)
+        _logger.debug("GenerateFitAndPlotCPP: noFit {0}".format(no_fit))
 
-        Util.GenerateFitAndPlot(fc.name, anaName, drawBeforeFit, drawAfterFit, drawCorrelationMatrix,
-                                drawSeparateComponents, drawLogLikelihood, minos, minosPars, doFixParameters, fixedPars,
-                                ReduceCorrMatrix, noFit)
+        # draw_after_fit = False
+        # draw_before_fit = False
+        Util.GenerateFitAndPlot(fc.name, ana_name, draw_before_fit, draw_after_fit, draw_correlation_matrix,
+                                draw_separate_components, draw_log_likelihood, minos, minos_pars, do_fix_parameters,
+                                fixed_pars, reduce_corr_matrix, no_fit)
 
 
 class HistFitterCountingExperiment(HistFitterWrapper):
@@ -403,22 +415,41 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("bkg_yields",  0.911)
         kwargs.setdefault("call", 0)
         kwargs.setdefault("scan", False)
-        kwargs.setdefault("use_asimov", True)
+        kwargs.setdefault("use_asimov", False)
+        kwargs.setdefault("create_workspace", True)
         super(HistFitterCountingExperiment, self).__init__(**kwargs)
-
+        self.control_regions = []
         self.bkg_name = kwargs["bkg_name"]
 
     def run(self, **kwargs):
+        self.control_regions = []
         if self.call > 0:
             self.setup_output(**kwargs)
-        # stdout, stderr = sys.stdout, sys.stderr
-        # sys.stdout = sys.stderr = open(os.path.join(self.output_dir, "HistFitter.log"), "w")
-        self.setup_regions(**kwargs)
-        self.call += 1
-        self.run_fit()
-        #sys.stdout, sys.stderr = stdout, stderr
 
-    def build_sample(self, name, yld, process_configs, region, sample=None):
+        with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
+            with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
+                    std_stream_redirected(ferr, sys.stderr):
+                self.setup_regions(**kwargs)
+                self.call += 1
+                self.run_fit()
+
+    @staticmethod
+    def build_sample(name, yld, process_configs, region, sample=None):
+        """
+        Building a sample with single bin histo attached
+        :param name: sample name
+        :type name: string
+        :param yld: event yield for process
+        :type yld: float
+        :param process_configs: process configuration containing style options
+        :type process_configs: ProcessConfig
+        :param region: region name for the build histogram, e.g. SR or CR
+        :type region: string
+        :param sample: (optional) already existing sample to which hist will be added
+        :type sample: Sample
+        :return: updated sample
+        :rtype: Sample
+        """
         if not isinstance(yld, numbers.Number):
             return
         if sample is None:
@@ -433,8 +464,8 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         nbkg_err = sqrt(nbkg_yields)
         bkgSample = Sample(self.bkg_name, kGreen - 9)
         bkgSample.setStatConfig(True)
-        bkgSample.buildHisto([nbkg_yields], "SR", "yield", 0.5)
-        bkgSample.buildStatErrors([nbkg_err], "SR", "yield")
+        bkgSample.buildHisto([nbkg_yields], "SR", kwargs["yield"], 0.5)
+        bkgSample.buildStatErrors([nbkg_err], "SR", kwargs["var_name"])
         return bkgSample
 
     def setup_multi_background(self, **kwargs):
@@ -450,13 +481,16 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("sig_name", "Sig")
         kwargs.setdefault("sig_yield", 1.)
         kwargs.setdefault("control_regions", None)
+        kwargs.setdefault("ctrl_config", None)
+        kwargs.setdefault("var_name", "yield")
         nbkg_yields = kwargs["bkg_yields"]
+        var_name = kwargs["var_name"]
 
         self.reset_config_mgr()
+        print "config mgr: ", self.configMgr, " id: ", id(self.configMgr), " ", self.output_dir
         self.configMgr.cutsDict["SR"] = 1.
         self.configMgr.weights = "1."
 
-        # Setting the parameters of the hypothesis test
         self.configMgr.doExclusion = False  # True=exclusion, False=discovery
         self.configMgr.nTOYs = 5000
         self.configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
@@ -468,6 +502,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.configMgr.blindCR = False
         self.configMgr.blindVR = False
 
+        samples = {}
         if isinstance(nbkg_yields, float):
             bkg_samples = [self.setup_single_background(**kwargs)]
             ndata = nbkg_yields
@@ -480,44 +515,77 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
         lumi_error = 0.039  # Relative luminosity uncertainty
 
-
-        # bkgSample.addSystematic(corb)
-        # bkgSample.addSystematic(ucb)
+        dataSample = Sample("Data", kBlack)
+        dataSample.setData()
+        dataSample.buildHisto([5.], "SR", var_name, 0.5) #ndata
 
         sigSample = Sample(kwargs["sig_name"], kPink)
         sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
         sigSample.setStatConfig(True)
-        # sigSample.setNormByTheory()
-        sigSample.buildHisto([nsig], "SR", "yield", 0.5)
-        sigSample.buildStatErrors([nsig_err], "SR", "yield")
-
-        dataSample = Sample("Data", kBlack)
-        dataSample.setData()
-        dataSample.buildHisto([ndata], "SR", "yield", 0.5)
-
-        # Define top-level
+        sigSample.setNormByTheory()
+        sigSample.buildHisto([nsig], "SR", var_name, 0.5)
+        sigSample.buildStatErrors([nsig_err], "SR", var_name)
+        for sample in bkg_samples + [sigSample, dataSample]:
+            samples[sample.name] = sample
         ana = self.configMgr.addFitConfig("SPlusB")
-        ana.addSamples(bkg_samples + [sigSample, dataSample])
-        ana.setSignalSample(sigSample)
 
+        # bkgSample.addSystematic(corb)
+        # bkgSample.addSystematic(ucb)
         if kwargs["control_regions"] is not None:
-            self.setup_control_regions(ana=ana, **kwargs)
+            self.setup_control_regions(ana=ana, samples=samples, **kwargs)
+            if kwargs["ctrl_config"] is not None:
+                norm_factors = {}
+                norm_regions = {}
+                ctrl_config = kwargs["ctrl_config"]
+                for region, config in ctrl_config.iteritems():
+                    if not config["is_norm_region"]:
+                        continue
+                    for bkg, bkg_config in config["bgk_to_normalise"].iteritems():
+                        if bkg not in samples:
+                            print "ERROR: Could not find background {:s} in samples".format(bkg)
+                            continue
+                        try:
+                            norm_regions[bkg].append(region)
+                        except KeyError:
+                            norm_regions[bkg] = [region]
+                        if "norm_factor" in bkg_config:
+                            norm_factor = bkg_config["norm_factor"]
+                            try:
+                                norm_factors[bkg].append(norm_factor)
+                            except KeyError:
+                                norm_factors[bkg] = [norm_factor]
+                for bkg, norm_factors in norm_factors.iteritems():
+                    for norm_factor in norm_factors:
+                        samples[bkg].setNormFactor(norm_factor, 1., 0., 5.)
+                for bkg in norm_regions.keys():
+                    samples[bkg].setNormRegions([(region, var_name) for region in norm_regions[bkg]])
+
+        ana.addSamples(samples.values())
+        ana.setSignalSample(sigSample)
 
         # Define measurement
         meas = ana.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=lumi_error)
         meas.addPOI("mu_Sig")
         # meas.addParamSetting("Lumi",True,1)
 
-        chan = ana.addChannel("yield", ["SR"], 1, 0.5, 1.5)
+        chan = ana.addChannel(var_name, ["SR"], 1, 0.5, 1.5)
         ana.addSignalChannels([chan])
+        cr_channels = []
+        for cr in self.control_regions:
+            cr_channels.append(ana.addChannel(var_name, [cr], 1, 0.5, 1.5))
+        if len(cr_channels) > 0:
+            ana.addBkgConstrainChannels(cr_channels)
+        self.configMgr.cutsDict.keys()
         self.initialise()
 
         if self.configMgr.executeHistFactory:
             file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
-            # if os.path.isfile(file_name):
-            #     os.remove(file_name)
+            if os.path.isfile(file_name):
+                os.remove(file_name)
+
     def setup_control_regions(self, **kwargs):
         data = kwargs["control_regions"]
+        samples = kwargs["samples"]
         cr_channels = []
         ana = kwargs["ana"]
         for reg, yields in data.iteritems():
@@ -527,27 +595,27 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                     continue
                 sample = None
                 try:
-                    _ = self.build_sample(process, yld[0], kwargs["process_configs"], reg, ana.getSample(process))
+                    _ = self.build_sample(process, yld[0], kwargs["process_configs"], reg, samples[process])
                 except Exception:
                     sample = self.build_sample(process, yld[0], kwargs["process_configs"], reg)
                     if not sample:
                         print "could not find sample ", process
                         continue
                 if sample is not None:
-                    ana.addSamples(sample)
+                    samples[sample.name] = sample
             try:
                 data_yld = filter(lambda kv: kv[0].lower() == "data", yields.iteritems())[0][1][0]
                 if isinstance(data_yld, numbers.Number):
-                    dataSample = ana.getSample("Data")
-                    dataSample.buildHisto([data_yld], reg, "yield", 0.5)
+                    dataSample = samples["Data"]
+                    dataSample.buildHisto([data_yld], reg, kwargs["var_name"], 0.5)
             except IndexError:
                 print "No data found for ", reg
-            cr_channels.append(ana.addChannel("yield", [reg], 1, 0.5, 1.5))
-        ana.addBkgConstrainChannels(cr_channels)
+            self.control_regions.append(reg)
 
     def get_upper_limit(self, name="hypo_Sig"):
         f = ROOT.TFile.Open(os.path.join(self.output_dir,
-                                         "results/{:s}_Output_upperlimit.root".format(self.configMgr.analysisName)), "READ")
+                                         "results/{:s}_Output_upperlimit.root".format(self.configMgr.analysisName)),
+                            "READ")
         result = f.Get(name)
         try:
             return result.GetExpectedUpperLimit(), result.GetExpectedUpperLimit(1), result.GetExpectedUpperLimit(-1)

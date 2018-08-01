@@ -1,6 +1,8 @@
 import shutil
 import os
 import subprocess
+import sys
+from contextlib import contextmanager
 
 
 def make_dirs(path):
@@ -64,3 +66,31 @@ def source(script_name):
     output = filter(lambda l: len(l.split("=")) == 2, output.splitlines())
     env = dict((line.split("=", 1) for line in output))
     os.environ.update(env)
+
+
+def fileno(file_or_fd):
+    fd = getattr(file_or_fd, 'fileno', lambda: file_or_fd)()
+    if not isinstance(fd, int):
+        raise ValueError("Expected a file (`.fileno()`) or a file descriptor")
+    return fd
+
+
+@contextmanager
+def std_stream_redirected(dest=os.devnull, stream=sys.stdout, std_stream=None):
+    if std_stream is None:
+       std_stream = stream
+
+    std_stream_fd = fileno(std_stream)
+
+    with os.fdopen(os.dup(std_stream_fd), 'wb') as copied:
+        stream.flush()
+        try:
+            os.dup2(fileno(dest), std_stream_fd)
+        except ValueError:
+            with open(dest, 'wb') as to_file:
+                os.dup2(to_file.fileno(), std_stream_fd)
+        try:
+            yield stream
+        finally:
+            stream.flush()
+            os.dup2(copied.fileno(), std_stream_fd)

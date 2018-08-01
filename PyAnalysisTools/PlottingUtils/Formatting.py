@@ -66,6 +66,61 @@ def set_title_y(obj, title):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+def set_title_z(obj, title):
+    if not hasattr(obj, "GetZaxis"):
+        raise TypeError
+    try:
+        obj.GetZaxis().SetTitle(title)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_x_offset(obj, offset):
+    if not hasattr(obj, "GetXaxis"):
+        raise TypeError
+    try:
+        obj.GetXaxis().SetTitleOffset(offset)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_y_offset(obj, offset):
+    if not hasattr(obj, "GetYaxis"):
+        raise TypeError
+    try:
+        obj.GetYaxis().SetTitleOffset(offset)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_z_offset(obj, offset):
+    if not hasattr(obj, "GetZaxis"):
+        raise TypeError
+    try:
+        obj.GetZaxis().SetTitleOffset(offset)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_x_size(obj, size):
+    if not hasattr(obj, "GetXaxis"):
+        raise TypeError
+    try:
+        obj.GetXaxis().SetTitleSize(size)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_y_size(obj, size):
+    if not hasattr(obj, "GetYaxis"):
+        raise TypeError
+    try:
+        obj.GetYaxis().SetTitleSize(size)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
+
+def set_title_z_size(obj, size):
+    if not hasattr(obj, "GetZaxis"):
+        raise TypeError
+    try:
+        obj.GetZaxis().SetTitleSize(size)
+    except ReferenceError:
+        _logger.error("Nil object {:s}".format(obj.GetName()))
 
 def set_style_options(obj, style):
     allowed_attributes = ["marker", "line"]
@@ -324,6 +379,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend.SetTextSize(0.025)
     if kwargs["columns"]:
         legend.SetNColumns(kwargs["columns"])
+    legend.SetFillStyle(0)
     labels = None
     stacks = []
     if "labels" in kwargs:
@@ -332,6 +388,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
+        plot_objects += get_objects_from_canvas_by_type(canvas, "TGraph")
         #plot_objects += get_objects_from_canvas_by_type(canvas, "TProfile")
         stacks = get_objects_from_canvas_by_type(canvas, "THStack")
         plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
@@ -371,5 +428,18 @@ def add_legend_to_canvas(canvas, **kwargs):
         plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
         legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
     canvas.cd()
+    if "fill_style" in kwargs:
+        print "yes, got fill style"
+        legend.SetFillStyle(kwargs["fill_style"])
+    legend.SetBorderSize(0)
     legend.Draw("sames")
     canvas.Update()
+
+def format_canvas(canvas, **kwargs):
+    if "margin" in kwargs:
+        for side, margin in kwargs["margin"].iteritems():
+            getattr(canvas, "Set{:s}Margin".format(side.capitalize()))(margin)
+    canvas.Modified()
+    canvas.Update()
+    return canvas
+
