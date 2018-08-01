@@ -5,11 +5,11 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 
 
-try:
-    import configManager
-except ImportError:
-    print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
-    exit(1)
+# try:
+#     import configManager
+# except ImportError:
+#     print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
+#     exit(1)
 
 
 import ROOT
@@ -96,6 +96,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
+        kwargs.setdefault("multi_core", False)
 
         #FitType = self.configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
@@ -110,12 +111,15 @@ class HistFitterWrapper(object):
         del self.configMgr
 
     def setup_output(self, **kwargs):
-        if not self.scan:
-            self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
-        elif self.scan:
-            if self.base_output_dir is None:
-                self.base_output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
-            self.output_dir = os.path.join(self.base_output_dir, str(self.call))
+        if not kwargs["multi_core"]:
+            if not self.scan:
+                self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+            elif self.scan:
+                if self.base_output_dir is None:
+                    self.base_output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+                self.output_dir = os.path.join(self.base_output_dir, str(self.call))
+        else:
+            self.output_dir = kwargs["output_dir"]
         self.prepare_output()
 
     def parse_configs(self):
@@ -129,6 +133,11 @@ class HistFitterWrapper(object):
         self.expand_process_configs()
 
     def reset_config_mgr(self):
+        try:
+            import configManager
+        except ImportError:
+            print "HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now."
+            exit(1)
         self.configMgr = configManager.configMgr
         self.configMgr.__init__()
         self.configMgr.analysisName = self.analysis_name
@@ -478,6 +487,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         var_name = kwargs["var_name"]
 
         self.reset_config_mgr()
+        print "config mgr: ", self.configMgr, " id: ", id(self.configMgr), " ", self.output_dir
         self.configMgr.cutsDict["SR"] = 1.
         self.configMgr.weights = "1."
 

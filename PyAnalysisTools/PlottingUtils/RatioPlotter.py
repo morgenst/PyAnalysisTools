@@ -15,24 +15,33 @@ class RatioCalculator(object):
         self.rebin = kwargs["rebin"]
 
     def calculate_ratio(self):
-        if isinstance(self.reference, ROOT.TEfficiency):
-            calc_func = "calculate_ratio_tefficiency"
-        elif isinstance(self.reference, ROOT.TH1):
-            calc_func = "calculate_ratio_hist"
+        def calc_ratio(self, ref, comp):
+            calc_func = ""
+            if isinstance(ref, ROOT.TEfficiency):
+                calc_func = "calculate_ratio_tefficiency"
+            elif isinstance(ref, ROOT.TH1):
+                calc_func = "calculate_ratio_hist"
+            return getattr(self, calc_func)(ref, comp)
+
         ratios = []
-        if isinstance(self.compare, list):
+        
+        if isinstance(self.reference, list):
+            for i, ref in enumerate(self.reference):
+                ratios.append(calc_ratio(self, ref, self.compare[i]))
+
+        elif isinstance(self.compare, list):
             for obj in self.compare:
-                ratios.append(getattr(self, calc_func)(obj))
+                ratios.append(calc_ratio(self, self.reference, obj))
         else:
-            ratios.append(getattr(self, calc_func)(self.compare))
+            ratios.append(calc_ratio(self, self.reference, self.compare))
         return ratios
 
-    def calculate_ratio_tefficiency(self, compare):
-        ratio_graph = self.reference.GetPaintedGraph().Clone("ratio_" + compare.GetName())
+    def calculate_ratio_tefficiency(self, reference, compare):
+        ratio_graph = reference.GetPaintedGraph().Clone("ratio_" + compare.GetName())
         nbins = ratio_graph.GetN()
         for b in range(nbins):
             eff_compare = compare.GetEfficiency(b + 1)
-            eff_reference = self.reference.GetEfficiency(b + 1)
+            eff_reference = reference.GetEfficiency(b + 1)
             if eff_reference == 0. and eff_compare == 0.:
                 ratio = 1.
             elif eff_reference == 0. and eff_compare != 0.:
@@ -45,12 +54,12 @@ class RatioCalculator(object):
             ratio_graph.SetPoint(b, x, ratio)
         return ratio_graph
 
-    def calculate_ratio_hist(self, compare):
+    def calculate_ratio_hist(self, reference, compare):
         if self.rebin:
             compare = ht.rebin(compare, self.rebin)
-            self.reference = ht.rebin(self.reference, self.rebin)
+            reference = ht.rebin(reference, self.rebin)
         ratio_hist = compare.Clone("ratio_" + compare.GetName())
-        ratio_hist.Divide(self.reference)
+        ratio_hist.Divide(reference)
         fm.set_title_y(ratio_hist, "ratio")
         return ratio_hist
 
@@ -80,12 +89,24 @@ class RatioPlotter(object):
 
     def make_ratio_histogram(self, ratios):
         if self.plot_config:
-            self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+            if isinstance(self.reference, list):
+                self.plot_config.xtitle = self.reference[0].GetXaxis().GetTitle()
+            else:
+                self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
             if len(self.compare) > 1:
                 colors = get_colors(self.compare)
                 self.plot_config.color = colors
             self.plot_config.ordering = None
         canvas = pt.plot_histograms(ratios, self.plot_config)
+        # self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+        # if len(self.compare) > 1:
+        #     colors = get_colors(self.compare)
+        #     self.plot_config.color = colors
+        # self.plot_config.ordering = None
+        # self.plot_config.logy = False
+        # self.plot_config.ymin = 0.
+        # self.plot_config.ymax = 2.
+        #canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
         return canvas
 
     def add_uncertainty_to_canvas(self, canvas, hist, plot_config, n_systematics = 1):
@@ -111,8 +132,15 @@ class RatioPlotter(object):
         colors = None
         if len(self.compare) > 1:
             colors = get_colors(self.compare)
-        self.reference.Draw("ap")
-        self.plot_config.xtitle = self.reference.GetPaintedGraph().GetXaxis().GetTitle()
+        if isinstance(self.reference, list):
+            self.reference[0].Draw("ap")
+            for i in range(len(self.reference)):
+                self.reference[i+1].Draw("psame")
+                self.plot_config.xtitle = self.reference[0].GetPaintedGraph().GetXaxis().GetTitle()
+        else:
+            self.reference.Draw("ap")
+            self.plot_config.xtitle = self.reference.GetPaintedGraph().GetXaxis().GetTitle()
+                        
         self.plot_config.ytitle = "ratio"
         index = ROOT.gROOT.GetListOfCanvases().IndexOf(c)
         ROOT.gROOT.GetListOfCanvases().RemoveAt(index)

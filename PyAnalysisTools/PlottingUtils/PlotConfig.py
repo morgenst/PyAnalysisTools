@@ -1,4 +1,5 @@
 import ROOT
+import math
 import re
 from math import log10
 from array import array
@@ -53,6 +54,8 @@ class PlotConfig(object):
             if k == "significance_config":
                 self.set_additional_config("significance_config", **v)
                 continue
+            if "xmin" in k or "xmax" in k:
+                v = eval(str(v))
             if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
                 setattr(self, k.lower(), eval(v))
                 continue
@@ -73,7 +76,7 @@ class PlotConfig(object):
         if not hasattr(self, attr):
             return False
         return getattr(self, attr) == value
-        
+
     def set_additional_config(self, attr_name, **kwargs):
         kwargs.setdefault("name", "ratio")
         kwargs.setdefault("dist", "ratio")
@@ -126,7 +129,7 @@ class PlotConfig(object):
         :rtype: list
         """
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
-                "merge_mc_campaigns", "signal_extraction", "ratio"]
+                "merge_mc_campaigns", "signal_extraction", "ratio", "cuts", "enable_legend"]
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
@@ -197,14 +200,33 @@ class ProcessConfig(object):
 
 
 def expand_plot_config(plot_config):
-    if not isinstance(plot_config.dist, list):
-        _logger.debug("tried to expand plot config with single distribution")
-        return [plot_config]
+    # if not isinstance(plot_config.dist, list):
+    #     _logger.debug("tried to expand plot config with single distribution")
+    #     return [plot_config]
     plot_configs = []
-    for dist in plot_config.dist:
-        tmp_config = copy(plot_config)
-        tmp_config.dist = dist
-        plot_configs.append(tmp_config)
+    if hasattr(plot_config, "cuts_ref"):
+        if "dummy1" in plot_config.cuts_ref:
+            #for cuts in plot_config.cuts_ref.values():
+            for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
+                if item not in plot_config.cuts_ref:
+                    continue
+                cuts = plot_config.cuts_ref[item]
+                tmp_config = copy(plot_config)
+                tmp_config.cuts = cuts
+                plot_configs.append(tmp_config)
+        else:
+            for cut_name, cut in plot_config.cuts_ref.iteritems():
+                cuts = plot_config.cuts_ref[cut_name]
+                tmp_config = copy(plot_config)
+                tmp_config.cuts = plot_config.cuts + cuts
+                tmp_config.enable_cut_ref_merge = True
+                tmp_config.name += "_{:s}_".format(cut_name)
+                plot_configs.append(tmp_config)
+    else:
+        for dist in plot_config.dist:
+            tmp_config = copy(plot_config)
+            tmp_config.dist = dist
+            plot_configs.append(tmp_config)
     return plot_configs
 
 
@@ -293,7 +315,6 @@ def _parse_draw_option(plot_config, process_config):
         draw_option = plot_config.draw
     if process_config and hasattr(process_config, "draw"):
         draw_option = process_config.draw
-
     return draw_option
 
 
