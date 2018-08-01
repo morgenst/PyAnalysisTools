@@ -20,11 +20,10 @@ class DatasetPrinter(object):
 
     def get_ds_info(self, dsid):
         info = list(self.xs_handle.retrieve_xs_info(dsid))
-        print info
         try:
             info.insert(0, self.xs_handle.get_ds_info(dsid, 'process_name'))
         except KeyError:
-            print "cout not find xsec for ", dsid
+            #_logger.warning("cout not find xsec for " + dsid)
             info.insert(0, -1.)
         info.insert(0, dsid)
         return info
