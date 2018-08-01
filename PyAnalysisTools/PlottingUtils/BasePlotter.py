@@ -16,7 +16,7 @@ class BasePlotter(object):
         self.plot_configs = None
         self.lumi = None
         kwargs.setdefault("batch", True)
-        kwargs.setdefault("process_config_files", None) #deprecated, for now kept for backwards compatibility
+        kwargs.setdefault("process_config_file", None) #deprecated, for now kept for backwards compatibility
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
