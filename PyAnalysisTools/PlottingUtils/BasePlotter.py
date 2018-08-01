@@ -30,6 +30,9 @@ class BasePlotter(object):
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
+        self.use_process_info = "process"
+        if self.split_mc_campaigns:
+            self.use_process_info = "process_with_mc_campaign"
         if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) \
                 and self.process_config_files is not None:
             self.add_mc_campaigns()
@@ -40,9 +43,13 @@ class BasePlotter(object):
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
-        print self.file_handles[0].process
 
     def parse_process_config(self):
+        """
+        Parse process config file and build process configs
+        :return: list of build process configs from config file
+        :rtype: list
+        """
         if self.process_config_files is None and self.process_config_file is not None:
             return None
         if self.process_config_file is not None:
@@ -174,22 +181,25 @@ class BasePlotter(object):
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
             except Exception as e:
-                _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
-                                                                                               plot_config.name))
+                _logger.error("Catched exception for process "
+                              "{:s} and plot_config {:s}".format(getattr(file_handle, self.use_process_info),
+                                                                 plot_config.name))
                 print traceback.print_exc()
                 return None
             #hist.SetName(hist.GetName() + "_" + file_handle.process)
-            _logger.debug("try to access config for process %s" % file_handle.process)
+            _logger.debug("try to access config for process %s" % getattr(file_handle, self.use_process_info))
             if self.process_configs is None:
                 return hist
-            process_config = find_process_config(file_handle.process_with_mc_campaign, self.process_configs)
+            process_config = find_process_config(getattr(file_handle, self.use_process_info), self.process_configs)
             if process_config is None:
-                _logger.error("Could not find process config for {:s}".format(file_handle.process))
+                _logger.error("Could not find process config for {:s}".format(getattr(file_handle,
+                                                                                      self.use_process_info)))
                 return None
 
         except Exception as e:
-            _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
-                                                                                           plot_config.name))
+            _logger.error("Catched exception for "
+                          "process {:s} and plot_config {:s}".format(getattr(file_handle, self.use_process_info),
+                                                                     plot_config.name))
             print traceback.print_exc()
             return None
         return hist

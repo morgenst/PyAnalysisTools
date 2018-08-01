@@ -140,7 +140,7 @@ class FileHandle(object):
                     tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
                                  self.dataset_info.values())
                 if len(tmp) == 1:
-                    self.mc = True
+                    self.is_mc = True
                     return tmp[0].process_name
             if process_name.isdigit():
                 self.is_data = True
