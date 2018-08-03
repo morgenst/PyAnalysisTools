@@ -90,7 +90,7 @@ class FitterPerSlice(object):
            self.output_handle.register_object(canvas_slice)
            self.fill_parameter_collection(model, parameter_collection)
        #make plot book of individual fits
-       self.output_handle.set_n_plots_per_page(30)
+       self.output_handle.set_n_plots_per_page(len(list_of_slices_and_bin_center))
        self.output_handle.set_plot_book_name("individual_fit_" + variable_config["dist"])
        self.output_handle.make_plot_book()
        #make plots of individual parameters
