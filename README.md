@@ -1,6 +1,6 @@
 # PyAnalysisTools
 
-[![pipeline status](https://gitlab.cern.ch/morgens/PyAnalysisTools/badges/master/pipeline.svg)](https://gitlab.cern.ch/morgens/PyAnalysisTools/commits/master)
+[![pipeline status](https://gitlab.cern.ch/ELBrain/PyAnalysisTools/badges/master/pipeline.svg)](https://gitlab.cern.ch/ELBrain/PyAnalysisTools/commits/master)
 
 Collection of analysis tools for ROOT based data analysis with primary focus on ATLAS data analysis.
 

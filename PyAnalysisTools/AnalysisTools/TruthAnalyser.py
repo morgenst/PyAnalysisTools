@@ -1,3 +1,5 @@
+import traceback
+
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import PlottingTools as PT
@@ -340,7 +342,6 @@ class LQTruthAnalyser(object):
         self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
         self.current_process_config = None
         self.setup()
-        self.book_histograms()
         self.book_plot_configs()
         #self.build_references()
 
@@ -349,27 +350,66 @@ class LQTruthAnalyser(object):
         ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
         ROOT.xAOD.Init().ignore()
 
-    def book_histograms(self):
+    def book_histograms(self, process_id):
         def book_histogram(name, n_bins, x_min, x_max):
-            for process_id in self.processes.keys():
-                if process_id not in self.histograms:
-                    self.histograms[process_id] = dict()
-                self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
-                                                              x_max)
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
+                                                          x_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
         #book_histogram("LQ_counter", 2, -0.5, 1.5)
         #book_histogram("decay2_mode", 4, -1.5, 2.5)
-        book_histogram("lepton1_e", 50, 0., 1500.)
+        book_histogram("lepton1_status", 150, -0.5, 149.5)
+        book_histogram("lepton1_e", 100, 0., 2500.)
+        book_histogram("lepton1_pt", 100, 0., 2500.)
         book_histogram("lepton1_eta", 50, -2.5, 2.5)
         book_histogram("lepton1_phi", 50, -3.2, 3.2)
-        book_histogram("lepton2_e", 50, 0., 1500.)
+        book_histogram("lepton1_e_resonant", 100, 0., 2500.)
+        book_histogram("lepton1_pt_resonant", 100, 0., 2500.)
+        book_histogram("lepton1_eta_resonant", 50, -2.5, 2.5)
+        book_histogram("lepton1_phi_resonant", 50, -3.2, 3.2)
+        book_histogram("lepton1_e_non_resonant", 100, 0., 2500.)
+        book_histogram("lepton1_pt_non_resonant", 100, 0., 2500.)
+        book_histogram("lepton1_eta_non_resonant", 50, -2.5, 2.5)
+        book_histogram("lepton1_phi_non_resonant", 50, -3.2, 3.2)
+        book_histogram("lepton2_status", 150, -0.5, 149.5)
+        book_histogram("lepton2_e", 100, 0., 2500.)
+        book_histogram("lepton2_pt", 100, 0., 2500.)
         book_histogram("lepton2_eta", 50, -2.5, 2.5)
         book_histogram("lepton2_phi", 50, -3.2, 3.2)
-        book_histogram("quark_e", 50, 0., 1500.)
+        book_histogram("lepton2_e_resonant", 100, 0., 2500.)
+        book_histogram("lepton2_pt_resonant", 100, 0., 2500.)
+        book_histogram("lepton2_eta_resonant", 50, -2.5, 2.5)
+        book_histogram("lepton2_phi_resonant", 50, -3.2, 3.2)
+        book_histogram("lepton2_e_non_resonant", 100, 0., 2500.)
+        book_histogram("lepton2_pt_non_resonant", 100, 0., 2500.)
+        book_histogram("lepton2_eta_non_resonant", 50, -2.5, 2.5)
+        book_histogram("lepton2_phi_non_resonant", 50, -3.2, 3.2)
+        book_histogram("quark_status", 150, -0.5, 149.5)
+        book_histogram("quark_e", 100, 0., 2500.)
+        book_histogram("quark_pt", 100, 0., 2500.)
         book_histogram("quark_eta", 50, -2.5, 2.5)
         book_histogram("quark_phi", 50, -3.2, 3.2)
+        book_histogram("quark_pdgId", 10, -0.5, 9.5)
+        book_histogram("quark_e_resonant", 100, 0., 2500.)
+        book_histogram("quark_pt_resonant", 100, 0., 2500.)
+        book_histogram("quark_eta_resonant", 50, -2.5, 2.5)
+        book_histogram("quark_phi_resonant", 50, -3.2, 3.2)
+        book_histogram("quark_e_non_resonant", 100, 0., 2500.)
+        book_histogram("quark_pt_non_resonant", 100, 0., 2500.)
+        book_histogram("quark_eta_non_resonant", 50, -2.5, 2.5)
+        book_histogram("quark_phi_non_resonant", 50, -3.2, 3.2)
+        book_histogram("lq_mass", 100, 500, 4500)
         book_histogram("inv_mass", 100, 500, 4500)
         book_histogram("inv_mass_min", 100, 500, 4500)
         book_histogram("inv_mass_max", 100, 500, 4500)
+        book_histogram("inv_mass_schan", 100, 500, 4500)
+        book_histogram("inv_mass_min_schan", 100, 500, 4500)
+        book_histogram("inv_mass_max_schan", 100, 500, 4500)
+        book_histogram("inv_mass_tchan", 100, 500, 4500)
+        book_histogram("inv_mass_min_tchan", 100, 500, 4500)
+        book_histogram("inv_mass_max_tchan", 100, 500, 4500)
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
@@ -381,26 +421,75 @@ class LQTruthAnalyser(object):
 
         book_plot_config("resonance_counter_decay1", "Number of events")
         book_plot_config("resonance_decay1_child_pdg_ids", "pdg ID")
+        book_plot_config("lepton1_status", "lepton 1 status")
         book_plot_config("lepton1_e", "lepton 1 E [GeV]")
+        book_plot_config("lepton1_pt", "lepton 1 p_{T} [GeV]")
         book_plot_config("lepton1_eta", "lepton1 #eta")
         book_plot_config("lepton1_phi", "lepton1 #phi")
 
+        book_plot_config("lepton1_e_resonant", "lepton 1 E [GeV] (resonant)")
+        book_plot_config("lepton1_pt_resonant", "lepton 1 p_{T} [GeV] (resonant)")
+        book_plot_config("lepton1_eta_resonant", "lepton 1 #eta (resonant)")
+        book_plot_config("lepton1_phi_resonant", "lepton 1 #phi (resonant)")
+        
+        book_plot_config("lepton1_e_non_resonant", "lepton 1 E [GeV] (non-resonant)")
+        book_plot_config("lepton1_pt_non_resonant", "lepton 1 p_{T} [GeV] (non-resonant)")
+        book_plot_config("lepton1_eta_non_resonant", "lepton 1 #eta (non-resonant)")
+        book_plot_config("lepton1_phi_non_resonant", "lepton 1 #phi (non-resonant)")
+        
+        book_plot_config("lepton2_status", "lepton 2 status")
         book_plot_config("lepton2_e", "lepton 2 E [GeV]")
+        book_plot_config("lepton2_pt", "lepton 2 p_{T} [GeV]")
         book_plot_config("lepton2_eta", "lepton 2 #eta")
         book_plot_config("lepton2_phi", "lepton 2 #phi")
 
+        book_plot_config("lepton2_e_resonant", "lepton 2 E [GeV] (resonant)")
+        book_plot_config("lepton2_pt_resonant", "lepton 2 p_{T} [GeV] (resonant)")
+        book_plot_config("lepton2_eta_resonant", "lepton 2 #eta (resonant)")
+        book_plot_config("lepton2_phi_resonant", "lepton 2 #phi (resonant)")
+
+        book_plot_config("lepton2_e_non_resonant", "lepton 2 E [GeV] (non-resonant)")
+        book_plot_config("lepton2_pt_non_resonant", "lepton 2 p_{T} [GeV] (non-resonant)")
+        book_plot_config("lepton2_eta_non_resonant", "lepton 2 #eta (non-resonant)")
+        book_plot_config("lepton2_phi_non_resonant", "lepton 2 #phi (non-resonant)")
+
+        book_plot_config("quark_status", "quark status")
         book_plot_config("quark_e", "quark E [GeV]")
+        book_plot_config("quark_pt", "quark p_{T} [GeV]")
         book_plot_config("quark_eta", "quark #eta")
         book_plot_config("quark_phi", "quark #phi")
+
+        book_plot_config("quark_e_resonant", "quark E [GeV] (resonant)")
+        book_plot_config("quark_pt_resonant", "quark p_{T} [GeV] (resonant)")
+        book_plot_config("quark_eta_resonant", "quark #eta (resonant)")
+        book_plot_config("quark_phi_resonant", "quark #phi (resonant)")
+
+        book_plot_config("quark_e_non_resonant", "quark E [GeV] (non-resonant)")
+        book_plot_config("quark_pt_non_resonant", "quark p_{T} [GeV] (non-resonant)")
+        book_plot_config("quark_eta_non_resonant", "quark #eta (non-resonant)")
+        book_plot_config("quark_phi_non_resonant", "quark #phi (non-resonant)")
+
+        book_plot_config("quark_pdgId", "quark pdg ID")
 
         book_plot_config("inv_mass", "M_{lq} [GeV]")
         book_plot_config("inv_mass_min", "M_{lq}^{min} [GeV]")
         book_plot_config("inv_mass_max", "M_{lq}^{max} [GeV]")
 
+        book_plot_config("inv_mass_schan", "M_{lq} [GeV] (resonant)")
+        book_plot_config("inv_mass_min_schan", "M_{lq}^{min} [GeV] (resonant)")
+        book_plot_config("inv_mass_max_schan", "M_{lq}^{max} [GeV] (resonant)")
+
+        book_plot_config("lq_mass", "LQ truth mass [GeV]")
+
+        book_plot_config("inv_mass_tchan", "M_{lq} [GeV] (non resonant)")
+        book_plot_config("inv_mass_min_tchan", "M_{lq}^{min} [GeV] (non resonant)")
+        book_plot_config("inv_mass_max_tchan", "M_{lq}^{max} [GeV] (non resonant)")
+
     def run(self):
         for input_file in self.input_files:
             self.analyse_file(input_file)
         self.plot_histograms()
+        #exit(0)
         self.output_handle.write_and_close()
 
     def build_references(self):
@@ -428,6 +517,7 @@ class LQTruthAnalyser(object):
                     pc_ref = copy(pc)
                     pc_ref.color = ROOT.kRed
                     PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
+                print canvas, hist_name, hist, process_id
                 FT.decorate_canvas(canvas, pc)
                 self.output_handle.register_object(canvas, str(process_id))
 
@@ -445,21 +535,13 @@ class LQTruthAnalyser(object):
 
     def analyse_file(self, input_file):
         def run_schannel():
-            resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
-            prod_vtx = LQ[0].prodVtxLink().outgoingParticleLinks()
-            try:
-                lepton_2 = filter(lambda particle: abs(particle.pdgId()) == 11 or
+            self.is_schan = True
+            leptons = filter(lambda particle: abs(particle.pdgId()) == 11 or
                                                    abs(particle.pdgId()) == 13 or
-                                                   abs(particle.pdgId()) == 15, prod_vtx)[0]
-                self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
-                self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
-                self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
-            except IndexError:
-                print "Could not find any second lepton for first resonance decay in process", process_id
-                return
-            except KeyError:
-                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
-                return
+                                                   abs(particle.pdgId()) == 15, truth_particles)
+            stable_leptons = filter(lambda p: p.status() == 1, leptons)
+            lepton_prod_vertex = filter(lambda p: p.prodVtxLink().outgoingParticleLinks(), stable_leptons)
+            resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
             try:
                 lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or
                                                    abs(particle.pdgId()) == 13 or
@@ -468,36 +550,76 @@ class LQTruthAnalyser(object):
                 self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
                 self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())
                 self.histograms[process_id]["lepton1_phi"].Fill(lepton_1.phi())
+                self.histograms[process_id]["lepton1_e_resonant"].Fill(lepton_1.e() / 1000.)
+                self.histograms[process_id]["lepton1_eta_resonant"].Fill(lepton_1.eta())
+                self.histograms[process_id]["lepton1_phi_resonant"].Fill(lepton_1.phi())
                 self.histograms[process_id]["quark_e"].Fill(quark_1.e() / 1000.)
                 self.histograms[process_id]["quark_eta"].Fill(quark_1.eta())
                 self.histograms[process_id]["quark_phi"].Fill(quark_1.phi())
+                self.histograms[process_id]["quark_e_resonant"].Fill(quark_1.e() / 1000.)
+                self.histograms[process_id]["quark_eta_resonant"].Fill(quark_1.eta())
+                self.histograms[process_id]["quark_phi_resonant"].Fill(quark_1.phi())
 
-                tlv_lepton_1 = ROOT.TLorentzVector()
-                tlv_lepton_1.SetPtEtaPhiM(lepton_1.e(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
-                tlv_lepton_2 = ROOT.TLorentzVector()
-                tlv_lepton_2.SetPtEtaPhiM(lepton_2.e(), lepton_2.eta(), lepton_2.phi(), lepton_2.m())
-                tlv_quark_1 = ROOT.TLorentzVector()
-                tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
-                self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
-                mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
-                mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
-                if mass1 > mass2:
-                    self.histograms[process_id]["inv_mass_max"].Fill(mass1)
-                    self.histograms[process_id]["inv_mass_min"].Fill(mass2)
-                else:
-                    self.histograms[process_id]["inv_mass_max"].Fill(mass2)
-                    self.histograms[process_id]["inv_mass_min"].Fill(mass1)
             except IndexError:
                 print "Could not find any first lepton for first resonance decay in process", process_id
                 return
 
+            try:
+                lepton_2 = filter(lambda particle: particle.pdgId() == -1*lepton_1.pdgId(), truth_particles)[0]
+                self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
+                self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
+                self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
+                self.histograms[process_id]["lepton2_e_resonant"].Fill(lepton_2.e() / 1000.)
+                self.histograms[process_id]["lepton2_eta_resonant"].Fill(lepton_2.eta())
+                self.histograms[process_id]["lepton2_phi_resonant"].Fill(lepton_2.phi())
+            except IndexError:
+                print "Could not find any second lepton for first resonance decay in process", process_id
+                return
+            except KeyError:
+                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
+                return
+            tlv_lepton_1 = ROOT.TLorentzVector()
+            tlv_lepton_1.SetPxPyPzE(lepton_1.px(), lepton_1.py(), lepton_1.pz(), lepton_1.e())
+            tlv_lepton_2 = ROOT.TLorentzVector()
+            tlv_lepton_2.SetPxPyPzE(lepton_2.px(), lepton_2.py(), lepton_2.pz(), lepton_2.e())
+            tlv_quark_1 = ROOT.TLorentzVector()
+            tlv_quark_1.SetPxPyPzE(quark_1.px(), quark_1.py(), quark_1.pz(), quark_1.e())
+            self.histograms[process_id]["lepton1_pt"].Fill(tlv_lepton_1.Pt() / 1000.)
+            self.histograms[process_id]["lepton1_pt_resonant"].Fill(tlv_lepton_1.Pt() / 1000.)
+            self.histograms[process_id]["lepton2_pt"].Fill(tlv_lepton_2.Pt() / 1000.)
+            self.histograms[process_id]["lepton2_pt_resonant"].Fill(tlv_lepton_2.Pt() / 1000.)
+            self.histograms[process_id]["quark_pt"].Fill(tlv_quark_1.Pt() / 1000.)
+            self.histograms[process_id]["quark_pt_resonant"].Fill(tlv_quark_1.Pt() / 1000.)
+            self.histograms[process_id]["inv_mass"].Fill((tlv_lepton_1 + tlv_quark_1).M() / 1000.)
+            self.histograms[process_id]["lepton1_status"].Fill(lepton_1.status())
+            self.histograms[process_id]["lepton2_status"].Fill(lepton_2.status())
+            self.histograms[process_id]["quark_status"].Fill(quark_1.status())
+            self.histograms[process_id]["quark_pdgId"].Fill(abs(quark_1.pdgId()))
+
+            mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
+            mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
+            if mass1 > mass2:
+                self.histograms[process_id]["inv_mass_max"].Fill(mass1)
+                self.histograms[process_id]["inv_mass_min"].Fill(mass2)
+                self.histograms[process_id]["inv_mass_max_schan"].Fill(mass1)
+                self.histograms[process_id]["inv_mass_min_schan"].Fill(mass2)
+            else:
+                self.histograms[process_id]["inv_mass_max"].Fill(mass2)
+                self.histograms[process_id]["inv_mass_min"].Fill(mass1)
+                self.histograms[process_id]["inv_mass_max_schan"].Fill(mass2)
+                self.histograms[process_id]["inv_mass_min_schan"].Fill(mass1)
+
         def run_tchannel():
+            self.is_tchan = True
             LQ_decay_particles = filter(lambda p: p.status() == 23, truth_particles)
             prod_vtx = LQ_decay_particles[0].prodVtxLink().outgoingParticleLinks()
 
             leptons = filter(lambda particle: abs(particle.pdgId()) == 11 or
                                                abs(particle.pdgId()) == 13 or
                                                abs(particle.pdgId()) == 15, prod_vtx)
+            if len(leptons) < 2:
+                print "PROBLEM"
+                return
             lepton_1 = leptons[0]
             lepton_2 = leptons[1]
             quark_1 = filter(lambda particle: abs(particle.pdgId()) in range(1, 6), prod_vtx)[0]
@@ -510,44 +632,61 @@ class LQTruthAnalyser(object):
             self.histograms[process_id]["lepton2_e"].Fill(lepton_2.e() / 1000.)
             self.histograms[process_id]["lepton2_eta"].Fill(lepton_2.eta())
             self.histograms[process_id]["lepton2_phi"].Fill(lepton_2.phi())
-            
+            self.histograms[process_id]["lepton1_status"].Fill(lepton_1.status())
+            self.histograms[process_id]["lepton2_status"].Fill(lepton_2.status())
+            self.histograms[process_id]["quark_status"].Fill(quark_1.status())
+            self.histograms[process_id]["quark_pdgId"].Fill(abs(quark_1.pdgId()))
+            self.histograms[process_id]["lepton1_e_non_resonant"].Fill(lepton_1.e() / 1000.)
+            self.histograms[process_id]["lepton1_eta_non_resonant"].Fill(lepton_1.eta())
+            self.histograms[process_id]["lepton1_phi_non_resonant"].Fill(lepton_1.phi())
+            self.histograms[process_id]["lepton2_e_non_resonant"].Fill(lepton_2.e() / 1000.)
+            self.histograms[process_id]["lepton2_eta_non_resonant"].Fill(lepton_2.eta())
+            self.histograms[process_id]["lepton2_phi_non_resonant"].Fill(lepton_2.phi())
+            self.histograms[process_id]["quark_e_non_resonant"].Fill(quark_1.e() / 1000.)
+            self.histograms[process_id]["quark_eta_non_resonant"].Fill(quark_1.eta())
+            self.histograms[process_id]["quark_phi_non_resonant"].Fill(quark_1.phi())
             tlv_lepton_1 = ROOT.TLorentzVector()
-            tlv_lepton_1.SetPtEtaPhiM(lepton_1.e(), lepton_1.eta(), lepton_1.phi(), lepton_1.m())
+            tlv_lepton_1.SetPxPyPzE(lepton_1.px(), lepton_1.py(), lepton_1.pz(), lepton_1.e())
             tlv_lepton_2 = ROOT.TLorentzVector()
-            tlv_lepton_2.SetPtEtaPhiM(lepton_2.e(), lepton_2.eta(), lepton_2.phi(), lepton_2.m())
+            tlv_lepton_2.SetPxPyPzE(lepton_2.px(), lepton_2.py(), lepton_2.pz(), lepton_2.e())
             tlv_quark_1 = ROOT.TLorentzVector()
-            tlv_quark_1.SetPtEtaPhiM(quark_1.e(), quark_1.eta(), quark_1.phi(), quark_1.m())
+            tlv_quark_1.SetPxPyPzE(quark_1.px(), quark_1.py(), quark_1.pz(), quark_1.e())
+
+            self.histograms[process_id]["lepton1_pt_non_resonant"].Fill(tlv_lepton_1.Pt() / 1000.)
+            self.histograms[process_id]["lepton1_pt"].Fill(tlv_lepton_1.Pt() / 1000.)
+            self.histograms[process_id]["lepton2_pt"].Fill(tlv_lepton_2.Pt() / 1000.)
+            self.histograms[process_id]["lepton2_pt_non_resonant"].Fill(tlv_lepton_2.Pt() / 1000.)
+            self.histograms[process_id]["quark_pt"].Fill(tlv_quark_1.Pt() / 1000.)
+            self.histograms[process_id]["quark_pt_non_resonant"].Fill(tlv_quark_1.Pt() / 1000.)
 
             mass1 = (tlv_lepton_1 + tlv_quark_1).M() / 1000.
             mass2 = (tlv_lepton_2 + tlv_quark_1).M() / 1000.
-            print "tchannel: ", mass1, "\t", mass2
-
             if mass1 > mass2:
                 self.histograms[process_id]["inv_mass_max"].Fill(mass1)
                 self.histograms[process_id]["inv_mass_min"].Fill(mass2)
+                self.histograms[process_id]["inv_mass_max_tchan"].Fill(mass1)
+                self.histograms[process_id]["inv_mass_min_tchan"].Fill(mass2)
             else:
-                self.histograms[process_id]["inv_mass_max"].Fill(mass2)
-                self.histograms[process_id]["inv_mass_min"].Fill(mass1)
-
+                self.histograms[process_id]["inv_mass_max_tchan"].Fill(mass2)
+                self.histograms[process_id]["inv_mass_min_tchan"].Fill(mass1)
+            
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
-        no_LQ_counter = 0
         for entry in xrange(tree.GetEntries()):
-            #for entry in xrange(100):
+        #for entry in xrange(1):
             tree.GetEntry(entry)
+            #tree.GetEntry(2)
             process_id = tree.EventInfo.runNumber()
-            # if self.current_process_config is None:
-            #     self.current_process_config = self.processes[process_id]
+            if process_id not in self.histograms:
+                self.book_histograms(process_id)
             truth_particles = tree.TruthParticles
-            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 42, truth_particles)
-            #self.histograms[process_id]["resonance_counter_decay1"].Fill(1)
+            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 1101 or p.pdgId() == 42, truth_particles)
+            map(lambda p: self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.), LQ)
             if len(LQ) == 0:
                 run_tchannel()
             else:
                 run_schannel()
-
-        print "no LQ counter: ", no_LQ_counter
 
 
 class BcTruthAnalyser(object):
@@ -573,13 +712,14 @@ class BcTruthAnalyser(object):
         ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
         ROOT.xAOD.Init().ignore()
 
-    def book_histograms(self):
+    def book_histograms(self, process_id):
         def book_histogram(name, n_bins, x_min, x_max):
-            for process_id in self.processes.keys():
-                if process_id not in self.histograms:
-                    self.histograms[process_id] = dict()
-                self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
-                                                              x_max)
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
+                                                          x_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
 
         book_histogram("leading_lepton_e", 50, 0., 50.)
         book_histogram("subleading_lepton_e", 50, 0., 50.)
@@ -605,6 +745,12 @@ class BcTruthAnalyser(object):
         book_histogram("jpsi_lepton2_eta", 50, -3.2, 3.2)
         book_histogram("jpsi_lepton2_phi", 50, -3.2, 3.2)
         book_histogram("jpsi_lepton2_pdgId", 41, -20.5, 20.5)
+        book_histogram("jpsi_muon_deta", 50, 0., 2.5)
+        book_histogram("jpsi_muon_dphi", 50, 0., 3.2)
+        book_histogram("jpsi_muon_dR", 50, 0., 0.8)
+        book_histogram("jpsi_tau_deta", 50, 0., 2.5)
+        book_histogram("jpsi_tau_dphi", 50, 0., 3.2)
+        book_histogram("jpsi_tau_dR", 50, 0., 0.8)
         book_histogram("jpsi_mass", 50, 0., 5.)
         book_histogram("B_mass_visible", 25, 2., 7.)
         book_histogram("B_mass", 50, 0., 10.)
@@ -653,6 +799,12 @@ class BcTruthAnalyser(object):
         book_plot_config("jpsi_lepton2_eta", "2^{nd} muon from J/#Psi decay #eta")
         book_plot_config("jpsi_lepton2_phi", "2^{nd} muon from J/#Psi decay #phi")
         book_plot_config("jpsi_lepton2_pdgId", "2^{nd} muon from J/#Psi decay PDG ID")
+        book_plot_config("jpsi_muon_deta", "#Delta#eta(J/#Psi, e/#mu)")
+        book_plot_config("jpsi_muon_dphi", "#Delta#phi(J/#Psi, e/#mu)")
+        book_plot_config("jpsi_muon_dR", "#DeltaR(J/#Psi, e/#mu)")
+        book_plot_config("jpsi_tau_deta", "#Delta#eta(J/#Psi, #tau)")
+        book_plot_config("jpsi_tau_dphi", "#Delta#phi(J/#Psi, #tau)")
+        book_plot_config("jpsi_tau_dR", "#DeltaR(J/#Psi, #tau)")
         book_plot_config("jpsi_mass", "M_{J/#Psi} [GeV]")
         book_plot_config("B_mass_visible", "visible M_{B} [GeV]")
         book_plot_config("B_mass", "M_{B} [GeV]")
@@ -765,12 +917,22 @@ class BcTruthAnalyser(object):
             self.histograms[process_id]["neutrino_eta"].Fill(resonance_neutrino.eta())
             self.histograms[process_id]["neutrino_phi"].Fill(resonance_neutrino.phi())
 
+            jpsi_tlv = ROOT.TLorentzVector()
+            jpsi_tlv.SetPxPyPzE(jpsi.px(), jpsi.py(), jpsi.pz(), jpsi.e() / 1000.)
+
             if abs(lepton.pdgId()) == 15:
                 third_muon = filter(lambda particle: abs(particle.pdgId()) == 13 or abs(particle.pdgId()) == 11,
                                     lepton.decayVtxLink().outgoingParticleLinks())[0]
                 self.histograms[process_id]["third_lepton_e"].Fill(third_muon.e() / 1000.)
                 self.histograms[process_id]["third_lepton_eta"].Fill(third_muon.eta())
                 self.histograms[process_id]["third_lepton_phi"].Fill(third_muon.phi())
+
+                thrird_tlv = ROOT.TLorentzVector()
+                thrird_tlv.SetPxPyPzE(third_muon.px(), third_muon.py(), third_muon.pz(), third_muon.e() / 1000.)
+
+                self.histograms[process_id]["jpsi_muon_deta"].Fill(abs(jpsi_tlv.Eta() - thrird_tlv.Eta()))
+                self.histograms[process_id]["jpsi_muon_dphi"].Fill(jpsi_tlv.DeltaPhi(thrird_tlv))
+                self.histograms[process_id]["jpsi_muon_dR"].Fill(jpsi_tlv.DeltaR(thrird_tlv))
 
                 tau_prod_vertex_link = lepton.prodVtxLink()
                 tau_decay_vertex_link = lepton.decayVtxLink()
@@ -780,7 +942,20 @@ class BcTruthAnalyser(object):
                 tau_decay_vertex = ROOT.TVector3(tau_decay_vertex_link.x(),
                                                  tau_decay_vertex_link.y(),
                                                  tau_decay_vertex_link.z())
+                tau_tlv = ROOT.TLorentzVector()
+                tau_tlv.SetPxPyPzE(lepton.px(), lepton.py(), lepton.pz(), lepton.e() / 1000.)
                 self.histograms[process_id]["tau_decay_length"].Fill((tau_decay_vertex - tau_prod_vertex).Mag())
+                self.histograms[process_id]["jpsi_tau_deta"].Fill(abs(jpsi_tlv.Eta() - tau_tlv.Eta()))
+                self.histograms[process_id]["jpsi_tau_dphi"].Fill(jpsi_tlv.DeltaPhi(tau_tlv))
+                self.histograms[process_id]["jpsi_tau_dR"].Fill(jpsi_tlv.DeltaR(tau_tlv))
+            else:
+                third_muon = lepton
+                thrird_tlv = ROOT.TLorentzVector()
+                thrird_tlv.SetPxPyPzE(lepton.px(), lepton.py(), lepton.pz(), lepton.e() / 1000.)
+                self.histograms[process_id]["jpsi_muon_deta"].Fill(abs(jpsi_tlv.Eta() - thrird_tlv.Eta()))
+                self.histograms[process_id]["jpsi_muon_dphi"].Fill(jpsi_tlv.DeltaPhi(thrird_tlv))
+                self.histograms[process_id]["jpsi_muon_dR"].Fill(jpsi_tlv.DeltaR(thrird_tlv))
+
             jpsi_decay_vtx = jpsi.decayVtxLink().outgoingParticleLinks()
 
             jpsi_muon1 = filter(lambda particle: abs(particle.pdgId()) == 13, jpsi_decay_vtx)[0]
@@ -809,8 +984,217 @@ class BcTruthAnalyser(object):
             lepton_tlv = ROOT.TLorentzVector()
             lepton_tlv.SetPxPyPzE(lepton.px(), lepton.py(), lepton.pz(), lepton.e())
             resonance_neutrino_tlv = ROOT.TLorentzVector()
-            resonance_neutrino_tlv.SetPxPyPzE(resonance_neutrino.px(), resonance_neutrino.py(), resonance_neutrino.pz(), resonance_neutrino.e())
+            resonance_neutrino_tlv.SetPxPyPzE(resonance_neutrino.px(), resonance_neutrino.py(),
+                                              resonance_neutrino.pz(), resonance_neutrino.e())
             self.histograms[process_id]["jpsi_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv).M() / 1000.)
             self.histograms[process_id]["B_mass_visible"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv).M() / 1000.)
             self.histograms[process_id]["B_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv + resonance_neutrino_tlv).M() / 1000.)
+
         print "N processed entries: ", n_entries, " and hist entries: ", self.histograms[process_id]["B_mass"].GetEntries()
+
+
+class TruthAnalyerT3M(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("selection", "None")
+        self.input_files = kwargs["input_files"]
+        self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        self.histograms = dict()
+        self.plot_configs = dict()
+        self.references = dict()
+        self.tree_name = "CollectionTree"
+        process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
+        self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
+        self.current_process_config = None
+        self.setup()
+        self.book_plot_configs()
+        self.build_references()
+        if kwargs["selection"] == "None":
+            self.pattern = ""
+        elif kwargs["selection"] == "low_pt":
+            self.pattern = "low_pt"
+        elif kwargs["selection"] == "low_p":
+            self.pattern = "low_p"
+
+
+    @staticmethod
+    def setup():
+        ROOT.gROOT.Macro('$ROOTCOREDIR/scripts/load_packages.C')
+        ROOT.xAOD.Init().ignore()
+
+    def book_histograms(self, process_id):
+        def book_histogram(name, n_bins, x_min, x_max):
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH1F("{:s}{:s}_{:d}".format(self.pattern, name, process_id), "",
+                                                          n_bins, x_min, x_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
+
+        def book_histogram_2d(name, n_bins_x, x_min, x_max, n_bins_y, y_min, y_max):
+            if process_id not in self.histograms:
+                self.histograms[process_id] = dict()
+            self.histograms[process_id][name] = ROOT.TH2F("{:s}{:s}_{:d}".format(self.pattern, name, process_id), "",
+                                                          n_bins_x, x_min, x_max,
+                                                          n_bins_y, y_min, y_max)
+            ROOT.SetOwnership(self.histograms[process_id][name], False)
+            self.histograms[process_id][name].SetDirectory(0)
+
+        book_histogram("tau_e", 50, 0., 100.)
+        book_histogram("tau_phi", 50, -3.2, 3.2)
+        book_histogram("tau_eta", 50, -4.0, 4.0)
+        book_histogram("muon_e", 20, 0., 20.)
+        book_histogram("muon_eta", 50, -4.0, 4.0)
+        book_histogram("muon_phi", 50, -3.2, 3.2)
+        book_histogram("lead_muon_e", 20, 0., 20.)
+        book_histogram("lead_muon_eta", 50, -4.0, 4.0)
+        book_histogram("lead_muon_phi", 50, -3.2, 3.2)
+        book_histogram("sub_lead_muon_eta", 50, -4.0, 4.0)
+        book_histogram("sub_lead_muon_phi", 50, -3.2, 3.2)
+        book_histogram("sub_lead_muon_e", 20, 0., 20.)
+        book_histogram("third_lead_muon_e", 20, 0., 20.)
+        book_histogram("third_lead_muon_eta", 50, -4.0, 4.0)
+        book_histogram("third_lead_muon_phi", 50, -3.2, 3.2)
+        book_histogram_2d("tau_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("lead_muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("sub_lead_muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+        book_histogram_2d("third_lead_muon_e_eta", 50, 0., 100., 50, -4.0, 4.0)
+
+    def book_plot_configs(self):
+        def book_plot_config(name, xtitle, **kwargs):
+            pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
+                            color=ROOT.kBlue, lumi=-1)
+            for args, val in kwargs.iteritems():
+                setattr(pc, args, val)
+            self.plot_configs[name] = pc
+
+        book_plot_config("tau_e", "#tau E [GeV]")
+        book_plot_config("tau_eta", "#tau #eta")
+        book_plot_config("tau_phi", "#tau #phi")
+        book_plot_config("muon_e", "#mu E [GeV]")
+        book_plot_config("muon_eta", "#mu #eta")
+        book_plot_config("muon_phi", "#mu #phi")
+        book_plot_config("lead_muon_e", "lead. #mu E [GeV]")
+        book_plot_config("lead_muon_eta", "lead. #mu #eta")
+        book_plot_config("lead_muon_phi", "lead. #mu #phi")
+        book_plot_config("sub_lead_muon_e", "sub-lead. #mu E [GeV]")
+        book_plot_config("sub_lead_muon_eta", "sub-lead. #mu #eta")
+        book_plot_config("sub_lead_muon_phi", "sub-lead. #mu #phi")
+        book_plot_config("third_lead_muon_e", "third-lead. #mu E [GeV]")
+        book_plot_config("third_lead_muon_eta", "third-lead. #mu #eta")
+        book_plot_config("third_lead_muon_phi", "third-lead. #mu #phi")
+        book_plot_config("tau_e_eta", "#tau E [GeV]", ytitle="#tau #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("muon_e_eta", "#mu E [GeV]", ytitle="#mu #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("lead_muon_e_eta", "lead. #mu E [GeV]", ytitle="lead. #mu #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("sub_lead_muon_e_eta", "sub-lead. #mu E [GeV]", ytitle="sub-lead. #mu #eta", ztitle="Events",
+                         draw_option="COLZ")
+        book_plot_config("third_lead_muon_e_eta", "third-lead. #mu E [GeV]", ytitle="third=lead. #mu #eta",
+                         ztitle="Events", draw_option="COLZ")
+
+    def run(self):
+        for input_file in self.input_files:
+            print input_file
+            try:
+                self.analyse_file(input_file)
+            except TypeError as e:
+                print traceback.print_exc()
+                print "Could not analyse {:s}".format(input_file)
+                continue
+        self.plot_histograms()
+        self.output_handle.write_and_close()
+
+    def build_references(self):
+        def find_br(process, mode):
+            decay2_mode = filter(lambda decay: sorted(decay[:-1], reverse=True) == mode, process.decay2_pdgid)[0]
+            return decay2_mode[-1]
+
+        for process_id, process in self.processes.iteritems():
+            reference_hist = ROOT.TH1F("decay_mode_reference_{:d}".format(process_id), "", 4, -1.5, 2.5)
+            reference_hist.SetBinContent(1, 0)
+            for mode_index in range(len(process.decay2_sorted)):
+                br = find_br(process, process.decay2_sorted[mode_index])
+                reference_hist.SetBinContent(mode_index + 2, br)
+            self.references[process_id] = reference_hist
+
+    def plot_histograms(self):
+        for process_id, histograms in self.histograms.iteritems():
+            for hist_name, hist in histograms.iteritems():
+                pc = self.plot_configs[hist_name]
+                if hist_name == "decay2_mode":
+                    pc.axis_labels = self.processes[process_id].get_bin_labels()
+                    pc.normalise = True
+                canvas = PT.plot_obj(hist, pc)
+                if hist_name == "decay2_mode":
+                    pc_ref = copy(pc)
+                    pc_ref.color = ROOT.kRed
+                    PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
+                FT.decorate_canvas(canvas, pc)
+                self.output_handle.register_object(canvas, str(process_id))
+
+    def analyse_file(self, input_file):
+        f = ROOT.TFile.Open(input_file)
+        tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
+        self.current_process_config = None
+        for entry in xrange(tree.GetEntries()):
+            tree.GetEntry(entry)
+            process_id = tree.EventInfo.runNumber()
+            if process_id not in self.histograms:
+                self.book_histograms(process_id)
+            if self.current_process_config is None:
+                self.current_process_config = self.processes[process_id]
+            truth_particles = tree.TruthParticles
+            tau_decay = filter(lambda p: p.pdgId() == 15, truth_particles)
+            if len(tau_decay) == 0:
+                print "Suspicious event. Could not find tau for process ", process_id
+                continue
+            muon_kinematics = list()
+            tau_decay_vertex = tau_decay[0].decayVtxLink().outgoingParticleLinks()
+            try:
+                muons = filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)
+                for i in range(3):
+                    tlv = ROOT.TLorentzVector()
+                    tlv.SetPxPyPzE(muons[i].px() / 1000., muons[i].py() / 1000., muons[i].pz() / 1000.,
+                                   muons[i].e() / 1000.)
+                    muon_kinematics.append([muons[i].e() / 1000.,
+                                           muons[i].eta(),
+                                           muons[i].phi(),
+                                           tlv.Pt()])
+            except IndexError:
+                print "Could not find any muon for first resonance decay in process", process_id
+                continue
+            muon_kinematics.sort(key=lambda i: i[0], reverse=True)
+
+            if self.pattern == "low_pt":
+                if muon_kinematics[1][3] < 4.:
+                    continue
+            if self.pattern == "low_p":
+                if abs(muon_kinematics[1][1]) > 2.7 and muon_kinematics[1][0] < 20.:
+                    continue
+                if abs(muon_kinematics[1][1]) < 2.7 and muon_kinematics[1][3] < 4.:
+                    continue
+            self.histograms[process_id]["tau_e"].Fill(tau_decay[0].e() / 1000.)
+            self.histograms[process_id]["tau_eta"].Fill(tau_decay[0].eta())
+            self.histograms[process_id]["tau_phi"].Fill(tau_decay[0].phi())
+            self.histograms[process_id]["tau_e_eta"].Fill(tau_decay[0].e() / 1000., tau_decay[0].eta())
+
+            for i in range(3):
+                self.histograms[process_id]["muon_e"].Fill(muon_kinematics[i][0])
+                self.histograms[process_id]["muon_eta"].Fill(muon_kinematics[i][1])
+                self.histograms[process_id]["muon_phi"].Fill(muon_kinematics[i][2])
+                self.histograms[process_id]["muon_e_eta"].Fill(muon_kinematics[i][0], muon_kinematics[i][1])
+            self.histograms[process_id]["lead_muon_e"].Fill(muon_kinematics[0][0])
+            self.histograms[process_id]["lead_muon_eta"].Fill(muon_kinematics[0][1])
+            self.histograms[process_id]["lead_muon_phi"].Fill(muon_kinematics[0][2])
+            self.histograms[process_id]["lead_muon_e_eta"].Fill(muon_kinematics[0][0], muon_kinematics[0][1])
+            self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_kinematics[1][0])
+            self.histograms[process_id]["sub_lead_muon_eta"].Fill(muon_kinematics[1][1])
+            self.histograms[process_id]["sub_lead_muon_phi"].Fill(muon_kinematics[1][2])
+            self.histograms[process_id]["sub_lead_muon_e_eta"].Fill(muon_kinematics[1][0], muon_kinematics[1][1])
+            self.histograms[process_id]["third_lead_muon_e"].Fill(muon_kinematics[2][0])
+            self.histograms[process_id]["third_lead_muon_eta"].Fill(muon_kinematics[2][1])
+            self.histograms[process_id]["third_lead_muon_phi"].Fill(muon_kinematics[2][2])
+            self.histograms[process_id]["third_lead_muon_e_eta"].Fill(muon_kinematics[2][0], muon_kinematics[2][1])
+        f.Close()

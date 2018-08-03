@@ -2,6 +2,7 @@ import root_numpy
 import numpy as np
 import pandas as pd
 import ROOT
+from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
@@ -9,13 +10,47 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
+from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
+
+
+class DataScaler(object):
+    def __init__(self, algo="default"):
+        self.scale_algo = algo
+
+    @staticmethod
+    def get_algos():
+        return ["default", "standard", "min_max"]
+
+    def apply_scaling(self, X, y):
+        le = LabelEncoder()
+        if y is not None:
+            y = le.fit_transform(y)
+        if self.scale_algo == "min_max":
+            return self.apply_min_max_scaler(X), y
+        elif self.scale_algo == "standard":
+            return self.apply_standard_scaler(X), y
+        elif self.scale_algo == "default":
+            return self.apply_min_max_scaler(X), y
+        else:
+            _logger.error("Invalid scaling algorithm requested: {:s}".format(self.scale_algo))
+            raise InvalidInputError()
+
+    @staticmethod
+    def apply_standard_scaler(X):
+        scaler = StandardScaler()
+        return scaler.fit_transform(X)
+
+    @staticmethod
+    def apply_min_max_scaler(X):
+        scaler = MinMaxScaler(feature_range=(0, 1))
+        return scaler.fit_transform(X)
 
 
 class Root2NumpyConverter(object):
     def __init__(self, branches):
         self.branches = branches
 
-    def convert_to_array(self, tree, selection="@object_pt.size()==1", max_events=None):
+    def convert_to_array(self, tree, selection="", max_events=None):
         data = root_numpy.tree2array(tree, branches=self.branches,
                                      selection=selection, start=0, stop=max_events)
         return data
@@ -30,7 +65,11 @@ class Root2NumpyConverter(object):
 
 class TrainingReader(object):
     def __init__(self, **kwargs):
-        self.input_file = FileHandle(file_name=kwargs["input_file"])
+        self.numpy_input = False
+        if len(kwargs["input_file"]) > 1 and kwargs["input_file"][0].endswith(".npy"):
+            self.numpy_input = True
+            return
+        self.input_file = FileHandle(file_name=kwargs["input_file"][0])
         self.signal_tree_names = kwargs["signal_tree_names"]
         self.bkg_tree_names = kwargs["bkg_tree_names"]
 

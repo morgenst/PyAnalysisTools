@@ -8,6 +8,28 @@ import ROOT
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 
 
+class SystematicsCategory(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault("name", "total")
+        kwargs.setdefault("systematics", "")
+        kwargs.setdefault("color", ROOT.kBlue)
+        self.name = kwargs["name"]
+        self.systematics = kwargs["systematics"]
+        self.color = kwargs["color"]
+
+    def contains_syst(self, systematic):
+        if self.name.lower() == "total":
+            return True
+        return any(map(lambda all_syst: all_syst in systematic, self.systematics))
+
+
+class FixedSystematics(object):
+    def __init__(self, **kwargs):
+        self.name = kwargs["name"]
+        self.weights = ["weight_{:s}__1down".format(kwargs["weight"]),
+                        "weight_{:s}__1up".format(kwargs["weight"])]
+
+
 class SystematicsAnalyser(BasePlotter):
     def __init__(self, **kwargs):
         kwargs.setdefault("ncpu", 1)
@@ -19,6 +41,10 @@ class SystematicsAnalyser(BasePlotter):
         self.systematic_variations = {}
         self.total_systematics = {}
         self.xs_handle = kwargs["xs_handle"]
+        self.syst_categories = [SystematicsCategory(name="Muon", systematics=["MUON_MS"]),
+                                SystematicsCategory(name="Electron", systematics=["EG_RESOLUTION_ALL"], color=ROOT.kYellow),
+                                SystematicsCategory(name="Total", systematics=[], color=ROOT.kRed)]
+        self.fixed_systematics = [FixedSystematics(name="", weight="MUON_EFF_ISO_STAT")]
 
     def apply_lumi_weights(self, histograms):
         for hist_set in histograms.values():
@@ -39,27 +65,34 @@ class SystematicsAnalyser(BasePlotter):
         self.systematics.remove("Nominal")
 
     def retrieve_sys_hists(self, file_handles):
-        self.file_handles = file_handles
-        self.parse_systematics(self.file_handles[0])
-        for systematic in self.systematics:
+        def process_histograms(fetched_histograms):
             self.histograms = {}
-            fetched_histograms = mp.ThreadPool(min(self.ncpu,
-                                                   len(self.plot_configs))).map(partial(self.read_histograms,
-                                                                                        file_handles=self.file_handles,
-                                                                                        systematic=systematic),
-                                                                                self.plot_configs)
-
-            for plot_config, histograms in fetched_histograms:
-                histograms = filter(lambda hist: hist is not None, histograms)
-                self.categorise_histograms(plot_config, histograms)
+            fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+            self.categorise_histograms(fetched_histograms)
             self.apply_lumi_weights(self.histograms)
-
             if self.process_configs is not None:
                 for hist_set in self.histograms.values():
                     for process_name in hist_set.keys():
                         _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms()
+            map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
+            map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
             self.systematic_hists[systematic] = deepcopy(self.histograms)
+
+        self.file_handles = file_handles
+        self.parse_systematics(self.file_handles[0])
+        for systematic in self.systematics:
+            fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs,
+                                                      systematic=systematic)
+            process_histograms(fetched_histograms)
+        for fixed_systematic in self.fixed_systematics:
+            for weight in fixed_systematic.weights:
+                plot_configs = deepcopy(self.plot_configs)
+                for pc in plot_configs:
+                    pc.weight = weight
+                fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=plot_configs,
+                                                          systematic="Nominal")
+                process_histograms(fetched_histograms)
 
     def calculate_total_systematics(self):
         def rearrange_dict(keys):
@@ -75,19 +108,23 @@ class SystematicsAnalyser(BasePlotter):
             return tmp
 
         def get_total_relative_systematics(systematic_hists, name):
-            self.total_systematics[name] = {}
-            for plot_config, data in systematic_hists.iteritems():
-                for process, systematics in data.iteritems():
-                    hist = systematics.values()[0]
-                    for b in range(hist.GetNbinsX() + 1):
-                        total_uncertainty = sqrt(sum([pow(hist.GetBinContent(b), 2) for hist in systematics.values()]))
-                        hist.SetBinContent(b, total_uncertainty)
-                    if plot_config not in self.total_systematics[name]:
-                        self.total_systematics[name][plot_config] = {}
-                    if process not in self.total_systematics[name][plot_config]:
-                        self.total_systematics[name][plot_config][process] = {}
-                    self.total_systematics[name][plot_config][process] = hist
-
+            for category in self.syst_categories:
+                if category in self.total_systematics:
+                    self.total_systematics[category][name] = {}
+                else:
+                    self.total_systematics[category] = {name: {}}
+                for plot_config, data in systematic_hists.iteritems():
+                    for process, systematics in data.iteritems():
+                        systematics = dict(filter(lambda s: category.contains_syst(s[0]), systematics.iteritems()))
+                        hist = systematics.values()[0]
+                        for b in range(hist.GetNbinsX() + 1):
+                            total_uncertainty = sqrt(sum([pow(hist.GetBinContent(b), 2) for hist in systematics.values()]))
+                            hist.SetBinContent(b, total_uncertainty)
+                        if plot_config not in self.total_systematics[category][name]:
+                            self.total_systematics[category][name][plot_config] = {}
+                        if process not in self.total_systematics[category][name][plot_config]:
+                            self.total_systematics[category][name][plot_config][process] = {}
+                        self.total_systematics[category][name][plot_config][process] = hist
         up_variation_names = filter(lambda systematic: "up" in systematic.lower(), self.systematic_variations.keys())
         down_variation_names = filter(lambda systematic: "down" in systematic.lower(), self.systematic_variations.keys())
         up_variation = rearrange_dict(up_variation_names)
@@ -125,32 +162,34 @@ class SystematicsAnalyser(BasePlotter):
 
         def find_plot_config():
             return filter(lambda pc: pc.name == plot_config.name, self.systematic_hists[systematic].keys())[0]
-
         systematic_plot_config = find_plot_config()
         systematic_hist = self.systematic_hists[systematic][systematic_plot_config][process]
         return calculate_diff(nominal, systematic_hist)
 
     def get_relative_unc_on_SM_total(self, plot_config, nominal):
         def get_sm_total(nominal_hists, variation):
-            syst_hists = self.total_systematics[variation][plot_config]
-            sm_total_hist_syst = None
-            for process, nominal_hist in nominal_hists.iteritems():
-                if "data" in process.lower():
-                    continue
-                tmp_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
-                tmp_syst = syst_hists[process]
-                for b in range(tmp_syst.GetNbinsX()):
-                    tmp_syst.SetBinContent(b, 1.+tmp_syst.GetBinContent(b))
-                tmp_hist.Multiply(tmp_syst)
-                if sm_total_hist_syst is None:
-                    sm_total_hist_syst = tmp_hist.Clone("SM_total_{:s}_{:s}".format(nominal_hist.GetName(), variation))
-                    continue
-                sm_total_hist_syst.Add(tmp_hist)
-            return sm_total_hist_syst
+            sm_total_hists_syst = []
+            colors = []
+            for category in self.total_systematics.keys():
+                colors.append(category.color)
+                syst_hists = self.total_systematics[category][variation][plot_config]
+                sm_total_hist_syst = None
+                for process, nominal_hist in nominal_hists.iteritems():
+                    if "data" in process.lower():
+                        continue
+                    tmp_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
+                    tmp_syst = syst_hists[process]
+                    for b in range(tmp_syst.GetNbinsX()):
+                        tmp_syst.SetBinContent(b, 1. + tmp_syst.GetBinContent(b))
+                    tmp_hist.Multiply(tmp_syst)
+                    if sm_total_hist_syst is None:
+                        sm_total_hist_syst = tmp_hist.Clone(
+                            "SM_{:s}_{:s}_{:s}".format(category.name, nominal_hist.GetName(), variation))
+                        continue
+                    sm_total_hist_syst.Add(tmp_hist)
+                sm_total_hists_syst.append(sm_total_hist_syst)
+            return sm_total_hists_syst, colors
 
-        sm_total_up = get_sm_total(nominal, "up")
-        sm_total_down = get_sm_total(nominal, "down")
-        return sm_total_up, sm_total_down
-
-
-
+        sm_total_up_categorised, colors = get_sm_total(nominal, "up")
+        sm_total_down_categorised, colors = get_sm_total(nominal, "down")
+        return sm_total_up_categorised, sm_total_down_categorised, colors
