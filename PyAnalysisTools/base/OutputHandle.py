@@ -77,7 +77,7 @@ class OutputFileHandle(SysOutputHandle):
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
         self.plot_book_name = "plot_book"
-        self.n_plots_per_page = 1
+        self.n_plots_per_page = 4
         kwargs.setdefault("make_plotbook", False)
         kwargs.setdefault("set_title_name", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
@@ -108,7 +108,6 @@ class OutputFileHandle(SysOutputHandle):
         for c in canvas:
             c.Draw()
             ROOT.gPad.Update()
-            print c
             if len(canvas) > 1:
                if canvas.index(c) == 0:
                   c.SaveAs(os.path.join(output_path, name + self.extension + "("))
