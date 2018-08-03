@@ -297,7 +297,7 @@ def propagate_common_config(common_config, plot_configs):
                 plot_config.weight += " * {:s}".format(value)
             else:
                 plot_config.weight = value
-        if hasattr(plot_config, attr) and attr not in PlotConfig.get_overwritable_options():
+        if hasattr(plot_config, attr) and (attr not in PlotConfig.get_overwritable_options()or value is None):
             return
         if attr == "ratio_config":
             plot_config.ratio_config = deepcopy(value)
