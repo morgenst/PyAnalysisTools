@@ -1,6 +1,7 @@
 import root_numpy
 import numpy as np
 import pandas as pd
+import pickle
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
@@ -16,34 +17,47 @@ from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
 class DataScaler(object):
     def __init__(self, algo="default"):
         self.scale_algo = algo
-
+        self.scaler = None
     @staticmethod
     def get_algos():
         return ["default", "standard", "min_max"]
 
-    def apply_scaling(self, X, y):
+    def apply_scaling(self, X, y, dump=None, scaler=None):
+        if scaler is not None:
+            print "load scaler ", scaler
+            with open(scaler, "r") as fn:
+                return pickle.load(fn).transform(X), y
+
         le = LabelEncoder()
         if y is not None:
             y = le.fit_transform(y)
         if self.scale_algo == "min_max":
-            return self.apply_min_max_scaler(X), y
+            return self.apply_min_max_scaler(X, dump), y
         elif self.scale_algo == "standard":
-            return self.apply_standard_scaler(X), y
+            return self.apply_standard_scaler(X, dump), y
         elif self.scale_algo == "default":
-            return self.apply_min_max_scaler(X), y
+            return self.apply_min_max_scaler(X, dump), y
         else:
             _logger.error("Invalid scaling algorithm requested: {:s}".format(self.scale_algo))
             raise InvalidInputError()
 
     @staticmethod
-    def apply_standard_scaler(X):
+    def apply_standard_scaler(X, dump=None):
         scaler = StandardScaler()
-        return scaler.fit_transform(X)
+        return DataScaler.apply_scaler(scaler, X, dump)
 
     @staticmethod
-    def apply_min_max_scaler(X):
+    def apply_min_max_scaler(X, dump=None):
         scaler = MinMaxScaler(feature_range=(0, 1))
-        return scaler.fit_transform(X)
+        return DataScaler.apply_scaler(scaler, X, dump)
+
+    @staticmethod
+    def apply_scaler(scaler, X, dump=None):
+        scaler.fit(X)
+        if dump is not None:
+            with open(dump, "w") as fn:
+                pickle.dump(scaler, fn)
+        return scaler.transform(X)
 
 
 class Root2NumpyConverter(object):
