@@ -2,7 +2,7 @@ import ROOT
 from collections import defaultdict
 from operator import itemgetter
 from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.PlottingUtils import Formatting as FM
+from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
@@ -117,14 +117,14 @@ def plot_hist(hist, plot_config, **kwargs):
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
     hist.SetMarkerSize(0.7)
-    FM.apply_style(hist, plot_config, process_config, kwargs["index"])
+    fm.apply_style(hist, plot_config, process_config, kwargs["index"])
     if ymax:
         _logger.info("Deprecated. Use plot_config.ymax")
-        FM.set_maximum_y(hist, ymax)
+        fm.set_maximum_y(hist, ymax)
     if hasattr(plot_config, "ymin"):
-        FM.set_minimum_y(hist, plot_config.ymin)
+        fm.set_minimum_y(hist, plot_config.ymin)
     if plot_config.ymax:
-        FM.set_maximum_y(hist, plot_config.ymax)
+        fm.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
         hist.SetMaximum(hist.GetMaximum() * 10.)
         if hasattr(plot_config, "ymin"):
@@ -135,7 +135,7 @@ def plot_hist(hist, plot_config, **kwargs):
             hist.SetMinimum(0.001)
         if plot_config.normalise:
             hist.SetMinimum(0.000001)
-            FM.set_minimum_y(hist, plot_config.ymin)
+            fm.set_minimum_y(hist, plot_config.ymin)
         canvas.SetLogy()
     if hasattr(plot_config, "logx") and plot_config.logx:
         canvas.SetLogx()
@@ -207,18 +207,18 @@ def format_tefficiency(obj, plot_config):
 def format_hist(hist, plot_config):
     xtitle, ytitle = get_title_from_plot_config(plot_config)
     if xtitle:
-        FM.set_title_x(hist, xtitle)
+        fm.set_title_x(hist, xtitle)
     if hasattr(plot_config, "xtitle_offset"):
-        FM.set_title_x_offset(hist, plot_config.xtitle_offset)
+        fm.set_title_x_offset(hist, plot_config.xtitle_offset)
     if hasattr(plot_config, "xtitle_size"):
-        FM.set_title_x_size(hist, plot_config.xtitle_size)
+        fm.set_title_x_size(hist, plot_config.xtitle_size)
     if hasattr(plot_config, "unit"):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
-    FM.set_title_y(hist, ytitle)
+    fm.set_title_y(hist, ytitle)
     if hasattr(plot_config, "ytitle_offset"):
-        FM.set_title_y_offset(hist, plot_config.ytitle_offset)
+        fm.set_title_y_offset(hist, plot_config.ytitle_offset)
     if hasattr(plot_config, "ytitle_size"):
-        FM.set_title_y_size(hist, plot_config.ytitle_size)
+        fm.set_title_y_size(hist, plot_config.ytitle_size)
     yscale = 1.1
     if plot_config.logy:
         yscale = 100.
@@ -226,13 +226,13 @@ def format_hist(hist, plot_config):
         if hasattr(plot_config, "ztitle"):
             hist.GetZaxis().SetTitle(plot_config.ztitle)
         if hasattr(plot_config, "ztitle_offset"):
-            FM.set_title_z_offset(hist, plot_config.ztitle_offset)
+            fm.set_title_z_offset(hist, plot_config.ztitle_offset)
         if hasattr(plot_config, "ztitle_size"):
-            FM.set_title_z_size(hist, plot_config.ztitle_size)
+            fm.set_title_z_size(hist, plot_config.ztitle_size)
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
         if hasattr(plot_config, "zmin") and hasattr(plot_config, "zmax"):
-            FM.set_range_z(hist, plot_config.zmin, plot_config.zmax)
+            fm.set_range_z(hist, plot_config.zmin, plot_config.zmax)
 
     if hasattr(plot_config, "normalise") and plot_config.normalise:
         HT.normalise(hist, plot_config.normalise_range)
@@ -301,19 +301,19 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         #     style_setter = "Line"
         if plot_config.ignore_style:
             style_setter = "Line"
-        FM.apply_style(hist, plot_config, process_config, index=index)
+        fm.apply_style(hist, plot_config, process_config, index=index)
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
-            FM.set_minimum_y(hist, plot_config.ymin)
+            fm.set_minimum_y(hist, plot_config.ymin)
             if switchOff:
-                FM.set_maximum_y(hist, plot_config.ymax)
+                fm.set_maximum_y(hist, plot_config.ymax)
             else:
-                FM.set_maximum_y(hist, max_y)
+                fm.set_maximum_y(hist, max_y)
             if plot_config.xmin and not plot_config.xmax:
-                FM.set_minimum(hist, plot_config.xmin, "x")
+                fm.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
-                FM.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
+                fm.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
             if plot_config.logy:
                 hist.SetMaximum(hist.GetMaximum() * 10.)
                 if hasattr(plot_config, "ymin"):
@@ -350,7 +350,7 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
         for i in range(len(fit_result.floatParsFinal()) - 1):
             var = fit_result.floatParsFinal()[i]
             var_string = "{:s} = {:.2f} \pm {:.2f}".format(var.GetName(), var.getValV(), var.getError())
-            FM.add_text_to_canvas(canvas, var_string, pos={'x': 0.15, 'y': 0.9 - i * 0.05}, size=0.04, color=None)
+            fm.add_text_to_canvas(canvas, var_string, pos={'x': 0.15, 'y': 0.9 - i * 0.05}, size=0.04, color=None)
     canvas.Update()
 
 
@@ -406,16 +406,20 @@ def plot_graph(graph, plot_config=None, **kwargs):
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
     draw_option = "a" + get_draw_option_as_root_str(plot_config)
+    if plot_config.ymax is not None:
+        fm.set_range_y(graph, plot_config.ymin, plot_config.ymax)
     graph.Draw(draw_option)
+    graph = format_obj(graph, plot_config)
+    #graph.Draw(draw_option)
     # if not "same" in draw_option:
     #     draw_option += "same"
     apply_style(graph, *get_style_setters_and_values(plot_config, index=0))
     ROOT.SetOwnership(graph, False)
-    if plot_config:
-        graph = format_obj(graph, plot_config)
+    # if plot_config:
+    #     graph = format_obj(graph, plot_config)
     if hasattr(plot_config, "logy") and plot_config.logy:
         canvas.SetLogy()
-    graph.Draw(draw_option)
+
     canvas.Update()
     return canvas
 
@@ -469,7 +473,7 @@ def plot_stack(hists, plot_config, **kwargs):
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
-        FM.apply_style(hist, plot_config, process_config)
+        fm.apply_style(hist, plot_config, process_config)
         stack.Add(hist, draw_option)
     stack.Draw()
     canvas.Update()
@@ -487,9 +491,9 @@ def plot_stack(hists, plot_config, **kwargs):
         max_y = plot_config.ymax
         if isinstance(max_y, str):
             max_y = eval(max_y)
-    FM.set_maximum_y(stack, max_y)
+    fm.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
-        FM.set_minimum_y(stack, plot_config.ymin)
+        fm.set_minimum_y(stack, plot_config.ymin)
     if hasattr(plot_config, "logy") and plot_config.logy:
         stack.SetMinimum(0.1)
         canvas.SetLogy()
@@ -626,9 +630,9 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         isFirst = True
         efficiency_obj = object_handle.get_objects_from_canvas_by_type(pad1, "TEfficiency")
         first = efficiency_obj[0]
-        FM.set_title_y(first, y_title)
+        fm.set_title_y(first, y_title)
         for obj in efficiency_obj:
-            FM.set_range_y(obj, y_min, y_max)
+            fm.set_range_y(obj, y_min, y_max)
         pad1.Update()
     pad.Update()
     pad.Modified()
