@@ -362,7 +362,6 @@ class Plotter(BasePlotter):
             self.syst_analyser.retrieve_sys_hists(self.file_handles)
             self.syst_analyser.calculate_variations(self.histograms)
             self.syst_analyser.calculate_total_systematics()
-
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()

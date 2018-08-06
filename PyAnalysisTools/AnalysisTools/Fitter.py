@@ -1,13 +1,14 @@
 import ROOT
 import PyAnalysisTools.PlottingUtils.Formatting as fm
+import copy
+import array
 from ROOT import RooFit
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.AnalysisTools.FitHelpers import convert
+from PyAnalysisTools.AnalysisTools.FitHelpers import *
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
-
 
 class PDFConfig(object):
     def __init__(self, **kwargs):
@@ -136,37 +137,42 @@ class PDFAdd(PDF):
         ROOT.SetOwnership(nbkg, False)
         return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1, self.pdf2), ROOT.RooArgList(nbkg, nsig))
 
+
 class PDF2Gauss(PDF):
     def __init__(self, **kwargs):
         kwargs.setdefault("pdf_name", "2gauss")
         self.name = kwargs["pdf_name"]
         self.quantity = kwargs["var"]
-        self.mean1 = kwargs["pdf_config"].mean1
-        self.sigma1 = kwargs["pdf_config"].sigma1
-        self.mean2 = kwargs["pdf_config"].mean2
-        self.sigma2 = kwargs["pdf_config"].sigma2
+        self.mean = kwargs["pdf_config"].mean
+        self.sigma = kwargs["pdf_config"].sigma
+        self.mode = kwargs["mode"]
 
     def build(self):
-        mean1 = ROOT.RooRealVar("mean1", "mean1", *self.mean1)
-        sigma1 = ROOT.RooRealVar("sigma1", "sigma1", *self.sigma1)
-        mean2 = ROOT.RooRealVar("mean2", "mean2", *self.mean2)
-        sigma2 = ROOT.RooRealVar("sigma2", "sigma2", *self.sigma2)
-        decayrate = ROOT.RooRealVar("decayrate", "decayrate", -0.2, -5., 0)
-        ROOT.SetOwnership(mean1, False)
-        ROOT.SetOwnership(sigma1, False)
-        ROOT.SetOwnership(mean2, False)
-        ROOT.SetOwnership(sigma2, False)
-        ROOT.SetOwnership(decayrate, False)
-        self.pdf1 = ROOT.RooGaussian("g1", "g1", self.quantity, mean1, sigma1)
-        self.pdf2 = ROOT.RooGaussian("g2", "g2", self.quantity, mean2, sigma2)
-        self.pdf3 = ROOT.RooExponential("exp", "exp", self.quantity, decayrate)
-        coef1 = ROOT.RooRealVar("coef1", "coef1", 2000, 0, 10000.)
-        coef2 = ROOT.RooRealVar("coef2", "coef2", 4000, 0., 10000.)
-        coef3 = ROOT.RooRealVar("coef3", "coef3", 20000, 0., 100000.)
-        ROOT.SetOwnership(coef1, False)
-        ROOT.SetOwnership(coef2, False)
-        ROOT.SetOwnership(coef3, False)
-        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3), ROOT.RooArgList(coef1, coef2, coef3))
+        w = ROOT.RooWorkspace("w")
+        w.add = getattr(w, "import")
+        #build gaussian models
+        mean = ROOT.RooRealVar("mean", "mean", *self.mean)
+        sigma = ROOT.RooRealVar("sigma", "sigma", *self.sigma)
+        gauss2 = ROOT.RooGaussian("gauss2", "gauss2", self.quantity, mean, sigma)
+        w.add(gauss2)
+        w.factory("EDIT::gauss1(gauss2, mean=expr('mean-m_diff',mean,m_diff[98,92,104]))")
+        #build background and final model
+        if "Ds" in self.mode:
+            w.factory("EXPR::background('exp(decayrate*triplet_refitted_m+decayrate2*triplet_refitted_m*triplet_refitted_m)',decayrate[-1.5e-3, -0.01, -1e-4], decayrate2[3e-7, 1e-10, 3e-6], triplet_refitted_m)")
+            if "Background" in self.mode:
+                w.factory("SUM::model(nBkg[10000,0,10000000]*background)")
+            if "MC" in self.mode:
+                w.factory("SUM::model(nDs[2000,0,20000]*gauss2)")
+            if "Data" in self.mode:
+                w.factory("SUM::model(nD[500,0,20000]*gauss1, nDs[2000,0,20000]*gauss2, nBkg[10000,0,10000000]*background)")
+                w.factory("EDIT::model(model, nD=expr('alpha*nDs', alpha[0.3,0.1,0.5], nDs))")
+        if "Phi" in self.mode:
+            w.factory("EXPR::background('exp(decayrate*triplet_muon_mass+decayrate2*triplet_muon_mass*triplet_muon_mass)',decayrate[1e-7, 1.], decayrate2[1e-7, -1e-6, 1e-6], triplet_muon_mass)")
+            w.factory("SUM::model(nDs[0,300000]*gauss2, nBkg[0,10000000]*background)")
+        w.Print()
+        ROOT.SetOwnership(w, False)
+        return w.pdf("model")
+
 
 class PDFGeneric(PDF):
     def __init__(self, **kwargs):
@@ -186,30 +192,84 @@ class PDFGeneric(PDF):
         return ROOT.RooGenericPdf(self.name, self.name, self.formula, var_list)
 
 
+class PDFBFraction(PDF):
+     def __init__(self, **kwargs):
+         kwargs.setdefault("pdf_name", "BFraction")
+         self.name = kwargs["pdf_name"]
+         self.var = kwargs["var"]
+         self.templatepath = kwargs["templatepath"]
+
+     def build(self):
+         w = ROOT.RooWorkspace("w")
+         w.add = getattr(w, "import")
+         LXY_set = ROOT.RooArgSet(self.var)
+         LXY_list = ROOT.RooArgList(self.var)
+         #Define bin for rebinning
+         binlist = array.array('d', [-2+j*0.25 for j in xrange(16)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(10)])
+         #Make pdf for bb contribution
+         hist_bb = get_hist_from_canvas(self.templatepath, "triplet_slxy_bb",
+                                        "triplet_slxy_bb_HFbbccplusDsPhiPi")
+         hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
+         datahist_bb = ROOT.RooDataHist("datahist_bb","datahist_bb",LXY_list,hist_bb)
+         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,3))
+         #Make pdf for cc contribution
+         hist_cc = get_hist_from_canvas(self.templatepath, "triplet_slxy_cc",
+                                        "triplet_slxy_cc_HFbbccplusDsPhiPi")
+         hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
+         datahist_cc = ROOT.RooDataHist("datahist_cc","datahist_cc",LXY_list,hist_cc)
+         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,3))
+         #Make pdf for background contribution
+         hist_bkg = get_hist_from_canvas(self.templatepath, "triplet_slxy_bkg",
+                                         "triplet_slxy_bkg_Data2016")
+         hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
+         datahist_bkg = ROOT.RooDataHist("datahist_bkg","datahist_bkg",LXY_list,hist_bkg)
+         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,3))
+         #Add up pdf
+         w.factory("BFraction[0.05, 0.5]")
+         w.factory("n_bkg[0., 50000.]")
+         w.factory("n_sig[0.,20000.]")
+         w.factory("SUM::tmp1(n_bb[0]*histpdf_bb, n_cc[0]*histpdf_cc, n_bkg*histpdf_bkg)")
+         w.factory("EDIT::tmp2(tmp1, n_bb=expr('BFraction*n_sig', BFraction, n_sig))")
+         w.factory("EDIT::model(tmp2, n_cc=expr('(1.0-BFraction)*n_sig', BFraction, n_sig))")
+         ROOT.SetOwnership(w, False)
+         return w.pdf("model")
+
+
 class Fitter(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("batch", True)
         kwargs.setdefault("blind", False)
-        kwargs.setdefault("selection", None)
         self.file_handles = [FileHandle(file_name=fn) for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
         self.quantity = kwargs["quantity"]
-        self.selection = kwargs["selection"]
+        self.templatepath = kwargs["templatepath"] if "templatepath" in kwargs else None
+        self.selection = []
         self.data = None
+        self.weight = None
+        self.nbin = 40
+        self.xtitle = "variable"
+        self.logy = False
         self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
+        self.mode = kwargs["mode"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
+            self.var = ROOT.RooRealVar(self.quantity[0], self.quantity[0],
+                                       self.quantity[1], self.quantity[2])
         if hasattr(self.pdf_config, "selection"):
             self.selection=self.pdf_config.selection
+        if hasattr(self.pdf_config, "weight"):
+            self.weight=self.pdf_config.weight
+        if hasattr(self.pdf_config, "nbin"):
+            self.nbin=self.pdf_config.nbin
+        if hasattr(self.pdf_config, "xtitle"):
+            self.xtitle=self.pdf_config.xtitle
+        if hasattr(self.pdf_config, "logy"):
+            self.logy=self.pdf_config.logy
+        if hasattr(self.pdf_config, "blind"):
+            self.blind=self.pdf_config.blind
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
-        self.blind = self.pdf_config.blind
-        fm.load_atlas_style()
         set_batch_mode(kwargs["batch"])
 
-    def get_integral(self, min=-1, max=-1):
-        var_set = ROOT.RooArgSet(self.var)
-        self.var.setRange("integral", min, max)
-        return self.model.createIntegral(var_set, RooFit.NormSet(var_set), RooFit.Range("integral"))
 
     def build_model(self):
         if self.pdf_config.pdf == "gauss":
@@ -224,40 +284,51 @@ class Fitter(object):
             self.pdf = PDFLinear(**self.__dict__)
         if self.pdf_config.pdf == "2gauss":
             self.pdf = PDF2Gauss(**self.__dict__)
+        if self.pdf_config.pdf == "BFraction":
+            self.pdf = PDFBFraction(**self.__dict__)
         self.model = self.pdf.build()
 
-    def fit(self, return_fit=False):
-        print self.file_handles, self.tree_name, self.quantity, self.blind, self.selection
-        self.data, self.var = convert(self.file_handles, self.tree_name, self.quantity, self.blind, self.selection)
+    def fit(self, return_fit=False, extra_selection=[]):
+        print self.file_handles, self.tree_name, self.var, self.quantity, self.blind, self.selection, extra_selection
+        self.data = create_roodata(self.file_handles, self.tree_name, self.var, self.quantity, self.blind, copy.deepcopy(self.selection), extra_selection, self.weight)
         self.build_model()
         if self.blind:
-            # region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
-            #                                      self.var, "SideBand")
-            # region.addThreshold(self.blind[0], "SideBand")
-            # region.addThreshold(self.blind[1], "Signal")
-            fit_result = self.model.fitTo(self.data, RooFit.Range(("left,right")), RooFit.Save(),
-                                          RooFit.PrintEvalErrors(-1))#RooFit.Cut("region==region::SideBand"), RooFit.Save())
+             #region = ROOT.RooThresholdCategory("region", "Region of {:s}".format(self.quantity),
+             #                                     self.var, "SideBand")
+             #region.addThreshold(self.blind[0], "SideBand")
+             #region.addThreshold(self.blind[1], "Signal")
+             fit_result = self.model.fitTo(self.data,  RooFit.Save(), RooFit.Range("left,right"),
+                                           RooFit.NumCPU(5))#, RooFit.Cut("region==region::Signal"))
         else:
-            fit_result = self.model.fitTo(self.data, RooFit.Save())
+            fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(5))
+        #############################Likelihood scan of a parameter######################
+        canvas_scan = ROOT.TCanvas("c1", "111", 800, 600)
+        nll = self.model.createNLL(self.data, RooFit.NumCPU(5))
+        ROOT.RooMinuit(nll).migrad()
+        it = self.model.getVariables().createIterator()
+        for parameter in iter(it.Next, None):
+            if(parameter.GetName()=="BFraction"):
+               frame_scan = parameter.frame()
+               frac = nll.createProfile(ROOT.RooArgSet(parameter))
+               frac.plotOn(frame_scan,  RooFit.LineColor(2))
+               canvas_scan.cd()
+               frame_scan.Draw()
+               self.output_handle.register_object(canvas_scan)
+        ################################################################################
         canvas = ROOT.TCanvas("c", "", 800, 600)
-        canvas.cd()
         frame = self.var.frame()
-        binning = ROOT.RooBinning(50, self.quantity[1], self.quantity[2])
-        self.data.plotOn(frame, ROOT.RooFit.Binning(binning), RooFit.CutRange("left,right"))
-        self.model.plotOn(frame)
-        frame.SetTitle("")
-        frame.Draw()
-        chi2 = frame.chiSquare()
-        frame.SetTitle("")
-        frame.Draw()
-        chi2 = frame.chiSquare()
-        #add_text_to_canvas(canvas, "mean: {:.2f} #pm {:.2f}".format(ean.getVal(), mean.getError()),
-        #                    pos={"x": 0.65, "y": 0.87})
-        # add_text_to_canvas(canvas, "sigma: {:.2f} #pm {:.2f}".format(sigma.getVal(), sigma.getError()),
-        #                    pos={"x": 0.65, "y": 0.82})
-        add_text_to_canvas(canvas, "#chi^{2}: " + "{:.2f}".format(chi2), pos={"x": 0.65, "y": 0.77})
-
+        canvas.cd()
+        if self.logy:
+           ROOT.gPad.SetLogy()
+           frame.SetMaximum(1.5e4)
+        binning = ROOT.RooBinning(self.nbin, self.quantity[1], self.quantity[2])
+        self.data.plotOn(frame, ROOT.RooFit.Binning(binning))
+        plot_all_components(self.model, frame)
+        format_and_draw_frame(canvas, frame, self.xtitle)
+        add_parameters_to_canvas(canvas, self.model, frame)#Chi-squared wrt binning
+        if "PerSlice" in self.mode:
+           return self.model, fit_result, canvas
         if return_fit:
-            return frame, fit_result
+           return frame, fit_result
         self.output_handle.register_object(canvas)
         self.output_handle.write_and_close()
