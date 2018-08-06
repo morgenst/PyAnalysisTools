@@ -331,5 +331,6 @@ class Fitter(object):
            return self.model, fit_result, canvas
         if return_fit:
            return frame, fit_result
+        self.output_handle.extension = ".png"
         self.output_handle.register_object(canvas)
         self.output_handle.write_and_close()

@@ -76,15 +76,11 @@ class OutputFileHandle(SysOutputHandle):
         kwargs.setdefault("output_file", "output.root")
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
-        self.plot_book_name = "plot_book"
         self.n_plots_per_page = 4
         kwargs.setdefault("make_plotbook", False)
         kwargs.setdefault("set_title_name", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
         self.set_title_name = kwargs["set_title_name"]
-
-    def set_output_extension(self, extension = ".pdf"):
-        self.extension = extension
 
     def attach_file(self):
         if not self.attached:
@@ -117,12 +113,6 @@ class OutputFileHandle(SysOutputHandle):
                   c.SaveAs(os.path.join(output_path, name + self.extension))
             else:
                c.SaveAs(os.path.join(output_path, name + self.extension))
-
-    def set_plot_book_name(self, plot_book_name):
-        self.plot_book_name = plot_book_name
-
-    def set_n_plots_per_page(self, n_plots_per_page):
-        self.n_plots_per_page = n_plots_per_page
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
