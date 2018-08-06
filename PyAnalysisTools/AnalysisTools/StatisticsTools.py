@@ -133,11 +133,12 @@ def get_signal_acceptance(signal_yields, generated_events, process_config):
     pc = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
                     labels=[data[0] for data in acceptance_hists],
                     xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker", lumi=80., watermark="Internal",
-                    ymin=0., ymax=1.)
+                    ymin=0., ymax=100.)
     
     canvas = pt.plot_objects([data[1] for data in acceptance_hists], pc)
     fm.add_legend_to_canvas(canvas, labels=pc.labels)
     fm.decorate_canvas(canvas, plot_config=pc)
+    acceptance_hists[-1][1].SetName("acceptance_final")
     canvas_final = pt.plot_graph(acceptance_hists[-1][1], pc)
     fm.decorate_canvas(canvas_final, plot_config=pc)
 
