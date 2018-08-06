@@ -4,8 +4,13 @@ if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ 
     export PYTHONPATH=~/pythonmodules/lib/python2.7/site-packages/:$PYTHONPATH
 fi
 
-called=$_
-[[ $called != $0 ]]
+if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ $(hostname -s) = *pc-tbed-pub-* ]]; then
+    CWD=`dirname $(readlink -f "$0")`
+else
+    called=$_
+    [[ $called != $0 ]]
+    CWD=`dirname "${BASH_SOURCE[@]}"`
+fi
 
-export PYTHONPATH=`dirname "${BASH_SOURCE[@]}"`:${PYTHONPATH}
-export PATH=`dirname "${BASH_SOURCE[@]}"`/run_scripts:${PATH}
+export PYTHONPATH=${CWD}:${PYTHONPATH}
+export PATH=${CWD}/run_scripts:${PATH}
