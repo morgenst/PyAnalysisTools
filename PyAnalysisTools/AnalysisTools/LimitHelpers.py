@@ -1,3 +1,5 @@
+from copy import deepcopy
+
 import ROOT
 import os
 import re
@@ -44,7 +46,6 @@ def make_cross_section_limit_plot(data, lumi=80., ytitle=None):
                     watermark="Internal")
     graph = ROOT.TGraph(len(data))
     for i, item in enumerate(data):
-        print item
         graph.SetPoint(i, item[0], item[1] * item[2]/(lumi*1000.))
     graph.SetName("xsec_limit")
     canvas = pt.plot_obj(graph, pc)
@@ -103,14 +104,36 @@ class LimitPlotter(object):
     def make_cross_section_limit_plot(self, limits, lumi):
         limits.sort(key=lambda li: li.mass)
         ytitle = "95% CL U.L on #sigma [pb]"
-        pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle="m [GeV]", draw="ap", logy=True, lumi=lumi,
-                        watermark="Internal")
+        pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle="m_{LQ} [GeV]", draw="pX", logy=True, lumi=lumi,
+                        watermark="Internal", ymin=float(1e-7), ymax=10)
+        pc_1sigma = deepcopy(pc)
+        pc_2sigma = deepcopy(pc)
+        pc_1sigma.color = ROOT.kYellow
+        pc_2sigma.color = ROOT.kGreen
+        pc_1sigma.draw = "3"
+        pc_2sigma.draw = "3"
+        pc_1sigma.style_setter = "Fill"
+        pc_2sigma.style_setter = "Fill"
+
         graph = ROOT.TGraph(len(limits))
+        graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
+        graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
         for i, limit in enumerate(limits):
             graph.SetPoint(i, limit.mass, limit.exp_limit)
-        graph.SetName("xsec_limit")
-        canvas = pt.plot_obj(graph, pc)
+            graph_1sigma.SetPoint(i, limit.mass, limit.exp_limit)
+            graph_2sigma.SetPoint(i, limit.mass, limit.exp_limit)
+            graph_1sigma.SetPointEYhigh(i, limit.exp_limit_up - limit.exp_limit)
+            graph_1sigma.SetPointEYlow(i, limit.exp_limit - limit.exp_limit_low)
+            graph_2sigma.SetPointEYhigh(i, 2. * (limit.exp_limit_up - limit.exp_limit))
+            graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
+        graph_2sigma.SetName("xsec_limit")
+        canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
+        pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
+        pt.add_graph_to_canvas(canvas, graph, pc)
         fm.decorate_canvas(canvas, pc)
+        fm.add_legend_to_canvas(canvas, plot_objects=[graph, graph_1sigma, graph_2sigma],
+                                labels=["expected limit", "#pm 1#sigma", "#pm 1#sigma"],
+                                format=["P", "F", "F"])
         self.output_handle.register_object(canvas)
 
 
@@ -149,6 +172,7 @@ class LimitScanAnalyser(object):
 
     @staticmethod
     def find_best_limit(limits):
+        limits = filter(lambda li: li.exp_limit > 0., limits)
         masses = set(map(lambda li: li.mass, limits))
         best_limits = []
         for mass in masses:
