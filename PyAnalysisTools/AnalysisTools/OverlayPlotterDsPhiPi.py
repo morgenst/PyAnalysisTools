@@ -26,7 +26,7 @@ class OverlayPlotterDsPhiPi(object):
            for key in self.input_dict.keys():
                self.file_dict[key] =  ROOT.TFile(self.input_dict[key]["Path"])
        self.output_handle = OutputFileHandle(output_dir=self.output_dir)
-       self.output_handle.set_n_plots_per_page(1)
+       self.output_handle.n_plots_per_page= 1
 
    def get_hist_from_file(self, file, canvas_name, hist_name, legend):
        canvas = file.Get(canvas_name)
@@ -119,7 +119,7 @@ class OverlayPlotterDsPhiPi(object):
            canvas.SetName(variable+"_"+parameter)
            self.legend.Draw("same")
            self.output_handle.register_object(canvas)
-       self.output_handle.set_plot_book_name(parameter)
+       self.output_handle.plot_book_name = parameter
        self.output_handle.make_plot_book()
        self.output_handle.clear_objects()
 

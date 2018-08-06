@@ -155,7 +155,7 @@ class PDF2Gauss(PDF):
         sigma = ROOT.RooRealVar("sigma", "sigma", *self.sigma)
         gauss2 = ROOT.RooGaussian("gauss2", "gauss2", self.quantity, mean, sigma)
         w.add(gauss2)
-        w.factory("EDIT::gauss1(gauss2, mean=expr('mean-m_diff',mean,m_diff[98,92,104]))")#97-100
+        w.factory("EDIT::gauss1(gauss2, mean=expr('mean-m_diff',mean,m_diff[98,92,104]))")
         #build background and final model
         if "Ds" in self.mode:
             w.factory("EXPR::background('exp(decayrate*triplet_refitted_m+decayrate2*triplet_refitted_m*triplet_refitted_m)',decayrate[-1.5e-3, -0.01, -1e-4], decayrate2[3e-7, 1e-10, 3e-6], triplet_refitted_m)")
@@ -206,7 +206,6 @@ class PDFBFraction(PDF):
          LXY_list = ROOT.RooArgList(self.var)
          #Define bin for rebinning
          binlist = array.array('d', [-2+j*0.25 for j in xrange(16)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(10)])
-         print binlist
          #Make pdf for bb contribution
          hist_bb = get_hist_from_canvas(self.templatepath, "triplet_slxy_bb",
                                         "triplet_slxy_bb_HFbbccplusDsPhiPi")
@@ -222,7 +221,7 @@ class PDFBFraction(PDF):
          #Make pdf for background contribution
          hist_bkg = get_hist_from_canvas(self.templatepath, "triplet_slxy_bkg",
                                          "triplet_slxy_bkg_Data2016")
-         datahist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
+         hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
          datahist_bkg = ROOT.RooDataHist("datahist_bkg","datahist_bkg",LXY_list,hist_bkg)
          w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,3))
          #Add up pdf
@@ -302,20 +301,20 @@ class Fitter(object):
                                            RooFit.NumCPU(5))#, RooFit.Cut("region==region::Signal"))
         else:
             fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(5))
-        ##########################
-        canvasRAN = ROOT.TCanvas("c1", "111", 800, 600)
+        #############################Likelihood scan of a parameter######################
+        canvas_scan = ROOT.TCanvas("c1", "111", 800, 600)
         nll = self.model.createNLL(self.data, RooFit.NumCPU(5))
         ROOT.RooMinuit(nll).migrad()
         it = self.model.getVariables().createIterator()
         for parameter in iter(it.Next, None):
             if(parameter.GetName()=="BFraction"):
-               FFF = parameter.frame()
+               frame_scan = parameter.frame()
                frac = nll.createProfile(ROOT.RooArgSet(parameter))
-               frac.plotOn(FFF,  RooFit.LineColor(2))
-               canvasRAN.cd()
-               FFF.Draw()
-               self.output_handle.register_object(canvasRAN)
-        #########################
+               frac.plotOn(frame_scan,  RooFit.LineColor(2))
+               canvas_scan.cd()
+               frame_scan.Draw()
+               self.output_handle.register_object(canvas_scan)
+        ################################################################################
         canvas = ROOT.TCanvas("c", "", 800, 600)
         frame = self.var.frame()
         canvas.cd()

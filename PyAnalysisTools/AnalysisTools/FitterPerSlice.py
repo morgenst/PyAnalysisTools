@@ -69,6 +69,7 @@ class FitterPerSlice(object):
 
    def __init__(self, **kwargs):
        self.fitter = Fitter(**kwargs)
+       self.fitter.mode = self.fitter.mode + "PerSlice"
        if "ncpu" in kwargs:
            self.ncpu = kwargs["ncpu"]
        if "slicing_variable_config_file" in kwargs:
@@ -90,8 +91,8 @@ class FitterPerSlice(object):
            self.output_handle.register_object(canvas_slice)
            self.fill_parameter_collection(model, parameter_collection)
        #make plot book of individual fits
-       self.output_handle.set_n_plots_per_page(len(list_of_slices_and_bin_center))
-       self.output_handle.set_plot_book_name("individual_fit_" + variable_config["dist"])
+       self.output_handle.n_plots_per_page = len(list_of_slices_and_bin_center)
+       self.output_handle.plot_book_name = "individual_fit_" + variable_config["dist"]
        self.output_handle.make_plot_book()
        #make plots of individual parameters
        hists_parameters = self.make_parameter_plots(parameter_collection, variable_config)
