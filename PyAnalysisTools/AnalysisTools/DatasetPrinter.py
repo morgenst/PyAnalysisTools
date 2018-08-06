@@ -3,6 +3,8 @@ from tabulate import tabulate
 from itertools import chain
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
+import tabulate as tb
+tb.LATEX_ESCAPE_RULES = {}
 
 
 class DatasetPrinter(object):
@@ -21,7 +23,10 @@ class DatasetPrinter(object):
     def get_ds_info(self, dsid):
         info = list(self.xs_handle.retrieve_xs_info(dsid))
         try:
-            info.insert(0, self.xs_handle.get_ds_info(dsid, 'process_name'))
+            try:
+                info.insert(0, self.xs_handle.get_ds_info(dsid, 'latex_label'))
+            except AttributeError:
+                info.insert(0, self.xs_handle.get_ds_info(dsid, 'process_name'))
         except KeyError:
             #_logger.warning("cout not find xsec for " + dsid)
             info.insert(0, -1.)
@@ -31,7 +36,6 @@ class DatasetPrinter(object):
     def pprint(self):
         self.compile_info()
         data = np.array(sorted(self.data.values()), dtype=object)
-        print tabulate.tabulate(data, headers=["DSID", "Sample", "#sigma [pb-1]", "eff_filter", "k-factor"],
-                                tablefmt=self.format,
-                                floatfmt='.2f')
+        print tabulate(data, headers=["DSID", "Sample", "#sigma [pb-1]", "eff_filter", "k-factor"],
+                       tablefmt=self.format, floatfmt='.2f')
 
