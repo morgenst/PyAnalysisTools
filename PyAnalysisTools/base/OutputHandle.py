@@ -3,7 +3,7 @@ import re
 import time
 import ROOT
 import math
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base import ShellUtils
 from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
 
@@ -147,7 +147,7 @@ class OutputFileHandle(SysOutputHandle):
                          self.plot_book_name)
         self.dump_canvas([self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket),
                                                prefix=self.plot_book_name+"_ratio") for plot_bucket in ratio_plots],
-                                               name=self.plot_book_name+"_ratio")
+                         name=self.plot_book_name+"_ratio")
 
 
     def write_to_file(self, obj, tdir=None):
