@@ -17,6 +17,7 @@ from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
 from PyAnalysisTools.base.Modules import load_modules
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 
+
 class ComparisonReader(object):
     def __init__(self, **kwargs):
         if "input_files" not in kwargs:
@@ -78,6 +79,9 @@ class ComparisonReader(object):
 
     @staticmethod
     def merge_histograms(histograms, process_configs):
+        if process_configs is None:
+            return
+
         def expand():
             if process_configs is not None:
                 for process_name in histograms.keys():
@@ -294,10 +298,15 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("ref_module_config_file", None)
         kwargs.setdefault("module_config_file", None)
+        kwargs.setdefault("reference_merge_file", None)
+        kwargs.setdefault("merge_file", None)
         kwargs.setdefault("json", False)
         if kwargs["json"]:
             kwargs = JSONHandle(kwargs["json"]).load()
         set_batch_mode(kwargs["batch"])
+        for attr, value in kwargs.iteritems():
+            if not hasattr(self, attr):
+                setattr(self, attr, value)
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs["input_files"]
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
@@ -322,9 +331,7 @@ class ComparisonPlotter(BasePlotter):
         # self.style_palette = [21, 33, 22, 23, 34, 29] #ROOT.kGray+3,
         # self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
         #                       ROOT.kRed+3, ROOT.kGreen-2]
-        for attr, value in kwargs.iteritems():
-            if not hasattr(self, attr):
-                setattr(self, attr, value)
+
         # if self.systematics is None:
         #     self.systematics = "Nominal"
         self.ref_process_configs = None
@@ -337,7 +344,7 @@ class ComparisonPlotter(BasePlotter):
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.module_filters = [m for m in self.modules if m.type == "Filter"]
         self.analyse_plot_config()
-        # self.update_color_palette()
+        #self.update_color_palette()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
         if not kwargs["json"]:
             JSONHandle(kwargs["output_dir"], **kwargs).dump()
@@ -423,7 +430,10 @@ class ComparisonPlotter(BasePlotter):
                 reference_hists=[reference_hists[0]]
         y_max = None
         if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
-            yscale = 1.3
+            if not plot_config.logy:
+                yscale = 1.3
+            else:
+                yscale = 10
             ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
             plot_config.yscale = yscale
             if not plot_config.normalise:
@@ -516,4 +526,5 @@ class ComparisonPlotter(BasePlotter):
 
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas)
-        self.output_handle.register_object(canvas_combined)
+        if canvas_combined is not None:
+            self.output_handle.register_object(canvas_combined)
