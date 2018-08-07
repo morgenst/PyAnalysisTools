@@ -86,20 +86,16 @@ class HistFitterWrapper(object):
         kwargs.setdefault("fixedPars", "")
         kwargs.setdefault("validation", False)
         kwargs.setdefault("use_archive_histfile", False)
-        kwargs.setdefault("read_tree", False) #self.configMgr.readFromTree
-        kwargs.setdefault("create_workspace", False) #self.configMgr.executeHistFactory)
-        #kwargs.setdefault("use_XML", self.configMgr.writeXML)
+        kwargs.setdefault("read_tree", False)
+        kwargs.setdefault("create_workspace", False)
         kwargs.setdefault("use_XML", True)
-        kwargs.setdefault("num_toys", 1000) #self.configMgr.nTOYs)
-        kwargs.setdefault("seed", 0) #self.configMgr.toySeed)
-        kwargs.setdefault("use_asimov", False) #self.configMgr.useAsimovSet)
+        kwargs.setdefault("num_toys", 1000)
+        kwargs.setdefault("seed", 0)
+        kwargs.setdefault("use_asimov", False)
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
         kwargs.setdefault("multi_core", False)
-
-        #FitType = self.configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
-        #myFitType = FitType.Background
 
         for key, val in kwargs.iteritems():
             if not hasattr(self, key):
@@ -400,8 +396,6 @@ class HistFitterWrapper(object):
         _logger.debug("GenerateFitAndPlotCPP: ReduceCorrMatrix %s " % reduce_corr_matrix)
         _logger.debug("GenerateFitAndPlotCPP: noFit {0}".format(no_fit))
 
-        # draw_after_fit = False
-        # draw_before_fit = False
         Util.GenerateFitAndPlot(fc.name, ana_name, draw_before_fit, draw_after_fit, draw_correlation_matrix,
                                 draw_separate_components, draw_log_likelihood, minos, minos_pars, do_fix_parameters,
                                 fixed_pars, reduce_corr_matrix, no_fit)
@@ -487,15 +481,14 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         var_name = kwargs["var_name"]
 
         self.reset_config_mgr()
-        print "config mgr: ", self.configMgr, " id: ", id(self.configMgr), " ", self.output_dir
         self.configMgr.cutsDict["SR"] = 1.
         self.configMgr.weights = "1."
 
-        self.configMgr.doExclusion = False  # True=exclusion, False=discovery
+        self.configMgr.doExclusion = True
         self.configMgr.nTOYs = 5000
-        self.configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
-        self.configMgr.testStatType = 3  # 3=one-sided profile likelihood test statistic (LHC default)
-        self.configMgr.nPoints = 50  # number of values scanned of signal-strength for upper-limit determination of signal strength.
+        self.configMgr.calculatorType = 2
+        self.configMgr.testStatType = 3
+        self.configMgr.nPoints = 50
 
         self.configMgr.writeXML = True
         self.configMgr.blindSR = True
@@ -511,13 +504,13 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             bkg_samples = self.setup_multi_background(**kwargs)
             ndata = 0
 
-        nsig = kwargs["sig_yield"]  # Number of predicted signal events
-        nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
-        lumi_error = 0.039  # Relative luminosity uncertainty
+        nsig = kwargs["sig_yield"]
+        nsig_err = 0.144
+        lumi_error = 0.039
 
         dataSample = Sample("Data", kBlack)
         dataSample.setData()
-        dataSample.buildHisto([5.], "SR", var_name, 0.5) #ndata
+        dataSample.buildHisto([5.], "SR", var_name, 0.5)
 
         sigSample = Sample(kwargs["sig_name"], kPink)
         sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
@@ -586,8 +579,6 @@ class HistFitterCountingExperiment(HistFitterWrapper):
     def setup_control_regions(self, **kwargs):
         data = kwargs["control_regions"]
         samples = kwargs["samples"]
-        cr_channels = []
-        ana = kwargs["ana"]
         for reg, yields in data.iteritems():
             self.configMgr.cutsDict[reg] = 1.
             for process, yld in yields.iteritems():
