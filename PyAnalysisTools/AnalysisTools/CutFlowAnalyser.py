@@ -2,8 +2,10 @@ import operator
 from operator import add
 
 import numpy as np
+import pandas as pd
 import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
 import PyAnalysisTools.PlottingUtils.Formatting as Ft
+
 try:
     from tabulate.tabulate import tabulate
 except ImportError:
@@ -31,14 +33,21 @@ class CommonCutFlowAnalyser(object):
         self.event_numbers = dict()
         self.lumi = kwargs["lumi"]
         self.xs_handle = XSHandle(kwargs["dataset_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"])for fn in kwargs["file_list"]]
-        if kwargs["process_config"] is not None:
-            self.process_configs = parse_and_build_process_config(kwargs["process_config"])
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"]) for fn in kwargs["file_list"]]
+        if "process_config" in kwargs and not "process_configs" in kwargs:
+            raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
+                      "hitting enter.")
+            kwargs['process_configs'] = kwargs['process_configs']
+        if kwargs['process_configs'] is not None:
+            self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
         self.expand_process_configs()
         map(self.load_dxaod_cutflows, self.file_handles)
-        self.dtype = [("cut", "S300"), ("yield", "f4"), ("yield_unc", "f4"), ("eff", float), ("eff_total", float)]
-        if kwargs["output_dir"] is not None:
-            self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
+        self.dtype = [('cut', 'S300'), ('yield', 'f4')]
+        if kwargs['output_dir'] is not None:
+            self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
+        if self.process_configs is not None:
+            self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
 
     def load_dxaod_cutflows(self, file_handle):
         process = file_handle.process
@@ -56,23 +65,27 @@ class CommonCutFlowAnalyser(object):
                 _ = find_process_config(fh.process_with_mc_campaign, self.process_configs)
 
     def stringify(self, cutflow):
-        def format_yield(value, uncertainty):
+        def format_yield(value, uncertainty=None):
             if value > 10000.:
                 return "{:.3e}".format(value)
             else:
                 return "{:.2f}".format(value)
+
         if not self.raw:
+            # cutflow = np.array([(cutflow[i]["cut"],
+            #                      format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
+            #                      # cutflow[i]["eff"],
+            #                      cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+            #                    dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)])  # ("eff", float),
             cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-                                 #cutflow[i]["eff"],
-                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)]) #("eff", float),
+                                 format_yield(cutflow[i]["yield"])) for i in range(len(cutflow))],
+                               dtype=[("cut", "S100"), ("yield", "S100")])
         else:
             cutflow = np.array([(cutflow[i]["cut"],
                                  format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-                                 #cutflow[i]["eff"],
+                                 # cutflow[i]["eff"],
                                  cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)]) #("eff", float),
+                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
         return cutflow
 
     def print_cutflow_table(self):
@@ -83,7 +96,8 @@ class CommonCutFlowAnalyser(object):
         for i, region in enumerate(available_cutflows):
             print i, ")", region
         print "a) all"
-        user_input = raw_input("Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
+        user_input = raw_input(
+            "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
         if user_input == "":
             selections = ["BaseSelection"]
         elif user_input.lower() == "a":
@@ -111,6 +125,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
     """
     Extended cutflow analyser building additional cuts not stored in cutflow hist
     """
+
     def __init__(self, **kwargs):
         kwargs.setdefault("output_file_name", None)
         kwargs.setdefault("no_merge", False)
@@ -154,13 +169,15 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
                 for i, cut in enumerate(region.get_cut_list()):
-                    yields.append((cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i+1]))['weight'].flatten().sum(),
-                                   0, -1., -1.))
+                    yields.append((cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i + 1]))[
+                        'weight'].flatten().sum()))
+                                   #0, -1., -1.))
                 self.cutflows[systematic][region.name][process] = np.array(yields,
-                                                                      dtype=[("cut", "S300"), ("yield", "f4"),
-                                                                              ("yield_unc", "f4"),
-                                                                              ("eff", float),
-                                                                              ("eff_total", float)])  # todo: array dtype for string not a good choiceyields
+                                                                           dtype=[("cut", "S300"), ("yield", "f4")])
+                                                                                  # ("yield_unc", "f4"),
+                                                                                  # ("eff", float),
+                                                                                  # ("eff_total",
+                                                                                  # float)])  # todo: array dtype for string not a good choiceyields
 
     def apply_cross_section_weight(self, systematic, region):
         for process in self.cutflows[systematic][region].keys():
@@ -174,20 +191,57 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
     def make_cutflow_table(self, systematic):
         cutflow_tables = dict()
 
+        def keep_process(process, signals):
+            if process == "SMTotal":
+                return True
+
+            prcf = find_process_config(process, self.process_configs)
+            if prcf is None:
+                _logger.error("Could not find process config for {:s}. This is not expected. Removing process. "
+                              "Please investigate".format(process))
+                return False
+            if prcf.type.lower() != "signal":
+                return True
+            if prcf in signals:
+                return True
+            return False
+
         for region in self.cutflows[systematic].keys():
+            process_configs = [(process,
+                                find_process_config(process,
+                                                    self.process_configs)) for process in self.cutflows[systematic][region].keys()]
+            if len(filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)) > 3:
+                signals = filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)
+                signals.sort(key=lambda p: p[0])
+                for i, process in enumerate(sorted(signals, key=lambda p: p[0])):
+                    print "{:d}, {:s}".format(i, process[0])
+                print "a) All"
+                choice = raw_input("What processes do you like to have shown (comma/space seperated)?")
+                if choice.lower() == "a":
+                    choices = None
+                elif "," in choice:
+                    choices = map(int, choice.split(","))
+                else:
+                    choices = map(int, choice.split(","))
+                if choices is not None:
+                    signals = [process[1] for process in signals if signals.index(process) in choices]
+                    self.cutflows[systematic][region] = dict(filter(lambda kv: keep_process(kv[0], signals),
+                                                                    self.cutflows[systematic][region].iteritems()))
             for process, cutflow in self.cutflows[systematic][region].items():
                 cutflow_tmp = self.stringify(cutflow)
                 if region not in cutflow_tables.keys():
-                    cutflow_tables[region] = cutflow_tmp
+                    cutflow_tables[region] = pd.DataFrame(cutflow_tmp)
+                    cutflow_tables[region].columns = ["cut", process]
                     continue
-                cutflow_tables[region] = rec_append_fields(cutflow_tables[region],
-                                                              [i + process for i in cutflow_tmp.dtype.names[1:]],
-                                                              [cutflow_tmp[n] for n in cutflow_tmp.dtype.names[1:]])
-            headers = ["Cut"] + [x for elem in self.cutflows[systematic][region].keys() for x in (elem, "")]
-            self.cutflow_tables = {k: tabulate(v.transpose(),
-                                               headers=headers,
+                d = {process: cutflow_tmp['yield']}
+                cutflow_tables[region] = cutflow_tables[region].assign(**d)
+
+
+            #headers = ["Cut"] + [elem.split("_")[-1] for elem in d.names]
+            self.cutflow_tables = {k: tabulate(v,
+                                               headers=list(v.columns.values),
                                                tablefmt=self.format,
-                                               floatfmt=".2f")
+                                               floatfmt='.2f')
                                    for k, v in cutflow_tables.iteritems()}
 
     def calculate_sm_total(self):
@@ -195,20 +249,20 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             sm_yield = []
 
             for process, evn_yields in yields.iteritems():
-                if "data" in process.lower():
+                if 'data' in process.lower():
                     continue
                 if len(sm_yield) == 0:
                     sm_yield = list(evn_yields)
                     continue
                 for icut, cut_item in enumerate(evn_yields):
-                    sm_yield[icut] = tuple([sm_yield[icut][0]]+map(operator.add,
-                                                                   list(sm_yield[icut])[1:],
-                                                                   list(evn_yields[icut])[1:]))
+                    sm_yield[icut] = tuple([sm_yield[icut][0]] + map(operator.add,
+                                                                     list(sm_yield[icut])[1:],
+                                                                     list(evn_yields[icut])[1:]))
             return np.array(sm_yield, dtype=self.dtype)
 
         for systematics, regions_data in self.cutflows.iteritems():
             for region, yields in regions_data.iteritems():
-                self.cutflows[systematics][region]["SMTotal"] = add(yields)
+                self.cutflows[systematics][region]['SMTotal'] = add(yields)
 
     def merge_yields(self):
         def merge(yields):
@@ -228,7 +282,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     if not process in yields.keys():
                         yields[process] = yields[sub_process]
                     else:
-                        map(add, yields[process], yields[sub_process])
+                        yields[process]["yield"] += yields[sub_process]["yield"]
                     yields.pop(sub_process)
             return yields
 
@@ -237,20 +291,28 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 self.cutflows[systematics][region] = merge(yields)
 
     def plot_signal_yields(self):
+        replace_items = [('/', ''), (' ', ''), ('>', '_gt_'), ('<', '_lt_'), ('$', ''), ('.', '')]
         signal_processes = filter(lambda prc: prc.type.lower() == "signal", self.process_configs.values())
         signal_generated_events = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
-                                         self.event_numbers.iteritems()))
+                                              self.event_numbers.iteritems()))
         for region, cutflows in self.cutflows["Nominal"].iteritems():
             signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
                                         cutflows.iteritems()))
             canvas_cuts, canvas_final = get_signal_acceptance(signal_yields, signal_generated_events, None)
-            canvas_cuts.SetName(canvas_cuts.GetName().replace("/","").replace(" ","").replace(">","_gt_").replace("<","_lt_").replace(".","") + "_{:s}".format(region))
-            canvas_final.SetName(canvas_final.GetName().replace("/","").replace(" ","").replace(">","_gt_").replace("<","_lt_").replace(".","") + "_{:s}".format(region))
+
+            new_name_cuts = canvas_cuts.GetName()
+            new_name_final = canvas_final.GetName()
+            for item in replace_items:
+                new_name_cuts = new_name_cuts.replace(item[0], item[1])
+                new_name_final = new_name_final.replace(item[0], item[1])
+            canvas_cuts.SetName('{:s}_{:s}'.format(new_name_cuts, region))
+            canvas_final.SetName('{:s}_{:s}'.format(new_name_final, region))
             self.output_handle.register_object(canvas_cuts)
             self.output_handle.register_object(canvas_final)
 
     def execute(self):
         self.read_event_yields()
+        # try:
         self.plot_signal_yields()
 
         for systematic in self.cutflows.keys():
@@ -260,6 +322,9 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         self.calculate_sm_total()
 
         self.make_cutflow_tables()
+        # except Exception as e:
+        #     print e
+        # finally:
         self.output_handle.write_and_close()
 
 
@@ -267,37 +332,35 @@ class CutflowAnalyser(object):
     """
     Cutflow analyser
     """
+
     def __init__(self, **kwargs):
-        kwargs.setdefault("output_file_name", None)
-        kwargs.setdefault("lumi", None)
-        kwargs.setdefault("process_config", None)
-        kwargs.setdefault("no_merge", False)
-        kwargs.setdefault("raw", False)
-        kwargs.setdefault("output_dir", None)
-        kwargs.setdefault("format", "plain")
-        self.file_list = kwargs["file_list"]
+        kwargs.setdefault('output_file_name', None)
+        kwargs.setdefault('lumi', None)
+        kwargs.setdefault('process_config', None)
+        kwargs.setdefault('no_merge', False)
+        kwargs.setdefault('raw', False)
+        kwargs.setdefault('output_dir', None)
+        kwargs.setdefault('format', 'plain')
+        self.file_list = kwargs['file_list']
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
         self.cutflow_tables = dict()
-        self.dataset_config_file = kwargs["dataset_config"]
-        self.lumi = kwargs["lumi"]
-        self.output_file_name = kwargs["output_file_name"]
-        self.systematics = kwargs["systematics"]
+        self.dataset_config_file = kwargs['dataset_config']
+        self.lumi = kwargs['lumi']
+        self.output_file_name = kwargs['output_file_name']
+        self.systematics = kwargs['systematics']
         self.cutflow_hists = dict()
         self.cutflows = dict()
-        self.xs_handle = XSHandle(kwargs["dataset_config"])
+        self.xs_handle = XSHandle(kwargs['dataset_config'])
         self.event_numbers = dict()
         self.process_configs = None
-        self.raw = kwargs["raw"]
-        self.format = kwargs["format"]
-        self.merge = True if not kwargs["no_merge"] else False
-        if kwargs["output_dir"] is not None:
-            self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
-        if kwargs["process_config"] is not None:
-            self.process_configs = parse_and_build_process_config(kwargs["process_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=self.dataset_config_file)for fn in self.file_list]
-        if self.process_configs is not None:
-            self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
+        self.raw = kwargs['raw']
+        self.format = kwargs['format']
+        self.merge = True if not kwargs['no_merge'] else False
+        if kwargs['output_dir'] is not None:
+            self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
+        if kwargs['process_config'] is not None:
+            self.process_configs = parse_and_build_process_config(kwargs['process_config'])
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -323,9 +386,9 @@ class CutflowAnalyser(object):
             for process in self.cutflow_hists.keys():
                 self.cutflows[systematic][process] = dict()
                 for k, v in self.cutflow_hists[process][systematic].iteritems():
-                    if k.endswith("_raw"):
+                    if k.endswith('_raw'):
                         continue
-                    raw_cutflow = self.cutflow_hists[process][systematic][k+"_raw"]
+                    raw_cutflow = self.cutflow_hists[process][systematic][k + '_raw']
                     self.cutflows[systematic][process][k] = self._analyse_cutflow(v, raw_cutflow, process)
         self.calculate_cut_efficiencies()
 
@@ -333,7 +396,7 @@ class CutflowAnalyser(object):
 
         def merge(histograms):
             for process, process_config in self.process_configs.iteritems():
-                if not hasattr(process_config, "subprocesses"):
+                if not hasattr(process_config, 'subprocesses'):
                     continue
                 for sub_process in process_config.subprocesses:
                     if sub_process not in histograms.keys():
@@ -342,17 +405,22 @@ class CutflowAnalyser(object):
                         for selection in histograms[sub_process][systematic].keys():
                             if not process in histograms.keys():
                                 histograms[process] = dict((syst,
-                                                            dict((sel, None) for sel in histograms[sub_process][syst].keys()))
+                                                            dict((sel, None) for sel in
+                                                                 histograms[sub_process][syst].keys()))
                                                            for syst in histograms[sub_process].keys())
                             if selection not in histograms[process][systematic]:
                                 print "could not find selection ", selection, " for process ", process
                                 continue
                             if histograms[process][systematic][selection] is None:
-                                new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(sub_process, process)
-                                histograms[process][systematic][selection] = histograms[sub_process][systematic][selection].Clone(new_hist_name)
+                                new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(
+                                    sub_process, process)
+                                histograms[process][systematic][selection] = histograms[sub_process][systematic][
+                                    selection].Clone(new_hist_name)
                             else:
-                                histograms[process][systematic][selection].Add(histograms[sub_process][systematic][selection].Clone(new_hist_name))
+                                histograms[process][systematic][selection].Add(
+                                    histograms[sub_process][systematic][selection].Clone(new_hist_name))
                     histograms.pop(sub_process)
+
         merge(hist_dict)
 
     def calculate_sm_total(self):
@@ -385,25 +453,25 @@ class CutflowAnalyser(object):
         if not self.raw:
             parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                      cutflow_hist.GetBinContent(b),
-                                     #raw_cutflow_hist.GetBinContent(b),
+                                     # raw_cutflow_hist.GetBinContent(b),
                                      cutflow_hist.GetBinError(b),
                                      # #raw_cutflow_hist.GetBinError(b),
                                      -1.,
                                      -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
-                                   dtype=[("cut", "S100"), ("yield", "f4"), #("yield_raw", "f4"),
-                                          ("yield_unc", "f4"),
-                                          ("eff", float),
-                                          ("eff_total", float)])  # todo: array dtype for string not a good choice
+                                   dtype=[('cut', 'S100'), ('yield', 'f4'),  # ('yield_raw', 'f4'),
+                                          ('yield_unc', 'f4'),
+                                          ('eff', float),
+                                          ('eff_total', float)])  # todo: array dtype for string not a good choice
         else:
             parsed_info = np.array([(cutflow_hist.GetXaxis().GetBinLabel(b),
                                      raw_cutflow_hist.GetBinContent(b),
                                      raw_cutflow_hist.GetBinError(b),
                                      -1.,
                                      -1.) for b in range(1, cutflow_hist.GetNbinsX() + 1)],
-                                   dtype=[("cut", "S100"), ("yield_raw", "f4"),
-                                          ("yield_unc_raw", "f4"),
-                                          ("eff", float),
-                                          ("eff_total", float)])  # todo: array dtype for string not a good choice
+                                   dtype=[('cut', 'S100'), ('yield_raw', 'f4'),
+                                          ('yield_unc_raw', 'f4'),
+                                          ('eff', float),
+                                          ('eff_total', float)])  # todo: array dtype for string not a good choice
         return parsed_info
 
     def calculate_cut_efficiencies(self):
@@ -413,22 +481,22 @@ class CutflowAnalyser(object):
                     self.calculate_cut_efficiency(cutflow)
 
     def calculate_cut_efficiency(self, cutflow):
-        yield_str = "yield"
+        yield_str = 'yield'
         if self.raw:
-            yield_str = "yield_raw"
-        for i in range(len(cutflow["cut"])):
+            yield_str = 'yield_raw'
+        for i in range(len(cutflow['cut'])):
             if i == 0:
-                cutflow[i]["eff"] = 100.
-                cutflow[i]["eff_total"] = 100.
+                cutflow[i]['eff'] = 100.
+                cutflow[i]['eff_total'] = 100.
                 continue
-            if cutflow[i-1][yield_str] != 0.:
-                cutflow[i]["eff"] = round(100.0*cutflow[i][yield_str]/cutflow[i-1][yield_str], 3)
+            if cutflow[i - 1][yield_str] != 0.:
+                cutflow[i]['eff'] = round(100.0 * cutflow[i][yield_str] / cutflow[i - 1][yield_str], 3)
             else:
-                cutflow[i]["eff"] = -1.
+                cutflow[i]['eff'] = -1.
             if cutflow[0][yield_str] != 0.:
-                cutflow[i]["eff_total"] = round(100.0*cutflow[i][yield_str]/cutflow[0][yield_str], 3)
+                cutflow[i]['eff_total'] = round(100.0 * cutflow[i][yield_str] / cutflow[0][yield_str], 3)
             else:
-                cutflow[i]["eff_total"] = -1.
+                cutflow[i]['eff_total'] = -1.
 
     def make_cutflow_tables(self):
         for systematic in self.systematics:
@@ -443,38 +511,38 @@ class CutflowAnalyser(object):
                     cutflow_tables[selection] = cutflow_tmp
                     continue
                 cutflow_tables[selection] = rec_append_fields(cutflow_tables[selection],
-                                                              [i+process for i in cutflow_tmp.dtype.names[1:]],
+                                                              [i + process for i in cutflow_tmp.dtype.names[1:]],
                                                               [cutflow_tmp[n] for n in cutflow_tmp.dtype.names[1:]])
-            headers = ["Cut"] + [x for elem in self.cutflows[systematic].keys() for x in (elem, "")]
+            headers = ['Cut'] + [x for elem in self.cutflows[systematic].keys() for x in (elem, '')]
             self.cutflow_tables = {k: tabulate(v.transpose(),
                                                headers=headers,
                                                tablefmt=self.format,
-                                               floatfmt=".2f")
+                                               floatfmt='.2f')
                                    for k, v in cutflow_tables.iteritems()}
 
     def stringify(self, cutflow):
         def format_yield(value, uncertainty):
             if value > 10000.:
-                return "{:.3e}".format(value)
+                return '{:.3e}'.format(value)
             else:
-                return "{:.2f}".format(value)
+                return '{:.2f}'.format(value)
             # if value > 10000.:
             #     return "{:.3e} +- {:.3e}".format(value, uncertainty)
             # else:
             #     return "{:.2f} +- {:.2f}".format(value, uncertainty)
 
         if not self.raw:
-            cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-                                 #cutflow[i]["eff"],
-                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)]) #("eff", float),
+            cutflow = np.array([(cutflow[i]['cut'],
+                                 format_yield(cutflow[i]['yield'], cutflow[i]['yield_unc']),
+                                 # cutflow[i]['eff'],
+                                 cutflow[i]['eff_total']) for i in range(len(cutflow))],
+                               dtype=[('cut', 'S100'), ('yield', 'S100'), ('eff_total', float)])  # ('eff', float),
         else:
-            cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-                                 #cutflow[i]["eff"],
-                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)]) #("eff", float),
+            cutflow = np.array([(cutflow[i]['cut'],
+                                 format_yield(cutflow[i]['yield_raw'], cutflow[i]['yield_unc_raw']),
+                                 # cutflow[i]['eff'],
+                                 cutflow[i]['eff_total']) for i in range(len(cutflow))],
+                               dtype=[('cut', 'S100'), ('yield_raw', 'S100'), ('eff_total', float)])  # ('eff', float),
 
         return cutflow
 
@@ -486,7 +554,8 @@ class CutflowAnalyser(object):
         for i, region in enumerate(available_cutflows):
             print i, ")", region
         print "a) all"
-        user_input = raw_input("Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
+        user_input = raw_input(
+            "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
         if user_input == "":
             selections = ["BaseSelection"]
         elif user_input.lower() == "a":
@@ -526,9 +595,11 @@ class CutflowAnalyser(object):
             for cutflow_hist in cutflow_hists:
                 cutflow_hist.SetDirectory(0)
                 try:
-                    self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")].Add(cutflow_hist)
+                    self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")].Add(
+                        cutflow_hist)
                 except KeyError:
-                    self.cutflow_hists[process][systematic][cutflow_hist.GetName().replace("cutflow_", "")] = cutflow_hist
+                    self.cutflow_hists[process][systematic][
+                        cutflow_hist.GetName().replace("cutflow_", "")] = cutflow_hist
 
     def read_cutflows(self):
         for file_handle in self.file_handles:
