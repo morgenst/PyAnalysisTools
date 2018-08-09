@@ -23,7 +23,6 @@ def build_region_info(control_region_defs):
     for region in control_region_defs:
         limit_region_info[region.name] = {"is_norm_region": region.norm_region,
                                           "bgk_to_normalise": region.norm_backgrounds}
-
     return limit_region_info
 
 
@@ -108,8 +107,8 @@ class LimitPlotter(object):
                         watermark="Internal", ymin=float(1e-7), ymax=10)
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
-        pc_1sigma.color = ROOT.kYellow
-        pc_2sigma.color = ROOT.kGreen
+        pc_1sigma.color = ROOT.kGreen
+        pc_2sigma.color = ROOT.kYellow
         pc_1sigma.draw = "3"
         pc_2sigma.draw = "3"
         pc_1sigma.style_setter = "Fill"
@@ -132,7 +131,7 @@ class LimitPlotter(object):
         pt.add_graph_to_canvas(canvas, graph, pc)
         fm.decorate_canvas(canvas, pc)
         fm.add_legend_to_canvas(canvas, plot_objects=[graph, graph_1sigma, graph_2sigma],
-                                labels=["expected limit", "#pm 1#sigma", "#pm 1#sigma"],
+                                labels=["expected limit", "#pm 1#sigma", "#pm 2#sigma"],
                                 format=["P", "F", "F"])
         self.output_handle.register_object(canvas)
 
@@ -205,6 +204,7 @@ class LimitScanAnalyser(object):
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status+1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
         ROOT.gStyle.SetPalette(1)
+        ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format("test"), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
                         ytitle="m_{lq}^{max} cut [GeV]", ztitle="#mu_{sig}^{U.L. @ 95% CL}")
         pc_status = PlotConfig(name="limit_status_{:s}".format("test"), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
