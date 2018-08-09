@@ -169,15 +169,19 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
                 for i, cut in enumerate(region.get_cut_list()):
-                    yields.append((cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i + 1]))[
-                        'weight'].flatten().sum()))
+                    yields.append([cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i + 1]))[
+                        'weight'].flatten().sum()])
                                    #0, -1., -1.))
-                self.cutflows[systematic][region.name][process] = np.array(yields,
-                                                                           dtype=[("cut", "S300"), ("yield", "f4")])
-                                                                                  # ("yield_unc", "f4"),
-                                                                                  # ("eff", float),
-                                                                                  # ("eff_total",
-                                                                                  # float)])  # todo: array dtype for string not a good choiceyields
+                if process not in self.cutflows[systematic][region.name]:
+                    self.cutflows[systematic][region.name][process] = yields
+                else:
+                    for icut, y in enumerate(yields):
+                        self.cutflows[systematic][region.name][process][icut][1] += y[1]
+            for process in self.cutflows[systematic][region.name].keys():
+                map(tuple, self.cutflows[systematic][region.name][process])
+                self.cutflows[systematic][region.name][process] = map(tuple, self.cutflows[systematic][region.name][process])
+                self.cutflows[systematic][region.name][process] = np.array(self.cutflows[systematic][region.name][process],
+                                                                           dtype=[('cut', 'S300'), ('yield', 'f4')])
 
     def apply_cross_section_weight(self, systematic, region):
         for process in self.cutflows[systematic][region].keys():
@@ -186,7 +190,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             except InvalidInputError:
                 _logger.error("None type parsed for ", process)
                 continue
-            self.cutflows[systematic][region][process]["yield"] *= lumi_weight
+            self.cutflows[systematic][region][process]['yield'] *= lumi_weight
 
     def make_cutflow_table(self, systematic):
         cutflow_tables = dict()
@@ -295,6 +299,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         signal_processes = filter(lambda prc: prc.type.lower() == "signal", self.process_configs.values())
         signal_generated_events = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
                                               self.event_numbers.iteritems()))
+
         for region, cutflows in self.cutflows["Nominal"].iteritems():
             signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
                                         cutflows.iteritems()))
@@ -313,11 +318,12 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
     def execute(self):
         self.read_event_yields()
         # try:
-        self.plot_signal_yields()
+        #self.plot_signal_yields()
 
-        for systematic in self.cutflows.keys():
-            for region in self.cutflows[systematic].keys():
-                self.apply_cross_section_weight(systematic, region)
+        if not self.raw:
+            for systematic in self.cutflows.keys():
+                for region in self.cutflows[systematic].keys():
+                    self.apply_cross_section_weight(systematic, region)
         self.merge_yields()
         self.calculate_sm_total()
 
