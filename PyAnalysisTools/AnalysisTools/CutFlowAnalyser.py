@@ -69,7 +69,7 @@ class CommonCutFlowAnalyser(object):
             if value > 10000.:
                 return "{:.3e}".format(value)
             else:
-                return "{:.2f}".format(value)
+                return "{:.2f} ".format(value)
 
         if not self.raw:
             # cutflow = np.array([(cutflow[i]["cut"],
@@ -234,19 +234,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for process, cutflow in self.cutflows[systematic][region].items():
                 cutflow_tmp = self.stringify(cutflow)
                 if region not in cutflow_tables.keys():
-                    cutflow_tables[region] = pd.DataFrame(cutflow_tmp)
+                    cutflow_tables[region] = pd.DataFrame(cutflow_tmp, dtype=str)
                     cutflow_tables[region].columns = ["cut", process]
                     continue
                 d = {process: cutflow_tmp['yield']}
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
 
-
-            #headers = ["Cut"] + [elem.split("_")[-1] for elem in d.names]
-            self.cutflow_tables = {k: tabulate(v,
-                                               headers=list(v.columns.values),
-                                               tablefmt=self.format,
-                                               floatfmt='.2f')
-                                   for k, v in cutflow_tables.iteritems()}
+            self.cutflow_tables = {k: v.to_latex()
+                                    for k, v in cutflow_tables.iteritems()}
 
     def calculate_sm_total(self):
         def add(yields):
@@ -318,7 +313,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
     def execute(self):
         self.read_event_yields()
         # try:
-        #self.plot_signal_yields()
+        self.plot_signal_yields()
 
         if not self.raw:
             for systematic in self.cutflows.keys():
