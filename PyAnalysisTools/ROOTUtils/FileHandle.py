@@ -50,7 +50,6 @@ class FileHandle(object):
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
-        #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
             self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
@@ -155,7 +154,7 @@ class FileHandle(object):
         process_name = self.file_name.split("-")[-1].split(".")[0]
         if switch_off_analysis:
             return process_name
-        process_name = re.sub(r"(\_\d)$", "", process_name)
+        process_name = re.sub(r"(\_\d+)$", "", process_name)
         analysed_process_name = analyse_process_name()
         if analysed_process_name is None:
             process_name = self.file_name.split("/")[-2]
