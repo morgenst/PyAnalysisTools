@@ -89,3 +89,17 @@ def plot_all_components(model, frame):
     for i in range(0, pdflist.getSize()):
         model.plotOn(frame, RooFit.Components(pdflist.at(i).GetName()), RooFit.LineColor(list[i]))
     model.plotOn(frame, RooFit.LineColor(2))
+
+def scan_parameter_likelihood(data, model, parameter_name):
+    canvas_scan = ROOT.TCanvas(parameter_name, "", 800, 600)
+    nll = model.createNLL(data, RooFit.NumCPU(5))
+    ROOT.RooMinuit(nll).migrad()
+    it = model.getVariables().createIterator()
+    for parameter in iter(it.Next, None):
+        if(parameter.GetName() == parameter_name) and False:
+            frame_scan = parameter.frame()
+            frac = nll.createProfile(ROOT.RooArgSet(parameter))
+            frac.plotOn(frame_scan,  RooFit.LineColor(2))
+            canvas_scan.cd()
+            frame_scan.Draw()
+            return canvas_scan

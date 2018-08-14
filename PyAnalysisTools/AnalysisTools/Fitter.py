@@ -13,8 +13,8 @@ from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
 class PDFConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("blind", False)
-        if "config_file" in kwargs:
-            config = YAMLLoader.read_yaml(kwargs["config_file"])
+        if "fit_config_file" in kwargs:
+            config = YAMLLoader.read_yaml(kwargs["fit_config_file"])
             self.pdf = config.keys()[0]
             self.set_attr("blind", False)
             for attr, val in config[self.pdf].iteritems():
@@ -249,7 +249,7 @@ class Fitter(object):
         self.nbin = 40
         self.xtitle = "variable"
         self.logy = False
-        self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
+        self.pdf_config = PDFConfig(fit_config_file=kwargs["fit_config_file"]) if "fit_config_file" in kwargs else kwargs["config"]
         self.mode = kwargs["mode"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
@@ -301,20 +301,6 @@ class Fitter(object):
                                            RooFit.NumCPU(5))#, RooFit.Cut("region==region::Signal"))
         else:
             fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(5))
-        #############################Likelihood scan of a parameter######################
-        canvas_scan = ROOT.TCanvas("c1", "111", 800, 600)
-        nll = self.model.createNLL(self.data, RooFit.NumCPU(5))
-        ROOT.RooMinuit(nll).migrad()
-        it = self.model.getVariables().createIterator()
-        for parameter in iter(it.Next, None):
-            if(parameter.GetName()=="BFraction"):
-               frame_scan = parameter.frame()
-               frac = nll.createProfile(ROOT.RooArgSet(parameter))
-               frac.plotOn(frame_scan,  RooFit.LineColor(2))
-               canvas_scan.cd()
-               frame_scan.Draw()
-               self.output_handle.register_object(canvas_scan)
-        ################################################################################
         canvas = ROOT.TCanvas("c", "", 800, 600)
         frame = self.var.frame()
         canvas.cd()

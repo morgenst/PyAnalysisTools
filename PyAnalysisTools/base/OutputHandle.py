@@ -114,6 +114,7 @@ class OutputFileHandle(SysOutputHandle):
                   c.SaveAs(os.path.join(output_path, name + self.extension))
             else:
                c.SaveAs(os.path.join(output_path, name + self.extension))
+        self.output_path = output_path
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
@@ -132,6 +133,7 @@ class OutputFileHandle(SysOutputHandle):
                 bucket[i].Update()
                 bucket[i].Modified()
             bucket[i].DrawClonePad()
+        ROOT.gStyle.SetLineScalePS(3.)
         return plot_book_canvas
 
     def make_plot_book(self):
@@ -165,7 +167,7 @@ class OutputFileHandle(SysOutputHandle):
             self.make_plot_book()
         self.attach_file()
         for tdir, obj in self.objects.iteritems():
-            if isinstance(obj, ROOT.TCanvas):
+            if isinstance(obj, ROOT.TCanvas) and not self.enable_make_plot_book:
                 self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
         self.output_file.Write()

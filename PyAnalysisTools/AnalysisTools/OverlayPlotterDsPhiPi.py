@@ -96,6 +96,7 @@ class OverlayPlotterDsPhiPi(object):
               hist.SetAxisRange(0., 1.4*max, "Y")
            else:
               hist.SetAxisRange(min-2*(max-min), max+2*(max-min), "Y")
+           hist.SetMarkerSize(0.8)
            hist.Draw("same P")
            hist.Draw("same L1hist")
        if hist_base:
