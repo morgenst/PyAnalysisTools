@@ -266,7 +266,7 @@ def set_range_y(graph_obj, minimum, maximum):
     if isinstance(graph_obj, ROOT.THStack):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
-    elif isinstance(graph_obj, ROOT.TH1):
+    elif isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.TGraph):
         graph_obj.SetMaximum(maximum)
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
@@ -385,13 +385,16 @@ def add_legend_to_canvas(canvas, **kwargs):
     if "labels" in kwargs:
         labels = kwargs["labels"]
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
-        plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
-        plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
-        plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
-        plot_objects += get_objects_from_canvas_by_type(canvas, "TGraph")
-        #plot_objects += get_objects_from_canvas_by_type(canvas, "TProfile")
-        stacks = get_objects_from_canvas_by_type(canvas, "THStack")
-        plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
+        if not "plot_objects" in kwargs:
+            plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
+            plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
+            plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
+            plot_objects += get_objects_from_canvas_by_type(canvas, "TGraph")
+            #plot_objects += get_objects_from_canvas_by_type(canvas, "TProfile")
+            stacks = get_objects_from_canvas_by_type(canvas, "THStack")
+            plot_objects += get_objects_from_canvas_by_type(canvas, "TEfficiency")
+        else:
+            plot_objects = kwargs["plot_objects"]
     else:
         labels = {}
         plot_objects = []
@@ -426,7 +429,10 @@ def add_legend_to_canvas(canvas, **kwargs):
         if label is None:
             continue
         plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
-        legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
+        if not "format" in kwargs or not isinstance(kwargs["format"], list):
+            legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
+        else:
+            legend.AddEntry(plot_obj, label, kwargs["format"][plot_objects.index(plot_obj)])
     canvas.cd()
     if "fill_style" in kwargs:
         print "yes, got fill style"
