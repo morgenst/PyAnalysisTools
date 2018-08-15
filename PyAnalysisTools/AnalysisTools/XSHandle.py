@@ -83,8 +83,12 @@ class XSHandle(object):
             kfactor = xs_info.kfactor
         return xsec, filter_eff, kfactor
 
-    def get_lumi_scale_factor(self, process, lumi, mc_events):
-        return self.get_xs_scale_factor(process) * lumi * 1000. * 1000. / mc_events
+    def get_lumi_scale_factor(self, process, lumi, mc_events, fixed_xsec=None):
+        if fixed_xsec:
+            xsec = fixed_xsec
+        else:
+            xsec = self.get_xs_scale_factor(process)
+        return xsec * lumi * 1000. * 1000. / mc_events
 
     def get_ds_info(self, process, element):
         return getattr(self.cross_sections[process], element)
