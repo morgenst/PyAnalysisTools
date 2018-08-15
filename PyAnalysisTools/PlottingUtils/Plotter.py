@@ -206,6 +206,8 @@ class Plotter(BasePlotter):
 
     def get_signal_hists(self, data):
         signals = {}
+        if self.process_configs is None:
+            return signals
         signal_process_configs = filter(lambda pc: isinstance(pc[1], ProcessConfig) and
                                                    pc[1].type.lower() == "signal", self.process_configs.iteritems())
         if len(signal_process_configs) == 0:
@@ -249,7 +251,8 @@ class Plotter(BasePlotter):
             if plot_config.signal_extraction:
                 for signal in signals.iteritems():
                     PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
-            self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
+            if self.process_configs is not None:
+                self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
         elif plot_config.is_multidimensional:
             self.make_multidimensional_plot(plot_config, data)
             return
