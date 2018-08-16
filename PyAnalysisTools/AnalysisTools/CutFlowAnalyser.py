@@ -246,9 +246,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
     def calculate_sm_total(self):
         def add(yields):
             sm_yield = []
-
             for process, evn_yields in yields.iteritems():
                 if 'data' in process.lower():
+                    continue
+                if find_process_config(process, self.process_configs).type.lower() == "signal":
                     continue
                 if len(sm_yield) == 0:
                     sm_yield = list(evn_yields)
@@ -298,16 +299,24 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         for region, cutflows in self.cutflows["Nominal"].iteritems():
             signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
                                         cutflows.iteritems()))
-            canvas_cuts, canvas_final = get_signal_acceptance(signal_yields, signal_generated_events, None)
+            if len(signal_yields) == 0:
+                continue
+            canvas_cuts, canvas_cuts_log, canvas_final = get_signal_acceptance(signal_yields,
+                                                                               signal_generated_events,
+                                                                               self.lumi, None)
 
             new_name_cuts = canvas_cuts.GetName()
+            new_name_cuts_log = canvas_cuts_log.GetName()
             new_name_final = canvas_final.GetName()
             for item in replace_items:
                 new_name_cuts = new_name_cuts.replace(item[0], item[1])
+                new_name_cuts_log = new_name_cuts_log.replace(item[0], item[1])
                 new_name_final = new_name_final.replace(item[0], item[1])
             canvas_cuts.SetName('{:s}_{:s}'.format(new_name_cuts, region))
+            canvas_cuts_log.SetName('{:s}_{:s}'.format(new_name_cuts_log, region))
             canvas_final.SetName('{:s}_{:s}'.format(new_name_final, region))
             self.output_handle.register_object(canvas_cuts)
+            self.output_handle.register_object(canvas_cuts_log)
             self.output_handle.register_object(canvas_final)
 
     def execute(self):
