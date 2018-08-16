@@ -79,21 +79,38 @@ class Region(object):
         :return: selection string
         :rtype: string
         """
-        if cut_list is None:
-            cut_list = []
+        new_cut_list = []
+
         if self.common_selection is not None and selection is not None:
             if selection in self.common_selection:
-                cut_list += self.common_selection[selection]
+                new_cut_list += self.common_selection[selection]
+        if cut_list is not None:
+            new_cut_list += cut_list
         if not self.split_mc_data:
-            return " && ".join(cut_list)
-        return " && ".join(filter(lambda cut: "data:" not in cut.lower(), cut_list)), \
-               " && ".join(cut_list).replace("Data:", "").replace("data:", "").replace("DATA:", "")
+            return " && ".join(new_cut_list)
+        return " && ".join(filter(lambda cut: "data:" not in cut.lower(), new_cut_list)), \
+               " && ".join(new_cut_list).replace("Data:", "").replace("data:", "").replace("DATA:", "")
 
     def get_cut_list(self):
+        cuts = []
+        electron_selector = "electron_n == electron_n"
+        muon_selector = "muon_n == muon_n"
+        if hasattr(self, "good_muon_cut_string"):
+            muon_selector = "Sum$({:s}) == muon_n".format(self.good_muon_cut_string)
+        if hasattr(self, "good_electron_cut_string"):
+            electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
+        if not self.disable_muons:
+            cuts.append("{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon))
+        if not self.disable_electrons:
+            cuts.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
         if self.event_cuts and self.common_selection is None:
-            return self.event_cuts
+            return cuts + self.event_cuts
         if self.common_selection and "event_cuts" in self.common_selection:
-            return self.common_selection["event_cuts"]
+            cuts += deepcopy(self.common_selection["event_cuts"])
+            if self.event_cuts:
+                cuts += self.event_cuts
+
+            return cuts
         
     def convert_lepton_selections(self):
         """
@@ -103,7 +120,6 @@ class Region(object):
         :return: None
         :rtype: None
         """
-
         if self.good_muon or self.common_selection and "good_muon" in self.common_selection:
             # good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
             self.good_muon_cut_string = self.convert_cut_list_to_string(self.good_muon, "good_muon")
@@ -137,9 +153,11 @@ class Region(object):
             electron_selector = "Sum$({:s}) == electron_n".format(self.good_electron_cut_string)
 
         cut = ""
-        if self.event_cuts is not None:
-            cut_list += self.event_cuts
-        if self.event_cuts is None and hasattr(self, "event_cut_string"):
+        # if self.event_cuts is not None:
+        #     cut_list += self.event_cuts
+        # if self.event_cuts is None and hasattr(self, "event_cut_string"):
+        #     cut_list.append(self.event_cut_string)
+        if hasattr(self, "event_cut_string"):
             cut_list.append(self.event_cut_string)
         if self.is_on_z is not None:
             cut_list.append("Sum$(inv_Z_mask==1) > 0" if self.is_on_z else "Sum$(inv_Z_mask==1) == 0")
