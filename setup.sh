@@ -6,6 +6,8 @@ fi
 
 if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ $(hostname -s) = *pc-tbed-pub-* ]]; then
     CWD=`dirname $(readlink -f "$0")`
+elif [[ $(hostname -s) = *stbc-* ]]; then
+    CWD=`dirname $(readlink -f "${BASH_SOURCE[@]}")`
 else
     called=$_
     [[ $called != $0 ]]
