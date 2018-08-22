@@ -106,7 +106,6 @@ class PDFBernstein(PDF):
 
 class PDFArgus(PDF):
     def __init__(self, **kwargs):
-        print kwargs
         kwargs.setdefault("pdf_name", "argus")
         self.name = kwargs["pdf_name"]
         self.kappa = kwargs["pdf_config"].kappa
@@ -205,25 +204,25 @@ class PDFBFraction(PDF):
          LXY_set = ROOT.RooArgSet(self.var)
          LXY_list = ROOT.RooArgList(self.var)
          #Define bin for rebinning
-         binlist = array.array('d', [-2+j*0.25 for j in xrange(16)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(10)])
+         binlist = array.array('d', [-4+j*0.25 for j in xrange(24)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(11)])
          #Make pdf for bb contribution
          hist_bb = get_hist_from_canvas(self.templatepath, "triplet_slxy_bb",
-                                        "triplet_slxy_bb_HFbbccplusDsPhiPi")
+                                        "triplet_slxy_bb_HFbbcc*")
          hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
          datahist_bb = ROOT.RooDataHist("datahist_bb","datahist_bb",LXY_list,hist_bb)
-         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,3))
+         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,0))
          #Make pdf for cc contribution
          hist_cc = get_hist_from_canvas(self.templatepath, "triplet_slxy_cc",
-                                        "triplet_slxy_cc_HFbbccplusDsPhiPi")
+                                        "triplet_slxy_cc_HFbbcc*")
          hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
          datahist_cc = ROOT.RooDataHist("datahist_cc","datahist_cc",LXY_list,hist_cc)
-         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,3))
+         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,0))
          #Make pdf for background contribution
          hist_bkg = get_hist_from_canvas(self.templatepath, "triplet_slxy_bkg",
-                                         "triplet_slxy_bkg_Data2016")
+                                         "triplet_slxy_bkg_Data*")
          hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
          datahist_bkg = ROOT.RooDataHist("datahist_bkg","datahist_bkg",LXY_list,hist_bkg)
-         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,3))
+         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,0))
          #Add up pdf
          w.factory("BFraction[0.05, 0.5]")
          w.factory("n_bkg[0., 50000.]")
@@ -249,7 +248,7 @@ class Fitter(object):
         self.nbin = 40
         self.xtitle = "variable"
         self.logy = False
-        self.pdf_config = PDFConfig(fit_config_file=kwargs["fit_config_file"]) if "fit_config_file" in kwargs else kwargs["config"]
+        self.pdf_config = PDFConfig(fit_config_file=kwargs["fit_config_file"]) if "fit_config_file" in kwargs else kwargs["fit_config_config"]
         self.mode = kwargs["mode"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
