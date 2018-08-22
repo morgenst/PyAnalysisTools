@@ -259,22 +259,34 @@ class Plotter(BasePlotter):
             # todo: "Background" should be an actual type
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
                                                  self.process_configs.iteritems()))
-            signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
+            #signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
             background_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Background")
             if hasattr(plot_config, "significance_config"):
                 sig_plot_config = plot_config.significance_config
             else:
                 sig_plot_config = copy.copy(plot_config)
                 sig_plot_config.name = "sig_" + plot_config.name
-                sig_plot_config.ytitle = "S/#Sqrt(S + B)"
+                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+            significance_canvas = None
+            for process, signal_hist in signals.iteritems():
+                sig_plot_config.color = self.process_configs[process].color
+                sig_plot_config.name = "significance_{:s}".format(process)
+                sig_plot_config.ymin = 0.00001
+                sig_plot_config.ymax = 1e5
+                sig_plot_config.ytitle = "S/#sqrt(S + B)"
 
-            significance_hist = ST.get_significance(signal_hist, background_hist, sig_plot_config)
-            canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_hist,
-                                                               name=canvas.GetName() + "_significance")
-            self.output_handle.register_object(canvas_significance_ratio)
+                significance_canvas = ST.get_significance(signal_hist, background_hist, sig_plot_config,
+                                                          significance_canvas)
+                canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_canvas,
+                                                                   name=canvas.GetName() + "_significance")
+            if significance_canvas is not None:
+                self.output_handle.register_object(canvas_significance_ratio)
         self.output_handle.register_object(canvas)
         if plot_config.ratio:
             if plot_config.no_data or plot_config.is_multidimensional:
+                return
+            if "Data" not in data:
+                _logger.error("Requested ratio, but no data provided. Cannot build ratio.")
                 return
             mc_total = None
             for key, hist in data.iteritems():
