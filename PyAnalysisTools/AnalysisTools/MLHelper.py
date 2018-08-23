@@ -24,7 +24,6 @@ class DataScaler(object):
 
     def apply_scaling(self, X, y, dump=None, scaler=None):
         if scaler is not None:
-            print "load scaler ", scaler
             with open(scaler, "r") as fn:
                 return pickle.load(fn).transform(X), y
 
