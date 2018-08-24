@@ -16,6 +16,7 @@ class LimitArgs(object):
         self.fit_mode = fit_mode
         self.output_dir = output_dir
         self.job_id = kwargs["jobid"]
+        self.sig_reg_name = kwargs["sig_reg_name"]
         self.kwargs = kwargs
 
 
@@ -191,6 +192,7 @@ class LimitScanAnalyser(object):
     def parse_limits(self):
         parsed_data = []
         for scan in self.scan_info:
+            self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyser(scan.output_dir, 'LQAnalysis')
             try:
                 limit_info = analyser.analyse_limit(scan.kwargs['sig_name'])
@@ -240,47 +242,45 @@ class LimitScanAnalyser(object):
 
     def plot_prefit_yields(self):
         def book_single_mass_hist(mass, process):
-            hist_single_mass = ROOT.TH1F("yield_vs_cut_{:s}_{:s}".format(str(mass), process), "",
-                                         len(self.scanned_mass_cuts),
-                                         self.scanned_mass_cuts[0] - self.mass_cut_offset,
-                                         self.scanned_mass_cuts[-1] + self.mass_cut_offset)
+            nbins = int((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]) / self.mass_cut_offset) + 1
+            hist_single_mass = ROOT.TH1F("yield_single_mass_{:s}_{:s}".format(str(mass), process), "",
+                                         *self.scan_mass_binning)
             return hist_single_mass
 
         def book_single_cut_hist(mass_cut, process):
-            hist_single_mass_cut = ROOT.TH1F("yield_vs_mass_{:s}_{:s}".format(str(mass_cut), process), "",
-                                             len(self.scanned_sig_masses),
-                                             self.scanned_sig_masses[0] - self.min_mass_diff,
-                                             self.scanned_sig_masses[-1] + self.min_mass_diff)
+            nbins = int((self.scanned_sig_masses[-1] - self.scanned_sig_masses[0]) / self.min_mass_diff) + 1
+            hist_single_mass_cut = ROOT.TH1F("yield_single_cut_{:s}_{:s}".format(str(mass_cut), process), "",
+                                             *self.sig_mass_binning)
             return hist_single_mass_cut
 
         ordering = ["multiboson", "singletop", "ttbar", "Zjets"]
-        yields_vs_cut_hists = {}
-        yields_vs_mass_hists = {}
+        yields_single_cut_hists = {}
+        yields_single_mass_hists = {}
         for mass_cut in self.scanned_mass_cuts:
             for process in ordering + ["signal"]:
-                yields_vs_cut_hists[(mass_cut, process)] = book_single_cut_hist(mass_cut, process)
+                yields_single_cut_hists[(mass_cut, process)] = book_single_cut_hist(mass_cut, process)
         for mass in self.scanned_sig_masses:
             for process in ordering + ["signal"]:
-                yields_vs_mass_hists[(mass, process)] = book_single_mass_hist(mass, process)
+                yields_single_mass_hists[(mass, process)] = book_single_mass_hist(mass, process)
 
         for mass, cut in sorted(self.prefit_yields.keys()):
             yields = self.prefit_yields[(mass, cut)]
             for process in ordering:
-                hist_vs_cut = yields_vs_cut_hists[(cut, process)]
+                hist_vs_cut = yields_single_cut_hists[(cut, process)]
                 try:
                     hist_vs_cut.Fill(mass, yields[process].GetBinContent(1))
                 except KeyError:
                     hist_vs_cut.Fill(mass, 0.)
                     print "Did not fine yields for {:s} and LQ mass {:.0f} and cut {:.0f}".format(process, mass, cut)
-                hist_vs_mass = yields_vs_mass_hists[(mass, process)]
+                hist_vs_mass = yields_single_mass_hists[(mass, process)]
                 try:
                     hist_vs_mass.Fill(cut, yields[process].GetBinContent(1))
                 except KeyError:
                     hist_vs_mass.Fill(cut, 0.)
             signal_process = filter(lambda p: "LQ" in p, yields.keys())[0]
-            hist_vs_cut = yields_vs_cut_hists[(cut, "signal")]
+            hist_vs_cut = yields_single_cut_hists[(cut, "signal")]
             hist_vs_cut.Fill(mass, yields[signal_process].GetBinContent(1))
-            hist_vs_mass = yields_vs_mass_hists[(mass, "signal")]
+            hist_vs_mass = yields_single_mass_hists[(mass, "signal")]
             hist_vs_mass.Fill(cut, yields[signal_process].GetBinContent(1))
         pc_vs_cut = PlotConfig(name="", xtitle="m_{LQ} [GeV]", ytitle="Event yields", watermark="Internal",
                                lumi=100., color=get_default_color_scheme(), style=1001)
@@ -297,14 +297,14 @@ class LimitScanAnalyser(object):
             pc_vs_mass_log.name += "_log"
             pc_vs_mass_log.logy = True
             pc_vs_mass_log.ymin = 0.1
-            canvas_vs_cut = pt.plot_stack([yields_vs_cut_hists[(cut, p)] for p in ordering + ["signal"]],
+            canvas_vs_cut = pt.plot_stack([yields_single_cut_hists[(cut, p)] for p in ordering + ["signal"]],
                                           pc_vs_cut)
-            canvas_vs_cut_log = pt.plot_stack([yields_vs_cut_hists[(cut, p)] for p in ordering + ["signal"]],
+            canvas_vs_cut_log = pt.plot_stack([yields_single_cut_hists[(cut, p)] for p in ordering + ["signal"]],
                                               pc_vs_cut_log)
             pc_vs_cut.name = "yield_vs_cut_{:s}".format(str(mass))
-            canvas_vs_mass = pt.plot_stack([yields_vs_mass_hists[(mass, p)] for p in ordering + ["signal"]],
+            canvas_vs_mass = pt.plot_stack([yields_single_mass_hists[(mass, p)] for p in ordering + ["signal"]],
                                           pc_vs_mass)
-            canvas_vs_mass_log = pt.plot_stack([yields_vs_mass_hists[(mass, p)] for p in ordering + ["signal"]],
+            canvas_vs_mass_log = pt.plot_stack([yields_single_mass_hists[(mass, p)] for p in ordering + ["signal"]],
                                                pc_vs_mass_log)
             fm.decorate_canvas(canvas_vs_cut, pc_vs_cut)
             fm.decorate_canvas(canvas_vs_mass, pc_vs_mass)
@@ -328,15 +328,18 @@ class LimitScanAnalyser(object):
         else:
             self.min_mass_diff = 50
         if len(self.scanned_mass_cuts) > 1:
-            self.mass_cut_offset = (self.scanned_mass_cuts[1] - self.scanned_mass_cuts[0]) / (len(self.scanned_sig_masses) - 1) / 2.
+            self.mass_cut_offset = (self.scanned_mass_cuts[1] - self.scanned_mass_cuts[0])  / 2.
         else:
             self.mass_cut_offset = 50.
 
-        hist = ROOT.TH2F("uppler_limit", "",
-                         len(self.scanned_sig_masses),
-                         self.scanned_sig_masses[0] - self.min_mass_diff, self.scanned_sig_masses[-1] + self.min_mass_diff,
-                         len(self.scanned_mass_cuts),
-                         self.scanned_mass_cuts[0] - self.mass_cut_offset, self.scanned_mass_cuts[-1] + self.mass_cut_offset)
+        self.sig_mass_binning = [int((self.scanned_sig_masses[-1] - self.scanned_sig_masses[0]) / (self.min_mass_diff * 2)) + 1,
+                                 self.scanned_sig_masses[0] - self.min_mass_diff,
+                                 self.scanned_sig_masses[-1] + self.min_mass_diff]
+        self.scan_mass_binning = [int((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]) / (self.mass_cut_offset * 2)) + 1,
+                                  self.scanned_mass_cuts[0] - self.mass_cut_offset,
+                                  self.scanned_mass_cuts[-1] + self.mass_cut_offset]
+
+        hist = ROOT.TH2F("uppler_limit", "", *(self.sig_mass_binning+self.scan_mass_binning))
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
         for limit_info in parsed_data:
@@ -345,11 +348,11 @@ class LimitScanAnalyser(object):
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
         ROOT.gStyle.SetPalette(1)
         ROOT.gStyle.SetPaintTextFormat(".2g")
-        pc = PlotConfig(name="limit_scan_{:s}".format("test"), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
+        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
                         ytitle="m_{lq}^{max} cut [GeV]", ztitle="95 \% CL U.L. #sigma [fb]")
-        pc_status = PlotConfig(name="limit_status_{:s}".format("test"), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
+        pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
                                ytitle="m_{lq}^{max} cut [GeV]", ztitle="fit status + 1", zmin=-1.)
-        pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format("test"), draw_option="COLZTEXT",
+        pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                     xtitle="m_{LQ} [GeV]", ytitle="m_{lq}^{max} cut [GeV]", ztitle="fit cov quality")
         canvas = pt.plot_obj(hist, pc)
         self.output_handle.register_object(canvas)
