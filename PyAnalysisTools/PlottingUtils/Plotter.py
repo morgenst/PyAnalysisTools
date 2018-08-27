@@ -231,7 +231,10 @@ class Plotter(BasePlotter):
             signals = self.get_signal_hists(data)
         if plot_config.signal_scale is not None:
             self.scale_signals(signals, plot_config)
-        if plot_config.outline == "stack" and not plot_config.is_multidimensional:
+        signal_only = False
+        if len(signals) > 0 and len(data) == 0:
+            signal_only = True
+        if plot_config.outline == "stack" and not plot_config.is_multidimensional and not signal_only:
             canvas = PT.plot_stack(data, plot_config=plot_config,
                                    process_configs=self.process_configs)
             stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
@@ -248,6 +251,8 @@ class Plotter(BasePlotter):
         elif plot_config.is_multidimensional:
             self.make_multidimensional_plot(plot_config, data)
             return
+        elif signal_only:
+            canvas = PT.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
             canvas = PT.plot_objects(data, plot_config, process_configs=self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
