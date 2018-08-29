@@ -1,55 +1,60 @@
-import ROOT
-import PyAnalysisTools.PlottingUtils.PlottingTools as PT
-import PyAnalysisTools.PlottingUtils.Formatting as FM
-from PyAnalysisTools.PlottingUtils import HistTools as HT
+import collections
 from copy import copy
-from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
+import ROOT
+from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
+from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.JSONHandle import JSONHandle
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.Modules import load_modules
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
+import PyAnalysisTools.PlottingUtils.Formatting as FM
+from PyAnalysisTools.PlottingUtils import HistTools as HT
+import PyAnalysisTools.PlottingUtils.PlottingTools as PT
+from PyAnalysisTools.PlottingUtils import set_batch_mode
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, get_objects_from_canvas
+from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
     expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
-from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
-from PyAnalysisTools.base.Modules import load_modules
-from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
+from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+
 
 class ComparisonReader(object):
     def __init__(self, **kwargs):
-        if "input_files" not in kwargs:
-            _logger.error("No input file provided")
-            raise InvalidInputError("Missing input files")
-        kwargs.setdefault("reference_files", None)
-        kwargs.setdefault("reference_dataset_info", None)
-        kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("systematics", "Nominal")
-        self.input_files = kwargs["input_files"]
-        self.reference_files = kwargs["reference_files"]
-        self.tree_name = kwargs["tree_name"]
+        if 'input_files' not in kwargs:
+            _logger.error('No input file provided')
+            raise InvalidInputError('Missing input files')
+        kwargs.setdefault('compare_files', None)
+        self.input_files = kwargs['input_files']
+        self.compare_files = kwargs['compare_files']
+        self.tree_name = kwargs['tree_name']
         for opt, val in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, val)
-        if hasattr(self, "merge_file") and not hasattr(self, "reference_merge_file"):
-            self.reference_merge_file = self.merge_file
-        if hasattr(self, "merge_file"):
-            self.process_configs = self.parse_process_config(self.merge_file)
-            self.reference_process_configs = self.parse_process_config(self.reference_merge_file)
 
+                
     def get_instance(self, plot_config):
-        if ((hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref")) or hasattr(plot_config, "cuts_ref")) and len(self.input_files) == 1 and len(self.reference_files) == 0:
-            _logger.debug("Using SingleFileMultiReader instance")
-            return SingleFileMultiDistReader(input_files=self.input_files, plot_config=plot_config, tree_name=self.tree_name)
-        if hasattr(plot_config, "dist") and not hasattr(plot_config, "dist_ref") and self.reference_files:
-            _logger.debug("Using MultiFileSingleDistReader instance")
-            return MultiFileSingleDistReader(plot_config=plot_config, **self.__dict__)
-        if hasattr(plot_config, "dist") and hasattr(plot_config, "dist_ref") and self.reference_files is None and \
-                        len(self.input_files) > 0:
-            _logger.debug("Using MultiFileMultiDistReader")
-            return MultiFileMultiDistReader(plot_config=plot_config, **self.__dict__)
+        if self.compare_files:
+            if(hasattr(plot_config.ratio_config, 'multi_ref') and plot_config.ratio_config.multi_ref):
+                print "Using MultiFileMultiRefReader instance"
+                _logger.debug("Using MultiFileMultiRefReader instance")
+                return MultiFileMultiRefReader(plot_config=plot_config, **self.__dict__)
+            else:
+                print "Using MultiFileSingleRefReader instance"
+                _logger.debug("Using MultiFileSingleRefReader instance")
+                return MultiFileSingleRefReader(plot_config=plot_config, **self.__dict__)
+        else:
+            if(hasattr(plot_config.ratio_config, 'multi_ref') and plot_config.ratio_config.multi_ref):
+                print "Using SingleFileMultiRefReader instance"
+                _logger.debug("Using SingleFileMultiRefReader instance")
+                return SingleFileMultiRefReader(plot_config=plot_config, **self.__dict__)
+            else:
+                print "Using SingleFileSingleRefReader instance"
+                _logger.debug("Using SingleFileSingleRefReader instance")
+                return SingleFileSingleRefReader(plot_config=plot_config, **self.__dict__)
 
+            
     def get_data(self):
         data = {}
         for plot_config in self.plot_configs:
@@ -57,34 +62,31 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    def make_plot(self, file_handle, plot_config, tree_name=None):
+    
+    def make_hist(self, file_handle, plot_config, cut_name, cut_string, tree_name=None):
         hist = get_histogram_definition(plot_config)
-        hist.SetName(hist.GetName() + file_handle.process)
+        hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
-        if self.systematics is None:
-            self.systematics = "Nominal"
         try:
-            cut_string = ""
-            if hasattr(plot_config, "cuts") and plot_config.cuts is not None:
-                cut_string = "&&".join(plot_config.cuts)
-            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string,
-                                                    tdirectory=self.systematics)
-            hist.SetName(hist.GetName() + "_" + file_handle.process)
+            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string, tdirectory='Nominal')
+            hist.SetName(hist.GetName() + '_' + file_handle.process)
             _logger.debug("try to access config for process %s" % file_handle.process)
         except Exception as e:
             raise e
         return hist
 
+    
     @staticmethod
     def merge_histograms(histograms, process_configs):
         def expand():
             if process_configs is not None:
                 for process_name in histograms.keys():
                     _ = find_process_config(process_name, process_configs)
+
         expand()
         for process, process_config in process_configs.iteritems():
-            if not hasattr(process_config, "subprocesses"):
+            if not hasattr(process_config, 'subprocesses'):
                 continue
             for sub_process in process_config.subprocesses:
                 if sub_process not in histograms.keys():
@@ -108,200 +110,291 @@ class ComparisonReader(object):
         return process_config
 
 
-class SingleFileMultiDistReader(ComparisonReader):
+class SingleFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
-        input_files = kwargs["input_files"]
-        plot_config = kwargs["plot_config"]
-        if isinstance(input_files, list):
-            if len(input_files) > 1:
-                _logger.error("Privided {:d} input files for single file reader. "
-                              "Using just first".format(len(input_files)))
-            input_files = input_files[0]
-        self.file_handle = FileHandle(file_name=input_files, switch_off_process_name_analysis=True)
-        self.plot_config = plot_config
-        self.tree_name = kwargs["tree_name"]
-        self.systematics = None
-        
-    def get_data(self):
-        try:
-            reference_canvas = self.file_handle.get_object_by_name(self.plot_config.dist_ref)
-            compare_canvas = self.file_handle.get_object_by_name(self.plot_config.dist)
-            if hasattr(self.plot_config, "retrieve_by") and self.plot_config.retrieve_by == "type":
-                reference = get_objects_from_canvas_by_type(reference_canvas, "TH1F")
-                compare = get_objects_from_canvas_by_type(compare_canvas, "TH1F")
-            else:
-                reference = get_objects_from_canvas_by_name(reference_canvas, self.plot_config.processes[0])
-                compare = get_objects_from_canvas_by_name(compare_canvas, self.plot_config.processes[0])
-        except (ValueError, AttributeError):
-            #plot_configs = expand_plot_config(self.plot_config)
-            #plot_config_ref = copy(plot_configs[0])
-
-            plot_config_ref = copy(self.plot_config)
-            plot_config_ref.name += "_reference"
-            if not hasattr(self.plot_config, "cuts_ref"):
-                plot_config_ref.dist = self.plot_config.dist_ref
-            plot_configs = expand_plot_config(self.plot_config)
-            if hasattr(plot_configs[0], "enable_cut_ref_merge") and plot_configs[0].enable_cut_ref_merge:
-                reference = [self.make_plot(self.file_handle, plot_config_ref) for plot_config in plot_configs]
-            compare = [self.make_plot(self.file_handle, plot_config) for plot_config in plot_configs]
-            reference.SetDirectory(0)
-            map(lambda obj: obj.SetDirectory(0), compare)
-        return reference, compare
-
-
-class SingleFileMultiProcessReader(ComparisonReader):
-    def __init__(self):
-        pass
-
-    def get_data(self):
-        pass
-
-
-class MultiFileMultiDistReader(ComparisonReader):
-    def __init__(self, **kwargs):
-        self.file_handles = [FileHandle(file_name=fn,
-                                        dataset_info=kwargs["xs_config_file"],
-                                        switch_off_process_name_analysis=kwargs["xs_config_file"] is None)
-                             for fn in kwargs["input_files"]]
-        self.plot_config = kwargs["plot_config"]
-        self.tree_name = kwargs["tree_name"]
+        input_files = kwargs['input_files']
+        compare_files = kwargs['input_files']
+        self.file_handles = [FileHandle(file_name=fn) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn) for fn in compare_files]
+        self.plot_config = kwargs['plot_config']
+        self.tree_name = kwargs['tree_name']
         for opt, value in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, value)
 
+                
     def get_data(self):
-        plot_config_ref = copy(self.plot_config)
-        plot_config_ref.dist = self.plot_config.dist_ref
-        plot_config_ref.name += "_ref"
-        reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.tree_name) for
-                     file_handle in self.file_handles}
-        compare = {file_handle.process: self.make_plot(file_handle, self.plot_config, self.tree_name)
-                   for file_handle in self.file_handles}
-        ComparisonReader.merge_histograms(reference, self.process_configs)
-        ComparisonReader.merge_histograms(compare, self.process_configs)
-        if isinstance(reference, dict):
-            map(lambda obj: obj.SetDirectory(0), reference.values())
-            map(lambda obj: obj.SetDirectory(0), compare.values())
-        else:
-            map(lambda obj: obj.SetDirectory(0), reference)
-            map(lambda obj: obj.SetDirectory(0), compare)
-        if hasattr(plot_config_ref, "process_ref"):
-            reference = dict(filter(lambda item: item[0].name in plot_config_ref.process_ref, reference.iteritems()))
-        if hasattr(self.plot_config, "process_comp"):
-            compare = dict(filter(lambda item: item[0].name in self.plot_config.process_comp, compare.iteritems()))
-
-        return reference, compare
-
-
-class MultiFileSingleDistReader(ComparisonReader):
-    """
-    Read same distribitionS from reference and input files
-    """
-    def __init__(self, **kwargs):
-        reference_files = kwargs["reference_files"]
-        input_files = kwargs["input_files"]
-        plot_config = kwargs["plot_config"]
-        self.reference_file_handles = [FileHandle(file_name=fn,
-                                                  dataset_info=kwargs["reference_dataset_info"],
-                                                  switch_off_process_name_analysis=kwargs["xs_config_file"] is None)
-                                       for fn in reference_files]
-        self.file_handles = [FileHandle(file_name=fn,
-                                        dataset_info=kwargs["xs_config_file"],
-                                        switch_off_process_name_analysis=kwargs["xs_config_file"] is None)
-                             for fn in input_files]
-        self.plot_config = plot_config
-        self.tree_name = kwargs["tree_name"]
-        self.reference_tree_name = copy(self.tree_name)
-        if "reference_tree_name" in kwargs and not kwargs["reference_tree_name"] is None:
-            self.reference_tree_name = kwargs["reference_tree_name"]
-        for opt, value in kwargs.iteritems():
-            if not hasattr(self, opt):
-                setattr(self, opt, value)
-
-    def get_data(self):
-        try:
-            reference_canvases = [file_handle.get_object_by_name(self.plot_config.dist)
-                                  for file_handle in self.reference_file_handles]
-            #todo: generalise to arbitrary number of compare inputs
-            #todo: generalise to type given by plot config
-            compare_canvases = [file_handle.get_object_by_name(self.plot_config.dist)
-                              for file_handle in self.file_handles]
-            obj_type = "TH1F"
-            if hasattr(self.plot_config, "retrieve_by") and "type" in self.plot_config.retrieve_by:
-                obj_type = self.plot_config.retrieve_by.replace("type:", "")
-            reference = [get_objects_from_canvas_by_type(reference_canvas, obj_type)[0]
-                         for reference_canvas in reference_canvases]
-            compare = [get_objects_from_canvas_by_type(compare_canvas, obj_type)[0]
-                       for compare_canvas in compare_canvases]
-        except ValueError:
-            #Single cut
-            if not hasattr(self.plot_config, "cuts_ref"):
-                plot_config_ref = copy(self.plot_config)
-                plot_config_ref.name += "_reference"
-
-
-                reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
-                             file_handle in self.reference_file_handles}
-                compare = {file_handle.process: self.make_plot(file_handle, self.plot_config)
-                           for file_handle in self.file_handles}
-
-                if hasattr(self, "process_configs") and self.process_configs is not None:
-                    ComparisonReader.merge_histograms(reference, self.reference_process_configs)
-                    ComparisonReader.merge_histograms(compare, self.process_configs)
-                if isinstance(reference, dict):
-                    map(lambda obj: obj.SetDirectory(0), reference.values())
-                    map(lambda obj: obj.SetDirectory(0), compare.values())
+        cuts = collections.OrderedDict()
+        if not self.plot_config.cuts:
+            setattr(self.plot_config, 'cuts', [])
+        if hasattr(self.plot_config, 'cuts_l1'):
+            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+                if hasattr(self.plot_config, 'cuts_l2'):
+                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
                 else:
-                    map(lambda obj: obj.SetDirectory(0), reference)
-                    map(lambda obj: obj.SetDirectory(0), compare)
+                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+        elif hasattr(self.plot_config, 'cuts_l2'):
+            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+        else:
+            cuts['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+        cuts_ref = collections.OrderedDict([cuts.items()[0]])
+        if len(cuts) == 2:
+            cuts_comp = collections.OrderedDict([cuts.items()[-1]])
+        else:
+            cuts_comp = collections.OrderedDict(cuts.items()[1:])
+
+        plotable_objects = []
+        for k_cuts, v_cuts in cuts_ref.iteritems():
+            reference = collections.OrderedDict()
+            for file_handle in self.file_handles:
+                reference[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
             else:
-                plot_configs = expand_plot_config(self.plot_config)
-                plot_configs_ref = [copy(pc) for pc in plot_configs]
-                for pc in plot_configs_ref:
-                    pc.name += "_reference"
-                reference = {file_handle.process: [self.make_plot(file_handle, pc, self.reference_tree_name) for pc in plot_configs_ref] for
-                             file_handle in self.reference_file_handles}
-                compare = {file_handle.process: [self.make_plot(file_handle, pc) for pc in plot_configs]
-                           for file_handle in self.file_handles}
-                for objs in reference.values():
-                    for obj in objs:
-                        obj.SetDirectory(0)
-                for objs in compare.values():
-                    for obj in objs:
-                        obj.SetDirectory(0)
-        return reference, compare
+                label=k_cuts
+            for k_ref, v_ref in reference.iteritems():
+                v_ref.SetDirectory(0)
+                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
+        for k_cuts, v_cuts in cuts_comp.iteritems():
+            compare = collections.OrderedDict()
+            for file_handle in self.compare_file_handles:
+                compare[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+            else:
+                label=k_cuts
+            for k_comp, v_comp in compare.iteritems():
+                v_comp.SetDirectory(0)
+                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
+        return plotable_objects
+
+    
+class SingleFileMultiRefReader(ComparisonReader):
+    def __init__(self, **kwargs):
+        input_files = kwargs['input_files']
+        compare_files = kwargs['input_files']
+        self.file_handles = [FileHandle(file_name=fn) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn) for fn in compare_files]
+        self.plot_config = kwargs['plot_config']
+        self.tree_name = kwargs['tree_name']
+        for opt, value in kwargs.iteritems():
+            if not hasattr(self, opt):
+                setattr(self, opt, value)
+
+                
+    def get_data(self):
+        cuts_ref = collections.OrderedDict()
+        if not self.plot_config.cuts:
+            setattr(self.plot_config, 'cuts', [])
+        if hasattr(self.plot_config, 'cuts_l1'):
+            if hasattr(self.plot_config, 'cuts_l2'):
+                for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                    cuts_ref[' '.join([self.plot_config.cuts_l1.keys()[0], k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0] + v_l2))
+            else:
+                cuts_ref[self.plot_config.cuts_l1.keys()[0]] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0]))
+        elif hasattr(self.plot_config, 'cuts_l2'):
+            cuts_ref[self.plot_config.cuts_l2.keys()[0]] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + self.plot_config.cuts_l2.values()[0]))
+        else:
+            cuts_ref['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+        cuts_comp = collections.OrderedDict()
+        if not self.plot_config.cuts:
+            setattr(self.plot_config, 'cuts', [])
+        if hasattr(self.plot_config, 'cuts_l1'):
+            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+                if self.plot_config.cuts_l1.keys().index(k_l1) == 0:
+                    continue
+                if hasattr(self.plot_config, 'cuts_l2'):
+                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts_comp[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                else:
+                    cuts_comp[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+        elif hasattr(self.plot_config, 'cuts_l2'):
+            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                if self.plot_config.cuts_l2.keys().index(k_l2) == 0:
+                    continue
+                cuts_comp[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+        else:
+            cuts_comp['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+            
+        plotable_objects = []        
+        for k_cuts, v_cuts in cuts_ref.iteritems():
+            reference = collections.OrderedDict()
+            for file_handle in self.file_handles:
+                reference[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+            else:
+                label=k_cuts
+            for k_ref, v_ref in reference.iteritems():
+                v_ref.SetDirectory(0)
+                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label, cuts=v_cuts, process=k_ref))
+        for k_cuts, v_cuts in cuts_comp.iteritems():
+            compare = collections.OrderedDict()
+            for file_handle in self.compare_file_handles:
+                compare[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+            else:
+                label=k_cuts
+            for k_comp, v_comp in compare.iteritems():
+                v_comp.SetDirectory(0)
+                ref_id = cuts_comp.keys().index(k_cuts) % len(cuts_ref)
+                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
+        return plotable_objects
+
+    
+class MultiFileSingleRefReader(ComparisonReader):
+    def __init__(self, **kwargs):
+        input_files = kwargs['input_files']
+        compare_files = kwargs['input_files'] + kwargs['compare_files']
+        self.file_handles = [FileHandle(file_name=fn) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn) for fn in compare_files]
+        self.plot_config = kwargs['plot_config']
+        self.tree_name = kwargs['tree_name']
+        for opt, value in kwargs.iteritems():
+            if not hasattr(self, opt):
+                setattr(self, opt, value)
+
+                
+    def get_data(self):
+        cuts = collections.OrderedDict()
+        if not self.plot_config.cuts:
+            setattr(self.plot_config, 'cuts', [])
+        if hasattr(self.plot_config, 'cuts_l1'):
+            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+                if hasattr(self.plot_config, 'cuts_l2'):
+                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                else:
+                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+        elif hasattr(self.plot_config, 'cuts_l2'):
+            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+        else:
+            cuts['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+        cuts_ref = collections.OrderedDict([cuts.items()[0]])
+        cuts_comp = cuts
+        
+        plotable_objects = []
+        for k_cuts, v_cuts in cuts_ref.iteritems():
+            reference = collections.OrderedDict()
+            for file_handle in self.file_handles:
+                reference[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+            else:
+                label=k_cuts
+            for k_ref, v_ref in reference.iteritems():
+                v_ref.SetDirectory(0)
+                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
+        for k_cuts, v_cuts in cuts_comp.iteritems():
+            compare = collections.OrderedDict()
+            for file_handle in self.compare_file_handles:
+                compare[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+            else:
+                label=k_cuts
+            for k_comp, v_comp in compare.iteritems():
+                v_comp.SetDirectory(0)
+                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
+        del plotable_objects[1]
+        return plotable_objects
+
+    
+class MultiFileMultiRefReader(ComparisonReader):
+    def __init__(self, **kwargs):
+        input_files = kwargs['input_files']
+        compare_files = kwargs['compare_files']
+        self.file_handles = [FileHandle(file_name=fn) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn) for fn in compare_files]
+        self.plot_config = kwargs['plot_config']
+        self.tree_name = kwargs['tree_name']
+        for opt, value in kwargs.iteritems():
+            if not hasattr(self, opt):
+                setattr(self, opt, value)
+
+                
+    def get_data(self):
+        cuts = collections.OrderedDict()
+        if not self.plot_config.cuts:
+            setattr(self.plot_config, 'cuts', [])
+        if hasattr(self.plot_config, 'cuts_l1'):
+            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+                if hasattr(self.plot_config, 'cuts_l2'):
+                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                else:
+                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+        elif hasattr(self.plot_config, 'cuts_l2'):
+            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                        cuts[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+        else:
+            cuts['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+                        
+        plotable_objects = []
+        for k_cuts, v_cuts in cuts.iteritems():
+            reference = collections.OrderedDict()
+            compare = collections.OrderedDict()
+            for file_handle in self.file_handles:
+                reference[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)
+            for compare_file_handle in self.compare_file_handles:
+                compare[compare_file_handle.process] = self.make_hist(compare_file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                
+            if hasattr(self.plot_config, 'labels'):
+                label=self.plot_config.labels[cuts.keys().index(k_cuts)]
+            else:
+                label=k_cuts
+            for k_ref, v_ref in reference.iteritems():
+                v_ref.SetDirectory(0)
+                if len(reference)==len(compare):
+                    ref_id = ((reference.keys().index(k_ref) + 1) * 100) + ((reference.keys().index(k_ref) + 1) * 10) + cuts.keys().index(k_cuts)        
+                else:
+                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)        
+                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=ref_id, label=label, cuts=v_cuts, process=k_ref))
+            for k_comp, v_comp in compare.iteritems():    
+                if len(reference)==len(compare):
+                    ref_id = ((compare.keys().index(k_comp) + 1) * 100) + ((compare.keys().index(k_comp) + 1) * 10) + cuts.keys().index(k_cuts)        
+                else:
+                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)        
+                v_comp.SetDirectory(0)
+                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
+        return plotable_objects
 
 
 class ComparisonPlotter(BasePlotter):
     def __init__(self, **kwargs):
-        if not "input_files" in kwargs:
+        if not 'input_files' in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("Missing input files")
-        if not "plot_config_files" in kwargs:
+        if not 'plot_config_files' in kwargs:
             _logger.error("No config file provided")
             raise InvalidInputError("Missing config")
-        if not "output_dir" in kwargs:
+        if not 'output_dir' in kwargs:
             _logger.warning("No output directory given. Using ./")
-        kwargs.setdefault("batch", True)
-        kwargs.setdefault("tree_name", None)
-        kwargs.setdefault("output_dir", "./")
-        kwargs.setdefault("process_config_file", None)
-        kwargs.setdefault("systematics", "Nominal")
-        kwargs.setdefault("ref_mod_modules", None)
-        kwargs.setdefault("inp_mod_modules", None)
-        kwargs.setdefault("read_hist", False)
-        kwargs.setdefault("n_files_handles", 1)
-        kwargs.setdefault("nfile_handles", 1)
-        kwargs.setdefault("ref_module_config_file", None)
-        kwargs.setdefault("module_config_file", None)
-        kwargs.setdefault("json", False)
-        if kwargs["json"]:
-            kwargs = JSONHandle(kwargs["json"]).load()
-        set_batch_mode(kwargs["batch"])
+        kwargs.setdefault('batch', True)
+        kwargs.setdefault('tree_name', None)
+        kwargs.setdefault('output_dir', './')
+        kwargs.setdefault('output_tag', None)
+        kwargs.setdefault('process_config_file', None)
+        kwargs.setdefault('systematics', 'Nominal')
+        kwargs.setdefault('ref_mod_modules', None)
+        kwargs.setdefault('inp_mod_modules', None)
+        kwargs.setdefault('read_hist', False)
+        kwargs.setdefault('n_files_handles', 1)
+        kwargs.setdefault('nfile_handles', 1)
+        kwargs.setdefault('ref_module_config_file', None)
+        kwargs.setdefault('module_config_file', None)
+        kwargs.setdefault('json', False)
+        if kwargs['json']:
+            kwargs = JSONHandle(kwargs['json']).load()
+        set_batch_mode(kwargs['batch'])
         super(ComparisonPlotter, self).__init__(**kwargs)
-        self.input_files = kwargs["input_files"]
-        self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
+        self.input_files = kwargs['input_files']
+        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root', **kwargs)
         self.color_palette = [
+            ROOT.kGray+3,
             ROOT.kPink+7,
             ROOT.kAzure+4,
             ROOT.kSpring-9,
@@ -310,202 +403,144 @@ class ComparisonPlotter(BasePlotter):
             ROOT.kPink-7,
             ROOT.kSpring-7,
             ROOT.kPink-1,
-        ] #ROOT.kGray+3,
+            ROOT.kGray+3,
+            ROOT.kPink+7,
+            ROOT.kAzure+4,
+            ROOT.kSpring-9,
+            ROOT.kOrange-3,
+            ROOT.kCyan-6,
+            ROOT.kPink-7,
+            ROOT.kSpring-7,
+            ROOT.kPink-1,
+        ] 
         self.style_palette = [21,
+                              20,
                               22,
                               23,
-                              24,
                               25,
+                              24,
                               26,
                               32,
-                              5]          
-        # self.style_palette = [21, 33, 22, 23, 34, 29] #ROOT.kGray+3, 
-        # self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
-        #                       ROOT.kRed+3, ROOT.kGreen-2]
+                              5,
+                              2,
+                              25,
+                              24,
+                              26,
+                              32,
+                              21,
+                              20,
+                              22,
+                              23,
+                              ]          
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
         # if self.systematics is None:
-        #     self.systematics = "Nominal"
-        self.ref_process_configs = None
-        if "reference_merge_file" in kwargs:
-            self.ref_process_configs = parse_and_build_process_config(kwargs["reference_merge_file"])
-        if "merge_file" in kwargs:
-            self.process_config = parse_and_build_process_config(kwargs["merge_file"])
-        self.ref_modules = load_modules(kwargs["ref_mod_modules"], self)
-        self.modules = load_modules(kwargs["module_config_file"], self)
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.module_filters = [m for m in self.modules if m.type == "Filter"]
+        #     self.systematics = 'Nominal'
+            
+        if 'process_config_file' in kwargs:
+            self.process_configs = parse_and_build_process_config(kwargs['process_config_file'])
+            self.expand_process_configs()
+            
+        self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
+        self.modules = load_modules(kwargs['module_config_file'], self)
+        self.modules_data_providers = [m for m in self.modules if m.type == 'DataProvider']
+        self.module_filters = [m for m in self.modules if m.type == 'Filter']
         self.analyse_plot_config()
         # self.update_color_palette()
         self.getter = ComparisonReader(plot_configs=self.plot_configs, **kwargs)
-        if not kwargs["json"]:
-            JSONHandle(kwargs["output_dir"], **kwargs).dump()
+        if not kwargs['json']:
+            JSONHandle(kwargs['output_dir'], **kwargs).dump()
 
+            
     def analyse_plot_config(self):
         if self.plot_configs is None:
             return None
-        pc = next((pc for pc in self.plot_configs if pc.name == "parse_from_file"), None)
+        pc = next((pc for pc in self.plot_configs if pc.name == 'parse_from_file'), None)
         if pc is None:
             return
-        if not hasattr(self, "reference_files"):
+        if not hasattr(self, 'reference_files'):
             _logger.error("Request to parse plot configs from file, but no reference file given. Breaking up!")
             exit(0)
         file_handles = [FileHandle(file_name=reference_file) for reference_file in self.reference_files]
         objects = []
         for file_handle in file_handles:
-            objects += file_handle.get_objects_by_type("TCanvas")
+            objects += file_handle.get_objects_by_type('TCanvas')
         self.plot_configs.remove(pc)
         for obj in objects:
             new_pc = copy(pc)
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
 
+
+    def expand_process_configs(self):
+        if self.process_configs is not None:
+            for fh in self.file_handles:
+                _ = find_process_config(fh.process, self.process_configs)
+
+                
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
-            self.color_palette = [getattr(ROOT, "k" + color.capitalize()) for color in self.common_config.colors]
+            self.color_palette = [getattr(ROOT, 'k' + color.capitalize()) for color in self.common_config.colors]
         elif isinstance(self.common_config.colors[0], int):
             self.color_palette = [color for color in self.common_config.colors]
         else:
             _logger.warning("Unsuppored type %s for colors in common_config" % type(self.common_config.colors[0]))
 
+            
     def make_comparison_plots(self):
         data = self.getter.get_data()
-        for plot_config, hists in data.iteritems():
-            self.make_comparison_plot(plot_config, hists)
+        for k, v in data.iteritems():
+            self.make_comparison_plot(k, v)
         self.output_handle.write_and_close()
 
-    def make_comparison_plot(self, plot_config, data, plot_config_compare = None):
-        reference_hists = data[0]
-        hists = data[1]
-        HT.merge_overflow_bins(reference_hists)
-        HT.merge_underflow_bins(reference_hists)
-        HT.merge_overflow_bins(hists)
-        HT.merge_underflow_bins(hists)        
-        labels = None
-        for mod in self.ref_modules:
-            reference_hists = mod.execute(reference_hists)
-        for mod in self.modules_data_providers:
-            hists = mod.execute(hists)
-        for mod in self.module_filters:
-            hists = mod.execute(hists)
-        if isinstance(reference_hists, dict):
-            reference_hists_dict = copy(reference_hists)
-            hists_dict = copy(hists)
-            reference_hists = reference_hists.values()
-            hists = hists.values()
-            labels = reference_hists_dict.keys() + hists_dict.keys()
-            if any(isinstance(l, ProcessConfig) for l in labels):
-                labels = map(lambda p: p.label, labels)
-        elif not isinstance(reference_hists, list):
-            reference_hists = [reference_hists]
-        if isinstance(reference_hists[0], list):
-            #labels = reference_hists_dict.keys() + hists_dict.keys()
-            labels = ["coll reco ", "cosmic reco "]
-            if any(isinstance(l, ProcessConfig) for l in labels):
-                labels = map(lambda p: p.label, labels)
+        
+    def make_comparison_plot(self, plot_config, data):
+        for i in data:
+            HT.merge_overflow_bins(i.plot_object)
+            HT.merge_underflow_bins(i.plot_object)
+        reference_hists = filter(lambda x : x.is_ref, data)
+        compare_hists = filter(lambda x : not x.is_ref, data)
+        
+        plot_config.color = self.color_palette
+        plot_config.styles = self.style_palette
 
-            reference_hists = reference_hists[0]
-            hists = hists[0]
-            tmp_labels = []
-            for cut_name in plot_config.cuts_ref.keys():
-                for h in reference_hists:
-                    if "_{:s}_".format(cut_name) in h.GetName():
-                        tmp_labels.append(labels[0] + cut_name)
-            for cut_name in plot_config.cuts_ref.keys():
-                for h in hists:
-                    if "_{:s}_".format(cut_name) in h.GetName():
-                        tmp_labels.append(labels[1] + cut_name)
-            plot_config.labels = tmp_labels
-            if not (hasattr(plot_config.ratio_config, 'multi_ref') and plot_config.ratio_config.multi_ref):
-                tmp = reference_hists[1:] + hists
-                hists = tmp
-                reference_hists=[reference_hists[0]]
-        y_max = None
-        if not any([isinstance(hist, ROOT.TEfficiency) for hist in reference_hists]):
-            yscale = 1.3
-            ymax = yscale * max([item.GetMaximum() for item in hists] + [item.GetMaximum() for item in reference_hists])
-            plot_config.yscale = yscale
-            if not plot_config.normalise:
-                plot_config.ymax = ymax
-        else:
-            ctmp = ROOT.TCanvas("ctmp", "ctmp")
-            ctmp.cd()
-            reference_hists[0].Draw("ap")
-            ROOT.gPad.Update()
-            reference_hists[0].GetPaintedGraph().GetXaxis().GetTitle()
-            plot_config.xtitle = reference_hists[0].GetPaintedGraph().GetXaxis().GetTitle()
-            plot_config.ytitle = reference_hists[0].GetPaintedGraph().GetYaxis().GetTitle()
-            index = ROOT.gROOT.GetListOfCanvases().IndexOf(ctmp)
-            ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
-        #        canvas = PT.plot_obj(reference_hists[0], plot_config)
-        plot_config.color = ROOT.kGray+3
-        plot_config.style = 20
-        #canvas = PT.plot_hist(reference_hists, plot_config)
-        offset = 0
-        # if not isinstance(reference_hists, list):
-        #     canvas = PT.plot_objects(reference_hists, plot_config)
-        # else:
-        canvas = PT.plot_objects([reference_hists[0]], plot_config)
-        for hist in reference_hists[1:]:
-            hist.SetName(hist.GetName() + "_%i" % reference_hists.index(hist))
-            try:
-                plot_config.color = self.color_palette[reference_hists.index(hist)-1]
-                plot_config.style = self.style_palette[reference_hists.index(hist)-1]
-            except IndexError:
-                _logger.warning("Run of colors in palette. Using black as default")
-                plot_config.color = ROOT.kBlack
-            PT.add_object_to_canvas(canvas, hist, plot_config, self.process_configs)
-            offset += 1
+        canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config)
+
+        if self.process_configs:
+            for ref in reference_hists:
+                ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label, ref.label)
+            for ref in compare_hists:
+                ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label, ref.label)
             
         ROOT.SetOwnership(canvas, False)
-        # for hist in reference_hists[1:]:
-        #     PT.add_object_to_canvas(canvas, hist, plot_config)
-        for hist in hists:
-            hist.SetName(hist.GetName() + "_%i" % hists.index(hist))
-            try:
-                plot_config.color = self.color_palette[hists.index(hist) + offset]
-                plot_config.style = self.style_palette[hists.index(hist) + offset]
-            except IndexError:
-                _logger.warning("Run of colors in palette. Using black as default")
-                plot_config.color = ROOT.kBlack
-            pc = plot_config
-            if plot_config_compare is not None:
-                pc = plot_config_compare
-            PT.add_object_to_canvas(canvas, hist, pc, self.process_configs)
-        canvas.Modified()
-        canvas.Update()
-        FM.decorate_canvas(canvas, plot_config)
-        if labels is None:
-            labels = ["reference"] + [""] * len(hists)
-        if hasattr(plot_config, "labels"):
-            labels = plot_config.labels
-        # if hasattr(plot_config, "labels"):
-        #     labels = plot_config.labels
-        if len(labels) != len(hists) + len(reference_hists):
-            _logger.error("Not enough labels provided. Received %i labels for %i histograms" % (len(labels),
-                                                                                                len(hists) + 1))
-            labels += [""] * (len(hists) - len(labels))
-        
-        if plot_config.enable_legend: 
-            FM.add_legend_to_canvas(canvas, labels=labels, process_configs=self.ref_process_configs,
-                                    **plot_config.legend_options)
-        rebin = plot_config.rebin
+
+        if plot_config.enable_legend:
+            labels = {}
+            FM.add_legend_to_canvas(canvas, labels=map(lambda x : x.label, reference_hists+compare_hists), plot_objects=map(lambda x : x.plot_object, reference_hists+compare_hists), **plot_config.legend_options)
+
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
-        if hasattr(plot_config, "ratio_config"):
+
+        if hasattr(plot_config, 'ratio_config'):
             plot_config = plot_config.ratio_config
-        if not plot_config.name.startswith("ratio"):
-            plot_config.name = "ratio_" + plot_config.name
-
-        if hasattr(plot_config, "multi_ref") and plot_config.multi_ref:
-            canvas_ratio = RatioPlotter(reference=reference_hists, compare=hists,
-                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
-
-        else:
-            canvas_ratio = RatioPlotter(reference=reference_hists[0], compare=reference_hists[1:] + hists,
-                                    plot_config=plot_config, rebin=rebin).make_ratio_plot()
+        if not plot_config.name.startswith('ratio'):
+            plot_config.name = 'ratio_' + plot_config.name
+        canvas_ratio = None
+        for ref in reference_hists:
+            for comp in map(lambda x : x.plot_object, filter(lambda y : y.ref_id==ref.ref_id, compare_hists)):
+                if canvas_ratio:
+                    ROOT.SetOwnership(canvas_ratio, False)
+                    canvas_ratio.cd()
+                    ratio_plotter = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config)
+                    hist_ratio = ratio_plotter.ratio_calculator.calculate_ratio_hist(ref.plot_object, comp)
+                    hist_ratio.Draw('same')
+                    ROOT.SetOwnership(canvas_ratio, False)
+                else:
+                    canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config).make_ratio_plot()
+                    ROOT.SetOwnership(canvas_ratio, False)
 
         canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+
         self.output_handle.register_object(canvas)
         self.output_handle.register_object(canvas_combined)

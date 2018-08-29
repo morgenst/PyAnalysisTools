@@ -1,5 +1,6 @@
 import sys
-import yaml
+# import yaml
+import oyaml as yaml
 from . import _logger
 
 
