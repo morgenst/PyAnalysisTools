@@ -15,6 +15,8 @@ class SysOutputHandle(object):
         kwargs.setdefault("sub_dir_name", "output")
         self.base_output_dir = kwargs["output_dir"]
         self.output_dir = self.resolve_output_dir(**kwargs)
+        if 'output_tag' in kwargs and kwargs['output_tag']:
+            self.output_dir += '_' + kwargs['output_tag']
         ShellUtils.make_dirs(self.output_dir)
 
     @staticmethod
