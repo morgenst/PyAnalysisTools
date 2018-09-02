@@ -19,6 +19,7 @@ class PlotConfig(object):
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
         kwargs.setdefault("normalise", False)
+        kwargs.setdefault("dist", None)
         kwargs.setdefault("merge", True)
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
@@ -36,7 +37,11 @@ class PlotConfig(object):
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("xmin", None)
         kwargs.setdefault("ymax", None)
+        kwargs.setdefault("is_common", False)
         kwargs.setdefault("normalise_range", None)
+        kwargs.setdefault("ytitle", None)
+        kwargs.setdefault("ratio_config", None)
+        kwargs.setdefault("grid", False)
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
         kwargs.setdefault("signal_scale", None)
@@ -44,10 +49,11 @@ class PlotConfig(object):
         kwargs.setdefault("signal_extraction", True)
         kwargs.setdefault("xtitle", None)
         kwargs.setdefault("merge_mc_campaigns", True)
+        kwargs.setdefault("watermark", "Internal")
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
-            if k == "ratio_config":
+            if k == "ratio_config" and v is not None:
                 v["logx"] = kwargs["logx"]
                 self.set_additional_config("ratio_config", **v)
                 continue
@@ -163,7 +169,17 @@ class PlotConfig(object):
                     _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
 
 
+default_plot_config = PlotConfig(name=None)
+
+
 def get_default_plot_config(hist):
+    """
+    Get plot config with default arguments and name according to histogram name
+    :param hist: histogram object
+    :type hist: THX
+    :return: plot configuration
+    :rtype: PlotConfig
+    """
     return PlotConfig(name=hist.GetName())
 
 
@@ -251,6 +267,8 @@ def parse_and_build_process_config(process_config_files):
     :return: Process config
     :rtype: ProcessConfig
     """
+    if process_config_files is None:
+        return None
     try:
         _logger.debug("Parsing process configs")
         if not isinstance(process_config_files, list):
@@ -297,7 +315,10 @@ def propagate_common_config(common_config, plot_configs):
                 plot_config.weight += " * {:s}".format(value)
             else:
                 plot_config.weight = value
-        if hasattr(plot_config, attr) and attr not in PlotConfig.get_overwritable_options():
+        if hasattr(plot_config, attr) and getattr(plot_config, attr) != getattr(default_plot_config, attr) and \
+                attr not in PlotConfig.get_overwritable_options() or attr is None:
+            return
+        if value == getattr(default_plot_config, attr):
             return
         if attr == "ratio_config":
             plot_config.ratio_config = deepcopy(value)
@@ -385,7 +406,18 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
 
 
 def get_histogram_definition(plot_config):
-    dimension = plot_config.dist.replace("::", "").count(":")
+    """
+    Create histogram defintion based on plot configuration. Dimension is parsed counting : in the distribution. If no
+    distribution is provided by default a one dimension histogram will be created
+    :param plot_config: plot configuration with binning and name
+    :type plot_config: PlotConfig
+    :return: histogram
+    :rtype: ROOT.THXF
+    """
+    if plot_config.dist is not None:
+        dimension = plot_config.dist.replace("::", "").count(":")
+    else:
+        dimension = 0
     hist = None
     hist_name = plot_config.name
     if dimension == 0:
