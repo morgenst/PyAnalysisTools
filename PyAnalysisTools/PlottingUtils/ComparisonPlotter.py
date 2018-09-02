@@ -13,7 +13,7 @@ from PyAnalysisTools.PlottingUtils import HistTools as HT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, get_objects_from_canvas
-from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
+import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
     expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
@@ -121,7 +121,6 @@ class SingleFileSingleRefReader(ComparisonReader):
         for opt, value in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, value)
-
                 
     def get_data(self):
         cuts = collections.OrderedDict()
@@ -156,7 +155,7 @@ class SingleFileSingleRefReader(ComparisonReader):
                 label=k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
+                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for file_handle in self.compare_file_handles:
@@ -167,7 +166,7 @@ class SingleFileSingleRefReader(ComparisonReader):
                 label=k_cuts
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
-                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
         return plotable_objects
 
     
@@ -229,7 +228,7 @@ class SingleFileMultiRefReader(ComparisonReader):
                 label=k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label, cuts=v_cuts, process=k_ref))
+                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label, cuts=v_cuts, process=k_ref))
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for file_handle in self.compare_file_handles:
@@ -241,7 +240,7 @@ class SingleFileMultiRefReader(ComparisonReader):
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
                 ref_id = cuts_comp.keys().index(k_cuts) % len(cuts_ref)
-                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
         return plotable_objects
 
     
@@ -288,7 +287,7 @@ class MultiFileSingleRefReader(ComparisonReader):
                 label=k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
+                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for file_handle in self.compare_file_handles:
@@ -299,7 +298,7 @@ class MultiFileSingleRefReader(ComparisonReader):
                 label=k_cuts
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
-                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
         del plotable_objects[1]
         return plotable_objects
 
@@ -352,14 +351,14 @@ class MultiFileMultiRefReader(ComparisonReader):
                     ref_id = ((reference.keys().index(k_ref) + 1) * 100) + ((reference.keys().index(k_ref) + 1) * 10) + cuts.keys().index(k_cuts)        
                 else:
                     ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)        
-                plotable_objects.append(PlotableObject(plot_object=v_ref, is_ref=True, ref_id=ref_id, label=label, cuts=v_cuts, process=k_ref))
+                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=ref_id, label=label, cuts=v_cuts, process=k_ref))
             for k_comp, v_comp in compare.iteritems():    
                 if len(reference)==len(compare):
                     ref_id = ((compare.keys().index(k_comp) + 1) * 100) + ((compare.keys().index(k_comp) + 1) * 10) + cuts.keys().index(k_cuts)        
                 else:
                     ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)        
                 v_comp.SetDirectory(0)
-                plotable_objects.append(PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
         return plotable_objects
 
 
@@ -393,45 +392,45 @@ class ComparisonPlotter(BasePlotter):
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs['input_files']
         self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root', **kwargs)
-        self.color_palette = [
-            ROOT.kGray+3,
-            ROOT.kPink+7,
-            ROOT.kAzure+4,
-            ROOT.kSpring-9,
-            ROOT.kOrange-3,
-            ROOT.kCyan-6,
-            ROOT.kPink-7,
-            ROOT.kSpring-7,
-            ROOT.kPink-1,
-            ROOT.kGray+3,
-            ROOT.kPink+7,
-            ROOT.kAzure+4,
-            ROOT.kSpring-9,
-            ROOT.kOrange-3,
-            ROOT.kCyan-6,
-            ROOT.kPink-7,
-            ROOT.kSpring-7,
-            ROOT.kPink-1,
-        ] 
-        self.style_palette = [21,
-                              20,
-                              22,
-                              23,
-                              25,
-                              24,
-                              26,
-                              32,
-                              5,
-                              2,
-                              25,
-                              24,
-                              26,
-                              32,
-                              21,
-                              20,
-                              22,
-                              23,
-                              ]          
+        # self.color_palette = [
+        #     ROOT.kGray+3,
+        #     ROOT.kPink+7,
+        #     ROOT.kAzure+4,
+        #     ROOT.kSpring-9,
+        #     ROOT.kOrange-3,
+        #     ROOT.kCyan-6,
+        #     ROOT.kPink-7,
+        #     ROOT.kSpring-7,
+        #     ROOT.kPink-1,
+        #     ROOT.kGray+3,
+        #     ROOT.kPink+7,
+        #     ROOT.kAzure+4,
+        #     ROOT.kSpring-9,
+        #     ROOT.kOrange-3,
+        #     ROOT.kCyan-6,
+        #     ROOT.kPink-7,
+        #     ROOT.kSpring-7,
+        #     ROOT.kPink-1,
+        # ] 
+        # self.style_palette = [21,
+        #                       20,
+        #                       22,
+        #                       23,
+        #                       25,
+        #                       24,
+        #                       26,
+        #                       32,
+        #                       5,
+        #                       2,
+        #                       25,
+        #                       24,
+        #                       26,
+        #                       32,
+        #                       21,
+        #                       20,
+        #                       22,
+        #                       23,
+        #                       ]          
         for attr, value in kwargs.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, value)
@@ -501,11 +500,43 @@ class ComparisonPlotter(BasePlotter):
             HT.merge_underflow_bins(i.plot_object)
         reference_hists = filter(lambda x : x.is_ref, data)
         compare_hists = filter(lambda x : not x.is_ref, data)
-        
-        plot_config.color = self.color_palette
-        plot_config.styles = self.style_palette
 
-        canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config)
+        for i, ref in enumerate(reference_hists):
+            setattr(ref, 'draw_option', plot_config.draw)
+            if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
+                setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'marker_style', PO.marker_style_palette_filled[i-(int(i/len(PO.marker_style_palette_filled))*len(PO.marker_style_palette_filled))])
+                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+            elif plot_config.draw in ['Line', 'line', 'L', 'l']:
+                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'line_style', PO.line_style_palette_homogen[i-(int(i/len(PO.line_style_palette_homogen))*len(PO.line_style_palette_homogen))])
+            elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
+                setattr(ref, 'fill_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'fill_style', PO.fill_style_palette_left[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                
+        for i, comp in enumerate(compare_hists):
+            setattr(comp, 'draw_option', plot_config.draw)
+            if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
+                setattr(comp, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'marker_style', PO.marker_style_palette_empty[i-(int(i/len(PO.marker_style_palette_empty))*len(PO.marker_style_palette_empty))])
+                setattr(comp, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+            elif plot_config.draw in ['Line', 'line', 'L', 'l']:
+                setattr(comp, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'line_style', PO.line_style_palette_heterogen[i-(int(i/len(PO.line_style_palette_heterogen))*len(PO.line_style_palette_heterogen))])
+            elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
+                setattr(comp, 'fill_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'fill_style', PO.fill_style_palette_right[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+
+    
+        # plot_config.color = self.color_palette
+        # plot_config.styles = self.style_palette
+
+        # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config, plotable_objects=reference_hists+compare_hists)
+        canvas = PT.plot_objects(reference_hists+compare_hists, plot_config)
 
         if self.process_configs:
             for ref in reference_hists:
@@ -540,7 +571,7 @@ class ComparisonPlotter(BasePlotter):
                     canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config).make_ratio_plot()
                     ROOT.SetOwnership(canvas_ratio, False)
 
-        canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
-
         self.output_handle.register_object(canvas)
+        self.output_handle.register_object(canvas_ratio)
+        canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
         self.output_handle.register_object(canvas_combined)

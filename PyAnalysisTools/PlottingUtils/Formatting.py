@@ -6,6 +6,7 @@ import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
 
 
 def load_atlas_style():
@@ -27,6 +28,17 @@ def apply_style(obj, plot_config, process_config, index=None):
         for setter in style_setter:
             getattr(obj, "Set" + setter + "Color")(color)
 
+            
+def apply_style_plotableObject(plotable_object):
+    plotable_object.plot_object.SetMarkerColor(plotable_object.marker_color)
+    plotable_object.plot_object.SetMarkerSize(plotable_object.marker_size)
+    plotable_object.plot_object.SetMarkerStyle(plotable_object.marker_style)
+    plotable_object.plot_object.SetLineColor(plotable_object.line_color)
+    plotable_object.plot_object.SetLineWidth(plotable_object.line_width)
+    plotable_object.plot_object.SetLineStyle(plotable_object.line_style)
+    plotable_object.plot_object.SetFillColor(plotable_object.fill_color)
+    plotable_object.plot_object.SetFillStyle(plotable_object.fill_style)
+            
 
 def decorate_canvas(canvas, plot_config):
     """

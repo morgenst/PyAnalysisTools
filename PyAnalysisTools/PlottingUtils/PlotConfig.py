@@ -56,7 +56,7 @@ class PlotConfig(object):
                 continue
             if "xmin" in k or "xmax" in k:
                 v = eval(str(v))
-            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
+            if (k == "ymax" or k == "ymin") and v is not None and (re.match("[1-9].*[e][1-9]*", str(v)) or "math." in str(v)):
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
@@ -251,7 +251,7 @@ def propagate_common_config(common_config, plot_configs):
             integrate(plot_config, attr, value)
 
 
-def _parse_draw_option(plot_config, process_config):
+def _parse_draw_option(plot_config, process_config=None):
     draw_option = "Hist"
     if hasattr(plot_config, "draw"):
         draw_option = plot_config.draw
@@ -307,7 +307,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
         elif style_attr:
-            style_setter = "Fill"
+            style_setter = "Line"
         else:
             #style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
