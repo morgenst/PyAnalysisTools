@@ -1,5 +1,11 @@
 import sys
-import yaml
+try:
+    import oyaml
+except ImportError:
+    print "yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration"
+    print "Please install via: \033[91m pip install oyaml --user.\033[0m"
+    _ = raw_input("Acknowledge by hitting enter (running with yaml for now. Note this might cause crashes)")
+    import yaml
 from . import _logger
 
 
