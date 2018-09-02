@@ -8,6 +8,7 @@ from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config
+import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
 def retrieve_new_canvas(name, title, size_x=800, size_y=600):
@@ -89,6 +90,11 @@ def plot_objects(objects, plot_config, process_configs=None):
         first_obj = objects.values()[0]
     elif isinstance(objects, list):
         first_obj = objects[0]
+    if isinstance(first_obj, PO.PlotableObject):
+        if isinstance(first_obj.plot_object, ROOT.TH1):
+            return plot_histograms(objects, plot_config, process_configs)
+        # if isinstance(first_obj, ROOT.TEfficiency) or isinstance(first_obj, ROOT.TGraph):
+        #     return plot_graphs(objects, plot_config)
     if isinstance(first_obj, ROOT.TH1):
         return plot_histograms(objects, plot_config, process_configs)
     if isinstance(first_obj, ROOT.TEfficiency) or isinstance(first_obj, ROOT.TGraph):
@@ -130,9 +136,9 @@ def plot_hist(hist, plot_config, **kwargs):
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))
         else:
-            hist.SetMinimum(0.1)
+            hist.SetMinimum(0.9)
         if hist.GetMinimum() == 0.:
-            hist.SetMinimum(0.001)
+            hist.SetMinimum(0.9)
         if plot_config.normalise:
             hist.SetMinimum(0.000001)
             FM.set_minimum_y(hist, plot_config.ymin)
@@ -221,7 +227,7 @@ def format_hist(hist, plot_config):
         FM.set_title_y_size(hist, plot_config.ytitle_size)
     yscale = 1.1
     if plot_config.logy:
-        yscale = 100.
+        yscale = 10.
     if isinstance(hist, ROOT.TH2):
         if hasattr(plot_config, "ztitle"):
             hist.GetZaxis().SetTitle(plot_config.ztitle)
@@ -253,6 +259,17 @@ def format_hist(hist, plot_config):
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
+    # if hasattr(plot_config, "logy") and plot_config.logy:
+    #     print hist.GetMaximum()
+    #     hist.SetMaximum(hist.GetMaximum() * 100.)
+    #     print hist.GetMaximum()
+    #     if hasattr(plot_config, "ymin"):
+    #         hist.SetMinimum(max(0.1, plot_config.ymin))
+    #     else:
+    #         hist.SetMinimum(0.9)
+    #     if hist.GetMinimum() == 0.:
+    #         hist.SetMinimum(0.9)
+        # canvas.SetLogy()
     return hist
 
 
@@ -280,10 +297,78 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         hist_defs = hists.items()
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
+        
+    if isinstance(hist_defs[0][1], PO.PlotableObject):
+        if not switchOff:
+            max_y = 1.4 * max([item[1].plot_object.GetMaximum() for item in hist_defs])
+
+        for process, hist in hist_defs:
+            hist.plot_object = format_hist(hist.plot_object, plot_config)
+            process_config = fetch_process_config(process, process_configs)
+            if not (plot_config.is_set_to_value("ignore_style", True)) and \
+               plot_config.is_set_to_value("ignore_style", False):
+                setattr(plot_config, 'draw', hist.draw_option)
+                draw_option = get_draw_option_as_root_str(plot_config, process_config)
+            else:
+                draw_option = "hist"
+            if not is_first and "same" not in draw_option:
+                draw_option += "sames"
+            hist.plot_object.Draw(draw_option)
+            if plot_config.ignore_style:
+                style_setter = "Line"
+            FM.apply_style_plotableObject(hist)
+
+            if is_first:
+                if isinstance(hist.plot_object, ROOT.TH2) and draw_option.lower() == "colz":
+                    canvas.SetRightMargin(0.15)
+                    FM.set_minimum_y(hist.plot_object, plot_config.ymin)
+                if switchOff:
+                    FM.set_maximum_y(hist.plot_object, plot_config.ymax)
+                else:
+                    FM.set_maximum_y(hist.plot_object, max_y)
+                if plot_config.xmin and not plot_config.xmax:
+                    FM.set_minimum(hist.plot_object, plot_config.xmin, "x")
+                elif plot_config.xmin and plot_config.xmax:
+                    FM.set_range(hist.plot_object, plot_config.xmin, plot_config.xmax, "x")
+            # if plot_config.logy:
+            #     hist.SetMaximum(hist.GetMaximum() * 10.)
+            #     if hasattr(plot_config, "ymin"):
+            #         hist.SetMinimum(max(0.1, plot_config.ymin))
+            #         print "set minimum: ", max(0.1, plot_config.ymin)
+            #         exit()
+            #     else:
+            #         hist.SetMinimum(0.0001)
+                # canvas.SetLogy()
+                if plot_config.logx:
+                    canvas.SetLogx()
+                format_hist(hist.plot_object, plot_config)
+                if plot_config.ymax:
+                    hist.plot_object.SetMaximum(plot_config.ymax)
+                else:
+                    hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.1)
+            if hasattr(plot_config, "logy") and plot_config.logy:
+                hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 10.)
+                if hasattr(plot_config, "ymin"):
+                    hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
+                else:
+                    hist.plot_object.SetMinimum(0.9)
+                if hist.plot_object.GetMinimum() == 0.:
+                    hist.plot_object.SetMinimum(0.9)
+                canvas.SetLogy()
+                canvas.Update()
+            is_first = False
+        if hasattr(plot_config, "normalise") and plot_config.normalise is True:
+            hist_defs[0][1].plot_object.SetMaximum(plot_config.ymax)
+        canvas.Update()
+        return canvas
+
+
     if not switchOff:
         max_y = 1.4 * max([item[1].GetMaximum() for item in hist_defs])
+
     if plot_config.ordering is not None:
         sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
+
     for process, hist in hist_defs:
         index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)
@@ -302,6 +387,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         if plot_config.ignore_style:
             style_setter = "Line"
         FM.apply_style(hist, plot_config, process_config, index=index)
+
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
@@ -314,13 +400,15 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 FM.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
                 FM.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
-            if plot_config.logy:
-                hist.SetMaximum(hist.GetMaximum() * 10.)
-                if hasattr(plot_config, "ymin"):
-                    hist.SetMinimum(max(0.1, plot_config.ymin))
-                else:
-                    hist.SetMinimum(0.0001)
-                canvas.SetLogy()
+            # if plot_config.logy:
+            #     hist.SetMaximum(hist.GetMaximum() * 10.)
+            #     if hasattr(plot_config, "ymin"):
+            #         hist.SetMinimum(max(0.1, plot_config.ymin))
+            #         print "set minimum: ", max(0.1, plot_config.ymin)
+            #         exit()
+            #     else:
+            #         hist.SetMinimum(0.0001)
+                # canvas.SetLogy()
             if plot_config.logx:
                 canvas.SetLogx()
             format_hist(hist, plot_config)
@@ -328,10 +416,20 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                  hist.SetMaximum(plot_config.ymax)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.1)
+        if hasattr(plot_config, "logy") and plot_config.logy:
+            hist.SetMaximum(hist.GetMaximum() * 10.)
+            if hasattr(plot_config, "ymin"):
+                hist.SetMinimum(max(0.1, plot_config.ymin))
+            else:
+                hist.SetMinimum(0.9)
+            if hist.GetMinimum() == 0.:
+                hist.SetMinimum(0.9)
+            canvas.SetLogy()
             canvas.Update()
         is_first = False
     if hasattr(plot_config, "normalise") and plot_config.normalise is True:
         hist_defs[0][1].SetMaximum(plot_config.ymax)
+
     canvas.Update()
     return canvas
 
@@ -476,7 +574,7 @@ def plot_stack(hists, plot_config, **kwargs):
     format_hist(stack, plot_config)
     y_scale_offset = 1.1
     if plot_config.logy:
-        y_scale_offset = 100.
+        y_scale_offset = 10.
     max_y = y_scale_offset * stack.GetMaximum()
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
@@ -491,8 +589,17 @@ def plot_stack(hists, plot_config, **kwargs):
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)
     if hasattr(plot_config, "logy") and plot_config.logy:
-        stack.SetMinimum(0.1)
+        hist.SetMaximum(hist.GetMaximum() * 10.)
+        if hasattr(plot_config, "ymin"):
+            hist.SetMinimum(max(0.1, plot_config.ymin))
+        else:
+            hist.SetMinimum(0.9)
+        if hist.GetMinimum() == 0.:
+            hist.SetMinimum(0.9)
         canvas.SetLogy()
+    # if hasattr(plot_config, "logy") and plot_config.logy:
+    #     stack.SetMinimum(0.1)
+    #     canvas.SetLogy()
     if plot_config.logx:
         canvas.SetLogx()
     return canvas
