@@ -59,12 +59,15 @@ def set_title_x(obj, title):
 
 
 def set_title_y(obj, title):
+    if title is None:
+        return
     if not hasattr(obj, "GetYaxis"):
         raise TypeError
     try:
         obj.GetYaxis().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_z(obj, title):
     if not hasattr(obj, "GetZaxis"):
@@ -106,6 +109,7 @@ def set_title_x_size(obj, size):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_y_size(obj, size):
     if not hasattr(obj, "GetYaxis"):
         raise TypeError
@@ -114,6 +118,7 @@ def set_title_y_size(obj, size):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_z_size(obj, size):
     if not hasattr(obj, "GetZaxis"):
         raise TypeError
@@ -121,6 +126,7 @@ def set_title_z_size(obj, size):
         obj.GetZaxis().SetTitleSize(size)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_style_options(obj, style):
     allowed_attributes = ["marker", "line"]
@@ -429,7 +435,6 @@ def add_legend_to_canvas(canvas, **kwargs):
         legend.AddEntry(plot_obj, label, convert_draw_option(process_config, plot_config))
     canvas.cd()
     if "fill_style" in kwargs:
-        print "yes, got fill style"
         legend.SetFillStyle(kwargs["fill_style"])
     legend.SetBorderSize(0)
     legend.Draw("sames")
