@@ -1,11 +1,11 @@
 import os
+from sklearn.metrics import roc_curve, auc
 from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Activation, Input, LSTM, Masking, Dropout, Flatten, Reshape
 from keras.layers.normalization import BatchNormalization
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adagrad, Adam
 from keras.utils import plot_model
 import keras.backend as backend
-from keras.optimizers import Adam
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -40,21 +40,25 @@ class LimitConfig(object):
                 try:
                     config[k] = eval(v)
                 except (NameError, TypeError):
-                    pass
+                    config[k] = v
             return config
         optimiser_type = optimiser_config.keys()[0]
         if optimiser_type == "sgd":
             return SGD(**convert_types(optimiser_config[optimiser_type]))
+        if optimiser_type == "adagrad":
+            return Adagrad(**convert_types(optimiser_config[optimiser_type]))
+        if optimiser_type == "adam":
+            return Adam(**convert_types(optimiser_config[optimiser_type]))
 
 
 class NeuralNetwork(object):
     def __init__(self, num_features, limit_config):
         model = Sequential()
         width = 32
-        model.add(Dense(units=width, input_dim=num_features, activation=limit_config.activation))
+        model.add(Dense(units=width, input_dim=num_features, activation=limit_config.activation, kernel_initializer='random_normal'))
         for i in range(limit_config.nlayers - 1):
-            model.add(Dense(width, activation=limit_config.activation))
-            model.add(Dropout(0.5))
+            model.add(Dense(width, activation=limit_config.activation, kernel_initializer='random_normal'))
+            #model.add(Dropout(0.5))
         model.add(Dense(1, activation=limit_config.final_activation))
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
         self.kerasmodel = model
@@ -172,11 +176,11 @@ class NNTrainer(object):
             self.make_control_plots("postscaling")
 
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
-                                         epochs=self.epochs, verbose=self.verbosity, batch_size=32, shuffle=True,
+                                         epochs=self.epochs, verbose=self.verbosity, batch_size=64, shuffle=True,
                                          validation_data=(self.npa_data_eval, self.label_eval),
                                          sample_weight=self.weight_train)
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
-                                        epochs=self.epochs, verbose=self.verbosity, batch_size=32, shuffle=True,
+                                        epochs=self.epochs, verbose=self.verbosity, batch_size=64, shuffle=True,
                                         validation_data=(self.npa_data_train, self.label_train),
                                         sample_weight=self.weight_eval)
         if self.plot:
@@ -223,28 +227,28 @@ class NNTrainer(object):
         preds_sig_eval = preds_eval[self.label_train == 1]
         preds_bkg_eval = preds_eval[self.label_train == 0]
         make_plot(preds_sig_eval, preds_bkg_eval, "eval")
-        # self.make_roc_curve(self.label_train, preds_train, "train")
-        # self.make_roc_curve(self.label_eval, preds_eval, "eval")
+        self.make_roc_curve(self.label_train, preds_eval, "train")
+        self.make_roc_curve(self.label_eval, preds_train, "eval")
 
-    # def make_roc_curve(self, y, yhat, label):
-    #     fpr, tpr, thresholds = roc_curve(y, yhat)
-    #
-    #     roc_auc = auc(fpr, tpr)
-    #     print "ROC AUC: %0.3f" % roc_auc
-    #     plt.plot(fpr, tpr, color='darkorange', lw=2, label='Full curve (area = %0.2f)' % roc_auc)
-    #     plt.plot([0, 0], [1, 1], color='navy', lw=2, linestyle='--')
-    #     plt.xlim([-0.05, 1.0])
-    #     plt.ylim([0.0, 1.05])
-    #     plt.ylabel('True Positive Rate')
-    #     plt.xlabel('False Positive Rate')
-    #     plt.title('ROC curves for Signal vs Background')
-    #     # plt.plot([0.038], [0.45], marker='*', color='red',markersize=5, label="Cut-based",linestyle="None")
-    #     # plt.plot([0.038, 0.038], [0,1], color='red', lw=1, linestyle='--') # same background rejection point
-    #     plt.legend(loc="lower right")
-    #     plt.savefig(os.path.join(self.output_path, "plots/roc_{:s}.png".format(label)))
-    #     plt.show()
-    #     plt.clf()
-    #     plt.close()
+    def make_roc_curve(self, y, yhat, label):
+        fpr, tpr, thresholds = roc_curve(y, yhat)
+
+        roc_auc = auc(fpr, tpr)
+        print "ROC AUC: %0.3f" % roc_auc
+        plt.plot(fpr, tpr, color='darkorange', lw=2, label='Full curve (area = %0.2f)' % roc_auc)
+        plt.plot([0, 0], [1, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([-0.05, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.ylabel('True Positive Rate')
+        plt.xlabel('False Positive Rate')
+        plt.title('ROC curves for Signal vs Background')
+        # plt.plot([0.038], [0.45], marker='*', color='red',markersize=5, label="Cut-based",linestyle="None")
+        plt.plot([0.0, 0.0], [1., 1.], color='red', lw=1, linestyle='--')
+        plt.legend(loc="lower right")
+        plt.savefig(os.path.join(self.output_path, "plots/roc_{:s}.png".format(label)))
+        plt.show()
+        plt.clf()
+        plt.close()
 
     def make_control_plots(self, prefix):
         def make_plot(prefix, variable_name, signal, background):
