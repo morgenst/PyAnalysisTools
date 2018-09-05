@@ -348,8 +348,9 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
                             if selection not in histograms[process][systematic]:
                                 print "could not find selection ", selection, " for process ", process
                                 continue
+                            new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(
+                                sub_process, process)
                             if histograms[process][systematic][selection] is None:
-                                new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(sub_process, process)
                                 histograms[process][systematic][selection] = histograms[sub_process][systematic][selection].Clone(new_hist_name)
                             else:
                                 histograms[process][systematic][selection].Add(histograms[sub_process][systematic][selection].Clone(new_hist_name))

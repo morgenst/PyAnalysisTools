@@ -145,8 +145,10 @@ class PDF2Gauss(PDF):
         self.sigma1 = kwargs["pdf_config"].sigma1
         self.mean2 = kwargs["pdf_config"].mean2
         self.sigma2 = kwargs["pdf_config"].sigma2
+        self.norm = kwargs["pdf_config"].norm
 
     def build(self):
+        norm = ROOT.RooRealVar("norm", "norm", *self.norm)
         mean1 = ROOT.RooRealVar("mean1", "mean1", *self.mean1)
         sigma1 = ROOT.RooRealVar("sigma1", "sigma1", *self.sigma1)
         mean2 = ROOT.RooRealVar("mean2", "mean2", *self.mean2)
@@ -160,13 +162,20 @@ class PDF2Gauss(PDF):
         self.pdf1 = ROOT.RooGaussian("g1", "g1", self.quantity, mean1, sigma1)
         self.pdf2 = ROOT.RooGaussian("g2", "g2", self.quantity, mean2, sigma2)
         self.pdf3 = ROOT.RooExponential("exp", "exp", self.quantity, decayrate)
-        coef1 = ROOT.RooRealVar("coef1", "coef1", 2000, 0, 10000.)
-        coef2 = ROOT.RooRealVar("coef2", "coef2", 4000, 0., 10000.)
+        coef1 = ROOT.RooRealVar("coef1", "coef1", 2000, 0, 100000.)
+        coef2 = ROOT.RooRealVar("coef2", "coef2", 4000, 0., 100000.)
         coef3 = ROOT.RooRealVar("coef3", "coef3", 20000, 0., 100000.)
+        norm_coeff1 = ROOT.RooFormulaVar('norm_coef1', '', 'norm*coef1', ROOT.RooArgList(norm, coef1))
+        norm_coeff2 = ROOT.RooFormulaVar('norm_coef2', '', 'norm*coef2', ROOT.RooArgList(norm, coef2))
         ROOT.SetOwnership(coef1, False)
         ROOT.SetOwnership(coef2, False)
         ROOT.SetOwnership(coef3, False)
-        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3), ROOT.RooArgList(coef1, coef2, coef3))
+        ROOT.SetOwnership(norm, False)
+        ROOT.SetOwnership(norm_coeff1, False)
+        ROOT.SetOwnership(norm_coeff2, False)
+        #return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1,  self.pdf2 ,self.pdf3), ROOT.RooArgList(coef1, coef2, coef3))
+        return ROOT.RooAddPdf(self.name, self.name, ROOT.RooArgList(self.pdf1, self.pdf2),
+                              ROOT.RooArgList(norm_coeff1, norm_coeff2))
 
 class PDFGeneric(PDF):
     def __init__(self, **kwargs):
@@ -222,7 +231,7 @@ class Fitter(object):
             self.pdf = PDFAdd(**self.__dict__)
         if self.pdf_config.pdf == "linear":
             self.pdf = PDFLinear(**self.__dict__)
-        if self.pdf_config.pdf == "2gauss":
+        if self.pdf_config.pdf == "doublegauss":
             self.pdf = PDF2Gauss(**self.__dict__)
         self.model = self.pdf.build()
 

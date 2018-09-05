@@ -118,7 +118,6 @@ class OutputFileHandle(SysOutputHandle):
             plot_book_canvas.cd(i+1)
             if self.set_title_name:
                 bucket[i].SetTitle(bucket[i].GetName())
-                print bucket[i].GetTitle()
                 bucket[i].Update()
                 bucket[i].Modified()
             bucket[i].DrawClonePad()
