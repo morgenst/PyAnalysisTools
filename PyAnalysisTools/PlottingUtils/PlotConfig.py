@@ -36,6 +36,7 @@ class PlotConfig(object):
         kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("xmin", None)
+        kwargs.setdefault("draw_option", None)
         kwargs.setdefault("ymax", None)
         kwargs.setdefault("is_common", False)
         kwargs.setdefault("normalise_range", None)
@@ -340,7 +341,7 @@ def _parse_draw_option(plot_config, process_config):
 
 
 def get_draw_option_as_root_str(plot_config, process_config=None):
-    if hasattr(plot_config, "draw_option"):
+    if plot_config.draw_option is not None:
         return plot_config.draw_option
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
