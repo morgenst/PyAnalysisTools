@@ -222,9 +222,9 @@ class RegionBuilder(object):
             for pc in plot_configs:
                 region_pc = deepcopy(pc)
                 if region_pc.cuts is None:
-                    region_pc.cuts = [region.convert2cut_string()]
+                    region_pc.cuts = region.get_cut_list()#[region.convert2cut_string()]
                 else:
-                    region_pc.cuts.append(region.convert2cut_string())
+                    region_pc.cuts += region.get_cut_list()#.append(region.convert2cut_string())
                 if region.weight:
                     if region_pc.weight is not None and not region_pc.weight.lower() == "none":
                         region_pc.weight += " * {:s}".format(region.weight)

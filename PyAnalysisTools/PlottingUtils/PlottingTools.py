@@ -154,13 +154,15 @@ def plot_hist(hist, plot_config, **kwargs):
 
 def plot_2d_hist(hist, plot_config, **kwargs):
     title = ""
-    if hasattr(plot_config, "title"):
+    if hasattr(plot_config, 'title'):
         title = plot_config.title
     canvas = retrieve_new_canvas(plot_config.name, title)
     canvas.cd()
     hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
     hist.Draw(plot_config.draw_option)
+    if plot_config.style is not None:
+        hist.SetMarkerStyle(plot_config.style)
     canvas.SetRightMargin(0.2)
     canvas.Modified()
     canvas.Update()

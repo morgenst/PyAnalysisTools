@@ -10,6 +10,7 @@ from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
 
 
 def load_atlas_style():
+    #return
     try:
         base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
@@ -71,12 +72,15 @@ def set_title_x(obj, title):
 
 
 def set_title_y(obj, title):
+    if title is None:
+        return
     if not hasattr(obj, "GetYaxis"):
         raise TypeError
     try:
         obj.GetYaxis().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_z(obj, title):
     if not hasattr(obj, "GetZaxis"):
@@ -118,6 +122,7 @@ def set_title_x_size(obj, size):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_y_size(obj, size):
     if not hasattr(obj, "GetYaxis"):
         raise TypeError
@@ -126,6 +131,7 @@ def set_title_y_size(obj, size):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_z_size(obj, size):
     if not hasattr(obj, "GetZaxis"):
         raise TypeError
@@ -133,6 +139,7 @@ def set_title_z_size(obj, size):
         obj.GetZaxis().SetTitleSize(size)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_style_options(obj, style):
     allowed_attributes = ["marker", "line"]

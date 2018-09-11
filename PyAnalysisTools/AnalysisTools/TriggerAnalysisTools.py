@@ -42,15 +42,15 @@ class TriggerFlattener(object):
     def flatten_all_branches(self, skipAcceptance = False):
         branch_names = find_branches_matching_pattern(self.tree, "trigger_.*")
         self.read_triggers()
-        branch_names.remove("triggerList")
+        branch_names.remove("trigger_list")
         self.expand_branches(branch_names)
 
     def read_triggers(self):
         for entry in range(self.tree.GetEntries()):
             self.tree.GetEntry(entry)
-            for item in range(len(self.tree.triggerList)):
-                if self.tree.triggerList[item].replace("-", "_") not in self.trigger_list:
-                    self.trigger_list.append(self.tree.triggerList[item].replace("-", "_"))
+            for item in range(len(self.tree.trigger_list)):
+                if self.tree.trigger_list[item].replace("-", "_") not in self.trigger_list:
+                    self.trigger_list.append(self.tree.trigger_list[item].replace("-", "_"))
 
     def expand_branches(self, branch_names, skipAcceptance = False):
         for branch_name in branch_names:
@@ -76,8 +76,8 @@ class TriggerFlattener(object):
                 getattr(self, tree_name).GetEntry(entry)
             unprocessed_triggers = copy(self.trigger_list)
             exec("trig_list_branch = self.tree.{:s}".format(self.branch_name))
-            for item in range(len(self.tree.triggerList)):
-                trig_name = self.tree.triggerList[item].replace("-", "_")
+            for item in range(len(self.tree.trigger_list)):
+                trig_name = self.tree.trigger_list[item].replace("-", "_")
                 if trig_name not in unprocessed_triggers:
                     _logger.warning("{:s} not in unprocessed trigger list. Likely there went something wrong in the "
                                     "branch filling".format((trig_name)))
@@ -115,6 +115,7 @@ class TriggerAcceptancePlotter(BasePlotter):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.trigger_list = self.build_trigger_list()
+        self.trigger_list = filter(lambda t: "prescales" not in t, self.trigger_list)
         self.overlap_hist = None
         self.unqiue_rate_hist = None
         
@@ -259,7 +260,7 @@ class TriggerAcceptancePlotter(BasePlotter):
             self.output_handle.register_object(self.make_unique_rate_histogram("unqiue_rate_{:s}".format(file_handle.process),
                                                                                unique_rate))
 
-    def make_overlap_histogram(self, name, data, unique = False):
+    def make_overlap_histogram(self, name, data, unique=False):
         ROOT.gStyle.SetPaintTextFormat("4.2f")
         def get_hist_def():
             self.overlap_hist = ROOT.TH2F(name, "", len(self.trigger_list), 0., len(self.trigger_list),

@@ -28,8 +28,10 @@ class CommonCutFlowAnalyser(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("lumi", None)
         kwargs.setdefault("process_config", None)
+        kwargs.setdefault("disable_sm_total", False)
         self.event_numbers = dict()
         self.lumi = kwargs["lumi"]
+        self.disable_sm_total = kwargs["disable_sm_total"]
         self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"])for fn in kwargs["file_list"]]
         if kwargs["process_config"] is not None:
@@ -257,13 +259,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for region in self.cutflows[systematic].keys():
                 self.apply_cross_section_weight(systematic, region)
         self.merge_yields()
-        self.calculate_sm_total()
+        if not self.disable_sm_total:
+            self.calculate_sm_total()
 
         self.make_cutflow_tables()
         self.output_handle.write_and_close()
 
 
-class CutflowAnalyser(object):
+class CutflowAnalyser(CommonCutFlowAnalyser):
     """
     Cutflow analyser
     """
@@ -275,17 +278,15 @@ class CutflowAnalyser(object):
         kwargs.setdefault("raw", False)
         kwargs.setdefault("output_dir", None)
         kwargs.setdefault("format", "plain")
-        self.file_list = kwargs["file_list"]
+        super(CutflowAnalyser, self).__init__(**kwargs)
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
         self.cutflow_tables = dict()
         self.dataset_config_file = kwargs["dataset_config"]
-        self.lumi = kwargs["lumi"]
         self.output_file_name = kwargs["output_file_name"]
         self.systematics = kwargs["systematics"]
         self.cutflow_hists = dict()
         self.cutflows = dict()
-        self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.event_numbers = dict()
         self.process_configs = None
         self.raw = kwargs["raw"]
@@ -295,7 +296,6 @@ class CutflowAnalyser(object):
             self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         if kwargs["process_config"] is not None:
             self.process_configs = parse_and_build_process_config(kwargs["process_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=self.dataset_config_file)for fn in self.file_list]
         if self.process_configs is not None:
             self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
 
@@ -316,7 +316,8 @@ class CutflowAnalyser(object):
             for process_name in self.cutflow_hists.keys():
                 _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms(self.cutflow_hists)
-        self.calculate_sm_total()
+        if not self.disable_sm_total:
+            self.calculate_sm_total()
         self.cutflow_hists = dict(filter(lambda kv: len(kv[1]) > 0, self.cutflow_hists.iteritems()))
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
@@ -347,8 +348,9 @@ class CutflowAnalyser(object):
                             if selection not in histograms[process][systematic]:
                                 print "could not find selection ", selection, " for process ", process
                                 continue
+                            new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(
+                                sub_process, process)
                             if histograms[process][systematic][selection] is None:
-                                new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(sub_process, process)
                                 histograms[process][systematic][selection] = histograms[sub_process][systematic][selection].Clone(new_hist_name)
                             else:
                                 histograms[process][systematic][selection].Add(histograms[sub_process][systematic][selection].Clone(new_hist_name))

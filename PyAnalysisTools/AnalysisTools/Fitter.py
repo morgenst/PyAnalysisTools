@@ -282,7 +282,7 @@ class Fitter(object):
             self.pdf = PDFAdd(**self.__dict__)
         if self.pdf_config.pdf == "linear":
             self.pdf = PDFLinear(**self.__dict__)
-        if self.pdf_config.pdf == "2gauss":
+        if self.pdf_config.pdf == "doublegauss":
             self.pdf = PDF2Gauss(**self.__dict__)
         if self.pdf_config.pdf == "BFraction":
             self.pdf = PDFBFraction(**self.__dict__)
