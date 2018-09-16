@@ -41,7 +41,7 @@ def apply_style_plotableObject(plotable_object):
     plotable_object.plot_object.SetFillStyle(plotable_object.fill_style)
             
 
-def decorate_canvas(canvas, plot_config):
+def decorate_canvas(canvas, plot_config, **kwargs):
     """
     Canvas decoration for ATLAS label, luminosity, grid settings and additional texts
 
@@ -52,14 +52,20 @@ def decorate_canvas(canvas, plot_config):
     :return: None
     :rtype: None
     """
+    kwargs.setdefault('watermark_x', plot_config.watermark_x)
+    kwargs.setdefault('watermark_y', plot_config.watermark_y)
+    kwargs.setdefault('decor_text_x', 0.2)
+    kwargs.setdefault('decor_text_y', 0.8)
+
     if hasattr(plot_config, "watermark"):
-        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
+        add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
+                        size=0.03, offset=0.08)
     if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
         add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
-        add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
+        add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']})
 
 
 def set_title_x(obj, title):
@@ -90,6 +96,7 @@ def set_title_z(obj, title):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_x_offset(obj, offset):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -97,6 +104,7 @@ def set_title_x_offset(obj, offset):
         obj.GetXaxis().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_y_offset(obj, offset):
     if not hasattr(obj, "GetYaxis"):
@@ -106,6 +114,7 @@ def set_title_y_offset(obj, offset):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_z_offset(obj, offset):
     if not hasattr(obj, "GetZaxis"):
         raise TypeError
@@ -113,6 +122,7 @@ def set_title_z_offset(obj, offset):
         obj.GetZaxis().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_x_size(obj, size):
     if not hasattr(obj, "GetXaxis"):
@@ -458,6 +468,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend.SetBorderSize(0)
     legend.Draw("sames")
     canvas.Update()
+
 
 def format_canvas(canvas, **kwargs):
     if "margin" in kwargs:
