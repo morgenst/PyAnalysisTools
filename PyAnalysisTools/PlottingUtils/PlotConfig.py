@@ -23,6 +23,7 @@ class PlotConfig(object):
         kwargs.setdefault("merge", True)
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
+        kwargs.setdefault("style", None)
         kwargs.setdefault("rebin", None)
         kwargs.setdefault("ratio", None)
         kwargs.setdefault("ignore_rebin", False)
@@ -51,6 +52,8 @@ class PlotConfig(object):
         kwargs.setdefault("xtitle", None)
         kwargs.setdefault("merge_mc_campaigns", True)
         kwargs.setdefault("watermark", "Internal")
+        kwargs.setdefault("watermark_x", 0.15)
+        kwargs.setdefault("watermark_y", 0.96)
         for k, v in kwargs.iteritems():
             if k == "y_min" or k == "y_max":
                 _logger.info("Deprecated. Use ymin or ymax")
