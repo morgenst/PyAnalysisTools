@@ -54,18 +54,21 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     """
     kwargs.setdefault('watermark_x', plot_config.watermark_x)
     kwargs.setdefault('watermark_y', plot_config.watermark_y)
+    kwargs.setdefault('watermark_size', 0.03)
+    kwargs.setdefault('watermark_offset', 0.08)
     kwargs.setdefault('decor_text_x', 0.2)
     kwargs.setdefault('decor_text_y', 0.8)
 
     if hasattr(plot_config, "watermark"):
         add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
-                        size=0.03, offset=0.08)
+                        size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
     if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
         add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
-        add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']})
+        add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
+                           size=0.05)
 
 
 def set_title_x(obj, title):
@@ -363,6 +366,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yh", 0.9)
     kwargs.setdefault("format", None)
     kwargs.setdefault("columns", None)
+    kwargs.setdefault('text_size', 0.025)
 
     def convert_draw_option(process_config=None, plot_config=None):
         def parse_option_from_format():
@@ -405,7 +409,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         return legend_option
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
-    legend.SetTextSize(0.025)
+    legend.SetTextSize(kwargs['text_size'])
     if kwargs["columns"]:
         legend.SetNColumns(kwargs["columns"])
     legend.SetFillStyle(0)
