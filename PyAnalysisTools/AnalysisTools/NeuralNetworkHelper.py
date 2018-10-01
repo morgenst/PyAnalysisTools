@@ -1,11 +1,11 @@
 import os
+from sklearn.metrics import roc_curve, auc
 from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Activation, Input, LSTM, Masking, Dropout, Flatten, Reshape
 from keras.layers.normalization import BatchNormalization
-from keras.optimizers import SGD
+from keras.optimizers import SGD, Adagrad, Adam
 from keras.utils import plot_model
 import keras.backend as backend
-from keras.optimizers import Adam
 import matplotlib
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
@@ -14,13 +14,12 @@ import pandas as pd
 from array import array
 import ROOT
 from MLHelper import Root2NumpyConverter, TrainingReader, DataScaler
-#from sklearn.metrics import roc_curve, auc, roc_auc_score, classification_report
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 np.seterr(divide='ignore', invalid='ignore')
 
 
@@ -41,21 +40,25 @@ class LimitConfig(object):
                 try:
                     config[k] = eval(v)
                 except (NameError, TypeError):
-                    pass
+                    config[k] = v
             return config
         optimiser_type = optimiser_config.keys()[0]
         if optimiser_type == "sgd":
             return SGD(**convert_types(optimiser_config[optimiser_type]))
+        if optimiser_type == "adagrad":
+            return Adagrad(**convert_types(optimiser_config[optimiser_type]))
+        if optimiser_type == "adam":
+            return Adam(**convert_types(optimiser_config[optimiser_type]))
 
 
 class NeuralNetwork(object):
     def __init__(self, num_features, limit_config):
         model = Sequential()
         width = 32
-        model.add(Dense(units=width, input_dim=num_features, activation=limit_config.activation))
+        model.add(Dense(units=width, input_dim=num_features, activation=limit_config.activation, kernel_initializer='random_normal'))
         for i in range(limit_config.nlayers - 1):
-            model.add(Dense(width, activation=limit_config.activation))
-            model.add(Dropout(0.5))
+            model.add(Dense(width, activation=limit_config.activation, kernel_initializer='random_normal'))
+            #model.add(Dropout(0.5))
         model.add(Dense(1, activation=limit_config.final_activation))
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
         self.kerasmodel = model
@@ -83,13 +86,14 @@ class NNTrainer(object):
         if kwargs["icomb"] is not None:
             self.output_path = os.path.join(self.output_path, str(kwargs["icomb"]))
         self.limit_config = self.build_limit_config(kwargs["training_config_file"])
-        self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
+        self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         self.store_arrays = not kwargs["disable_array_safe"]
         self.scaler = DataScaler(kwargs["scale_algo"])
         self.disable_event_weights = kwargs["disable_event_weights"]
         self.verbosity = kwargs["verbosity"]
         make_dirs(os.path.join(self.output_path, "plots"))
         make_dirs(os.path.join(self.output_path, "models"))
+        make_dirs(os.path.join(self.output_path, "scalers"))
         copy(kwargs["training_config_file"], self.output_path)
         copy(kwargs["variable_set"], self.output_path)
         if self.store_arrays and not self.reader.numpy_input:
@@ -106,7 +110,7 @@ class NNTrainer(object):
 
     @staticmethod
     def build_limit_config(config_file_name):
-        configs = YAMLLoader.read_yaml(config_file_name)
+        configs = yl.read_yaml(config_file_name)
         for name, config in configs.iteritems():
             return LimitConfig(name, **config)
 
@@ -136,8 +140,12 @@ class NNTrainer(object):
         self.model_1 = NeuralNetwork(self.npa_data_eval.shape[1], self.limit_config).kerasmodel
 
     def apply_scaling(self):
-        self.npa_data_train, self.label_train = self.scaler.apply_scaling(self.npa_data_train, self.label_train)
-        self.npa_data_eval, self.label_eval = self.scaler.apply_scaling(self.npa_data_eval, self.label_eval)
+        self.npa_data_train, self.label_train = self.scaler.apply_scaling(self.npa_data_train, self.label_train,
+                                                                          dump=os.path.join(self.output_path,
+                                                                                            "scalers/train.pkl"))
+        self.npa_data_eval, self.label_eval = self.scaler.apply_scaling(self.npa_data_eval, self.label_eval,
+                                                                        dump=os.path.join(self.output_path,
+                                                                                          "scalers/eval.pkl"))
 
     def plot_train_control(self, history, name):
         plt.plot(history.history['loss'])
@@ -154,9 +162,11 @@ class NNTrainer(object):
         self.build_input()
         self.npa_data_train = self.df_data_train[self.variable_list].as_matrix()
         self.npa_data_eval = self.df_data_eval[self.variable_list].as_matrix()
+
         if not self.disable_event_weights:
             self.weight_train = self.df_data_train['weight']
             self.weight_eval = self.df_data_eval['weight']
+
         self.build_models()
         if self.do_control_plots:
             self.make_control_plots("prescaling")
@@ -164,14 +174,13 @@ class NNTrainer(object):
             self.apply_scaling()
         if self.do_control_plots:
             self.make_control_plots("postscaling")
-        #TODO: implement sample weights via sample_weight option
 
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
-                                         epochs=self.epochs, verbose=self.verbosity, batch_size=32, shuffle=True,
+                                         epochs=self.epochs, verbose=self.verbosity, batch_size=64, shuffle=True,
                                          validation_data=(self.npa_data_eval, self.label_eval),
                                          sample_weight=self.weight_train)
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
-                                        epochs=self.epochs, verbose=self.verbosity, batch_size=32, shuffle=True,
+                                        epochs=self.epochs, verbose=self.verbosity, batch_size=64, shuffle=True,
                                         validation_data=(self.npa_data_train, self.label_train),
                                         sample_weight=self.weight_eval)
         if self.plot:
@@ -212,34 +221,34 @@ class NNTrainer(object):
         preds_train = self.model_0.predict(self.npa_data_eval)
         preds_sig_train = preds_train[self.label_eval == 1]
         preds_bkg_train = preds_train[self.label_eval == 0]
+
         make_plot(preds_sig_train, preds_bkg_train, "train")
-        #preds_eval = self.model_1.predict(self.df_data_eval.values)
         preds_eval = self.model_1.predict(self.npa_data_train)
         preds_sig_eval = preds_eval[self.label_train == 1]
         preds_bkg_eval = preds_eval[self.label_train == 0]
         make_plot(preds_sig_eval, preds_bkg_eval, "eval")
-        # self.make_roc_curve(self.label_train, preds_train, "train")
-        # self.make_roc_curve(self.label_eval, preds_eval, "eval")
+        self.make_roc_curve(self.label_train, preds_eval, "train")
+        self.make_roc_curve(self.label_eval, preds_train, "eval")
 
-    # def make_roc_curve(self, y, yhat, label):
-    #     fpr, tpr, thresholds = roc_curve(y, yhat)
-    #
-    #     roc_auc = auc(fpr, tpr)
-    #     print "ROC AUC: %0.3f" % roc_auc
-    #     plt.plot(fpr, tpr, color='darkorange', lw=2, label='Full curve (area = %0.2f)' % roc_auc)
-    #     plt.plot([0, 0], [1, 1], color='navy', lw=2, linestyle='--')
-    #     plt.xlim([-0.05, 1.0])
-    #     plt.ylim([0.0, 1.05])
-    #     plt.ylabel('True Positive Rate')
-    #     plt.xlabel('False Positive Rate')
-    #     plt.title('ROC curves for Signal vs Background')
-    #     # plt.plot([0.038], [0.45], marker='*', color='red',markersize=5, label="Cut-based",linestyle="None")
-    #     # plt.plot([0.038, 0.038], [0,1], color='red', lw=1, linestyle='--') # same background rejection point
-    #     plt.legend(loc="lower right")
-    #     plt.savefig(os.path.join(self.output_path, "plots/roc_{:s}.png".format(label)))
-    #     plt.show()
-    #     plt.clf()
-    #     plt.close()
+    def make_roc_curve(self, y, yhat, label):
+        fpr, tpr, thresholds = roc_curve(y, yhat)
+
+        roc_auc = auc(fpr, tpr)
+        print "ROC AUC: %0.3f" % roc_auc
+        plt.plot(fpr, tpr, color='darkorange', lw=2, label='Full curve (area = %0.2f)' % roc_auc)
+        plt.plot([0, 0], [1, 1], color='navy', lw=2, linestyle='--')
+        plt.xlim([-0.05, 1.0])
+        plt.ylim([0.0, 1.05])
+        plt.ylabel('True Positive Rate')
+        plt.xlabel('False Positive Rate')
+        plt.title('ROC curves for Signal vs Background')
+        # plt.plot([0.038], [0.45], marker='*', color='red',markersize=5, label="Cut-based",linestyle="None")
+        plt.plot([0.0, 0.0], [1., 1.], color='red', lw=1, linestyle='--')
+        plt.legend(loc="lower right")
+        plt.savefig(os.path.join(self.output_path, "plots/roc_{:s}.png".format(label)))
+        plt.show()
+        plt.clf()
+        plt.close()
 
     def make_control_plots(self, prefix):
         def make_plot(prefix, variable_name, signal, background):
@@ -277,20 +286,25 @@ class NNTrainer(object):
 
 class NNReader(object):
     def __init__(self, **kwargs):
-        self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"])
+        kwargs.setdefault("selection_config", None)
+        self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"],
+                                        dataset_info=kwargs["xs_config_file"])
                              for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
-        self.model_train = load_model(os.path.join(os.path.abspath(kwargs["input_path"]), "models/model_train.h5"))
-        self.model_eval = load_model(os.path.join(os.path.abspath(kwargs["input_path"]), "models/model_eval.h5"))
+        self.input_path = os.path.abspath(kwargs["input_path"])
+        self.model_train = load_model(os.path.join(self.input_path, "models/model_train.h5"))
+        self.model_eval = load_model(os.path.join(self.input_path, "models/model_eval.h5"))
         self.variable_list = kwargs["branches"]
-        self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
-        self.converter_selection = Root2NumpyConverter(["event_number"])
+        self.converter = Root2NumpyConverter(self.variable_list + ["weight", "train_flag"])
+        self.converter_selection = Root2NumpyConverter(["event_number", "run_number"])
         self.branch_name = kwargs["branch_name"]
         self.friend_file_pattern = kwargs["friend_file_pattern"]
         self.friend_name = kwargs["friend_name"]
         self.input_path = os.path.abspath(kwargs["input_path"])
         self.output_path = kwargs["output_path"]
-        self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
+        self.selection = None
+        if kwargs["selection_config"]:
+            self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         make_dirs(self.output_path)
         self.scaler = DataScaler(kwargs["scale_algo"])
 
@@ -302,7 +316,6 @@ class NNReader(object):
         friend_file_name = os.path.join(self.output_path, friend_file_name.split("/")[-1])
         if not os.path.exists(friend_file_name):
             file_handle_friend = FileHandle(file_name=friend_file_name, open_option="RECREATE")
-
         else:
             file_handle_friend = FileHandle(file_name=friend_file_name, open_option="UPDATE")
         try:
@@ -321,34 +334,81 @@ class NNReader(object):
             self.attach_NN_output(file_handle)
 
     def apply_scaling(self):
-        self.npa_data, _ = self.scaler.apply_scaling(self.npa_data, None)
+        self.npa_data_train, _ = self.scaler.apply_scaling(self.npa_data, None,
+                                                           scaler=os.path.join(self.input_path, 'scalers/train.pkl'))
+        self.npa_data_eval, _ = self.scaler.apply_scaling(self.npa_data, None,
+                                                           scaler=os.path.join(self.input_path, 'scalers/eval.pkl'))
+
+    def make_control_plots(self, train_pred, eval_pred, label):
+        _logger.debug("Consistency plots")
+        plt.hist(train_pred, 50, range=[0., 1.], histtype='step', label='model0', normed=True)
+        plt.hist(eval_pred, 50, range=[0., 1.], histtype='step', label='model1', normed=True)
+        plt.yscale('log')
+        plt.grid(True)
+        plt.legend(["train", "eval"], loc="upper right")
+        plt.savefig("plots/score_{:s}_log.png".format(label))
+        plt.yscale('linear')
+        plt.savefig("plots/score_{:s}_lin.png".format(label))
+        plt.close()
+
+    def make_variable_control_plots(self):
+        def make_plot(prefix, variable_name, signal):
+            data = signal
+            if "/" in variable_name:
+                variable_name = "_".join(variable_name.split("/")).replace(" ", "")
+            var_range = np.percentile(data, [2.5, 97.5])
+            plt.hist(map(float, signal), 100, range=var_range, histtype='step', label='signal', normed=False)
+            if data.ptp() > 1000.:
+                plt.yscale('log')
+            plt.legend(["scaled"], loc="upper right")
+            plt.xlabel(variable_name)
+            plt.ylabel('Normalised')
+            plt.savefig("plots/{:s}_{:s}.png".format(prefix, variable_name))
+            plt.close()
+
+        for key, name in enumerate(self.variable_list):
+            make_plot("{}_{}".format("post_scaling", "train"), name, self.npa_data[:,key])
 
     def attach_NN_output(self, file_handle):
         tree = file_handle.get_object_by_name(self.tree_name, "Nominal")
         file_handle_friend, friend_tree = self.get_friend_tree(file_handle)
-        selection = self.selection[0] if file_handle.is_mc else self.selection[1]
+        selection = ""
+        if self.selection is not None:
+            selection = self.selection[0] if file_handle.is_mc else self.selection[1]
+
         data_selected = self.converter.convert_to_array(tree, selection)
         selected_event_numbers = pd.DataFrame(self.converter_selection.convert_to_array(tree, selection)).as_matrix()
         data_selected = pd.DataFrame(data_selected)
+
         self.npa_data = data_selected[self.variable_list].as_matrix()
         self.apply_scaling()
-        prediction0 = self.model_train.predict(self.npa_data)
-        prediction1 = prediction0
-        bdt = array('f', [0.])
-        branch = friend_tree.Branch(self.branch_name, bdt, "{:s}/F".format(self.branch_name))
+        prediction0 = self.model_train.predict(self.npa_data_train)
+        prediction1 = self.model_eval.predict(self.npa_data_eval)
+        self.make_variable_control_plots()
+        nn_prediction = array('f', [0.])
+        branch = friend_tree.Branch(self.branch_name, nn_prediction, "{:s}/F".format(self.branch_name))
         total_entries = tree.GetEntries()
         multiple_triplets = 0
-        self.converter.convert_to_array(tree, selection)
+        processed_events = 0
+        already_processed_events = []
         for entry in range(total_entries):
             tree.GetEntry(entry)
             is_train = tree.train_flag == 0
-            if not len(tree.object_pt) > 1 and tree.event_number in selected_event_numbers:
-                if not is_train:
-                    bdt[0] = prediction1[entry-multiple_triplets]
-                else:
-                    bdt[0] = prediction0[entry-multiple_triplets]
+            if not len(tree.object_pt) > 1 and (np.array([tree.event_number, tree.run_number]) == selected_event_numbers).all(1).any():
+                processed_events += 1
+                if (tree.event_number, tree.run_number) in already_processed_events:
+                    _logger.error("ERROR already processed")
+                try:
+                    already_processed_events.append((tree.event_number, tree.run_number))
+                    if not is_train:
+                        nn_prediction[0] = prediction1[entry-multiple_triplets]
+                    else:
+                        nn_prediction[0] = prediction0[entry-multiple_triplets]
+                except Exception as e:
+                    print "exception ", processed_events
+                    raise e
             else:
-                bdt[0] = -2
+                nn_prediction[0] = -2
                 multiple_triplets += 1
             if self.is_new_tree:
                 friend_tree.Fill()

@@ -105,7 +105,7 @@ class LimitScanAnalyser(object):
         self.output_handle = OutputFileHandle(output_dir=output_dir)
 
         if scan_info is None:
-            self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)#"from PyAnalysisTools.AnalysisTools.LimitHelpers import LimitArgs")
+            self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
 
     def parse_limits(self):
         parsed_data = []

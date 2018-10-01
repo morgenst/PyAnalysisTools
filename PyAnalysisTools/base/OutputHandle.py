@@ -2,8 +2,7 @@ import os
 import re
 import time
 import ROOT
-import math
-from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base import ShellUtils
 from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
 
@@ -16,6 +15,8 @@ class SysOutputHandle(object):
         kwargs.setdefault("sub_dir_name", "output")
         self.base_output_dir = kwargs["output_dir"]
         self.output_dir = self.resolve_output_dir(**kwargs)
+        if 'output_tag' in kwargs and kwargs['output_tag']:
+            self.output_dir += '_' + kwargs['output_tag']
         ShellUtils.make_dirs(self.output_dir)
 
     @staticmethod
