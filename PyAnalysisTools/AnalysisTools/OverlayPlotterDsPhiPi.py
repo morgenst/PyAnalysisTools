@@ -22,7 +22,7 @@ class OverlayPlotterDsPhiPi(object):
            self.xtitle = common_config.get("xtitle", "")
            self.ytitle = common_config.get("ytitle", "")
            self.parameter_list = common_config.get("parameters",[])
-           self.logyrange = common_config.get("logyrange",[1.,2.])
+           self.logyrange = common_config.get("logyrange",[])
            for key in self.input_dict.keys():
                self.file_dict[key] =  ROOT.TFile(self.input_dict[key]["Path"])
        self.output_handle = OutputFileHandle(output_dir=self.output_dir)
@@ -63,12 +63,14 @@ class OverlayPlotterDsPhiPi(object):
        canvas = ROOT.TCanvas(variable, variable, 800, 600)
        hist_base = None
        self.legend = ROOT.TLegend(0.5,0.71,0.91,0.93)
+       self.legend.SetFillStyle(0)
+       self.legend.SetBorderSize(0)
        max = 0
        min = 999999
        # Set base hist to scale to
        for hist in hist_list:
            hist.ResetStats()
-           if "Data16 Ds" in hist.GetTitle() and "N_" in self.ytitle:
+           if "signal" in hist.GetTitle() and "N_" in self.ytitle:
               hist_base = hist
        # Formatting
        for hist in hist_list:
@@ -78,7 +80,6 @@ class OverlayPlotterDsPhiPi(object):
               hist.Scale(hist_base.Integral()/hist.Integral())
            hist.SetMarkerColor(color_list.pop(0))
            hist.SetLineColor(hist.GetMarkerColor())
-           self.legend.AddEntry(hist, hist.GetTitle())
            hist.SetYTitle(self.ytitle)
            hist.SetYTitle(parameter)
            hist.SetXTitle(variable)
@@ -99,6 +100,7 @@ class OverlayPlotterDsPhiPi(object):
            hist.SetMarkerSize(0.8)
            hist.Draw("same P")
            hist.Draw("same L1hist")
+           self.legend.AddEntry(hist, hist.GetTitle())
        if hist_base:
           self.legend.AddEntry("Ds", "N_{Ds}: " + str(int(round(hist_base.Integral()))))
        if parameter:

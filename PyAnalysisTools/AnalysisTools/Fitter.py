@@ -208,25 +208,25 @@ class PDFBFraction(PDF):
          #Make pdf for bb contribution
          hist_bb = get_hist_from_canvas(self.templatepath, "triplet_slxy_bb",
                                         "triplet_slxy_bb_HFbbcc*")
-         hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
+        # hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
          datahist_bb = ROOT.RooDataHist("datahist_bb","datahist_bb",LXY_list,hist_bb)
          w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,0))
          #Make pdf for cc contribution
          hist_cc = get_hist_from_canvas(self.templatepath, "triplet_slxy_cc",
                                         "triplet_slxy_cc_HFbbcc*")
-         hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
+        # hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
          datahist_cc = ROOT.RooDataHist("datahist_cc","datahist_cc",LXY_list,hist_cc)
          w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,0))
          #Make pdf for background contribution
          hist_bkg = get_hist_from_canvas(self.templatepath, "triplet_slxy_bkg",
                                          "triplet_slxy_bkg_Data*")
-         hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
+         #hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
          datahist_bkg = ROOT.RooDataHist("datahist_bkg","datahist_bkg",LXY_list,hist_bkg)
          w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,0))
          #Add up pdf
          w.factory("BFraction[0.05, 0.5]")
-         w.factory("n_bkg[0., 50000.]")
-         w.factory("n_sig[0.,20000.]")
+         w.factory("n_bkg[0., 80000.]")
+         w.factory("n_sig[0., 80000.]")
          w.factory("SUM::tmp1(n_bb[0]*histpdf_bb, n_cc[0]*histpdf_cc, n_bkg*histpdf_bkg)")
          w.factory("EDIT::tmp2(tmp1, n_bb=expr('BFraction*n_sig', BFraction, n_sig))")
          w.factory("EDIT::model(tmp2, n_cc=expr('(1.0-BFraction)*n_sig', BFraction, n_sig))")
