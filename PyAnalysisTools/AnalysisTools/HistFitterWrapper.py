@@ -61,6 +61,12 @@ class HistFitterWrapper(object):
         copy(os.path.join(os.environ["HISTFITTER"], "config/HistFactorySchema.dtd"),
                           os.path.join(self.output_dir, "config/HistFactorySchema.dtd"))
 
+    def clean(self):
+        if self.configMgr.executeHistFactory and not self.store_data:
+            file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
+            if os.path.isfile(file_name):
+                os.remove(file_name)
+
     def __init__(self, **kwargs):
         kwargs.setdefault("interactive", False)
         kwargs.setdefault("fit", True)
@@ -97,6 +103,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
         kwargs.setdefault("multi_core", False)
+        kwargs.setdefault("store_data", False)
 
         #FitType = self.configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
         #myFitType = FitType.Background
@@ -158,6 +165,7 @@ class HistFitterWrapper(object):
         else:
             _logger.error("fit type not specified. Giving up...")
             exit(0)
+
         if self.use_archive_histfile:
             self.configMgr.useHistBackupCacheFile = True
 
@@ -181,6 +189,7 @@ class HistFitterWrapper(object):
 
         if self.discovery_hypotest:
             self.configMgr.doDiscoveryHypoTest = True
+        #self.configMgr.doDiscoveryHypoTest = True
 
         if self.no_empty:
             self.configMgr.removeEmptyBins = True
@@ -277,7 +286,6 @@ class HistFitterWrapper(object):
                     sample.setData()
                 sample.setFileList([fn.file_name])
                 sample.setTreeName("Nominal/BaseSelection_lq_tree_Final")
-                #sample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
 
     def run_fit(self):
         """
@@ -425,13 +433,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.control_regions = []
         if self.call > 0:
             self.setup_output(**kwargs)
-
+        #if False: #not kwargs["debug"] == True:
         with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
             with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
                     std_stream_redirected(ferr, sys.stderr):
                 self.setup_regions(**kwargs)
                 self.call += 1
                 self.run_fit()
+        else:
+            self.setup_regions(**kwargs)
+            self.call += 1
+            self.run_fit()
 
     @staticmethod
     def build_sample(name, yld, process_configs, region, sample=None):
@@ -464,7 +476,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         nbkg_err = sqrt(nbkg_yields)
         bkgSample = Sample(self.bkg_name, kGreen - 9)
         bkgSample.setStatConfig(True)
-        bkgSample.buildHisto([nbkg_yields], "SR", kwargs["yield"], 0.5)
+        bkgSample.buildHisto([nbkg_yields], "SR", kwargs["var_name"], 0.5)
         bkgSample.buildStatErrors([nbkg_err], "SR", kwargs["var_name"])
         return bkgSample
 
@@ -491,7 +503,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.configMgr.cutsDict["SR"] = 1.
         self.configMgr.weights = "1."
 
-        self.configMgr.doExclusion = False  # True=exclusion, False=discovery
+        self.configMgr.doExclusion = True  # True=exclusion, False=discovery
         self.configMgr.nTOYs = 5000
         self.configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
         self.configMgr.testStatType = 3  # 3=one-sided profile likelihood test statistic (LHC default)
@@ -517,7 +529,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         dataSample = Sample("Data", kBlack)
         dataSample.setData()
-        dataSample.buildHisto([5.], "SR", var_name, 0.5) #ndata
+        dataSample.buildHisto([5000.], "SR", var_name, 0.5) #ndata
 
         sigSample = Sample(kwargs["sig_name"], kPink)
         sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
@@ -577,11 +589,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             ana.addBkgConstrainChannels(cr_channels)
         self.configMgr.cutsDict.keys()
         self.initialise()
-
-        if self.configMgr.executeHistFactory:
-            file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
-            if os.path.isfile(file_name):
-                os.remove(file_name)
+        self.clean()
 
     def setup_control_regions(self, **kwargs):
         data = kwargs["control_regions"]

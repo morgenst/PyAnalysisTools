@@ -285,10 +285,12 @@ class FileHandle(object):
         available_files = os.listdir(directory)
         base_file_name = self.file_name.split("/")[-1]
         for pattern in self.friend_pattern:
-            friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
-                              available_files)[0]
-            self.friends.append(os.path.join(directory, friend_fn))
-
+            try:
+                friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
+                                  available_files)[0]
+                self.friends.append(os.path.join(directory, friend_fn))
+            except IndexError:
+                _logger.error("Could not find friend for ", base_file_name)
     @staticmethod
     def release_object_from_file(obj):
         obj.SetDirectory(0)

@@ -43,6 +43,7 @@ class BasePlotter(object):
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
+        self.filter_missing_friends()
 
     def parse_process_config(self):
         """
@@ -50,7 +51,7 @@ class BasePlotter(object):
         :return: list of build process configs from config file
         :rtype: list
         """
-        if self.process_config_files is None and self.process_config_file is not None:
+        if self.process_config_files is None and self.process_config_file is None:
             return None
         if self.process_config_file is not None:
             _logger.error("Single Process configs are deprecated. Please update you argument parser to "
@@ -76,6 +77,21 @@ class BasePlotter(object):
                 self.lumi = 1.
         if common_config is not None:
             propagate_common_config(common_config, self.plot_configs)
+
+    def filter_missing_friends(self, load_friend=False):
+        """
+        Remove files from file list for which no friend tree was found
+
+        :param load_friend: enable/disable filter
+        :type load_friend: bool
+        :return:
+        :rtype: None
+        """
+
+        if not load_friend:
+            return
+        self.file_handles = filter(lambda fh: len(fh.friends) > 0 or fh.is_data, self.file_handles)
+
 
     @staticmethod
     def load_atlas_style():
@@ -150,6 +166,8 @@ class BasePlotter(object):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.cuts:
+                if isinstance(plot_config.cuts, str):
+                    plot_config.cuts = plot_config.split("&&")
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
                 data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
                 for mc_cut in mc_cuts:
