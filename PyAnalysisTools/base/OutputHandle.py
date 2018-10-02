@@ -2,6 +2,7 @@ import os
 import re
 import time
 import ROOT
+import math
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base import ShellUtils
 from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
@@ -79,6 +80,7 @@ class OutputFileHandle(SysOutputHandle):
         self.extension = ".pdf"
         self.n_plots_per_page = 4
         self.plot_book_name = "plot_book"
+        self.output_root_file_path = ""
         kwargs.setdefault("make_plotbook", False)
         kwargs.setdefault("set_title_name", False)
         self.enable_make_plot_book = kwargs["make_plotbook"]
@@ -104,6 +106,7 @@ class OutputFileHandle(SysOutputHandle):
             canvas.SaveAs(os.path.join(output_path, name + self.extension))
             return
         for c in canvas:
+            ROOT.gStyle.SetLineScalePS(0.5)
             c.Draw()
             ROOT.gPad.Update()
             if len(canvas) > 1:
@@ -115,10 +118,10 @@ class OutputFileHandle(SysOutputHandle):
                   c.SaveAs(os.path.join(output_path, name + self.extension))
             else:
                c.SaveAs(os.path.join(output_path, name + self.extension))
+        ROOT.gStyle.SetLineScalePS(3.)
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
-        ROOT.gStyle.SetLineScalePS(0.5)
         n = self.n_plots_per_page
         nx = int(round(math.sqrt(n)))
         ny = int(math.ceil(n/float(nx)))
@@ -166,12 +169,13 @@ class OutputFileHandle(SysOutputHandle):
             self.make_plot_book()
         self.attach_file()
         for tdir, obj in self.objects.iteritems():
-            if isinstance(obj, ROOT.TCanvas):
+            if isinstance(obj, ROOT.TCanvas) and not self.enable_make_plot_book:
                 self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
+        self.output_root_file_path =  self.output_file.GetName()
 
     def register_object(self, obj, tdir=None):
         _logger.debug("Adding object %s" % obj.GetName())

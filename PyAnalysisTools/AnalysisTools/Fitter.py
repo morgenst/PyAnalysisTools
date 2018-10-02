@@ -13,8 +13,8 @@ from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
 class PDFConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("blind", False)
-        if "config_file" in kwargs:
-            config = YAMLLoader.read_yaml(kwargs["config_file"])
+        if "fit_config_file" in kwargs:
+            config = YAMLLoader.read_yaml(kwargs["fit_config_file"])
             self.pdf = config.keys()[0]
             self.set_attr("blind", False)
             for attr, val in config[self.pdf].iteritems():
@@ -106,7 +106,6 @@ class PDFBernstein(PDF):
 
 class PDFArgus(PDF):
     def __init__(self, **kwargs):
-        print kwargs
         kwargs.setdefault("pdf_name", "argus")
         self.name = kwargs["pdf_name"]
         self.kappa = kwargs["pdf_config"].kappa
@@ -205,29 +204,29 @@ class PDFBFraction(PDF):
          LXY_set = ROOT.RooArgSet(self.var)
          LXY_list = ROOT.RooArgList(self.var)
          #Define bin for rebinning
-         binlist = array.array('d', [-2+j*0.25 for j in xrange(16)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(10)])
+         binlist = array.array('d', [-4+j*0.25 for j in xrange(24)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(11)])
          #Make pdf for bb contribution
          hist_bb = get_hist_from_canvas(self.templatepath, "triplet_slxy_bb",
-                                        "triplet_slxy_bb_HFbbccplusDsPhiPi")
-         hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
+                                        "triplet_slxy_bb_HFbbcc*")
+        # hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
          datahist_bb = ROOT.RooDataHist("datahist_bb","datahist_bb",LXY_list,hist_bb)
-         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,3))
+         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,0))
          #Make pdf for cc contribution
          hist_cc = get_hist_from_canvas(self.templatepath, "triplet_slxy_cc",
-                                        "triplet_slxy_cc_HFbbccplusDsPhiPi")
-         hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
+                                        "triplet_slxy_cc_HFbbcc*")
+        # hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
          datahist_cc = ROOT.RooDataHist("datahist_cc","datahist_cc",LXY_list,hist_cc)
-         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,3))
+         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,0))
          #Make pdf for background contribution
          hist_bkg = get_hist_from_canvas(self.templatepath, "triplet_slxy_bkg",
-                                         "triplet_slxy_bkg_Data2016")
-         hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
+                                         "triplet_slxy_bkg_Data*")
+         #hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
          datahist_bkg = ROOT.RooDataHist("datahist_bkg","datahist_bkg",LXY_list,hist_bkg)
-         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,3))
+         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,0))
          #Add up pdf
          w.factory("BFraction[0.05, 0.5]")
-         w.factory("n_bkg[0., 50000.]")
-         w.factory("n_sig[0.,20000.]")
+         w.factory("n_bkg[0., 80000.]")
+         w.factory("n_sig[0., 80000.]")
          w.factory("SUM::tmp1(n_bb[0]*histpdf_bb, n_cc[0]*histpdf_cc, n_bkg*histpdf_bkg)")
          w.factory("EDIT::tmp2(tmp1, n_bb=expr('BFraction*n_sig', BFraction, n_sig))")
          w.factory("EDIT::model(tmp2, n_cc=expr('(1.0-BFraction)*n_sig', BFraction, n_sig))")
@@ -249,7 +248,7 @@ class Fitter(object):
         self.nbin = 40
         self.xtitle = "variable"
         self.logy = False
-        self.pdf_config = PDFConfig(config_file=kwargs["config_file"]) if "config_file" in kwargs else kwargs["config"]
+        self.pdf_config = PDFConfig(fit_config_file=kwargs["fit_config_file"]) if "fit_config_file" in kwargs else kwargs["fit_config_config"]
         self.mode = kwargs["mode"]
         if hasattr(self.pdf_config, "quantity"):
             self.quantity = self.pdf_config.quantity
@@ -301,20 +300,6 @@ class Fitter(object):
                                            RooFit.NumCPU(5))#, RooFit.Cut("region==region::Signal"))
         else:
             fit_result = self.model.fitTo(self.data, RooFit.Save(), RooFit.NumCPU(5))
-        #############################Likelihood scan of a parameter######################
-        canvas_scan = ROOT.TCanvas("c1", "111", 800, 600)
-        nll = self.model.createNLL(self.data, RooFit.NumCPU(5))
-        ROOT.RooMinuit(nll).migrad()
-        it = self.model.getVariables().createIterator()
-        for parameter in iter(it.Next, None):
-            if(parameter.GetName()=="BFraction"):
-               frame_scan = parameter.frame()
-               frac = nll.createProfile(ROOT.RooArgSet(parameter))
-               frac.plotOn(frame_scan,  RooFit.LineColor(2))
-               canvas_scan.cd()
-               frame_scan.Draw()
-               self.output_handle.register_object(canvas_scan)
-        ################################################################################
         canvas = ROOT.TCanvas("c", "", 800, 600)
         frame = self.var.frame()
         canvas.cd()
