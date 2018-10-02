@@ -2,6 +2,7 @@ import os
 import re
 import time
 import ROOT
+import math
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base import ShellUtils
 from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas

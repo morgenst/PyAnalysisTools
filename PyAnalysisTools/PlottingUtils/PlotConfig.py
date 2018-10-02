@@ -384,7 +384,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         color = transform_color(process_config.color)
     if hasattr(plot_config, "color"):
         color = transform_color(plot_config.color, index)
-        
+
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
