@@ -204,25 +204,28 @@ class PDFBFraction(PDF):
          LXY_set = ROOT.RooArgSet(self.var)
          LXY_list = ROOT.RooArgList(self.var)
          #Define bin for rebinning
-         binlist = array.array('d', [-4+j*0.25 for j in xrange(24)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(11)])
+         #binlist = array.array('d', [-4+j*0.25 for j in xrange(24)]+[2. + i*0.5 for i in xrange(4)]+[4. + i*1 for i in xrange(11)])
          #Make pdf for bb contribution
          hist_bb = get_hist_from_canvas(self.templatepath, "triplet_slxy_bb",
                                         "triplet_slxy_bb_HFbbcc*")
-        # hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
+         #hist_bb = hist_bb.Rebin(len(binlist)-1,"bb",binlist)
+         #hist_bb.Scale(1., "width")
          datahist_bb = ROOT.RooDataHist("datahist_bb","datahist_bb",LXY_list,hist_bb)
-         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,0))
+         w.add(ROOT.RooHistPdf("histpdf_bb","histpdf_bb",LXY_set,datahist_bb,2))
          #Make pdf for cc contribution
          hist_cc = get_hist_from_canvas(self.templatepath, "triplet_slxy_cc",
                                         "triplet_slxy_cc_HFbbcc*")
-        # hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
+         #hist_cc = hist_cc.Rebin(len(binlist)-1,"cc",binlist)
+         #hist_cc.Scale(1., "width")
          datahist_cc = ROOT.RooDataHist("datahist_cc","datahist_cc",LXY_list,hist_cc)
-         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,0))
+         w.add(ROOT.RooHistPdf("histpdf_cc","histpdf_cc",LXY_set,datahist_cc,2))
          #Make pdf for background contribution
          hist_bkg = get_hist_from_canvas(self.templatepath, "triplet_slxy_bkg",
                                          "triplet_slxy_bkg_Data*")
          #hist_bkg = hist_bkg.Rebin(len(binlist)-1,"bkg",binlist)
+         #hist_bkg.Scale(1., "width")
          datahist_bkg = ROOT.RooDataHist("datahist_bkg","datahist_bkg",LXY_list,hist_bkg)
-         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,0))
+         w.add(ROOT.RooHistPdf("histpdf_bkg","histpdf_bkg",LXY_set,datahist_bkg,2))
          #Add up pdf
          w.factory("BFraction[0.05, 0.5]")
          w.factory("n_bkg[0., 80000.]")
