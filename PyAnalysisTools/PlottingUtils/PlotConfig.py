@@ -311,6 +311,10 @@ def propagate_common_config(common_config, plot_configs):
     :rtype: None
     """
     def integrate(plot_config, attr, value):
+        if attr == "cuts":
+            if plot_config.cuts is not None:
+                plot_config.cuts += value
+                return
         if attr == "weight":
             if plot_config.weight is not None and not plot_config.weight.lower() == "none":
                 plot_config.weight += " * {:s}".format(value)
