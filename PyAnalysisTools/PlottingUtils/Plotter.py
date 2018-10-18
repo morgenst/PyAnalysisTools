@@ -1,11 +1,11 @@
 import ROOT
 import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig, expand_process_configs_new
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
-from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils import PlottingTools as pt
 from PyAnalysisTools.PlottingUtils import RatioPlotter as RP
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
@@ -17,6 +17,7 @@ from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_ty
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
 from PyAnalysisTools.base.Modules import load_modules
+from collections import OrderedDict
 
 
 class Plotter(BasePlotter):
@@ -53,7 +54,13 @@ class Plotter(BasePlotter):
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
-        self.expand_process_configs()
+        process_attr = 'process_with_mc_campaign'
+        if any(map(lambda pc: pc.merge_mc_campaigns, self.plot_configs)):
+            process_attr = 'process'
+        self.process_configs = expand_process_configs_new(map(lambda fh: getattr(fh, process_attr), self.file_handles),
+                                                          self.process_configs,
+                                                          any(map(lambda pc: pc.merge_mc_campaigns, self.plot_configs)))
+
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
         self.filter_empty_trees()
         self.modules = load_modules(kwargs["module_config_file"], self)
@@ -62,11 +69,6 @@ class Plotter(BasePlotter):
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
 
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                _ = find_process_config(fh.process_with_mc_campaign, self.process_configs)
-
     def add_mc_campaigns(self):
         if self.process_configs is None:
             return
@@ -74,11 +76,13 @@ class Plotter(BasePlotter):
             process_config = self.process_configs[process_config_name]
             if process_config.is_data:
                 continue
-            for i, campaign in enumerate(["mc16a", "mc16c", "mc16d"]):
+            for i, campaign in enumerate(["mc16a", "mc16c", "mc16d", 'mc16e']):
                 new_config = copy.copy(process_config)
                 new_config.name += campaign
                 new_config.label += " {:s}".format(campaign)
-                new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
+                #TODO fix proper calculation
+                if not '+' in new_config.color and not '-' in new_config.color:
+                    new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
                 if hasattr(process_config, "subprocesses"):
                     new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
                 self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
@@ -118,6 +122,7 @@ class Plotter(BasePlotter):
                 mc = hist.Clone("mc_total_%s" % plot_config.dist)
                 continue
             mc.Add(hist)
+
         ratio.Divide(mc)
         if hasattr(plot_config, "ratio_config"):
             plot_config = plot_config.ratio_config
@@ -136,10 +141,10 @@ class Plotter(BasePlotter):
             plot_config_stat_unc_ratio.draw = "E2"
             plot_config_stat_unc_ratio.logy = False
             statistical_uncertainty_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
-            canvas = PT.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
-            PT.add_histogram_to_canvas(canvas, ratio, plot_config)
+            canvas = pt.plot_hist(statistical_uncertainty_ratio, plot_config_stat_unc_ratio)
+            pt.add_histogram_to_canvas(canvas, ratio, plot_config)
         else:
-            canvas = PT.plot_hist(ratio, plot_config)
+            canvas = pt.plot_hist(ratio, plot_config)
         return canvas
 
     def apply_lumi_weights(self, histograms):
@@ -154,9 +159,25 @@ class Plotter(BasePlotter):
                                                                             self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
 
+    def apply_lumi_weights_new(self, histograms):
+        for plot_config, hist_set in histograms.iteritems():
+            for process, hist in hist_set.iteritems():
+                if hist is None:
+                    _logger.error("Histogram for process {:s} is None".format(process))
+                    continue
+                if "data" in process.lower():
+                    continue
+                lumi = self.lumi
+                if isinstance(self.lumi, OrderedDict):
+                    lumi = self.lumi[process.split('.')[-1]]
+                    plot_config.used_mc_campaigns.append(process.split('.')[-1])
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
+                                                                            self.event_yields[process])
+                HT.scale(hist, cross_section_weight)
+
     def make_multidimensional_plot(self, plot_config, data):
         for process, histogram in data.iteritems():
-            canvas = PT.plot_obj(histogram, plot_config)
+            canvas = pt.plot_obj(histogram, plot_config)
             canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
             canvas.SetRightMargin(0.15)
             FM.decorate_canvas(canvas, plot_config)
@@ -214,10 +235,13 @@ class Plotter(BasePlotter):
 
     def scale_signals(self, signals, plot_config):
         for process, signal_hist in signals.iteritems():
-            label_postfix = "(x {:.0f})".format(plot_config.signal_scale)
-            if label_postfix not in self.process_configs[process].label:
-                self.process_configs[process].label += label_postfix
-            HT.scale(signal_hist, plot_config.signal_scale)
+            #label_postfix = "(x {:.0f})".format(plot_config.signal_scale)
+            # if label_postfix not in self.process_configs[process].label:
+            #     self.process_configs[process].label += label_postfix
+            #HT.scale(signal_hist, plot_config.signal_scale)
+            if hasattr(self.process_configs[process], 'signal_scale'):
+                HT.scale(signal_hist, self.process_configs[process].signal_scale)
+                print "SCALE"
 
     def make_plot(self, plot_config, data):
         for mod in self.modules_data_providers:
@@ -229,13 +253,14 @@ class Plotter(BasePlotter):
         HT.merge_underflow_bins(data)
         if plot_config.signal_extraction:
             signals = self.get_signal_hists(data)
-        if plot_config.signal_scale is not None:
-            self.scale_signals(signals, plot_config)
+        #todo: need proper fix for this
+        #if plot_config.signal_scale is not None:
+        self.scale_signals(signals, plot_config)
         signal_only = False
         if len(signals) > 0 and len(data) == 0:
             signal_only = True
         if plot_config.outline == "stack" and not plot_config.is_multidimensional and not signal_only:
-            canvas = PT.plot_stack(data, plot_config=plot_config,
+            canvas = pt.plot_stack(data, plot_config=plot_config,
                                    process_configs=self.process_configs)
             stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
             self.stat_unc_hist = ST.get_statistical_uncertainty_from_stack(stack)
@@ -243,18 +268,18 @@ class Plotter(BasePlotter):
             self.stat_unc_hist.SetMarkerStyle(1)
             plot_config_stat_unc = PlotConfig(name="stat.unc", dist=None, label="stat unc", draw="E2", style=3244,
                                               color=ROOT.kBlack)
-            PT.add_object_to_canvas(canvas, self.stat_unc_hist, plot_config_stat_unc)
+            pt.add_object_to_canvas(canvas, self.stat_unc_hist, plot_config_stat_unc)
             if plot_config.signal_extraction:
                 for signal in signals.iteritems():
-                    PT.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
+                    pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
             self.process_configs[plot_config_stat_unc.name] = plot_config_stat_unc
         elif plot_config.is_multidimensional:
             self.make_multidimensional_plot(plot_config, data)
             return
         elif signal_only:
-            canvas = PT.plot_objects(signals, plot_config, process_configs=self.process_configs)
+            canvas = pt.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
-            canvas = PT.plot_objects(data, plot_config, process_configs=self.process_configs)
+            canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
         if plot_config.legend_options is not None:
             FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
@@ -282,7 +307,7 @@ class Plotter(BasePlotter):
 
                 significance_canvas = ST.get_significance(signal_hist, background_hist, sig_plot_config,
                                                           significance_canvas)
-                canvas_significance_ratio = PT.add_ratio_to_canvas(canvas, significance_canvas,
+                canvas_significance_ratio = pt.add_ratio_to_canvas(canvas, significance_canvas,
                                                                    name=canvas.GetName() + "_significance")
             if significance_canvas is not None:
                 self.output_handle.register_object(canvas_significance_ratio)
@@ -335,7 +360,6 @@ class Plotter(BasePlotter):
                 plot_config_syst_unc_ratio.logy = False
                 syst_sm_total_up_categotised, syst_sm_total_down_categotised, colors = self.syst_analyser.get_relative_unc_on_SM_total(
                     plot_config, data)
-                print "sys hist: ", syst_sm_total_up_categotised, syst_sm_total_down_categotised
                 ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up_categotised)
                 ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_down_categotised)
                 plot_config_syst_unc_ratio.color = colors
@@ -348,7 +372,7 @@ class Plotter(BasePlotter):
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             #canvas_ratio = ratio_plotter.overlay_out_of_range_arrow(canvas_ratio)
             #canvas_ratio.SaveAs("foo_"+canvas_ratio.GetName()+".pdf")
-            canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+            canvas_combined = pt.add_ratio_to_canvas(canvas, canvas_ratio)
             self.output_handle.register_object(canvas_combined)
 
     def make_plots(self):
@@ -364,7 +388,8 @@ class Plotter(BasePlotter):
         fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
         self.categorise_histograms(fetched_histograms)
         if not self.lumi < 0:
-            self.apply_lumi_weights(self.histograms)
+            self.apply_lumi_weights_new(self.histograms)
+
         if hasattr(self.plot_configs, "normalise_after_cut"):
             self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing

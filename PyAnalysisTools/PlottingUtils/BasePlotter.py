@@ -40,7 +40,6 @@ class BasePlotter(object):
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
-        print self.file_handles[0].process
 
     def parse_process_config(self):
         if self.process_config_files is None and self.process_config_file is not None:
@@ -88,12 +87,12 @@ class BasePlotter(object):
         :rtype: None
         """
         for file_handle in self.file_handles:
-            process = file_handle.process
+            process = file_handle.process_with_mc_campaign
             if process is None:
                 _logger.warning("Could not parse process for file {:s}". format(file_handle.file_name))
                 continue
-            if self.split_mc_campaigns:
-                process = file_handle.process_with_mc_campaign
+            # if self.split_mc_campaigns:
+            #     process = file_handle.process_with_mc_campaign
             if file_handle.process in self.event_yields:
                 self.event_yields[process] += file_handle.get_number_of_total_events()
             else:
@@ -107,6 +106,14 @@ class BasePlotter(object):
         if not plot_config.merge_mc_campaigns:
             return plot_config, file_handle.process_with_mc_campaign, tmp
         return plot_config, file_handle.process, tmp
+
+    def fetch_histograms_new(self, data, systematic="Nominal"):
+        file_handle, plot_config = data
+        if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
+            return [None, None, None]
+        tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
+        return plot_config, file_handle.process_with_mc_campaign, tmp
+        #return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
         if "data" in file_handle.process.lower() and plot_config.no_data:
@@ -199,7 +206,7 @@ class BasePlotter(object):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
         comb = product(file_handle, plot_configs)
         pool = mp.ProcessPool(nodes=cpus)
-        histograms = pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
+        histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
         return histograms
 
     def categorise_histograms(self, histograms):
