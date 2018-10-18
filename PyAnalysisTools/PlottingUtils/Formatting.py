@@ -41,8 +41,8 @@ def decorate_canvas(canvas, plot_config):
     """
     if hasattr(plot_config, "watermark"):
         add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
-    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
+    if plot_config.get_lumi() is not None and plot_config.get_lumi() >= 0:
+        add_lumi_text(canvas, plot_config.get_lumi(), {"x": 0.2, "y": 0.9})
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
     if hasattr(plot_config, "decor_text"):
@@ -65,6 +65,7 @@ def set_title_y(obj, title):
         obj.GetYaxis().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_z(obj, title):
     if not hasattr(obj, "GetZaxis"):
@@ -362,7 +363,7 @@ def add_legend_to_canvas(canvas, **kwargs):
                     legend_option += parse_option_from_format()
             else:
                 legend_option += "F"
-        if "l" in draw_option:
+        if "l" in draw_option.lower():
             legend_option += "L"
         if "p" in draw_option or "E" in draw_option:
             legend_option += "P"
@@ -435,11 +436,11 @@ def add_legend_to_canvas(canvas, **kwargs):
             legend.AddEntry(plot_obj, label, kwargs["format"][plot_objects.index(plot_obj)])
     canvas.cd()
     if "fill_style" in kwargs:
-        print "yes, got fill style"
         legend.SetFillStyle(kwargs["fill_style"])
     legend.SetBorderSize(0)
     legend.Draw("sames")
     canvas.Update()
+
 
 def format_canvas(canvas, **kwargs):
     if "margin" in kwargs:
