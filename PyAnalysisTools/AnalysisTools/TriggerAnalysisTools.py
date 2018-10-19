@@ -40,7 +40,7 @@ class TriggerFlattener(object):
         self.trigger_list = []
 
     def flatten_all_branches(self, skipAcceptance = False):
-        branch_names = find_branches_matching_pattern(self.tree, "trigger_.*")
+        branch_names = find_branches_matching_pattern(self.tree, "^trigger_.*")
         self.read_triggers()
         branch_names.remove("trigger_list")
         self.expand_branches(branch_names)
@@ -118,7 +118,7 @@ class TriggerAcceptancePlotter(BasePlotter):
         self.trigger_list = filter(lambda t: "prescales" not in t, self.trigger_list)
         self.overlap_hist = None
         self.unqiue_rate_hist = None
-        
+
     def __del__(self):
         self.output_handle.write_and_close()
 
@@ -227,7 +227,7 @@ class TriggerAcceptancePlotter(BasePlotter):
             if file_handle.process in process_dict:
                 process_dict[file_handle.process].append(file_handle)
             else:
-                process_dict[file_handle.process] = [file_handle]                
+                process_dict[file_handle.process] = [file_handle]
 
         for process, file_handles in process_dict.iteritems():
             trigger_data = {}
@@ -236,7 +236,7 @@ class TriggerAcceptancePlotter(BasePlotter):
             overlap = self.get_overlap_coefficients(trigger_data)
             self.output_handle.register_object(self.make_overlap_histogram("overlap_{:s}".format(file_handle.process),
                                                                            overlap))
-            
+
     def plot_trigger_unique_correlation(self):
         process_dict = {}
         for file_handle in self.file_handles:

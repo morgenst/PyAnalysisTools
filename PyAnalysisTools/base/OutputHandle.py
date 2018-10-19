@@ -106,7 +106,8 @@ class OutputFileHandle(SysOutputHandle):
             canvas.SaveAs(os.path.join(output_path, name + self.extension))
             return
         for c in canvas:
-            ROOT.gStyle.SetLineScalePS(0.5)
+	    if self.n_plots_per_page>2:
+               ROOT.gStyle.SetLineScalePS(0.5)
             c.Draw()
             ROOT.gPad.Update()
             if len(canvas) > 1:
