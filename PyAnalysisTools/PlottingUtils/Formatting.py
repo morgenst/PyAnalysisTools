@@ -184,10 +184,10 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False, energy=13, precision=1):
     canvas.cd()
-    text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
-    text_energy = '#sqrt{s} = 13 TeV'
+    text_lumi = '#scale[0.7]{{#int}}dt L = {:.{:d}f} fb^{{-1}}'.format(float(lumi), precision)
+    text_energy = '#sqrt{{s}} = {:d} TeV'.format(energy)
     if split_lumi_text:
         label_lumi = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
         label_energy = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
