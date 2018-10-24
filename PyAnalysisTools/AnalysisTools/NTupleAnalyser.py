@@ -4,7 +4,10 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
-from tabulate.tabulate import tabulate
+try:
+    from tabulate.tabulate import tabulate
+except ImportError:
+    from tabulate import tabulate
 try:
     import pyAMI.client
 except Exception as e:
