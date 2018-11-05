@@ -41,7 +41,7 @@ def apply_style_plotableObject(plotable_object):
     plotable_object.plot_object.SetFillStyle(plotable_object.fill_style)
             
 
-def decorate_canvas(canvas, plot_config):
+def decorate_canvas(canvas, plot_config, **kwargs):
     """
     Canvas decoration for ATLAS label, luminosity, grid settings and additional texts
 
@@ -52,14 +52,26 @@ def decorate_canvas(canvas, plot_config):
     :return: None
     :rtype: None
     """
-    if hasattr(plot_config, "watermark"):
-        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
-    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
-    if hasattr(plot_config, "grid") and plot_config.grid is True:
+    kwargs.setdefault('watermark_x', plot_config.watermark_x)
+    kwargs.setdefault('watermark_y', plot_config.watermark_y)
+    kwargs.setdefault('watermark_size', plot_config.watermark_size)
+    kwargs.setdefault('watermark_offset', plot_config.watermark_offset)
+    kwargs.setdefault('decor_text_x', plot_config.decor_text_x)
+    kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
+    kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
+    kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
+    kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
+
+    if plot_config.watermark is not None:
+        add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
+                        size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
+    if plot_config.lumi is not None and plot_config.lumi >= 0:
+        add_lumi_text(canvas, plot_config.lumi, {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']})
+    if plot_config.grid:
         canvas.SetGrid()
-    if hasattr(plot_config, "decor_text"):
-        add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
+    if plot_config.decor_text is not None:
+        add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
+                           size=kwargs['decor_text_size'])
 
 
 def set_title_x(obj, title):
@@ -90,6 +102,7 @@ def set_title_z(obj, title):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_x_offset(obj, offset):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -97,6 +110,7 @@ def set_title_x_offset(obj, offset):
         obj.GetXaxis().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_y_offset(obj, offset):
     if not hasattr(obj, "GetYaxis"):
@@ -106,6 +120,7 @@ def set_title_y_offset(obj, offset):
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
+
 def set_title_z_offset(obj, offset):
     if not hasattr(obj, "GetZaxis"):
         raise TypeError
@@ -113,6 +128,7 @@ def set_title_z_offset(obj, offset):
         obj.GetZaxis().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
+
 
 def set_title_x_size(obj, size):
     if not hasattr(obj, "GetXaxis"):
@@ -171,10 +187,10 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False, energy=13, precision=1):
     canvas.cd()
-    text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
-    text_energy = '#sqrt{s} = 13 TeV'
+    text_lumi = '#scale[0.7]{{#int}}dt L = {:.{:d}f} fb^{{-1}}'.format(float(lumi), precision)
+    text_energy = '#sqrt{{s}} = {:d} TeV'.format(energy)
     if split_lumi_text:
         label_lumi = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
         label_energy = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
@@ -353,6 +369,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     kwargs.setdefault("yh", 0.9)
     kwargs.setdefault("format", None)
     kwargs.setdefault("columns", None)
+    kwargs.setdefault('text_size', 0.025)
 
     def convert_draw_option(process_config=None, plot_config=None):
         def parse_option_from_format():
@@ -395,7 +412,7 @@ def add_legend_to_canvas(canvas, **kwargs):
         return legend_option
     legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
     ROOT.SetOwnership(legend, False)
-    legend.SetTextSize(0.025)
+    legend.SetTextSize(kwargs['text_size'])
     if kwargs["columns"]:
         legend.SetNColumns(kwargs["columns"])
     legend.SetFillStyle(0)
@@ -458,6 +475,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     legend.SetBorderSize(0)
     legend.Draw("sames")
     canvas.Update()
+
 
 def format_canvas(canvas, **kwargs):
     if "margin" in kwargs:

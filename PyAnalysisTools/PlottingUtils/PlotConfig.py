@@ -23,6 +23,7 @@ class PlotConfig(object):
         kwargs.setdefault("merge", True)
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
+        kwargs.setdefault("style", None)
         kwargs.setdefault("rebin", None)
         kwargs.setdefault("ratio", None)
         kwargs.setdefault("ignore_rebin", False)
@@ -33,14 +34,13 @@ class PlotConfig(object):
         kwargs.setdefault("make_plot_book", False)
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
-        kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("xmin", None)
         kwargs.setdefault("draw_option", None)
         kwargs.setdefault("ymax", None)
+        kwargs.setdefault("yscale", None)
         kwargs.setdefault("is_common", False)
         kwargs.setdefault("normalise_range", None)
-        kwargs.setdefault("ytitle", None)
         kwargs.setdefault("ratio_config", None)
         kwargs.setdefault("grid", False)
         kwargs.setdefault("logy", False)
@@ -49,11 +49,31 @@ class PlotConfig(object):
         kwargs.setdefault("Lumi", 1.)
         kwargs.setdefault("signal_extraction", True)
         kwargs.setdefault("xtitle", None)
+        kwargs.setdefault("ytitle", None)
+        kwargs.setdefault("ztitle", None)
+        kwargs.setdefault("title", "")
         kwargs.setdefault("merge_mc_campaigns", True)
         kwargs.setdefault("watermark", "Internal")
+        kwargs.setdefault("watermark_size", 0.03)
+        kwargs.setdefault("watermark_offset", 0.08)
+        kwargs.setdefault("watermark_x", 0.15)
+        kwargs.setdefault("watermark_y", 0.96)
+        kwargs.setdefault("decor_text", None)
+        kwargs.setdefault("decor_text_x", 0.2)
+        kwargs.setdefault("decor_text_y", 0.8)
+        kwargs.setdefault("decor_text_size", 0.05)
+        kwargs.setdefault("lumi_text_x", 0.2)
+        kwargs.setdefault("lumi_text_y", 0.9)
+        kwargs.setdefault('xtitle_offset', None)
+        kwargs.setdefault('ytitle_offset', None)
+        kwargs.setdefault('ztitle_offset', None)
+        kwargs.setdefault('xtitle_size', None)
+        kwargs.setdefault('ytitle_size', None)
+        kwargs.setdefault('ztitle_size', None)
+        kwargs.setdefault('axis_labels', None)
+
+
         for k, v in kwargs.iteritems():
-            if k == "y_min" or k == "y_max":
-                _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config" and v is not None:
                 v["logx"] = kwargs["logx"]
                 self.set_additional_config("ratio_config", **v)
@@ -185,8 +205,8 @@ def get_default_plot_config(hist):
 
 
 def get_default_color_scheme():
-    return [ROOT.kBlack, ROOT.kYellow-3, ROOT.kRed+2, ROOT.kTeal - 2, ROOT.kSpring-8, ROOT.kCyan, ROOT.kBlue-6,
-            ROOT.kRed, ROOT.kGreen, ROOT.kBlue, ROOT.kGray]
+    return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
+            ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
 
 
 class ProcessConfig(object):
@@ -382,7 +402,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_attr = process_config.style
     if hasattr(plot_config, "styles") and index is not None:
         style_attr = plot_config.styles[index]
-    if hasattr(plot_config, "style"):
+    if plot_config.style is not None:
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
