@@ -131,7 +131,7 @@ def plot_hist(hist, plot_config, **kwargs):
         FM.set_minimum_y(hist, plot_config.ymin)
     if plot_config.ymax:
         FM.set_maximum_y(hist, plot_config.ymax)
-    if hasattr(plot_config, "logy") and plot_config.logy:
+    if plot_config.logy:
         hist.SetMaximum(hist.GetMaximum() * 10.)
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))
@@ -143,9 +143,9 @@ def plot_hist(hist, plot_config, **kwargs):
             hist.SetMinimum(0.000001)
             FM.set_minimum_y(hist, plot_config.ymin)
         canvas.SetLogy()
-    if hasattr(plot_config, "logx") and plot_config.logx:
+    if plot_config.logx:
         canvas.SetLogx()
-    if hasattr(plot_config, "axis_labels") and plot_config.axis_labels is not None:
+    if plot_config.axis_labels is not None:
         for b in range(len(plot_config.axis_labels)):
             hist.GetXaxis().SetBinLabel(b+1, plot_config.axis_labels[b])
     canvas.Update()
@@ -153,9 +153,7 @@ def plot_hist(hist, plot_config, **kwargs):
 
 
 def plot_2d_hist(hist, plot_config, **kwargs):
-    title = ""
-    if hasattr(plot_config, 'title'):
-        title = plot_config.title
+    title = plot_config.title
     canvas = retrieve_new_canvas(plot_config.name, title)
     canvas.cd()
     hist = format_obj(hist, plot_config)
@@ -182,20 +180,22 @@ def fetch_process_config(process, process_config):
 def format_obj(obj, plot_config):
     if isinstance(obj, ROOT.TH1):
         return format_hist(obj, plot_config)
-    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TGraph):
+    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TGraph) or isinstance(obj, ROOT.TMultiGraph):
         return format_hist(obj, plot_config)
     if isinstance(obj, ROOT.TEfficiency):
         return format_tefficiency(obj, plot_config)
+    _logger.warn('Could not find implementation for ', obj)
+    return obj
 
 
 def get_title_from_plot_config(plot_config):
     xtitle = None
-    if hasattr(plot_config, "xtitle"):
+    if plot_config.xtitle is not None:
         xtitle = plot_config.xtitle
         if hasattr(plot_config, "unit"):
             xtitle += " [" + plot_config.unit + "]"
     y_title = "Entries"
-    if hasattr(plot_config, "ytitle"):
+    if plot_config.ytitle is not None:
         y_title = plot_config.ytitle
     return xtitle, y_title
 
@@ -216,48 +216,48 @@ def format_hist(hist, plot_config):
     xtitle, ytitle = get_title_from_plot_config(plot_config)
     if xtitle:
         FM.set_title_x(hist, xtitle)
-    if hasattr(plot_config, "xtitle_offset"):
+    if plot_config.xtitle_offset is not None:
         FM.set_title_x_offset(hist, plot_config.xtitle_offset)
-    if hasattr(plot_config, "xtitle_size"):
+    if plot_config.xtitle_size is not None:
         FM.set_title_x_size(hist, plot_config.xtitle_size)
     if hasattr(plot_config, "unit"):
         ytitle += " / %.1f %s" % (hist.GetXaxis().GetBinWidth(0), plot_config.unit)
     FM.set_title_y(hist, ytitle)
-    if hasattr(plot_config, "ytitle_offset"):
+    if plot_config.ytitle_offset is not None:
         FM.set_title_y_offset(hist, plot_config.ytitle_offset)
-    if hasattr(plot_config, "ytitle_size"):
+    if plot_config.ytitle_size is not None:
         FM.set_title_y_size(hist, plot_config.ytitle_size)
     yscale = 1.1
     if plot_config.logy:
         yscale = 10.
     if isinstance(hist, ROOT.TH2):
-        if hasattr(plot_config, "ztitle"):
+        if plot_config.ztitle is not None:
             hist.GetZaxis().SetTitle(plot_config.ztitle)
-        if hasattr(plot_config, "ztitle_offset"):
+        if plot_config.ztitle_offset is not None:
             FM.set_title_z_offset(hist, plot_config.ztitle_offset)
-        if hasattr(plot_config, "ztitle_size"):
+        if plot_config.ztitle_size is not None:
             FM.set_title_z_size(hist, plot_config.ztitle_size)
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
             hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
         if hasattr(plot_config, "zmin") and hasattr(plot_config, "zmax"):
             FM.set_range_z(hist, plot_config.zmin, plot_config.zmax)
 
-    if hasattr(plot_config, "normalise") and plot_config.normalise:
+    if plot_config.normalise:
         HT.normalise(hist, plot_config.normalise_range)
         yscale = 1.1
-        if hasattr(plot_config, "yscale"):
+        if plot_config.yscale is not None:
             yscale = yscale
         ymax = yscale * hist.GetMaximum()
-        if hasattr(plot_config, "ymax"):
+        if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
     if plot_config.rebin and not isinstance(hist, ROOT.THStack) and not plot_config.ignore_rebin:
         hist = HT.rebin(hist, plot_config.rebin)
-        if hasattr(plot_config, "yscale"):
+        if plot_config.yscale is not None:
             yscale = yscale
         ymax = yscale*hist.GetMaximum()
-        if hasattr(plot_config, "ymax"):
+        if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
@@ -272,6 +272,7 @@ def format_hist(hist, plot_config):
     #     if hist.GetMinimum() == 0.:
     #         hist.SetMinimum(0.9)
         # canvas.SetLogy()
+    ROOT.SetOwnership(hist, False)
     return hist
 
 
@@ -308,7 +309,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             hist.plot_object = format_hist(hist.plot_object, plot_config)
             process_config = fetch_process_config(process, process_configs)
             if not (plot_config.is_set_to_value("ignore_style", True)) and \
-               plot_config.is_set_to_value("ignore_style", False):
+                    plot_config.is_set_to_value("ignore_style", False):
                 setattr(plot_config, 'draw', hist.draw_option)
                 draw_option = get_draw_option_as_root_str(plot_config, process_config)
             else:
@@ -332,14 +333,14 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     FM.set_minimum(hist.plot_object, plot_config.xmin, "x")
                 elif plot_config.xmin and plot_config.xmax:
                     FM.set_range(hist.plot_object, plot_config.xmin, plot_config.xmax, "x")
-            # if plot_config.logy:
-            #     hist.SetMaximum(hist.GetMaximum() * 10.)
-            #     if hasattr(plot_config, "ymin"):
-            #         hist.SetMinimum(max(0.1, plot_config.ymin))
-            #         print "set minimum: ", max(0.1, plot_config.ymin)
-            #         exit()
-            #     else:
-            #         hist.SetMinimum(0.0001)
+                # if plot_config.logy:
+                #     hist.SetMaximum(hist.GetMaximum() * 10.)
+                #     if hasattr(plot_config, "ymin"):
+                #         hist.SetMinimum(max(0.1, plot_config.ymin))
+                #         print "set minimum: ", max(0.1, plot_config.ymin)
+                #         exit()
+                #     else:
+                #         hist.SetMinimum(0.0001)
                 # canvas.SetLogy()
                 if plot_config.logx:
                     canvas.SetLogx()
@@ -348,7 +349,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     hist.plot_object.SetMaximum(plot_config.ymax)
                 else:
                     hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.1)
-            if hasattr(plot_config, "logy") and plot_config.logy:
+            if plot_config.logy:
                 hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 10.)
                 if hasattr(plot_config, "ymin"):
                     hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
@@ -359,13 +360,12 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 canvas.SetLogy()
                 canvas.Update()
             is_first = False
-        if hasattr(plot_config, "normalise") and plot_config.normalise is True:
-            hist_defs[0][1].plot_object.SetMaximum(plot_config.ymax)
+            if plot_config.normalise:
+                hist_defs[0][1].plot_object.SetMaximum(plot_config.ymax)
         canvas.Update()
         return canvas
 
-
-    if not switchOff:
+    if not switchOff and plot_config.ymax is None:
         max_y = 1.4 * max([item[1].GetMaximum() for item in hist_defs])
 
     if plot_config.ordering is not None:
@@ -388,16 +388,17 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         #     style_setter = "Line"
         if plot_config.ignore_style:
             style_setter = "Line"
+
         FM.apply_style(hist, plot_config, process_config, index=index)
 
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.ymin)
-            if switchOff:
-                FM.set_maximum_y(hist, plot_config.ymax)
-            else:
-                FM.set_maximum_y(hist, max_y)
+            # if switchOff:
+            #     FM.set_maximum_y(hist, plot_config.ymax)
+            # else:
+            #     FM.set_maximum_y(hist, max_y)
             if plot_config.xmin and not plot_config.xmax:
                 FM.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
@@ -418,18 +419,16 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                  hist.SetMaximum(plot_config.ymax)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.1)
-        if hasattr(plot_config, "logy") and plot_config.logy:
+        if plot_config.logy:
             hist.SetMaximum(hist.GetMaximum() * 10.)
-            if hasattr(plot_config, "ymin"):
-                hist.SetMinimum(max(0.1, plot_config.ymin))
+            if plot_config.ymin > 0.:
+                hist.SetMinimum(plot_config.ymin)
             else:
-                hist.SetMinimum(0.9)
-            if hist.GetMinimum() == 0.:
                 hist.SetMinimum(0.9)
             canvas.SetLogy()
             canvas.Update()
         is_first = False
-    if hasattr(plot_config, "normalise") and plot_config.normalise is True:
+    if plot_config.normalise:
         hist_defs[0][1].SetMaximum(plot_config.ymax)
 
     canvas.Update()
@@ -501,19 +500,21 @@ def plot_graph(graph, plot_config=None, **kwargs):
     :return: canvas containing plotted and formatted TGraph
     :rtype: TCanvas
     """
+
     kwargs.setdefault("canvas_name", graph.GetName())
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
     draw_option = "a" + get_draw_option_as_root_str(plot_config)
     graph.Draw(draw_option)
+
     # if not "same" in draw_option:
     #     draw_option += "same"
     apply_style(graph, *get_style_setters_and_values(plot_config, index=0))
     ROOT.SetOwnership(graph, False)
     if plot_config:
         graph = format_obj(graph, plot_config)
-    if hasattr(plot_config, "logy") and plot_config.logy:
+    if plot_config.logy:
         canvas.SetLogy()
     graph.Draw(draw_option)
     canvas.Update()
@@ -590,7 +591,7 @@ def plot_stack(hists, plot_config, **kwargs):
     FM.set_maximum_y(stack, max_y)
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)
-    if hasattr(plot_config, "logy") and plot_config.logy:
+    if plot_config.logy:
         hist.SetMaximum(hist.GetMaximum() * 10.)
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))

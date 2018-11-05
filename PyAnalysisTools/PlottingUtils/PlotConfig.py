@@ -38,9 +38,9 @@ class PlotConfig(object):
         kwargs.setdefault("xmin", None)
         kwargs.setdefault("draw_option", None)
         kwargs.setdefault("ymax", None)
+        kwargs.setdefault("yscale", None)
         kwargs.setdefault("is_common", False)
         kwargs.setdefault("normalise_range", None)
-        kwargs.setdefault("ytitle", None)
         kwargs.setdefault("ratio_config", None)
         kwargs.setdefault("grid", False)
         kwargs.setdefault("logy", False)
@@ -49,6 +49,9 @@ class PlotConfig(object):
         kwargs.setdefault("Lumi", 1.)
         kwargs.setdefault("signal_extraction", True)
         kwargs.setdefault("xtitle", None)
+        kwargs.setdefault("ytitle", None)
+        kwargs.setdefault("ztitle", None)
+        kwargs.setdefault("title", "")
         kwargs.setdefault("merge_mc_campaigns", True)
         kwargs.setdefault("watermark", "Internal")
         kwargs.setdefault("watermark_size", 0.03)
@@ -61,6 +64,14 @@ class PlotConfig(object):
         kwargs.setdefault("decor_text_size", 0.05)
         kwargs.setdefault("lumi_text_x", 0.2)
         kwargs.setdefault("lumi_text_y", 0.9)
+        kwargs.setdefault('xtitle_offset', None)
+        kwargs.setdefault('ytitle_offset', None)
+        kwargs.setdefault('ztitle_offset', None)
+        kwargs.setdefault('xtitle_size', None)
+        kwargs.setdefault('ytitle_size', None)
+        kwargs.setdefault('ztitle_size', None)
+        kwargs.setdefault('axis_labels', None)
+
 
         for k, v in kwargs.iteritems():
             if k == "ratio_config" and v is not None:
