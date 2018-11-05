@@ -54,21 +54,24 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     """
     kwargs.setdefault('watermark_x', plot_config.watermark_x)
     kwargs.setdefault('watermark_y', plot_config.watermark_y)
-    kwargs.setdefault('watermark_size', 0.03)
-    kwargs.setdefault('watermark_offset', 0.08)
-    kwargs.setdefault('decor_text_x', 0.2)
-    kwargs.setdefault('decor_text_y', 0.8)
+    kwargs.setdefault('watermark_size', plot_config.watermark_size)
+    kwargs.setdefault('watermark_offset', plot_config.watermark_offset)
+    kwargs.setdefault('decor_text_x', plot_config.decor_text_x)
+    kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
+    kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
+    kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
+    kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
 
-    if hasattr(plot_config, "watermark"):
+    if plot_config.watermark is not None:
         add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
                         size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
-    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
-    if hasattr(plot_config, "grid") and plot_config.grid is True:
+    if plot_config.lumi is not None and plot_config.lumi >= 0:
+        add_lumi_text(canvas, plot_config.lumi, {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']})
+    if plot_config.grid:
         canvas.SetGrid()
-    if hasattr(plot_config, "decor_text"):
+    if plot_config.decor_text is not None:
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
-                           size=0.05)
+                           size=kwargs['decor_text_size'])
 
 
 def set_title_x(obj, title):

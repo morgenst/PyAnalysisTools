@@ -34,7 +34,6 @@ class PlotConfig(object):
         kwargs.setdefault("make_plot_book", False)
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
-        kwargs.setdefault("y_min", 0.)
         kwargs.setdefault("ymin", 0.)
         kwargs.setdefault("xmin", None)
         kwargs.setdefault("draw_option", None)
@@ -52,11 +51,18 @@ class PlotConfig(object):
         kwargs.setdefault("xtitle", None)
         kwargs.setdefault("merge_mc_campaigns", True)
         kwargs.setdefault("watermark", "Internal")
+        kwargs.setdefault("watermark_size", 0.03)
+        kwargs.setdefault("watermark_offset", 0.08)
         kwargs.setdefault("watermark_x", 0.15)
         kwargs.setdefault("watermark_y", 0.96)
+        kwargs.setdefault("decor_text", None)
+        kwargs.setdefault("decor_text_x", 0.2)
+        kwargs.setdefault("decor_text_y", 0.8)
+        kwargs.setdefault("decor_text_size", 0.05)
+        kwargs.setdefault("lumi_text_x", 0.2)
+        kwargs.setdefault("lumi_text_y", 0.9)
+
         for k, v in kwargs.iteritems():
-            if k == "y_min" or k == "y_max":
-                _logger.info("Deprecated. Use ymin or ymax")
             if k == "ratio_config" and v is not None:
                 v["logx"] = kwargs["logx"]
                 self.set_additional_config("ratio_config", **v)
@@ -188,8 +194,8 @@ def get_default_plot_config(hist):
 
 
 def get_default_color_scheme():
-    return [ROOT.kBlack, ROOT.kYellow-3, ROOT.kRed+2, ROOT.kTeal - 2, ROOT.kSpring-8, ROOT.kCyan, ROOT.kBlue-6,
-            ROOT.kRed, ROOT.kGreen, ROOT.kBlue, ROOT.kGray]
+    return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
+            ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
 
 
 class ProcessConfig(object):
@@ -381,7 +387,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_attr = process_config.style
     if hasattr(plot_config, "styles") and index is not None:
         style_attr = plot_config.styles[index]
-    if hasattr(plot_config, "style"):
+    if plot_config.style is not None:
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
