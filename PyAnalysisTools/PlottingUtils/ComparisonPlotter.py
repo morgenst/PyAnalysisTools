@@ -338,10 +338,6 @@ class MultiFileMultiRefReader(ComparisonReader):
             reference = collections.OrderedDict()
             compare = collections.OrderedDict()
             for file_handle in self.file_handles:
-                if file_handle.is_data:
-                    cut_string = v_cuts.replace('DATA:', '')
-                else:
-                    cut_string = v_cuts = '&&'.join(filter(lambda ct: 'DATA' not in ct, v_cuts.split("&&")))
                 reference[file_handle.process] = self.make_hist(file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)
             for compare_file_handle in self.compare_file_handles:
                 compare[compare_file_handle.process] = self.make_hist(compare_file_handle, self.plot_config, k_cuts, v_cuts, self.tree_name)                

@@ -331,6 +331,10 @@ def propagate_common_config(common_config, plot_configs):
     :rtype: None
     """
     def integrate(plot_config, attr, value):
+        if attr == "cuts":
+            if plot_config.cuts is not None:
+                plot_config.cuts += value
+                return
         if attr == "weight":
             if plot_config.weight is not None and not plot_config.weight.lower() == "none":
                 plot_config.weight += " * {:s}".format(value)
@@ -404,7 +408,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         color = transform_color(process_config.color)
     if hasattr(plot_config, "color"):
         color = transform_color(plot_config.color, index)
-        
+
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
