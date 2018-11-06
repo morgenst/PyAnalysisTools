@@ -115,13 +115,13 @@ class ComparisonReader(object):
         for process in histograms.keys():
             histograms[find_process_config(process, process_configs)] = histograms.pop(process)
 
-
-    @staticmethod
-    def parse_process_config(process_config_file):
-        if process_config_file is None:
-            return None
-        process_config = parse_and_build_process_config(process_config_file)
-        return process_config
+    #TODO: seems not to be needed
+    # @staticmethod
+    # def parse_process_config(process_config_file):
+    #     if process_config_file is None:
+    #         return None
+    #     process_config = parse_and_build_process_config(process_config_file)
+    #     return process_config
 
 
 class SingleFileSingleRefReader(ComparisonReader):
@@ -503,7 +503,7 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('tree_name', None)
         kwargs.setdefault('output_dir', './')
         kwargs.setdefault('output_tag', None)
-        kwargs.setdefault('process_config_file', None)
+        kwargs.setdefault('process_config_files', None)
         kwargs.setdefault('systematics', 'Nominal')
         kwargs.setdefault('ref_mod_modules', None)
         kwargs.setdefault('inp_mod_modules', None)
@@ -564,8 +564,8 @@ class ComparisonPlotter(BasePlotter):
         # if self.systematics is None:
         #     self.systematics = 'Nominal'
             
-        if 'process_config_file' in kwargs:
-            self.process_configs = parse_and_build_process_config(kwargs['process_config_file'])
+        if 'process_config_files' in kwargs:
+            self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
             self.expand_process_configs()
             
         self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
