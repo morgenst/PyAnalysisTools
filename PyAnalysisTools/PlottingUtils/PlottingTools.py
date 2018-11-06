@@ -110,7 +110,8 @@ def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=No
 
 
 def plot_hist(hist, plot_config, **kwargs):
-    kwargs.setdefault("y_max", 1.1 * hist.GetMaximum())
+    #TODO: add offset option
+    kwargs.setdefault("y_max", 1.2 * hist.GetMaximum())
     #kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum()) - sm dev
     kwargs.setdefault("index", None)
     ymax = kwargs["y_max"]
@@ -132,7 +133,8 @@ def plot_hist(hist, plot_config, **kwargs):
     if plot_config.ymax:
         FM.set_maximum_y(hist, plot_config.ymax)
     if plot_config.logy:
-        hist.SetMaximum(hist.GetMaximum() * 10.)
+        #TODO: add offset option
+        hist.SetMaximum(hist.GetMaximum() * 100.)
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))
         else:
@@ -329,6 +331,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     FM.set_maximum_y(hist.plot_object, plot_config.ymax)
                 else:
                     FM.set_maximum_y(hist.plot_object, max_y)
+                    FM.set_minimum_y(hist.plot_object, plot_config.ymin)
                 if plot_config.xmin and not plot_config.xmax:
                     FM.set_minimum(hist.plot_object, plot_config.xmin, "x")
                 elif plot_config.xmin and plot_config.xmax:
@@ -348,9 +351,9 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 if plot_config.ymax:
                     hist.plot_object.SetMaximum(plot_config.ymax)
                 else:
-                    hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.1)
+                    hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.2)
             if plot_config.logy:
-                hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 10.)
+                hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 100.)
                 if hasattr(plot_config, "ymin"):
                     hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
                 else:
@@ -388,17 +391,16 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         #     style_setter = "Line"
         if plot_config.ignore_style:
             style_setter = "Line"
-
         FM.apply_style(hist, plot_config, process_config, index=index)
 
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.ymin)
-            # if switchOff:
-            #     FM.set_maximum_y(hist, plot_config.ymax)
-            # else:
-            #     FM.set_maximum_y(hist, max_y)
+            if switchOff:
+                FM.set_maximum_y(hist, plot_config.ymax)
+            else:
+                FM.set_maximum_y(hist, max_y)
             if plot_config.xmin and not plot_config.xmax:
                 FM.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
@@ -418,12 +420,14 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             if plot_config.ymax:
                  hist.SetMaximum(plot_config.ymax)
             else:
-                hist.SetMaximum(hist.GetMaximum() * 1.1)
+                hist.SetMaximum(hist.GetMaximum() * 1.2)
         if plot_config.logy:
-            hist.SetMaximum(hist.GetMaximum() * 10.)
+            hist.SetMaximum(hist.GetMaximum() * 100.)
             if plot_config.ymin > 0.:
                 hist.SetMinimum(plot_config.ymin)
             else:
+                hist.SetMinimum(0.9)
+            if hist.GetMinimum() == 0.:
                 hist.SetMinimum(0.9)
             canvas.SetLogy()
             canvas.Update()
@@ -500,14 +504,12 @@ def plot_graph(graph, plot_config=None, **kwargs):
     :return: canvas containing plotted and formatted TGraph
     :rtype: TCanvas
     """
-
     kwargs.setdefault("canvas_name", graph.GetName())
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
     draw_option = "a" + get_draw_option_as_root_str(plot_config)
     graph.Draw(draw_option)
-
     # if not "same" in draw_option:
     #     draw_option += "same"
     apply_style(graph, *get_style_setters_and_values(plot_config, index=0))
@@ -592,7 +594,7 @@ def plot_stack(hists, plot_config, **kwargs):
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)
     if plot_config.logy:
-        hist.SetMaximum(hist.GetMaximum() * 10.)
+        hist.SetMaximum(hist.GetMaximum() * 100.)
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))
         else:
@@ -652,7 +654,8 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         y_axis.SetTitleSize(y_axis.GetTitleSize() * scale)
         y_axis.SetLabelSize(y_axis.GetLabelSize() * scale)
         y_axis.SetTitleOffset(1.1*y_axis.GetTitleOffset() / scale)
-        y_axis.SetLabelOffset(y_axis.GetLabelOffset() * scale)
+        # y_axis.SetLabelOffset(2.*y_axis.GetLabelOffset() / scale)
+        y_axis.SetLabelOffset(0.01)
         x_axis.SetTitleSize(x_axis.GetTitleSize() * scale)
         x_axis.SetLabelSize(x_axis.GetLabelSize() * scale)
         x_axis.SetTickLength(x_axis.GetTickLength() * scale)
@@ -691,7 +694,7 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
     pad1.SetBottomMargin(0.05)
     pad1.Draw()
-    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac)
+    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac - 0.009)
     pad2.SetBottomMargin(0.1)
     pad2.Draw()
     pad1.cd()
