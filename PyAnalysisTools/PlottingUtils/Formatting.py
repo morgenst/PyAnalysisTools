@@ -61,31 +61,28 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
     kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
 
-    if plot_config.watermark is not None:
-        add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
-                        size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
-    if plot_config.lumi is not None and plot_config.lumi >= 0:
-        add_lumi_text(canvas, plot_config.lumi, {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']})
+    # if plot_config.watermark is not None:
+    #     add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
+    #                     size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
+    # if plot_config.lumi is not None and plot_config.lumi >= 0:
+    #     add_lumi_text(canvas, plot_config.lumi, {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']})
+    #TODO: need proper integration
+    if hasattr(plot_config, "ratio") and plot_config.ratio is False:
+        if hasattr(plot_config, "watermark"):
+            add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.88}, size=0.04875, offset=0.12)
+        if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+            add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.835}, size=0.0375)
+
+    else:
+        if hasattr(plot_config, "watermark"):
+            add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.86}, size=0.065, offset=0.12)
+        if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+            add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.8}, size=0.05)
     if plot_config.grid:
         canvas.SetGrid()
     if plot_config.decor_text is not None:
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
                            size=kwargs['decor_text_size'])
-    #TODO: need merge
-    # if hasattr(plot_config, "ratio") and plot_config.ratio is False:
-    #     if hasattr(plot_config, "watermark"):
-    #         add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.88}, size=0.04875, offset=0.12)
-    #     if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-    #         add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.835}, size=0.0375)
-    #     if hasattr(plot_config, "decor_text"):
-    #         add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
-    # else:
-    #     if hasattr(plot_config, "watermark"):
-    #         add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.86}, size=0.065, offset=0.12)
-    #     if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-    #         add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.8}, size=0.05)
-    #     if hasattr(plot_config, "decor_text"):
-    #         add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
 
 
 def set_title_x(obj, title):
@@ -205,13 +202,14 @@ def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi
     canvas.cd()
     text_lumi = '#scale[0.7]{{#int}}dt L = {:.{:d}f} fb^{{-1}}'.format(float(lumi), precision)
     text_energy = '#sqrt{{s}} = {:d} TeV'.format(energy)
-    #TODO: need merge
-    # if isinstance(lumi, str):
-    #     text_lumi = lumi
-    #     text_energy = ''
+
+    if isinstance(lumi, str):
+        text_lumi = lumi
+        text_energy = ''
     # else:
     #     text_lumi = '#scale[0.7]{#int}dt L = %.2f fb^{-1},' % (float(lumi))
     #     text_energy = '#sqrt{s} = 13 TeV'
+
     if split_lumi_text:
         label_lumi = make_text(x=pos['x'], y=pos['y'], text=text_lumi.rstrip(','), size=size)
         label_energy = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
