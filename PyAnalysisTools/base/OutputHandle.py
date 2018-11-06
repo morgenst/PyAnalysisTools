@@ -12,10 +12,12 @@ class SysOutputHandle(object):
         if "output_dir" not in kwargs:
             _logger.warning("No output directory provied")
             kwargs.setdefault("output_dir", "./")
+        kwargs.setdefault('output_tag', None)
         kwargs.setdefault("sub_dir_name", "output")
         self.base_output_dir = kwargs["output_dir"]
         self.output_dir = self.resolve_output_dir(**kwargs)
-        if 'output_tag' in kwargs and kwargs['output_tag']:
+        self.output_tag = kwargs['output_tag']
+        if kwargs['output_tag'] is not None:
             self.output_dir += '_' + kwargs['output_tag']
         ShellUtils.make_dirs(self.output_dir)
 
@@ -73,7 +75,7 @@ class OutputFileHandle(SysOutputHandle):
         self.objects = dict()
         self.attached = False
         self.overload = overload
-        kwargs.setdefault("output_file", "output.root")
+        kwargs.setdefault("output_file", "output")
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
         kwargs.setdefault("make_plotbook", False)
@@ -83,7 +85,10 @@ class OutputFileHandle(SysOutputHandle):
 
     def attach_file(self):
         if not self.attached:
-            self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name), "RECREATE")
+            if self.output_tag is not None:
+                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + '.root'), "RECREATE")
+            else:
+                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, '_'.join([self.output_file_name, self.output_tag]) + '.root'), "RECREATE")
             self.output_file.cd()
             self.attached = True
 
@@ -99,11 +104,15 @@ class OutputFileHandle(SysOutputHandle):
             ROOT.gPad.Update()
             if not name:
                 name = canvas.GetName()
+            if self.output_tag is not None:
+                name += '_' + self.output_tag
             canvas.SaveAs(os.path.join(output_path, name + extension))
             return
         for c in canvas:
             c.Draw()
             ROOT.gPad.Update()
+            if self.output_tag is not None:
+                name += '_' + self.output_tag
             if canvas.index(c) == 0:
                 c.SaveAs(os.path.join(output_path, name + extension + "("))
                 continue
