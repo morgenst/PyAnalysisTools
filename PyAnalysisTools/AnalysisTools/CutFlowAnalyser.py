@@ -251,12 +251,12 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
     def execute(self):
         self.read_event_yields()
-        self.plot_signal_yields()
+        # self.plot_signal_yields()
 
         for systematic in self.cutflows.keys():
             for region in self.cutflows[systematic].keys():
                 self.apply_cross_section_weight(systematic, region)
-        self.merge_yields()
+        # self.merge_yields()
         self.calculate_sm_total()
 
         self.make_cutflow_tables()
