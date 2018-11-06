@@ -27,7 +27,7 @@ class TriggerFlattener(object):
             raise InvalidInputError("No tree name provided")
         kwargs.setdefault("additional_trees", [])
         kwargs.setdefault("tmp_dir", None)
-        kwargs.setdefault("branch_name", "trigger_list")
+        kwargs.setdefault("branch_name", "triggerList")
         self.file_handle = FileHandle(file_name=kwargs["input_file"], run_dir=kwargs["tmp_dir"], open_option="UPDATE")
         self.tree_name = kwargs["tree_name"]
         self.tree = self.file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
@@ -40,7 +40,7 @@ class TriggerFlattener(object):
         self.trigger_list = []
 
     def flatten_all_branches(self, skipAcceptance = False):
-        branch_names = find_branches_matching_pattern(self.tree, "trigger_.*")
+        branch_names = find_branches_matching_pattern(self.tree, "trigger.*")
         self.read_triggers()
         branch_names.remove("triggerList")
         self.expand_branches(branch_names)
@@ -59,7 +59,7 @@ class TriggerFlattener(object):
                 if "acceptance" in  new_name :
                     new_trigName = new_name
                     if skipAcceptance :
-                        new_trigName = new_name.replace("_acceptance", "" )
+                        new_trigName = new_name.replace("_acceptance", "" ).replace("Acceptance", "")
                     exec("data_holder_{:s} = array(\'i\', [0])".format(new_name))
                     exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/I\")".format(new_name, new_trigName, new_name, new_trigName))
                     for tn in self.additional_trees_names:
@@ -137,7 +137,7 @@ class TriggerAcceptancePlotter(BasePlotter):
         hist = ROOT.TH1F(name, "", len(self.trigger_list), 0., len(self.trigger_list))
         for trigger_name in self.trigger_list:
             hist.GetXaxis().SetBinLabel(self.trigger_list.index(trigger_name) + 1,
-                                        trigger_name.replace("_acceptance", ""))
+                                        trigger_name.replace("_acceptance", "").replace("Acceptance", ""))
             hist.GetXaxis().SetLabelSize(0.03)
         return hist
 
@@ -267,18 +267,18 @@ class TriggerAcceptancePlotter(BasePlotter):
             for trigger_name in self.trigger_list:
                 index = self.trigger_list.index(trigger_name)
                 self.overlap_hist.GetXaxis().SetBinLabel(index + 1,
-                                                         trigger_name.replace("_acceptance", ""))
+                                                         trigger_name.replace("_acceptance", "").replace("Acceptance", ""))
                 self.overlap_hist.GetXaxis().SetLabelSize(0.02)
                 self.overlap_hist.GetYaxis().SetBinLabel(len(self.trigger_list) - index,
-                                                         trigger_name.replace("_acceptance", ""))
+                                                         trigger_name.replace("_acceptance", "").replace("Acceptance", ""))
                 self.overlap_hist.GetYaxis().SetLabelSize(0.02)
                 self.overlap_hist.GetZaxis().SetLabelSize(0.03)
 
         get_hist_def()
         for comb, overlap in data.iteritems():
-            self.overlap_hist.Fill(comb[0].replace("_acceptance", ""), comb[1].replace("_acceptance", ""), overlap)
+            self.overlap_hist.Fill(comb[0].replace("_acceptance", "").replace("Acceptance", ""), comb[1].replace("_acceptance", "").replace("Acceptance", ""), overlap)
             if not unique:
-                self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
+                self.overlap_hist.Fill(comb[1].replace("_acceptance", "").replace("Acceptance", ""), comb[0].replace("_acceptance", "").replace("Acceptance", ""), overlap)
         for i in range(self.overlap_hist.GetNbinsX()):
             self.overlap_hist.Fill(i, self.overlap_hist.GetNbinsX()-i-1, 1.)
         ztitle = "(trigger0 || trigger1)/(trigger0 && trigger1)"
@@ -300,13 +300,13 @@ class TriggerAcceptancePlotter(BasePlotter):
             self.unique_rate_hist = ROOT.TH1F(name, "", len(self.trigger_list), 0., len(self.trigger_list))
             for trigger_name in self.trigger_list:
                 index = self.trigger_list.index(trigger_name)
-                self.unqiue_rate_hist.GetXaxis().SetBinLabel(index + 1, trigger_name.replace("_acceptance", ""))
+                self.unqiue_rate_hist.GetXaxis().SetBinLabel(index + 1, trigger_name.replace("_acceptance", "").replace("Acceptance", ""))
                 self.unqiue_rate_hist.GetXaxis().SetLabelSize(0.03)
 
         get_hist_def()
         for comb, overlap in data.iteritems():
-            self.overlap_hist.Fill(comb[0].replace("_acceptance", ""), comb[1].replace("_acceptance", ""), overlap)
-            self.overlap_hist.Fill(comb[1].replace("_acceptance", ""), comb[0].replace("_acceptance", ""), overlap)
+            self.overlap_hist.Fill(comb[0].replace("_acceptance", "").replace("Acceptance", ""), comb[1].replace("_acceptance", "").replace("Acceptance", ""), overlap)
+            self.overlap_hist.Fill(comb[1].replace("_acceptance", "").replace("Acceptance", ""), comb[0].replace("_acceptance", "").replace("Acceptance", ""), overlap)
         plot_config = pc(name=name, draw_option="HIST")
         return PT.plot_hist(self.unqiue_rate_hist, plot_config=plot_config)
 
@@ -326,7 +326,7 @@ class TriggerAcceptancePlotter(BasePlotter):
     def read_triggers(self):
         def parse_trigger_info(file_handle):
             tree = file_handle.get_object_by_name(self.tree_name, tdirectory="Nominal")
-            tmp = dict((trigger.replace("_acceptance", ""),
+            tmp = dict((trigger.replace("_acceptance", "").replace("Acceptance", ""),
                         tree.GetEntries("{:s} == 1".format(trigger))) for trigger in self.trigger_list)
             return tmp
         data = dict((file_handle.process, parse_trigger_info(file_handle)) for file_handle in self.file_handles)
