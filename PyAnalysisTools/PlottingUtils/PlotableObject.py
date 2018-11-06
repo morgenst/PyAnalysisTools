@@ -1,15 +1,24 @@
 import ROOT
 
 color_palette = [
+    # ROOT.kGray+3,
+    # ROOT.kPink+7,
+    # ROOT.kAzure+4,
+    # ROOT.kSpring-9,
+    # ROOT.kOrange-3,
+    # ROOT.kCyan-6,
+    # ROOT.kPink-7,
+    # ROOT.kSpring-7,
+    # ROOT.kPink-1
     ROOT.kGray+3,
-    ROOT.kPink+7,
+    ROOT.kRed+2,
     ROOT.kAzure+4,
-    ROOT.kSpring-9,
+    ROOT.kSpring-6,
     ROOT.kOrange-3,
-    ROOT.kCyan-6,
-    ROOT.kPink-7,
-    ROOT.kSpring-7,
-    ROOT.kPink-1
+    ROOT.kCyan-3,
+    ROOT.kPink-2,
+    ROOT.kSpring-9,
+    ROOT.kMagenta-5
 ]
 
 marker_style_palette_filled = [21,
