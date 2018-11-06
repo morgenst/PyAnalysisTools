@@ -29,6 +29,7 @@ def plot_obj(hist, plot_config, **kwargs):
 def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False):
     if cut_string is None:
         cut_string = ""
+        
     if weight:
         mc_weights = None
         if "MC:" in weight:
@@ -110,7 +111,7 @@ def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=No
 
 
 def plot_hist(hist, plot_config, **kwargs):
-    kwargs.setdefault("y_max", 1.1 * hist.GetMaximum())
+    kwargs.setdefault("y_max", 1.2 * hist.GetMaximum())
     #kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum()) - sm dev
     kwargs.setdefault("index", None)
     ymax = kwargs["y_max"]
@@ -132,7 +133,7 @@ def plot_hist(hist, plot_config, **kwargs):
     if plot_config.ymax:
         FM.set_maximum_y(hist, plot_config.ymax)
     if hasattr(plot_config, "logy") and plot_config.logy:
-        hist.SetMaximum(hist.GetMaximum() * 10.)
+        hist.SetMaximum(hist.GetMaximum() * 100.)
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))
         else:
@@ -323,6 +324,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     FM.set_maximum_y(hist.plot_object, plot_config.ymax)
                 else:
                     FM.set_maximum_y(hist.plot_object, max_y)
+                    FM.set_minimum_y(hist.plot_object, plot_config.ymin)
                 if plot_config.xmin and not plot_config.xmax:
                     FM.set_minimum(hist.plot_object, plot_config.xmin, "x")
                 elif plot_config.xmin and plot_config.xmax:
@@ -342,9 +344,9 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 if plot_config.ymax:
                     hist.plot_object.SetMaximum(plot_config.ymax)
                 else:
-                    hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.1)
+                    hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.2)
             if hasattr(plot_config, "logy") and plot_config.logy:
-                hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 10.)
+                hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 100.)
                 if hasattr(plot_config, "ymin"):
                     hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
                 else:
@@ -412,9 +414,9 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             if plot_config.ymax:
                  hist.SetMaximum(plot_config.ymax)
             else:
-                hist.SetMaximum(hist.GetMaximum() * 1.1)
+                hist.SetMaximum(hist.GetMaximum() * 1.2)
         if hasattr(plot_config, "logy") and plot_config.logy:
-            hist.SetMaximum(hist.GetMaximum() * 10.)
+            hist.SetMaximum(hist.GetMaximum() * 100.)
             if hasattr(plot_config, "ymin"):
                 hist.SetMinimum(max(0.1, plot_config.ymin))
             else:
@@ -586,7 +588,7 @@ def plot_stack(hists, plot_config, **kwargs):
     if hasattr(plot_config, "ymin"):
         FM.set_minimum_y(stack, plot_config.ymin)
     if hasattr(plot_config, "logy") and plot_config.logy:
-        hist.SetMaximum(hist.GetMaximum() * 10.)
+        hist.SetMaximum(hist.GetMaximum() * 100.)
         if hasattr(plot_config, "ymin"):
             hist.SetMinimum(max(0.1, plot_config.ymin))
         else:
@@ -646,7 +648,8 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         y_axis.SetTitleSize(y_axis.GetTitleSize() * scale)
         y_axis.SetLabelSize(y_axis.GetLabelSize() * scale)
         y_axis.SetTitleOffset(1.1*y_axis.GetTitleOffset() / scale)
-        y_axis.SetLabelOffset(y_axis.GetLabelOffset() * scale)
+        # y_axis.SetLabelOffset(2.*y_axis.GetLabelOffset() / scale)
+        y_axis.SetLabelOffset(0.01)
         x_axis.SetTitleSize(x_axis.GetTitleSize() * scale)
         x_axis.SetLabelSize(x_axis.GetLabelSize() * scale)
         x_axis.SetTickLength(x_axis.GetTickLength() * scale)
@@ -685,7 +688,7 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
     pad1.SetBottomMargin(0.05)
     pad1.Draw()
-    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac)
+    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac - 0.009)
     pad2.SetBottomMargin(0.1)
     pad2.Draw()
     pad1.cd()

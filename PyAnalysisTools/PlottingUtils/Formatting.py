@@ -51,14 +51,25 @@ def decorate_canvas(canvas, plot_config):
     :return: None
     :rtype: None
     """
-    if hasattr(plot_config, "watermark"):
-        add_atlas_label(canvas, plot_config.watermark, {"x": 0.15, "y": 0.96}, size=0.03, offset=0.08)
-    if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
-        add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.9})
+    
     if hasattr(plot_config, "grid") and plot_config.grid is True:
         canvas.SetGrid()
-    if hasattr(plot_config, "decor_text"):
-        add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
+
+    
+    if hasattr(plot_config, "ratio") and plot_config.ratio is False:
+        if hasattr(plot_config, "watermark"):
+            add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.88}, size=0.04875, offset=0.12)
+        if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+            add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.835}, size=0.0375)
+        if hasattr(plot_config, "decor_text"):
+            add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
+    else:
+        if hasattr(plot_config, "watermark"):
+            add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.86}, size=0.065, offset=0.12)
+        if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+            add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.8}, size=0.05)
+        if hasattr(plot_config, "decor_text"):
+            add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.8})
 
 
 def set_title_x(obj, title):
@@ -164,21 +175,25 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.85}, size=0.04, split_lumi_text=False):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False):
     canvas.cd()
-    text_lumi = '#scale[0.7]{#int}dt L = %.1f fb^{-1}' % (float(lumi))
-    text_energy = '#sqrt{s} = 13 TeV'
+    if isinstance(lumi, str):
+        text_lumi = lumi
+        text_energy = ''
+    else:
+        text_lumi = '#scale[0.7]{#int}dt L = %.2f fb^{-1},' % (float(lumi))
+        text_energy = '#sqrt{s} = 13 TeV'
     if split_lumi_text:
-        label_lumi = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
+        label_lumi = make_text(x=pos['x'], y=pos['y'], text=text_lumi.rstrip(','), size=size)
         label_energy = make_text(x=pos['x'], y=pos['y'] - 0.05, text=text_energy, size=size)
         label_energy.Draw('sames')
     else:
-        label_lumi = make_text(x=pos['x'], y=pos['y'], text=','.join([text_lumi, text_energy]), size=size)
+        label_lumi = make_text(x=pos['x'], y=pos['y'], text=' '.join([text_lumi, text_energy]), size=size)
     label_lumi.Draw('sames')
     canvas.Update()
 
 
-def add_atlas_label(canvas, description='', pos={'x': 0.6, 'y': 0.87}, size=0.05, offset=0.125):
+def add_atlas_label(canvas, description='', pos={'x': 0.6, 'y': 0.87}, size=0.05, offset=0.05):
     label_atlas = make_text(x=pos['x'], y=pos['y'], text='ATLAS', size=size, font=72)
     label_descr = make_text(x=pos['x'] + offset, y=pos['y'], text=description, size=size, font=42)
     canvas.cd()
@@ -338,14 +353,80 @@ def auto_scale_y_axis(canvas, offset=1.1):
     set_maximum_y(first_graph_obj, max_y)
     canvas.Update()
 
+    
+def make_legend(position, columns, lines, max_length_label, ratio):
+    if ratio is True:
+        scale = 0.0625
+        if lines>9 or max_length_label>(25/columns) or columns>3:
+            if lines>9 or max_length_label>(30/columns) or columns>3:
+                text_size = 0.04
+                x_min = 0.55
+            else:
+                text_size = 0.05
+                x_min = 0.55
+        else:
+            text_size = 0.05
+            x_min = 0.6
+    else:
+        scale = 0.04687
+        if lines>9 or max_length_label>(25/columns) or columns>3:
+            if lines>9 or max_length_label>(30/columns) or columns>3:
+                text_size = 0.03
+                x_min = 0.55
+            else:
+                text_size = 0.03759
+                x_min = 0.55
+        else:
+            text_size = 0.03759
+            x_min = 0.6
+    if position == 0: # center
+        leg_x = (max(0.3, 0.5 - columns * 0.1), min(0.7, 0.5 + columns * 0.1))
+        leg_y = (max(0.3, 0.5 - lines * scale / 2), min(0.7, 0.5 + lines * scale / 2))
+    elif position == 1: # upper right
+        if max_length_label>(25/columns) or columns>2:
+            leg_x = (x_min, 0.72)
+        else:
+            leg_x = (max(x_min, 0.72 - columns * 0.1), min(0.92, 0.72 + columns * 0.1))
+        leg_y = (max(0.6, 0.92 - lines * scale), min(0.92, 0.92))
+        # leg_y = (max(0.52, 0.72 - lines * 0.0625 / 2), min(0.92, 0.72 + lines * 0.0625 / 2))
+    elif position == 2: # upper left
+        leg_x = (max(0.08, 0.28 - columns * 0.1), min(0.48, 0.28 + columns * 0.1))
+        leg_y = (max(0.52, 0.72 - lines * scale / 2), min(0.92, 0.72 + lines * scale / 2))
+    elif position == 3: # lower left
+        leg_x = (max(0.08, 0.28 - columns * 0.1), min(0.48, 0.28 + columns * 0.1))
+        leg_y = (max(0.08, 0.28 - lines * scale / 2), min(0.48, 0.28 + lines * scale / 2))
+    elif position == 4: # lower right
+        leg_x = (max(0.52, 0.72 - columns * 0.1), min(0.92, 0.72 + columns * 0.1))
+        leg_y = (max(0.08, 0.28 - lines * scale / 2), min(0.48, 0.28 + lines * scale / 2))
+    else:
+        leg_x = (position[0], position[2])
+        leg_y = (position[1], position[3])
+    leg = ROOT.TLegend(leg_x[0], leg_y[0], leg_x[1], leg_y[1])
+    leg.SetNColumns(columns)
+    leg.SetMargin(min(0.2,0.1*max(columns,lines)))
+    leg.SetLineColor(0)
+    leg.SetLineStyle(0)
+    leg.SetFillStyle(0)
+    leg.SetFillColorAlpha(0, 0)
+    leg.SetBorderSize(1)
+    leg.SetTextSize(text_size)
+    leg.SetTextFont(42)
+    ROOT.SetOwnership(leg, False)
+    return leg
 
-def add_legend_to_canvas(canvas, **kwargs):
-    kwargs.setdefault("xl", 0.7)
-    kwargs.setdefault("yl", 0.6)
-    kwargs.setdefault("xh", 0.9)
+
+def add_legend_to_canvas(canvas, ratio, **kwargs):
+    # kwargs.setdefault("xl", 0.52)
+    # kwargs.setdefault("yl", 0.52)
+    # kwargs.setdefault("xh", 0.92)
+    # kwargs.setdefault("yh", 0.92)
+    kwargs.setdefault("xl", 0.55)
+    kwargs.setdefault("yl", 0.55)
+    kwargs.setdefault("xh", 0.95)
     kwargs.setdefault("yh", 0.9)
     kwargs.setdefault("format", None)
-    kwargs.setdefault("columns", None)
+    kwargs.setdefault("columns", 1)
+    kwargs.setdefault("position", 1)
 
     def convert_draw_option(process_config=None, plot_config=None):
         def parse_option_from_format():
@@ -386,12 +467,11 @@ def add_legend_to_canvas(canvas, **kwargs):
             _logger.error("Unable to parse legend option from {:s} for object {:s}".format(draw_option,
                                                                                            plot_obj.GetName()))
         return legend_option
-    legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
-    ROOT.SetOwnership(legend, False)
-    legend.SetTextSize(0.025)
-    if kwargs["columns"]:
-        legend.SetNColumns(kwargs["columns"])
-    legend.SetFillStyle(0)
+    # legend = ROOT.TLegend(kwargs["xl"], kwargs["yl"], kwargs["xh"], kwargs["yh"])
+    # ROOT.SetOwnership(legend, False)
+    # legend.SetTextSize(0.025)
+    # legend.SetNColumns(kwargs["columns"])
+    # legend.SetFillStyle(0)
     labels = None
     stacks = []
     if "labels" in kwargs:
@@ -413,10 +493,18 @@ def add_legend_to_canvas(canvas, **kwargs):
         for hist_pattern, lab in kwargs["labels"].iteritems():
             plot_objects.append(get_objects_from_canvas_by_name(canvas, hist_pattern)[0])
             labels[get_objects_from_canvas_by_name(canvas, hist_pattern)[0].GetName()] = lab
+            
     stacked_objects = None
     if len(stacks) is not 0:
         stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
+
+    # legend = make_legend([kwargs['xl'], kwargs['yl'], kwargs['xh'], kwargs['yh']], kwargs['columns'], len(plot_objects))
+    if isinstance(labels, list):
+        legend = make_legend(kwargs['position'], kwargs['columns'], len(plot_objects), len(max(labels, key=len)), ratio)
+    else:
+        legend = make_legend(kwargs['position'], kwargs['columns'], len(plot_objects), labels, ratio)
+        
     for plot_obj in plot_objects:
         label = None
         process_config = None
@@ -448,7 +536,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     canvas.cd()
     if "fill_style" in kwargs:
         legend.SetFillStyle(kwargs["fill_style"])
-    legend.SetBorderSize(0)
+    # legend.SetBorderSize(0)
     legend.Draw("sames")
     canvas.Update()
 
