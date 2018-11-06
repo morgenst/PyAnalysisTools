@@ -72,6 +72,7 @@ class PlotConfig(object):
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("enable_legend", False)
+        kwargs.setdefault("ignore_process_labels", False)
         setattr(self, attr_name, PlotConfig(**kwargs))
 
     def __str__(self):
