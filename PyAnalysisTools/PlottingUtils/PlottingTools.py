@@ -369,7 +369,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         max_y = 1.4 * max([item[1].GetMaximum() for item in hist_defs])
 
     if plot_config.ordering is not None:
-        sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
+        hist_defs = apply_ordering(hist_defs, plot_config)
 
     for process, hist in hist_defs:
         index = map(itemgetter(1), hist_defs).index(hist)
@@ -532,11 +532,9 @@ def add_graph_to_canvas(canvas, graph, plot_config, index=None):
     canvas.Update()
 
 
-def apply_ordering(hist_defs, ordering):
-    for process, _ in hist_defs:
-        if process not in ordering:
-            ordering.append(process)
-    return sorted(hist_defs, key=lambda k: ordering.index(k[0]))
+def apply_ordering(hist_defs, plot_config):
+    plot_config.ordering += [process[0] for process in hist_defs if process[0] not in plot_config.ordering]
+    return sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
 
 
 def plot_stack(hists, plot_config, **kwargs):
@@ -561,7 +559,7 @@ def plot_stack(hists, plot_config, **kwargs):
     ROOT.SetOwnership(stack, False)
     data = None
     if plot_config.ordering is not None:
-        hist_defs = apply_ordering(hist_defs, plot_config.ordering)
+        hist_defs = apply_ordering(hist_defs, plot_config)
     for process, hist in hist_defs:
         if "data" in process.lower():
             #todo: problem if two distinct data sets
