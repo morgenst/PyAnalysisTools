@@ -92,7 +92,7 @@ class Plotter(BasePlotter):
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is not None,
+        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
 
     def initialise(self):
@@ -157,7 +157,7 @@ class Plotter(BasePlotter):
         for process, histogram in data.iteritems():
             canvas = PT.plot_obj(histogram, plot_config)
             canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
-            canvas.SetRightMargin(0.15)
+            canvas.SetRightMargin(0.2)
             FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas)
 
