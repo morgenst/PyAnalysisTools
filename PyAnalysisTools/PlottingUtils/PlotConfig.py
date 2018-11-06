@@ -344,7 +344,7 @@ def propagate_common_config(common_config, plot_configs):
         if hasattr(plot_config, attr) and getattr(plot_config, attr) != getattr(default_plot_config, attr) and \
                 attr not in PlotConfig.get_overwritable_options() or attr is None:
             return
-        if value == getattr(default_plot_config, attr):
+        if hasattr(default_plot_config, attr) and value == getattr(default_plot_config, attr):
             return
         if attr == "ratio_config":
             plot_config.ratio_config = deepcopy(value)
