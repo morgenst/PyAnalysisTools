@@ -397,10 +397,10 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
             FM.set_minimum_y(hist, plot_config.ymin)
-            if switchOff:
-                FM.set_maximum_y(hist, plot_config.ymax)
-            else:
-                FM.set_maximum_y(hist, max_y)
+            # if switchOff:
+            #     FM.set_maximum_y(hist, plot_config.ymax)
+            # else:
+            #     FM.set_maximum_y(hist, max_y)
             if plot_config.xmin and not plot_config.xmax:
                 FM.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
