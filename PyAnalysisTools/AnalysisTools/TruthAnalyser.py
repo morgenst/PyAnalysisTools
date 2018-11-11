@@ -31,6 +31,8 @@ particle_map["LQ"] = [1102, "LQ"]
 particle_map["e-"] = [11, "e^{-}"]
 particle_map["e+"] = [-11, "e^{+}"]
 particle_map["q"] = [range(1,6), "q"]
+particle_map["d"] = [1, "d"]
+particle_map["s"] = [3, "s"]
 particle_map["b"] = [5, "b"]
 particle_map["tau-"] = [15, "tau^{-}"]
 particle_map["tau+"] = [-15, "tau^{+}"]
@@ -681,7 +683,9 @@ class LQTruthAnalyser(object):
             if process_id not in self.histograms:
                 self.book_histograms(process_id)
             truth_particles = tree.TruthParticles
-            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 1101 or p.pdgId() == 42, truth_particles)
+            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 1101 or p.pdgId() == 42 or p.pdgId() == 9000005
+                                  or abs(p.pdgId()) == 9000002,
+                        truth_particles)
             map(lambda p: self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.), LQ)
             if len(LQ) == 0:
                 run_tchannel()

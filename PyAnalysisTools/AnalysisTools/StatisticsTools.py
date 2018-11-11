@@ -1,4 +1,5 @@
 import re
+from copy import deepcopy
 from operator import itemgetter
 
 import numpy as np
@@ -22,16 +23,22 @@ def calculate_significance(signal, background):
         return 0.
 
 
-def get_significance(signal, background, plot_config):
+def get_significance(signal, background, plot_config, canvas=None):
     significance_hist = signal.Clone("significance")
     if not consistency_check_bins(signal, background):
         _logger.error("Signal and background have different binnings.")
         raise InvalidInputError("Inconsistent binning")
     for ibin in range(signal.GetNbinsX() + 1):
-        significance_hist.SetBinContent(ibin, calculate_significance(signal.Integral(-1, ibin),
-                                                                     background.Integral(-1, ibin)))
-    fm.set_title_y(significance_hist, "S/#Sqrt(S + B)")
-    canvas = pt.plot_obj(significance_hist, plot_config)
+        try:
+            significance_hist.SetBinContent(ibin, calculate_significance(signal.Integral(-1, ibin),
+                                                                         background.Integral(-1, ibin)))
+        except ValueError:
+            pass
+    fm.set_title_y(significance_hist, "S/#sqrt(S + B)")
+    if canvas is None:
+        canvas = pt.plot_obj(significance_hist, plot_config)
+    else:
+        pt.add_object_to_canvas(canvas, significance_hist, plot_config)
     return canvas
 
 
@@ -96,7 +103,7 @@ def get_KS(reference, compare):
     return reference.KolmogorovTest(compare)
 
 
-def get_signal_acceptance(signal_yields, generated_events, process_config):
+def get_signal_acceptance(signal_yields, generated_events, lumi, process_config):
     """
     Calculate signal acceptance
     :param signal_yields: process and signal yields after cut
@@ -132,14 +139,20 @@ def get_signal_acceptance(signal_yields, generated_events, process_config):
             acceptance_hists[-1][-1].SetName(cut_name)
     pc = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
                     labels=[data[0] for data in acceptance_hists],
-                    xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker", lumi=80., watermark="Internal",
+                    xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker", lumi=lumi, watermark="Internal",
                     ymin=0., ymax=100.)
-    
+    pc_log = deepcopy(pc)
+    pc_log.name += "_log"
+    pc_log.logy = True
+    pc_log.ymin=0.1
     canvas = pt.plot_objects([data[1] for data in acceptance_hists], pc)
     fm.add_legend_to_canvas(canvas, labels=pc.labels)
     fm.decorate_canvas(canvas, plot_config=pc)
+    canvas_log = pt.plot_objects([data[1] for data in acceptance_hists], pc_log)
+    fm.add_legend_to_canvas(canvas_log, labels=pc_log.labels)
+    fm.decorate_canvas(canvas_log, plot_config=pc_log)
     acceptance_hists[-1][1].SetName("acceptance_final")
-    canvas_final = pt.plot_graph(acceptance_hists[-1][1], pc)
+    pc.name="acceptance_final_cuts"
+    canvas_final = pt.plot_graph(deepcopy(acceptance_hists[-1][1]), pc)
     fm.decorate_canvas(canvas_final, plot_config=pc)
-
-    return canvas, canvas_final
+    return canvas, canvas_log, canvas_final

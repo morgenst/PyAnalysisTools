@@ -9,6 +9,7 @@ class Region(object):
         kwargs.setdefault("n_muon", -1)
         #limit specific settings to help HistFactory setup
         kwargs.setdefault("norm_region", False)
+        kwargs.setdefault("val_region", False)
         kwargs.setdefault("norm_backgrounds", [])
 
 
