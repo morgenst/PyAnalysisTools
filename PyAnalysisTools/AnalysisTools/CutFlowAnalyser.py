@@ -34,6 +34,7 @@ class CommonCutFlowAnalyser(object):
         self.lumi = kwargs["lumi"]
         self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"]) for fn in kwargs["file_list"]]
+        self.process_configs = None
         if "process_config" in kwargs and not "process_configs" in kwargs:
             raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
                       "hitting enter.")
@@ -44,6 +45,7 @@ class CommonCutFlowAnalyser(object):
         map(self.load_dxaod_cutflows, self.file_handles)
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
+        self.output_handle = None
         if kwargs['output_dir'] is not None:
             self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         if self.process_configs is not None:
@@ -240,8 +242,12 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 d = {process: cutflow_tmp['yield']}
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
 
-            self.cutflow_tables = {k: v.to_latex()
-                                    for k, v in cutflow_tables.iteritems()}
+            self.cutflow_tables = {}
+            ordering = None
+            for k, v in cutflow_tables.iteritems():
+                if ordering:
+                    v = v[ordering]
+                self.cutflow_tables[k] = v.to_latex()
 
     def calculate_sm_total(self):
         def add(yields):
@@ -335,10 +341,11 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         # except Exception as e:
         #     print e
         # finally:
-        self.output_handle.write_and_close()
+        if self.output_handle is not None:
+            self.output_handle.write_and_close()
 
 
-class CutflowAnalyser(object):
+class CutflowAnalyser(CommonCutFlowAnalyser):
     """
     Cutflow analyser
     """
@@ -351,7 +358,7 @@ class CutflowAnalyser(object):
         kwargs.setdefault('raw', False)
         kwargs.setdefault('output_dir', None)
         kwargs.setdefault('format', 'plain')
-        self.file_list = kwargs['file_list']
+        super(CutflowAnalyser, self).__init__(**kwargs)
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
         self.cutflow_tables = dict()
@@ -369,8 +376,8 @@ class CutflowAnalyser(object):
         self.merge = True if not kwargs['no_merge'] else False
         if kwargs['output_dir'] is not None:
             self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
-        if kwargs['process_config'] is not None:
-            self.process_configs = parse_and_build_process_config(kwargs['process_config'])
+        if kwargs['process_configs'] is not None:
+            self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -616,6 +623,8 @@ class CutflowAnalyser(object):
             self.load_cutflows(file_handle)
 
     def plot_cutflow(self):
+        if self.output_handle is None:
+            return
         set_batch_mode(True)
         flipped = defaultdict(lambda: defaultdict(dict))
         for process, systematics in self.cutflow_hists.items():
