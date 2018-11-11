@@ -1,10 +1,15 @@
 import numpy as np
+import inspect
 from tabulate import tabulate
+if not inspect.isfunction(tabulate):
+    from tabulate.tabulate import tabulate
+    import tabulate.tabulate as tb
+else:
+    import tabulate as tb
+tb.LATEX_ESCAPE_RULES = {}
 from itertools import chain
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-import tabulate as tb
-tb.LATEX_ESCAPE_RULES = {}
 
 
 class DatasetPrinter(object):
