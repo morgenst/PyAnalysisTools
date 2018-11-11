@@ -155,6 +155,12 @@ def plot_2d_hist(hist, plot_config, **kwargs):
     hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
     hist.Draw(plot_config.draw_option)
+    if plot_config.logx:
+        canvas.SetLogx()
+    if plot_config.logy:
+        canvas.SetLogy()
+    if plot_config.logz:
+        canvas.SetLogz()
     canvas.SetRightMargin(0.2)
     canvas.Modified()
     canvas.Update()
@@ -278,6 +284,8 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     max_y = None
     if isinstance(hists, dict):
         hist_defs = hists.items()
+        import re
+        hist_defs.sort(key=lambda s: int(re.findall('\d+', s[0])[0]))
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
     if not switchOff:
@@ -328,10 +336,13 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                  hist.SetMaximum(plot_config.ymax)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.1)
+            if plot_config.ymin:
+                hist.SetMinimum(plot_config.ymin)
             canvas.Update()
         is_first = False
     if hasattr(plot_config, "normalise") and plot_config.normalise is True:
         hist_defs[0][1].SetMaximum(plot_config.ymax)
+
     canvas.Update()
     return canvas
 
@@ -401,7 +412,10 @@ def plot_graph(graph, plot_config=None, **kwargs):
     :return: canvas containing plotted and formatted TGraph
     :rtype: TCanvas
     """
-    kwargs.setdefault("canvas_name", graph.GetName())
+    if plot_config is not None:
+        kwargs.setdefault("canvas_name", plot_config.name)
+    else:
+        kwargs.setdefault("canvas_name", graph.GetName())
     kwargs.setdefault("canvas_title", "")
     canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
     canvas.cd()
@@ -465,15 +479,19 @@ def plot_stack(hists, plot_config, **kwargs):
     data = None
     if plot_config.ordering is not None:
         hist_defs = apply_ordering(hist_defs, plot_config.ordering)
-    for process, hist in hist_defs:
-        if "data" in process.lower():
-            #todo: problem if two distinct data sets
-            data = (process, hist)
-            continue
+    for index, histograms in enumerate(hist_defs):
+        process, hist = histograms
+        try:
+            if "data" in process.lower():
+                #todo: problem if two distinct data sets
+                data = (process, hist)
+                continue
+        except AttributeError:
+            pass
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
-        fm.apply_style(hist, plot_config, process_config)
+        fm.apply_style(hist, plot_config, process_config, index)
         stack.Add(hist, draw_option)
     stack.Draw()
     canvas.Update()

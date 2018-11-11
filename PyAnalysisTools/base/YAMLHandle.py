@@ -1,6 +1,6 @@
 import sys
 try:
-    import oyaml
+    import oyaml as yaml
 except ImportError:
     print "yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration"
     print "Please install via: \033[91m pip install oyaml --user.\033[0m"

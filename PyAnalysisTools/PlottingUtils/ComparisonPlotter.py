@@ -239,7 +239,6 @@ class MultiFileSingleDistReader(ComparisonReader):
                 plot_config_ref = copy(self.plot_config)
                 plot_config_ref.name += "_reference"
 
-
                 reference = {file_handle.process: self.make_plot(file_handle, plot_config_ref, self.reference_tree_name) for
                              file_handle in self.reference_file_handles}
                 compare = {file_handle.process: self.make_plot(file_handle, self.plot_config)

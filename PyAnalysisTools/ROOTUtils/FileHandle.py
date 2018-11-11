@@ -65,6 +65,8 @@ class FileHandle(object):
         self.mc16a = False
         self.mc16c = False
         self.mc16d = False
+        self.mc16e = False
+        self.mc_campaign = None
         self.friends = None
         self.friend_tree_names = kwargs["friend_tree_names"]
         self.friend_pattern = kwargs["friend_pattern"]
@@ -83,6 +85,8 @@ class FileHandle(object):
                     self.process_with_mc_campaign += ".mc16c"
                 if self.mc16d:
                     self.process_with_mc_campaign += ".mc16d"
+                if self.mc16e:
+                    self.process_with_mc_campaign += ".mc16e"
             if kwargs["split_mc"]:
                 self.process = self.process_with_mc_campaign
         if kwargs["friend_directory"]:
@@ -142,15 +146,23 @@ class FileHandle(object):
                     self.mc = True
                     return tmp[0].process_name
             if process_name.isdigit():
-                self.is_data = True
-                return "Data"
+                print "Could not find config for ", process_name
+                return None
+                # self.is_data = True
+                # return "Data"
 
         if "mc16a" in self.file_name.lower():
             self.mc16a = True
+            self.mc_campaign = 'mc16a'
         if "mc16c" in self.file_name.lower():
             self.mc16c = True
+            self.mc_campaign = 'mc16c'
         if "mc16d" in self.file_name.lower():
             self.mc16d = True
+            self.mc_campaign = 'mc16d'
+        if "mc16e" in self.file_name.lower():
+            self.mc16e = True
+            self.mc_campaign = 'mc16e'
         process_name = self.file_name.split("-")[-1].split(".")[0]
         if switch_off_analysis:
             return process_name
