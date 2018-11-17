@@ -1,3 +1,5 @@
+import re
+
 import ROOT
 import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -54,10 +56,7 @@ class Plotter(BasePlotter):
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
-        process_attr = 'process_with_mc_campaign'
-        if any(map(lambda pc: pc.merge_mc_campaigns, self.plot_configs)):
-            process_attr = 'process'
-        self.process_configs = expand_process_configs_new(map(lambda fh: getattr(fh, process_attr), self.file_handles),
+        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
                                                           self.process_configs,
                                                           any(map(lambda pc: pc.merge_mc_campaigns, self.plot_configs)))
 
@@ -92,20 +91,13 @@ class Plotter(BasePlotter):
     def filter_process_configs(file_handles, process_configs=None, split_mc_campaigns=False):
         if process_configs is None:
             return file_handles
-        process_info = "process"
-        if split_mc_campaigns:
-            process_info = "process_with_mc_campaign"
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config(getattr(fh, process_info),
-                                                                        process_configs) is None,
+                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(getattr(fh, process_info), process_configs) is not None,
+        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
-        #TODO: CHECK SUSY MC
-        # return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
-        #               file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -167,6 +159,7 @@ class Plotter(BasePlotter):
                 HT.scale(hist, cross_section_weight)
 
     def apply_lumi_weights_new(self, histograms):
+        provided_wrong_info = False
         for plot_config, hist_set in histograms.iteritems():
             for process, hist in hist_set.iteritems():
                 if hist is None:
@@ -176,8 +169,18 @@ class Plotter(BasePlotter):
                     continue
                 lumi = self.lumi
                 if isinstance(self.lumi, OrderedDict):
-                    lumi = self.lumi[process.split('.')[-1]]
-                    plot_config.used_mc_campaigns.append(process.split('.')[-1])
+                    if re.search('mc16[acde]$', process) is None:
+                        if provided_wrong_info is False:
+                            _logger.error('Could not find MC campaign informaiton, but lumi was provided per MC '
+                                          'campaing. Not clear what to do. It will be assumed that you meant to scale '
+                                          'to total lumi. Please update and acknowledge once.')
+                            raw_input('Hit enter to continue or Ctrl+c to quit...')
+                            provided_wrong_info = True
+                            plot_config.used_mc_campaigns = self.lumi.keys()
+                        lumi = sum(self.lumi.values())
+                    else:
+                        lumi = self.lumi[process.split('.')[-1]]
+                        plot_config.used_mc_campaigns.append(process.split('.')[-1])
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
                                                                             self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
@@ -197,7 +200,6 @@ class Plotter(BasePlotter):
             process_config = find_process_config(file_handle.process, self.process_configs)
             if process_config is None:
                 continue
-            process = None
             if process_config.is_data:
                 process = "data"
                 cross_section_weight = 1.
@@ -250,7 +252,6 @@ class Plotter(BasePlotter):
             #HT.scale(signal_hist, plot_config.signal_scale)
             if hasattr(self.process_configs[process], 'signal_scale'):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
-                print "SCALE"
 
     def make_plot(self, plot_config, data):
         for mod in self.modules_data_providers:
@@ -272,6 +273,8 @@ class Plotter(BasePlotter):
             canvas = pt.plot_stack(data, plot_config=plot_config,
                                    process_configs=self.process_configs)
             stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
+            canvas.Update()
+
             self.stat_unc_hist = ST.get_statistical_uncertainty_from_stack(stack)
             # todo: temporary fix
             self.stat_unc_hist.SetMarkerStyle(1)
@@ -291,9 +294,10 @@ class Plotter(BasePlotter):
             canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
         if plot_config.legend_options is not None:
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
+            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
+                                    **plot_config.legend_options)
         else:
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_configs)
+            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
         if hasattr(plot_config, "calcsig"):
             # todo: "Background" should be an actual type
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
