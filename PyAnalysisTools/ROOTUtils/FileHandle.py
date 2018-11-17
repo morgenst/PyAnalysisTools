@@ -1,10 +1,8 @@
 import os
 import re
 import time
-import ROOT
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
 from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
@@ -79,28 +77,15 @@ class FileHandle(object):
             self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
-            self.process_with_mc_campaign = self.process
             if self.process is not None:
                 if self.mc16a:
-                    self.process_with_mc_campaign += ".mc16a"
+                    self.process += ".mc16a"
                 if self.mc16c:
-                    self.process_with_mc_campaign += ".mc16c"
+                    self.process += ".mc16c"
                 if self.mc16d:
-                    self.process_with_mc_campaign += ".mc16d"
+                    self.process += ".mc16d"
                 if self.mc16e:
-                    self.process_with_mc_campaign += ".mc16e"
-            if kwargs["split_mc"]:
-                self.process = self.process_with_mc_campaign
-            #SUSY
-            # if self.process is not None:
-            #     if self.mc16a:
-            #         self.process_with_mc_campaign += ".mc16a"
-            #     if self.mc16c:
-            #         self.process_with_mc_campaign += ".mc16c"
-            #     if self.mc16d:
-            #         self.process_with_mc_campaign += ".mc16d"
-            # if kwargs["split_mc"]:
-            #     self.process = self.process_with_mc_campaign
+                    self.process += ".mc16e"
         if kwargs["friend_directory"]:
             self.attach_friend_files(kwargs["friend_directory"])
         self.trees_with_friends = None

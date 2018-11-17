@@ -30,13 +30,11 @@ class BasePlotter(object):
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
-        self.use_process_info = "process"
-        if self.split_mc_campaigns:
-            self.use_process_info = "process_with_mc_campaign"
         if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) \
                 and self.process_config_files is not None:
-            self.add_mc_campaigns()
             self.split_mc_campaigns = True
+            self.add_mc_campaigns()
+
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
@@ -92,7 +90,6 @@ class BasePlotter(object):
             return
         self.file_handles = filter(lambda fh: len(fh.friends) > 0 or fh.is_data, self.file_handles)
 
-
     @staticmethod
     def load_atlas_style():
         """
@@ -111,12 +108,10 @@ class BasePlotter(object):
         :rtype: None
         """
         for file_handle in self.file_handles:
-            process = file_handle.process_with_mc_campaign
+            process = file_handle.process
             if process is None:
                 _logger.warning("Could not parse process for file {:s}". format(file_handle.file_name))
                 continue
-            # if self.split_mc_campaigns:
-            #     process = file_handle.process_with_mc_campaign
             if file_handle.process in self.event_yields:
                 self.event_yields[process] += file_handle.get_number_of_total_events()
             else:
@@ -127,9 +122,8 @@ class BasePlotter(object):
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        #TODO: needs fix
-        # if not plot_config.merge_mc_campaigns:
-        #     return plot_config, file_handle.process_with_mc_campaign, tmp
+        if not plot_config.merge_mc_campaigns:
+            return plot_config, file_handle.process, tmp
         return plot_config, file_handle.process, tmp
 
     def fetch_histograms_new(self, data, systematic="Nominal"):
@@ -137,8 +131,7 @@ class BasePlotter(object):
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        return plot_config, file_handle.process_with_mc_campaign, tmp
-        #return plot_config, file_handle.process, tmp
+        return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
         if "data" in file_handle.process.lower() and plot_config.no_data:
@@ -199,7 +192,7 @@ class BasePlotter(object):
                 if plot_config.merge_mc_campaigns:
                     hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
                 else:
-                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process_with_mc_campaign))
+                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
                 selection_cuts = selection_cuts.rstrip().rstrip("&&")
                 file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
@@ -209,24 +202,21 @@ class BasePlotter(object):
                 return None
             except Exception as e:
                 _logger.error("Catched exception for process "
-                              "{:s} and plot_config {:s}".format(getattr(file_handle, self.use_process_info),
-                                                                 plot_config.name))
+                              "{:s} and plot_config {:s}".format(file_handle, self.process, plot_config.name))
                 print traceback.print_exc()
                 return None
             #hist.SetName(hist.GetName() + "_" + file_handle.process)
-            _logger.debug("try to access config for process %s" % getattr(file_handle, self.use_process_info))
+            _logger.debug("try to access config for process {:s}".format(file_handle.process))
             if self.process_configs is None:
                 return hist
-            process_config = find_process_config(getattr(file_handle, self.use_process_info), self.process_configs)
+            process_config = find_process_config(file_handle.process, self.process_configs)
             if process_config is None:
-                _logger.error("Could not find process config for {:s}".format(getattr(file_handle,
-                                                                                      self.use_process_info)))
+                _logger.error("Could not find process config for {:s}".format(file_handle.process))
                 return None
 
         except Exception as e:
             _logger.error("Catched exception for "
-                          "process {:s} and plot_config {:s}".format(getattr(file_handle, self.use_process_info),
-                                                                     plot_config.name))
+                          "process {:s} and plot_config {:s}".format(file_handle.process, plot_config.name))
             print traceback.print_exc()
             return None
         return hist
@@ -235,14 +225,13 @@ class BasePlotter(object):
     def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
         comb = product(file_handle, plot_configs)
-        pool = mp.ProcessPool(nodes=cpus)
-        histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
-        #TODO: needs option to turn on/off, e.g via ncpu settings
-        # histograms = []
-        # for i in comb:
-        #     histograms.append(self.fetch_histograms(i, systematic=systematic))
-
-        #pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
+        if cpus > 1:
+            pool = mp.ProcessPool(nodes=cpus)
+            histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
+        else:
+            histograms = []
+        for i in comb:
+            histograms.append(self.fetch_histograms(i, systematic=systematic))
         return histograms
 
     def categorise_histograms(self, histograms):
