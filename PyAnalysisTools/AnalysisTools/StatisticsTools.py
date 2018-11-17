@@ -103,7 +103,7 @@ def get_KS(reference, compare):
     return reference.KolmogorovTest(compare)
 
 
-def get_signal_acceptance(signal_yields, generated_events, lumi, process_config):
+def get_signal_acceptance(signal_yields, generated_events, plot_config, process_config):
     """
     Calculate signal acceptance
     :param signal_yields: process and signal yields after cut
@@ -137,22 +137,18 @@ def get_signal_acceptance(signal_yields, generated_events, lumi, process_config)
             acceptance_hists.append((cut_name, make_acceptance_graph([(signal[icut][0],
                                                                       signal[icut][2]) for signal in acceptance])))
             acceptance_hists[-1][-1].SetName(cut_name)
-    pc = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
-                    labels=[data[0] for data in acceptance_hists],
-                    xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker", lumi=lumi, watermark="Internal",
-                    ymin=0., ymax=100.)
-    pc_log = deepcopy(pc)
+    pc_log = deepcopy(plot_config)
     pc_log.name += "_log"
     pc_log.logy = True
-    pc_log.ymin=0.1
-    canvas = pt.plot_objects([data[1] for data in acceptance_hists], pc)
-    fm.add_legend_to_canvas(canvas, labels=pc.labels)
-    fm.decorate_canvas(canvas, plot_config=pc)
+    pc_log.ymin = 0.1
+    canvas = pt.plot_objects([data[1] for data in acceptance_hists], plot_config)
+    fm.add_legend_to_canvas(canvas, labels=plot_config.labels)
+    fm.decorate_canvas(canvas, plot_config=plot_config)
     canvas_log = pt.plot_objects([data[1] for data in acceptance_hists], pc_log)
     fm.add_legend_to_canvas(canvas_log, labels=pc_log.labels)
     fm.decorate_canvas(canvas_log, plot_config=pc_log)
     acceptance_hists[-1][1].SetName("acceptance_final")
     pc.name="acceptance_final_cuts"
-    canvas_final = pt.plot_graph(deepcopy(acceptance_hists[-1][1]), pc)
-    fm.decorate_canvas(canvas_final, plot_config=pc)
+    canvas_final = pt.plot_graph(deepcopy(acceptance_hists[-1][1]), plot_config)
+    fm.decorate_canvas(canvas_final, plot_config=plot_config)
     return canvas, canvas_log, canvas_final

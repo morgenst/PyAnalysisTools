@@ -50,6 +50,8 @@ class CorrelationPlotter(object):
         self.correlation_hists = {}
         self.build_correlation_plot_configs()
         self.expand_process_configs()
+        self.correlation_coeff_hist = None
+        self.correlation_coeff_hists = {}
 
     def parse_process_config(self):
         if self.process_config_file is None:
@@ -65,10 +67,10 @@ class CorrelationPlotter(object):
     def __del__(self):
         self.output_handle.write_and_close()
 
-    def fill_correlation_coefficient(self, coefficient, var_x, var_y):
-        self.correlation_coeff_hist.Fill(var_x, var_y, coefficient)
+    def fill_correlation_coefficient(self, coefficient, var_x, var_y, process):
+        self.correlation_coeff_hists[process].Fill(var_x, var_y, coefficient)
         if not var_x == var_y:
-            self.correlation_coeff_hist.Fill(var_y, var_x, coefficient)
+            self.correlation_coeff_hists[process].Fill(var_y, var_x, coefficient)
 
     def fetch_correlation_hist(self, fh, plot_config):
         pc = deepcopy(plot_config)
@@ -76,8 +78,6 @@ class CorrelationPlotter(object):
         fh.reset_friends()
         hist = get_histogram_definition(pc)
         fh.fetch_and_link_hist_to_tree(self.tree_name, hist, pc.dist, tdirectory="Nominal")
-        correlation_coefficient = hist.GetCorrelationFactor()
-        #self.fill_correlation_coefficient(correlation_coefficient, *combination)
         hist.SetDirectory(0)
         try:
             self.correlation_hists[fh.process_with_mc_campaign].append(hist)
@@ -85,6 +85,9 @@ class CorrelationPlotter(object):
             self.correlation_hists[fh.process_with_mc_campaign] = [hist]
         if self.store_all:
             self.make_correlation_plot(hist, pc)
+            correlation_coefficient = hist.GetCorrelationFactor()
+            var_x, var_y = plot_config.dist.split(":")
+            self.fill_correlation_coefficient(correlation_coefficient, var_x, var_y, fh.process_with_mc_campaign)
         fh.release_friends()
 
     def make_correlation_plot(self, hist, plot_config):
@@ -103,9 +106,9 @@ class CorrelationPlotter(object):
                 continue
             for sub_process in process_config.subprocesses:
                 #TODO: this is a ridiculously stupid implementation
-                if sub_process not in histograms.keys() and sub_process + ".mc16a" not in histograms.keys() and sub_process + ".mc16c" not in histograms.keys():
+                if sub_process not in histograms.keys() and sub_process + ".mc16a" not in histograms.keys() and sub_process + ".mc16d" not in histograms.keys():
                     continue
-                for extension in ["", ".mc16a", ".mc16c"]:
+                for extension in ["", ".mc16a", ".mc16c", ".mc16d"]:
                     tmp_sub_process = sub_process + extension
                     if process not in histograms.keys():
                         if tmp_sub_process not in histograms.keys():
@@ -123,37 +126,48 @@ class CorrelationPlotter(object):
                             histograms[process][index].Add(hist)
                     histograms.pop(tmp_sub_process)
 
-    def make_correlation_plots(self, variables=None):
+    def make_correlation_plots(self):
         def get_plot_config(hist):
             return filter(lambda pc: pc.name in hist.GetName(), self.corr_plot_configs)[0]
         for fh in self.file_handles:
-            tree = fh.get_object_by_name(self.tree_name, tdirectory="Nominal")
-            # if variables is None:
-            #     variables = self.file_handle.get_branch_names_from_tree(self.tree_name)
-            # variable_combinations = list(combinations(variables, 2))
-            #self.prepare_correlation_coefficient_hist(variables)
+            if fh.process_with_mc_campaign not in self.correlation_coeff_hists:
+                self.prepare_correlation_coefficient_hist(self.variable_list, fh.process_with_mc_campaign)
             for combination in self.corr_plot_configs:
                 self.fetch_correlation_hist(fh, combination)
         self.merge_hists()
-        for hist_set in self.correlation_hists.values():
+        for process, hist_set in self.correlation_hists.iteritems():
+            if process not in self.correlation_coeff_hists:
+                self.prepare_correlation_coefficient_hist(self.variable_list, process)
+
             for hist in hist_set:
                 pc = deepcopy(get_plot_config(hist))
                 pc.name = hist.GetName()
                 self.make_correlation_plot(hist, pc)
-        # for variable in variables:
-        #     self.fill_correlation_coefficient(1., variable, variable)
-        # canvas = PT.plot_hist(self.correlation_coeff_hist, self.plot_config)
-        # self.output_handle.register_object(canvas)
+                correlation_coefficient = hist.GetCorrelationFactor()
+                var_x, var_y = pc.dist.split(":")
+                self.fill_correlation_coefficient(correlation_coefficient, var_x, var_y, process)
 
-    def prepare_correlation_coefficient_hist(self, variables):
-        bins=len(variables)
-        self.plot_config = PlotConfig(name="linear_correlation_coefficients", dist=":",
-                                      xmin=0, xmax=bins, xbins=bins, ymin=0, ymax=bins, ybins=bins,
-                                      draw_option="COLZTEXT")
-        self.correlation_coeff_hist = self.get_histogram_definition(self.plot_config)
+        for corr_coeff in self.correlation_coeff_hists.values():
+            pc = deepcopy(self.plot_config_corr_coeff)
+            pc.name = corr_coeff.GetName()
+            canvas = pt.plot_2d_hist(corr_coeff, pc)
+            self.output_handle.register_object(canvas)
+
+    def prepare_correlation_coefficient_hist(self, variables, process):
+        bins = len(variables)
+        name = "linear_correlation_coefficients_{:s}".format(process)
+        if self.correlation_coeff_hist is not None:
+            self.correlation_coeff_hists[process] = self.correlation_coeff_hist.Clone(name)
+            return
+        self.plot_config_corr_coeff = PlotConfig(name=name, dist=":", xtitle="", ytitle="",
+                                                 ztitle="Lin. correlation coefficent",
+                                                 xmin=0, xmax=bins, xbins=bins, ymin=0, ymax=bins, ybins=bins,
+                                                 draw_option="COLZTEXT", zmin=-1., zmax=1.)
+        self.correlation_coeff_hist = get_histogram_definition(self.plot_config_corr_coeff)
+        self.correlation_coeff_hists[process] = self.correlation_coeff_hist
         for ibin in range(len(variables)):
-            self.correlation_coeff_hist.GetXaxis().SetBinLabel(ibin + 1, variables[ibin])
-            self.correlation_coeff_hist.GetYaxis().SetBinLabel(bins - ibin, variables[ibin])
+            self.correlation_coeff_hists[process].GetXaxis().SetBinLabel(ibin + 1, variables[ibin])
+            self.correlation_coeff_hists[process].GetYaxis().SetBinLabel(bins - ibin, variables[ibin])
 
     def build_correlation_plot_configs(self):
         def build_correlation_plot_config(comb):
@@ -167,6 +181,7 @@ class CorrelationPlotter(object):
                                      watermark="Internal", ztitle="Entries")
             return plot_config
         self.variable_combinations = list(combinations(self.variable_pcs, 2))
+        self.variable_list = [pc.dist for pc in self.variable_pcs]
         self.corr_plot_configs = [build_correlation_plot_config(comb) for comb in self.variable_combinations]
 
     def make_profile_plots(self):
@@ -174,17 +189,18 @@ class CorrelationPlotter(object):
             return filter(lambda pc: "_".join(pc.name.split("_")[1:]) in hist.GetName(), self.corr_plot_configs)[0]
 
         def get_color(process):
+            mc_campaign_pattern = ""
             if "mc16a" in process:
-                if process not in self.process_configs:
-                    base_process = process.replace(".mc16a", "")
-                    self.process_configs[process] = deepcopy(self.process_configs[base_process])
-                    self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(3)
-                    self.process_configs[process].label = self.process_configs[process].label + " (MC16a)"
-            if "mc16c" in process or "mc16d" in process:
-                base_process = process.replace(".mc16c", "")
+                mc_campaign_pattern = ".mc16a"
+            elif "mc16c" in process:
+                mc_campaign_pattern = ".mc16c"
+            elif "mc16d" in process:
+                mc_campaign_pattern = ".mc16d"
+            if process not in self.process_configs:
+                base_process = process.replace(mc_campaign_pattern, "")
                 self.process_configs[process] = deepcopy(self.process_configs[base_process])
-                self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(-3)
-                self.process_configs[process].label = self.process_configs[process].label + " (MC16c)"
+                self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(3)
+                self.process_configs[process].label = self.process_configs[process].label + " ({:s})".format(mc_campaign_pattern.replace(".", ""))
             return self.process_configs[process].color
 
         profiles = {}
@@ -232,6 +248,6 @@ class CorrelationPlotter(object):
                 else:
                     pt.add_object_to_canvas(profile_plots[hist_base_name], hist, pc, index=index)
         p = get_objects_from_canvas_by_type(profile_plots.values()[0], "TProfile")[0]
-        map(lambda c: fm.add_legend_to_canvas(c, process_configs=self.process_configs, format="marker"),
+        map(lambda c: fm.add_legend_to_canvas(c, ratio=False, process_configs=self.process_configs, format="marker"),
             profile_plots.values())
         map(lambda c: self.output_handle.register_object(c), profile_plots.values())

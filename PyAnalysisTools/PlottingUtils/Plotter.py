@@ -89,16 +89,23 @@ class Plotter(BasePlotter):
             self.process_configs.pop(process_config_name)
 
     @staticmethod
-    def filter_process_configs(file_handles, process_configs=None):
+    def filter_process_configs(file_handles, process_configs=None, split_mc_campaigns=False):
         if process_configs is None:
             return file_handles
+        process_info = "process"
+        if split_mc_campaigns:
+            process_info = "process_with_mc_campaign"
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is None,
+                                  filter(lambda fh: find_process_config(getattr(fh, process_info),
+                                                                        process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(fh.process_with_mc_campaign, process_configs) is not None,
+        return filter(lambda fh: find_process_config(getattr(fh, process_info), process_configs) is not None,
                       file_handles)
+        #TODO: CHECK SUSY MC
+        # return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
+        #               file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -179,7 +186,7 @@ class Plotter(BasePlotter):
         for process, histogram in data.iteritems():
             canvas = pt.plot_obj(histogram, plot_config)
             canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
-            canvas.SetRightMargin(0.15)
+            canvas.SetRightMargin(0.2)
             FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas)
 
@@ -222,6 +229,8 @@ class Plotter(BasePlotter):
 
     def get_signal_hists(self, data):
         signals = {}
+        if self.process_configs is None:
+            return signals
         signal_process_configs = filter(lambda pc: isinstance(pc[1], ProcessConfig) and
                                                    pc[1].type.lower() == "signal", self.process_configs.iteritems())
         if len(signal_process_configs) == 0:
@@ -399,7 +408,6 @@ class Plotter(BasePlotter):
             self.syst_analyser.retrieve_sys_hists(self.file_handles)
             self.syst_analyser.calculate_variations(self.histograms)
             self.syst_analyser.calculate_total_systematics()
-
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()

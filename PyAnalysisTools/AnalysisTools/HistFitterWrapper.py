@@ -61,6 +61,12 @@ class HistFitterWrapper(object):
         copy(os.path.join(os.environ["HISTFITTER"], "config/HistFactorySchema.dtd"),
                           os.path.join(self.output_dir, "config/HistFactorySchema.dtd"))
 
+    def clean(self):
+        if self.configMgr.executeHistFactory and not self.store_data:
+            file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
+            if os.path.isfile(file_name):
+                os.remove(file_name)
+
     def __init__(self, **kwargs):
         kwargs.setdefault("interactive", False)
         kwargs.setdefault("fit", False)
@@ -96,6 +102,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
         kwargs.setdefault("multi_core", False)
+        kwargs.setdefault("store_data", False)
 
         for key, val in kwargs.iteritems():
             if not hasattr(self, key):
@@ -121,7 +128,7 @@ class HistFitterWrapper(object):
     def parse_configs(self):
         self.limit_config = None
         if hasattr(self, "limit_config_file"):
-            self.limit_config = LimiConfig(kwargs["limit_config_file"])
+            self.limit_config = LimiConfig(self.limit_config_file)
         if self.process_config_file is not None:
             self.process_configs = parse_and_build_process_config(self.process_config_file)
         self.file_handles = [FileHandle(file_name=fn,
@@ -154,6 +161,7 @@ class HistFitterWrapper(object):
         else:
             _logger.error("fit type not specified. Giving up...")
             exit(0)
+
         if self.use_archive_histfile:
             self.configMgr.useHistBackupCacheFile = True
 
@@ -273,7 +281,6 @@ class HistFitterWrapper(object):
                     sample.setData()
                 sample.setFileList([fn.file_name])
                 sample.setTreeName("Nominal/BaseSelection_lq_tree_Final")
-                #sample.buildHisto([0., 1., 5., 15., 4., 0.], "SR", "lq_mass_max", 0.1, 0.1)
 
     def run_fit(self):
         """
@@ -421,13 +428,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.control_regions = []
         if self.call > 0:
             self.setup_output(**kwargs)
-
-        # with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
-        #     with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
-        #             std_stream_redirected(ferr, sys.stderr):
-        self.setup_regions(**kwargs)
-        self.call += 1
-        self.run_fit()
+        #if False: #not kwargs["debug"] == True:
+        with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
+            with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
+                    std_stream_redirected(ferr, sys.stderr):
+                self.setup_regions(**kwargs)
+                self.call += 1
+                self.run_fit()
+        else:
+            self.setup_regions(**kwargs)
+            self.call += 1
+            self.run_fit()
 
     @staticmethod
     def build_sample(name, yld, process_configs, region, sample=None):
@@ -460,7 +471,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         nbkg_err = sqrt(nbkg_yields)
         bkgSample = Sample(self.bkg_name, kGreen - 9)
         bkgSample.setStatConfig(True)
-        bkgSample.buildHisto([nbkg_yields], "SR", kwargs["yield"], 0.5)
+        bkgSample.buildHisto([nbkg_yields], "SR", kwargs["var_name"], 0.5)
         bkgSample.buildStatErrors([nbkg_err], "SR", kwargs["var_name"])
         return bkgSample
 
@@ -626,11 +637,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         self.configMgr.cutsDict.keys()
         self.initialise()
-
-        if self.configMgr.executeHistFactory:
-            file_name = os.path.join(self.output_dir, "data", "{:s}.root".format(self.configMgr.analysisName))
-            # if os.path.isfile(file_name):
-            #     os.remove(file_name)
+        self.clean()
 
     def setup_validation_regions(self, **kwargs):
         data = kwargs["validation_regions"]
@@ -808,9 +815,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
         # name of nominal histogram for systematics
         self.configMgr.nomName = "_NoSys"
-
-
-
 
 
         # -----------------------------

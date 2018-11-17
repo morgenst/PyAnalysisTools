@@ -1,12 +1,16 @@
 import unittest
 import yaml
 import os
+import PyAnalysisTools
+print PyAnalysisTools.__path__
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as YL
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as YD
+from PyAnalysisTools.base import _logger
 
 
 class TestYAMLLoader(unittest.TestCase):
     def setUp(self):
+        _logger.setLevel(50)
         self.data = {"a": 1, "b": 2}
         self.loader = YL()
         self.test_file = open("yaml_loader.yml", "w+")
@@ -32,6 +36,7 @@ class TestYAMLLoader(unittest.TestCase):
 
 class TestYAMLDumper(unittest.TestCase):
     def setUp(self):
+        _logger.setLevel(50)
         self.data = {"a": 1, "b": 2}
         self.dumper = YD()
         self.test_file_name = "yaml_dumper.yml"

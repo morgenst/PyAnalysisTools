@@ -30,6 +30,9 @@ class BasePlotter(object):
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
+        self.use_process_info = "process"
+        if self.split_mc_campaigns:
+            self.use_process_info = "process_with_mc_campaign"
         if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) \
                 and self.process_config_files is not None:
             self.add_mc_campaigns()
@@ -40,9 +43,15 @@ class BasePlotter(object):
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
+        self.filter_missing_friends()
 
     def parse_process_config(self):
-        if self.process_config_files is None and self.process_config_file is not None:
+        """
+        Parse process config file and build process configs
+        :return: list of build process configs from config file
+        :rtype: list
+        """
+        if self.process_config_files is None and self.process_config_file is None:
             return None
         if self.process_config_file is not None:
             _logger.error("Single Process configs are deprecated. Please update you argument parser to "
@@ -68,6 +77,21 @@ class BasePlotter(object):
                 self.lumi = 1.
         if common_config is not None:
             propagate_common_config(common_config, self.plot_configs)
+
+    def filter_missing_friends(self, load_friend=False):
+        """
+        Remove files from file list for which no friend tree was found
+
+        :param load_friend: enable/disable filter
+        :type load_friend: bool
+        :return:
+        :rtype: None
+        """
+
+        if not load_friend:
+            return
+        self.file_handles = filter(lambda fh: len(fh.friends) > 0 or fh.is_data, self.file_handles)
+
 
     @staticmethod
     def load_atlas_style():
@@ -103,8 +127,9 @@ class BasePlotter(object):
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        if not plot_config.merge_mc_campaigns:
-            return plot_config, file_handle.process_with_mc_campaign, tmp
+        #TODO: needs fix
+        # if not plot_config.merge_mc_campaigns:
+        #     return plot_config, file_handle.process_with_mc_campaign, tmp
         return plot_config, file_handle.process, tmp
 
     def fetch_histograms_new(self, data, systematic="Nominal"):
@@ -150,6 +175,8 @@ class BasePlotter(object):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.cuts:
+                if isinstance(plot_config.cuts, str):
+                    plot_config.cuts = plot_config.split("&&")
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
                 data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
                 for mc_cut in mc_cuts:
@@ -181,22 +208,25 @@ class BasePlotter(object):
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
             except Exception as e:
-                _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
-                                                                                               plot_config.name))
+                _logger.error("Catched exception for process "
+                              "{:s} and plot_config {:s}".format(getattr(file_handle, self.use_process_info),
+                                                                 plot_config.name))
                 print traceback.print_exc()
                 return None
             #hist.SetName(hist.GetName() + "_" + file_handle.process)
-            _logger.debug("try to access config for process %s" % file_handle.process)
+            _logger.debug("try to access config for process %s" % getattr(file_handle, self.use_process_info))
             if self.process_configs is None:
                 return hist
-            process_config = find_process_config(file_handle.process_with_mc_campaign, self.process_configs)
+            process_config = find_process_config(getattr(file_handle, self.use_process_info), self.process_configs)
             if process_config is None:
-                _logger.error("Could not find process config for {:s}".format(file_handle.process))
+                _logger.error("Could not find process config for {:s}".format(getattr(file_handle,
+                                                                                      self.use_process_info)))
                 return None
 
         except Exception as e:
-            _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
-                                                                                           plot_config.name))
+            _logger.error("Catched exception for "
+                          "process {:s} and plot_config {:s}".format(getattr(file_handle, self.use_process_info),
+                                                                     plot_config.name))
             print traceback.print_exc()
             return None
         return hist
@@ -207,6 +237,12 @@ class BasePlotter(object):
         comb = product(file_handle, plot_configs)
         pool = mp.ProcessPool(nodes=cpus)
         histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
+        #TODO: needs option to turn on/off, e.g via ncpu settings
+        # histograms = []
+        # for i in comb:
+        #     histograms.append(self.fetch_histograms(i, systematic=systematic))
+
+        #pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
         return histograms
 
     def categorise_histograms(self, histograms):

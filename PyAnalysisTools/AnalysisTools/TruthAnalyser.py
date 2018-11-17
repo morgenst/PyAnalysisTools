@@ -353,13 +353,16 @@ class LQTruthAnalyser(object):
         ROOT.xAOD.Init().ignore()
 
     def book_histograms(self, process_id):
-        def book_histogram(name, n_bins, x_min, x_max):
+        def book_histogram(name, n_bins, x_min, x_max, labels=None):
             if process_id not in self.histograms:
                 self.histograms[process_id] = dict()
             self.histograms[process_id][name] = ROOT.TH1F("{:s}_{:d}".format(name, process_id), "", n_bins, x_min,
                                                           x_max)
             ROOT.SetOwnership(self.histograms[process_id][name], False)
             self.histograms[process_id][name].SetDirectory(0)
+            if labels is not None:
+                for i, label in enumerate(labels):
+                    self.histograms[process_id][name].GetXaxis().SetBinLabel(i+1, label)
         #book_histogram("LQ_counter", 2, -0.5, 1.5)
         #book_histogram("decay2_mode", 4, -1.5, 2.5)
         book_histogram("lepton1_status", 150, -0.5, 149.5)
@@ -412,6 +415,7 @@ class LQTruthAnalyser(object):
         book_histogram("inv_mass_tchan", 100, 500, 4500)
         book_histogram("inv_mass_min_tchan", 100, 500, 4500)
         book_histogram("inv_mass_max_tchan", 100, 500, 4500)
+        book_histogram("event_yields", 3, 0., 3., labels=['all', 'resonant', 'non-resonant'])
 
     def book_plot_configs(self):
         def book_plot_config(name, xtitle, **kwargs):
@@ -486,6 +490,7 @@ class LQTruthAnalyser(object):
         book_plot_config("inv_mass_tchan", "M_{lq} [GeV] (non resonant)")
         book_plot_config("inv_mass_min_tchan", "M_{lq}^{min} [GeV] (non resonant)")
         book_plot_config("inv_mass_max_tchan", "M_{lq}^{max} [GeV] (non resonant)")
+        book_plot_config("event_yields", "")
 
     def run(self):
         for input_file in self.input_files:
@@ -538,6 +543,7 @@ class LQTruthAnalyser(object):
     def analyse_file(self, input_file):
         def run_schannel():
             self.is_schan = True
+            self.histograms[process_id]["event_yields"].Fill(1)
             leptons = filter(lambda particle: abs(particle.pdgId()) == 11 or
                                                    abs(particle.pdgId()) == 13 or
                                                    abs(particle.pdgId()) == 15, truth_particles)
@@ -613,6 +619,7 @@ class LQTruthAnalyser(object):
 
         def run_tchannel():
             self.is_tchan = True
+            self.histograms[process_id]["event_yields"].Fill(2)
             LQ_decay_particles = filter(lambda p: p.status() == 23, truth_particles)
             prod_vtx = LQ_decay_particles[0].prodVtxLink().outgoingParticleLinks()
 
@@ -687,6 +694,7 @@ class LQTruthAnalyser(object):
                                   or abs(p.pdgId()) == 9000002,
                         truth_particles)
             map(lambda p: self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.), LQ)
+            self.histograms[process_id]["event_yields"].Fill(0)
             if len(LQ) == 0:
                 run_tchannel()
             else:

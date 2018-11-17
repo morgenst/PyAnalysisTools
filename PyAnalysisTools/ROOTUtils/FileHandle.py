@@ -50,6 +50,7 @@ class FileHandle(object):
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
+        #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
             self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
@@ -61,6 +62,7 @@ class FileHandle(object):
         self.year = None
         self.period = None
         self.is_data = False
+        self.is_cosmics = False
         self.is_mc = False
         self.mc16a = False
         self.mc16c = False
@@ -89,6 +91,16 @@ class FileHandle(object):
                     self.process_with_mc_campaign += ".mc16e"
             if kwargs["split_mc"]:
                 self.process = self.process_with_mc_campaign
+            #SUSY
+            # if self.process is not None:
+            #     if self.mc16a:
+            #         self.process_with_mc_campaign += ".mc16a"
+            #     if self.mc16c:
+            #         self.process_with_mc_campaign += ".mc16c"
+            #     if self.mc16d:
+            #         self.process_with_mc_campaign += ".mc16d"
+            # if kwargs["split_mc"]:
+            #     self.process = self.process_with_mc_campaign
         if kwargs["friend_directory"]:
             self.attach_friend_files(kwargs["friend_directory"])
         self.trees_with_friends = None
@@ -143,7 +155,7 @@ class FileHandle(object):
                     tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
                                  self.dataset_info.values())
                 if len(tmp) == 1:
-                    self.mc = True
+                    self.is_mc = True
                     return tmp[0].process_name
             if process_name.isdigit():
                 print "Could not find config for ", process_name
@@ -164,6 +176,14 @@ class FileHandle(object):
             self.mc16e = True
             self.mc_campaign = 'mc16e'
         process_name = self.file_name.split("-")[-1].split(".")[0]
+        if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
+        if "physics_Main" in self.file_name and '_cos.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_cosmics = True
+            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
         if switch_off_analysis:
             return process_name
         process_name = re.sub(r"(\_\d+)$", "", process_name)
@@ -296,10 +316,12 @@ class FileHandle(object):
         available_files = os.listdir(directory)
         base_file_name = self.file_name.split("/")[-1]
         for pattern in self.friend_pattern:
-            friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
-                              available_files)[0]
-            self.friends.append(os.path.join(directory, friend_fn))
-
+            try:
+                friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
+                                  available_files)[0]
+                self.friends.append(os.path.join(directory, friend_fn))
+            except IndexError:
+                _logger.error("Could not find friend for ", base_file_name)
     @staticmethod
     def release_object_from_file(obj):
         obj.SetDirectory(0)

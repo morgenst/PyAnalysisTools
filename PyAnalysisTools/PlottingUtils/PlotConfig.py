@@ -20,9 +20,11 @@ class PlotConfig(object):
         kwargs.setdefault("stat_box", False)
         kwargs.setdefault("weight", None)
         kwargs.setdefault("normalise", False)
+        kwargs.setdefault("dist", None)
         kwargs.setdefault("merge", True)
         kwargs.setdefault("no_data", False)
         kwargs.setdefault("ignore_style", False)
+        kwargs.setdefault("style", None)
         kwargs.setdefault("rebin", None)
         kwargs.setdefault("ratio", None)
         kwargs.setdefault("ignore_rebin", False)
@@ -33,11 +35,17 @@ class PlotConfig(object):
         kwargs.setdefault("make_plot_book", False)
         kwargs.setdefault("is_multidimensional", False)
         kwargs.setdefault("ordering", None)
-        kwargs.setdefault("y_min", 0.)
-        kwargs.setdefault("ymin", 0.)
+        kwargs.setdefault("yscale", 1.2)
+        kwargs.setdefault("yscale_log", 100.)
+        kwargs.setdefault("ymin", 0.1)
         kwargs.setdefault("xmin", None)
+        kwargs.setdefault("draw_option", None)
         kwargs.setdefault("ymax", None)
+        kwargs.setdefault("yscale", None)
+        kwargs.setdefault("is_common", False)
         kwargs.setdefault("normalise_range", None)
+        kwargs.setdefault("ratio_config", None)
+        kwargs.setdefault("grid", False)
         kwargs.setdefault("logy", False)
         kwargs.setdefault("logx", False)
         kwargs.setdefault("logz", False)
@@ -45,12 +53,40 @@ class PlotConfig(object):
         kwargs.setdefault("Lumi", 1.)
         kwargs.setdefault("signal_extraction", True)
         kwargs.setdefault("xtitle", None)
+        kwargs.setdefault("ytitle", None)
+        kwargs.setdefault("ztitle", None)
+        kwargs.setdefault("title", "")
         kwargs.setdefault("merge_mc_campaigns", True)
         kwargs.setdefault("total_lumi", None)
+        kwargs.setdefault("watermark", "Internal")
+        kwargs.setdefault("watermark_size", 0.065)
+        kwargs.setdefault("watermark_offset", 0.12)
+        kwargs.setdefault("watermark_x", 0.2)
+        kwargs.setdefault("watermark_y", 0.86)
+        kwargs.setdefault("watermark_size_ratio", 0.04875)
+        kwargs.setdefault("watermark_offset_ratio", 0.12)
+        kwargs.setdefault("watermark_x_ratio", 0.2)
+        kwargs.setdefault("watermark_y_ratio", 0.88)
+        kwargs.setdefault("decor_text", None)
+        kwargs.setdefault("decor_text_x", 0.2)
+        kwargs.setdefault("decor_text_y", 0.8)
+        kwargs.setdefault("decor_text_size", 0.05)
+        kwargs.setdefault("lumi_text_x", 0.2)
+        kwargs.setdefault("lumi_text_y", 0.8)
+        kwargs.setdefault("lumi_text_size", 0.05)
+        kwargs.setdefault("lumi_text_x_ratio", 0.2)
+        kwargs.setdefault("lumi_text_y_ratio", 0.835)
+        kwargs.setdefault("lumi_text_size_ratio", 0.0375)
+        kwargs.setdefault('xtitle_offset', None)
+        kwargs.setdefault('ytitle_offset', None)
+        kwargs.setdefault('ztitle_offset', None)
+        kwargs.setdefault('xtitle_size', None)
+        kwargs.setdefault('ytitle_size', None)
+        kwargs.setdefault('ztitle_size', None)
+        kwargs.setdefault('axis_labels', None)
+
         for k, v in kwargs.iteritems():
-            if k == "y_min" or k == "y_max":
-                _logger.info("Deprecated. Use ymin or ymax")
-            if k == "ratio_config":
+            if k == "ratio_config" and v is not None:
                 v["logx"] = kwargs["logx"]
                 self.set_additional_config("ratio_config", **v)
                 continue
@@ -89,6 +125,7 @@ class PlotConfig(object):
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("enable_legend", False)
+        kwargs.setdefault("ignore_process_labels", False)
         setattr(self, attr_name, PlotConfig(**kwargs))
 
     def __str__(self):
@@ -178,13 +215,25 @@ class PlotConfig(object):
             self.total_lumi = sum([self.lumi[tag] for tag in set(self.used_mc_campaigns)])
             return self.total_lumi
 
+default_plot_config = PlotConfig(name=None)
+
+
 def get_default_plot_config(hist):
+    """
+    Get plot config with default arguments and name according to histogram name
+    :param hist: histogram object
+    :type hist: THX
+    :return: plot configuration
+    :rtype: PlotConfig
+    """
     return PlotConfig(name=hist.GetName())
 
 
 def get_default_color_scheme():
-    return [ROOT.kBlack, ROOT.kYellow-3, ROOT.kRed+2, ROOT.kSpring-8, ROOT.kCyan, ROOT.kBlue-6, ROOT.kTeal - 2,
-            ROOT.kRed, ROOT.kGreen, ROOT.kBlue, ROOT.kGray]
+    return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
+            ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+    # return [ROOT.kBlack, ROOT.kYellow-3, ROOT.kRed+2, ROOT.kSpring-8, ROOT.kCyan, ROOT.kBlue-6, ROOT.kTeal - 2,
+    #         ROOT.kRed, ROOT.kGreen, ROOT.kBlue, ROOT.kGray]
 
 
 class ProcessConfig(object):
@@ -278,6 +327,8 @@ def parse_and_build_process_config(process_config_files):
     :return: Process config
     :rtype: ProcessConfig
     """
+    if process_config_files is None:
+        return None
     try:
         _logger.debug("Parsing process configs")
         if not isinstance(process_config_files, list):
@@ -319,12 +370,19 @@ def propagate_common_config(common_config, plot_configs):
     :rtype: None
     """
     def integrate(plot_config, attr, value):
+        if attr == "cuts":
+            if plot_config.cuts is not None and value is not None:
+                plot_config.cuts += value
+                return
         if attr == "weight":
             if plot_config.weight is not None and not plot_config.weight.lower() == "none":
                 plot_config.weight += " * {:s}".format(value)
             else:
                 plot_config.weight = value
-        if hasattr(plot_config, attr) and attr not in PlotConfig.get_overwritable_options():
+        if hasattr(plot_config, attr) and getattr(plot_config, attr) != getattr(default_plot_config, attr) and \
+                attr not in PlotConfig.get_overwritable_options() or attr is None:
+            return
+        if hasattr(default_plot_config, attr) and value == getattr(default_plot_config, attr):
             return
         if attr == "ratio_config":
             plot_config.ratio_config = deepcopy(value)
@@ -336,7 +394,7 @@ def propagate_common_config(common_config, plot_configs):
             integrate(plot_config, attr, value)
 
 
-def _parse_draw_option(plot_config, process_config):
+def _parse_draw_option(plot_config, process_config=None):
     draw_option = "Hist"
     if hasattr(plot_config, "draw"):
         draw_option = plot_config.draw
@@ -346,7 +404,7 @@ def _parse_draw_option(plot_config, process_config):
 
 
 def get_draw_option_as_root_str(plot_config, process_config=None):
-    if hasattr(plot_config, "draw_option"):
+    if plot_config.draw_option is not None:
         return plot_config.draw_option
     draw_option = _parse_draw_option(plot_config, process_config)
     if draw_option == "Marker":
@@ -383,7 +441,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_attr = process_config.style
     if hasattr(plot_config, "styles") and index is not None:
         style_attr = plot_config.styles[index]
-    if hasattr(plot_config, "style"):
+    if plot_config.style is not None:
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
@@ -393,6 +451,8 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
         elif style_attr:
+            #TODO: needs fix
+            #style_setter = 'Line'
             style_setter = "Fill"
         else:
             #style_setter = ["Line", "Marker", "Fill"]
@@ -411,7 +471,18 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
 
 
 def get_histogram_definition(plot_config):
-    dimension = plot_config.dist.replace("::", "").count(":")
+    """
+    Create histogram defintion based on plot configuration. Dimension is parsed counting : in the distribution. If no
+    distribution is provided by default a one dimension histogram will be created
+    :param plot_config: plot configuration with binning and name
+    :type plot_config: PlotConfig
+    :return: histogram
+    :rtype: ROOT.THXF
+    """
+    if plot_config.dist is not None:
+        dimension = plot_config.dist.replace("::", "").count(":")
+    else:
+        dimension = 0
     hist = None
     hist_name = plot_config.name
     if dimension == 0:
@@ -440,7 +511,7 @@ def get_histogram_definition(plot_config):
         _logger.error("Unable to create histogram for plot_config %s for variable %s" % (plot_config.name,
                                                                                          plot_config.dist))
         raise InvalidInputError("Invalid plot configuration")
-    #hist.Sumw2()
+    hist.Sumw2()
     return hist
 
 
