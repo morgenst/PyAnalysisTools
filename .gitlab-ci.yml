@@ -6,11 +6,16 @@ stages:
   - docker
   - trigger
 
+.setup_test_env: &setup
+  image: python:2.7
+  script:
+    - pip install -r nose numpy
+
 trigger_LQ:
   stage: trigger
   image: appropriate/curl
-  script:
-    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
+#  script:
+#    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
 
 build_image:
   stage: docker
@@ -31,3 +36,9 @@ build_tagged_image:
     - docker-image-build
   script:
     - ignore
+
+unit_tests:
+  <<: *test
+  stage: test
+  script:
+    - nosetests -v --nocapture
