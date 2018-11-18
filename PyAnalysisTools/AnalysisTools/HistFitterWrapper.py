@@ -22,7 +22,7 @@ from math import sqrt
 import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, \
-    transform_color
+    transform_color, expand_process_configs_new
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -126,6 +126,11 @@ class HistFitterWrapper(object):
         self.prepare_output()
 
     def parse_configs(self):
+        """
+        Parse limit and process config files. Expands process config.
+        :return: nothing
+        :rtype: None
+        """
         self.limit_config = None
         if hasattr(self, "limit_config_file"):
             self.limit_config = LimiConfig(self.limit_config_file)
@@ -133,7 +138,8 @@ class HistFitterWrapper(object):
             self.process_configs = parse_and_build_process_config(self.process_config_file)
         self.file_handles = [FileHandle(file_name=fn,
                                         dataset_info=os.path.abspath(self.xs_config_file)) for fn in self.input_files]
-        self.expand_process_configs()
+        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
+                                                          self.process_configs)
 
     def reset_config_mgr(self):
         try:
@@ -261,11 +267,6 @@ class HistFitterWrapper(object):
                             if Systs != "":
                                 Util.plotUpDown(self.configMgr.histCacheFile, sam.name, Systs,
                                                             chan.regionString, chan.variableName)
-
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                    _ = find_process_config(fh.process, self.process_configs)
 
     def build_samples(self):
         for fn in self.file_handles:
@@ -428,13 +429,13 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         self.control_regions = []
         if self.call > 0:
             self.setup_output(**kwargs)
-        #if False: #not kwargs["debug"] == True:
-        with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
-            with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
-                    std_stream_redirected(ferr, sys.stderr):
-                self.setup_regions(**kwargs)
-                self.call += 1
-                self.run_fit()
+        if False: #not kwargs["debug"] == True:
+            with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
+                with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
+                        std_stream_redirected(ferr, sys.stderr):
+                    self.setup_regions(**kwargs)
+                    self.call += 1
+                    self.run_fit()
         else:
             self.setup_regions(**kwargs)
             self.call += 1

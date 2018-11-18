@@ -15,7 +15,7 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config_new, PlotConfig, \
-    parse_and_build_plot_config, get_default_color_scheme
+    parse_and_build_plot_config, get_default_color_scheme, expand_process_configs_new
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl
 from numpy.lib.recfunctions import rec_append_fields
@@ -43,7 +43,8 @@ class CommonCutFlowAnalyser(object):
             kwargs['process_configs'] = kwargs['process_configs']
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
-        self.expand_process_configs()
+        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
+                                                          self.process_configs)
         map(self.load_dxaod_cutflows, self.file_handles)
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
@@ -65,11 +66,6 @@ class CommonCutFlowAnalyser(object):
             self.event_numbers[process] = file_handle.get_number_of_total_events()
         else:
             self.event_numbers[process] += file_handle.get_number_of_total_events()
-
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                _ = find_process_config_new(fh.process_with_mc_campaign, self.process_configs)
 
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
@@ -397,7 +393,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
             try:
-                lumi_weight = self.get_cross_section_weight(process.split(".")[0])
+                lumi_weight = self.get_cross_section_weight(process)
             except InvalidInputError:
                 _logger.error("None type parsed for ", self.cutflow_hists[process])
                 continue
@@ -479,7 +475,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
             raise InvalidInputError("Process is NoneType")
         if self.lumi is None or "data" in process.lower() or self.lumi == -1:
             return 1.
-        lumi_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi, self.event_numbers[process])
+        lumi_weight = self.xs_handle.get_lumi_scale_factor(process.split('.')[0], self.lumi, self.event_numbers[process])
         _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
                                                                                                self.lumi))
         return lumi_weight
