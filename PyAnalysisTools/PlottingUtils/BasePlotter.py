@@ -133,12 +133,17 @@ class BasePlotter(object):
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
         return plot_config, file_handle.process, tmp
 
-    def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
+    def fetch_plain_histograms(self, data, systematic="Nominal"):
+        file_handle, plot_config = data
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
-        hist = file_handle.get_object_by_name("{:s}/{:s}".format(self.tree_name, plot_config.dist), systematic)
+        try:
+            hist = file_handle.get_object_by_name("{:s}/{:s}".format(self.tree_name, plot_config.dist), systematic)
+        except ValueError:
+            #This happens if cut is not passed
+            return [None, None, None]
         hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
-        return file_handle.process, hist
+        return plot_config, file_handle.process, hist
 
     def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal"):
         """
@@ -232,6 +237,18 @@ class BasePlotter(object):
             histograms = []
         for i in comb:
             histograms.append(self.fetch_histograms(i, systematic=systematic))
+        return histograms
+
+    def read_histograms_plain(self, file_handle, plot_configs, systematic="Nominal"):
+        cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
+        comb = product(file_handle, plot_configs)
+        if cpus > 1:
+            pool = mp.ProcessPool(nodes=cpus)
+            histograms = pool.map(partial(self.fetch_plain_histograms, systematic=systematic), comb)
+        else:
+            histograms = []
+            for i in comb:
+                histograms.append(self.fetch_plain_histograms(i, systematic=systematic))
         return histograms
 
     def categorise_histograms(self, histograms):

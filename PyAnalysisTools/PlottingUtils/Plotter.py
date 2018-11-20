@@ -44,6 +44,7 @@ class Plotter(BasePlotter):
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
         kwargs.setdefault("module_config_file", None)
+        kwargs.setdefault("read_hist", False)
 
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
@@ -61,7 +62,8 @@ class Plotter(BasePlotter):
                                                           any(map(lambda pc: pc.merge_mc_campaigns, self.plot_configs)))
 
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
-        self.filter_empty_trees()
+        if not self.read_hist:
+            self.filter_empty_trees()
         self.modules = load_modules(kwargs["module_config_file"], self)
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
@@ -394,10 +396,14 @@ class Plotter(BasePlotter):
             self.plot_configs = mod.execute(self.plot_configs)
             if self.syst_analyser is not None:
                 self.syst_analyser.plot_configs = self.plot_configs
-        if len(self.modules_hist_fetching) == 0:
-            fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
+        if not self.read_hist:
+            if len(self.modules_hist_fetching) == 0:
+                fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
+            else:
+                fetched_histograms = self.modules_hist_fetching[0].fetch()
         else:
-            fetched_histograms = self.modules_hist_fetching[0].fetch()
+            fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
+                                                            plot_configs=self.plot_configs)
         fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
         self.categorise_histograms(fetched_histograms)
         if not self.lumi < 0:
