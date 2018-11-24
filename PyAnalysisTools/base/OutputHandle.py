@@ -90,10 +90,15 @@ class OutputFileHandle(SysOutputHandle):
 
     def attach_file(self):
         if not self.attached:
+            file_tag = '.root' if '.root' not in self.output_file_name else ''
             if self.output_tag is not None:
-                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, '_'.join([self.output_file_name, self.output_tag]) + '.root'), "RECREATE")
+                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir,
+                                                                '_'.join([self.output_file_name,
+                                                                          self.output_tag])
+                                                                + file_tag), "RECREATE")
             else:
-                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + '.root'), "RECREATE")
+                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + file_tag),
+                                                   "RECREATE")
             self.output_file.cd()
             self.attached = True
 
