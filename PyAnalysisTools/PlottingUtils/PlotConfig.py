@@ -192,16 +192,21 @@ class PlotConfig(object):
         :return: None
         :rtype: None
         """
+        previous_choice = None
         for attr, val in other.__dict__.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                dec = raw_input("Different settings for attribute {:s} in common configs. "
-                                "Please choose 1) {:s} or 2) {:s}: ".format(attr, str(val), str(getattr(self, attr))))
-                if dec == "1":
+                dec = raw_input("Different settings for attribute {:s} in common configs."
+                                "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val), str(getattr(self, attr)),
+                                                                                   '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''))
+
+                if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
-                elif dec == "2":
+                    previous_choice = 1, dec, previous_choice
+                elif dec == "2" or (dec != '1' and previous_choice == 2):
+                    previous_choice = 2
                     continue
                 else:
                     _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
@@ -214,6 +219,7 @@ class PlotConfig(object):
         if len(self.used_mc_campaigns):
             self.total_lumi = sum([self.lumi[tag] for tag in set(self.used_mc_campaigns)])
             return self.total_lumi
+
 
 default_plot_config = PlotConfig(name=None)
 
