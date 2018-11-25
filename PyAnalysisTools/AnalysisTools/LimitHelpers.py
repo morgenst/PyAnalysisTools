@@ -11,9 +11,14 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from collections import OrderedDict
+import dill
+try:
+    from tabulate.tabulate import tabulate
+except ImportError:
+    from tabulate import tabulate
 
 
 class LimitArgs(object):
@@ -46,15 +51,15 @@ def get_fit_quality(file_name, ws_name="w", fr_name="RooExpandedFitResult_afterF
     return fit_result.status(), fit_result.covQual()
 
 
-def make_cross_section_limit_plot(data, lumi=80., ytitle=None):
+def make_cross_section_limit_plot(data, plot_config):
     data.sort()
-    if ytitle is None:
+    if plot_config['ytitle'] is None:
         ytitle = "95% CL U.L on #sigma [pb]"
-    pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle="m [GeV]", draw="ap", logy=True, lumi=lumi,
-                    watermark="Internal")
+    pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle=plot_config['xtitle'], draw="ap", logy=True,
+                    lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
     graph = ROOT.TGraph(len(data))
     for i, item in enumerate(data):
-        graph.SetPoint(i, item[0], item[1] * item[2]/(lumi*1000.))
+        graph.SetPoint(i, item[0], item[1] * item[2]/(plot_config.get_lumi() * 1000.))
     graph.SetName("xsec_limit")
     canvas = pt.plot_obj(graph, pc)
     fm.decorate_canvas(canvas, pc)
@@ -150,7 +155,7 @@ class LimitPlotter(object):
         ytitle = "95% CL U.L on #sigma [pb]"
         pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle=plot_config['xtitle'], draw="pLX", logy=True,
                         lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-7),
-                        ymax=float(1e-2))
+                        ymax=float(1e-2), )
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
         pc_1sigma.color = ROOT.kGreen
@@ -173,8 +178,9 @@ class LimitPlotter(object):
             graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
         if theory_xsec is not None:
             graph_theory = ROOT.TGraph(len(limits))
-            for i, mass in enumerate(sorted(theory_xsec.keys())):
-                graph_theory.SetPoint(i, mass, theory_xsec[mass])
+            for i, mass in enumerate(sorted(map(lambda l: l.mass,limits))):
+                theory_xsec = filter(lambda xs: xs[0] == mass, theory_xsec)[0]
+                graph_theory.SetPoint(i, mass, theory_xsec[-1])
             limits.sort(key=lambda li: li.mass)
         graph_2sigma.SetName('xsec_limit')
         canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
@@ -194,7 +200,7 @@ class LimitPlotter(object):
         fm.add_legend_to_canvas(canvas, plot_objects=plot_objects, labels=labels, format=legend_format)
         self.output_handle.register_object(canvas)
 
-    def make_limit_plot_plane(self, limits, plot_config, xsec_map, sig_name):
+    def make_limit_plot_plane(self, limits, plot_config, xsec, sig_name):
         def find_excluded_lambda(mass, excl_limit):
             xsecs = filter(lambda xs: xs[0] == mass, xsec)
             xsecs.sort(key=lambda i: i[-1])
@@ -202,17 +208,14 @@ class LimitPlotter(object):
                 return filter(lambda i: i[-1] > excl_limit, xsecs)[0][1]
             except IndexError:
                 return 1.
-
-        with open(xsec_map, 'r') as f:
-            xsec = pickle.load(f)
-            sig_type = re.split(r'(\d+)', sig_name)[0]
-            xsec = xsec[sig_type]
+        sig_type = re.split(r'(\d+)', sig_name)[0]
         excl_lambdas = [find_excluded_lambda(limit.mass, limit.exp_limit) for limit in limits]
         graph = ROOT.TGraph(len(excl_lambdas))
         for i, limit in enumerate(limits):
             graph.SetPoint(i, limit.mass, excl_lambdas[i])
-        pc = PlotConfig(name='limit_contour', watermark='Internal', ymax=1.2, ymin=0., draw_option='AL',
-                        xtitle='m_{LQ} [GeV]', ytitle='#lambda_{LQ}', logy=False, lumi=plot_config['lumi'])
+        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=1.2, ymin=0., draw_option='AL',
+                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], logy=False,
+                        lumi=plot_config['lumi'])
         canvas = pt.plot_graph(graph, pc)
         fm.decorate_canvas(canvas, pc)
         fm.add_legend_to_canvas(canvas, labels=['95% CL U.L'])
@@ -234,6 +237,7 @@ class LimitScanAnalyser(object):
         :type scan_info: list
         """
         kwargs.setdefault('scan_info', None)
+        kwargs.setdefault('xsec_map', None)
         self.input_path = kwargs['input_path']
         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         self.plotter = LimitPlotter(self.output_handle)
@@ -245,9 +249,16 @@ class LimitScanAnalyser(object):
         self.scanned_sig_masses = None
         self.lumi = self.plot_config['lumi']
         self.analysis_name = self.plot_config['analysis_name']
-        self.xsec_map = kwargs['xsec_map']
+        self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+
+    def read_theory_cross_sections(self, file_name):
+        if file_name is None:
+            return None
+        with open(file_name, 'r') as f:
+            xsec = pickle.load(f)
+            return xsec
 
     def parse_limits(self):
         parsed_data = []
@@ -262,23 +273,43 @@ class LimitScanAnalyser(object):
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
+            limit_info.sig_name = scan.kwargs['sig_name']
             mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
-            # if mass not in self.theory_xsec:
-            #     self.theory_xsec[mass] = reduce(lambda x, y: x * y,
-            #                                     self.xsec_handle.retrieve_xs_info(scan.kwargs["sig_name"])) * 1000.
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
             parsed_data.append(limit_info)
             #self.parse_prefit_yields(scan, mass)
-        self.make_scan_plot(parsed_data)
+        self.make_scan_plot(parsed_data, self.plot_config)
         #self.plot_prefit_yields()
         best_limits = self.find_best_limit(parsed_data)
-        self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, None) #self.theory_xsec)
+        self.tabulate_limits(best_limits)
+        theory_xsec = None
         if self.xsec_map is not None:
-            self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map,
-                                                       scan.kwargs['sig_name'])
+            # TODO: needs proper implementation
+            self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map['LQed'],
+                                               scan.kwargs['sig_name'])
+            theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+        self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec)
         self.output_handle.write_and_close()
+
+    def tabulate_limits(self, limits):
+        limits.sort(key=lambda l: l.mass)
+        with open(os.path.join(self.input_path, 'event_yields_nominal.yml'), 'r') as f:
+            event_yields = dill.load(f)
+        data = []
+        ordering = ['ttbar']
+        for limit in limits:
+            data_mass_point = [limit.mass, limit.mass_cut, limit.exp_limit]
+            prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut)
+            prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut)
+            data_mass_point.append(prefit_ylds_sig * limit.exp_limit)
+            for process in ordering:
+                data_mass_point.append(prefit_ylds_bkg[process])
+            data.append(data_mass_point)
+
+        headers = ['mass', 'mass_cut', 'UL [pb]', 'Signal'] + ordering
+        print tabulate(data, headers=headers)
 
 
     @staticmethod
@@ -388,7 +419,7 @@ class LimitScanAnalyser(object):
             self.output_handle.register_object(canvas_vs_cut_log)
             self.output_handle.register_object(canvas_vs_mass_log)
 
-    def make_scan_plot(self, parsed_data):
+    def make_scan_plot(self, parsed_data, plot_config):
         self.scanned_mass_cuts = sorted(list(set([li.mass_cut for li in parsed_data])))
         self.scanned_sig_masses = sorted(list(set([li.mass for li in parsed_data])))
         if len(self.scanned_sig_masses) > 1:
@@ -417,12 +448,14 @@ class LimitScanAnalyser(object):
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
         ROOT.gStyle.SetPalette(1)
         ROOT.gStyle.SetPaintTextFormat(".2g")
-        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
-                        ytitle="m_{lq}^{max} cut [GeV]", ztitle="95 \% CL U.L. #sigma [fb]")
-        pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT", xtitle="m_{LQ} [GeV]",
-                               ytitle="m_{lq}^{max} cut [GeV]", ztitle="fit status + 1", zmin=-1.)
+        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
+                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95 \% CL U.L. #sigma [fb]")
+        pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
+                               xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
+                               ztitle="fit status + 1", zmin=-1.)
         pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
-                                    xtitle="m_{LQ} [GeV]", ytitle="m_{lq}^{max} cut [GeV]", ztitle="fit cov quality")
+                                    xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
+                                    ztitle="fit cov quality")
         canvas = pt.plot_obj(hist, pc)
         self.output_handle.register_object(canvas)
         canvas_status = pt.plot_obj(hist_fit_status, pc_status)
