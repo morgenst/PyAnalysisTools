@@ -204,7 +204,7 @@ class PlotConfig(object):
 
                 if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
-                    previous_choice = 1, dec, previous_choice
+                    previous_choice = 1
                 elif dec == "2" or (dec != '1' and previous_choice == 2):
                     previous_choice = 2
                     continue
@@ -247,6 +247,25 @@ class ProcessConfig(object):
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         self.transform_type()
+
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Process config: {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            obj_str += '{}={} \n'.format(attribute, value)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
 
     def transform_type(self):
         if "data" in self.type.lower():
