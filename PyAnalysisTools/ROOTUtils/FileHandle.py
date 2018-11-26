@@ -62,7 +62,6 @@ class FileHandle(object):
         self.year = None
         self.period = None
         self.is_data = False
-        self.is_cosmics = False
         self.is_mc = False
         self.mc16a = False
         self.mc16c = False
@@ -78,15 +77,15 @@ class FileHandle(object):
         if "ignore_process_name" not in kwargs:
             self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
             self.process_with_mc_campaign = self.process
-            # if self.process is not None:
-            #     if self.mc16a:
-            #         self.process_with_mc_campaign += ".mc16a"
-            #     if self.mc16c:
-            #         self.process_with_mc_campaign += ".mc16c"
-            #     if self.mc16d:
-            #         self.process_with_mc_campaign += ".mc16d"
-            # if kwargs["split_mc"]:
-            #     self.process = self.process_with_mc_campaign
+            if self.process is not None:
+                if self.mc16a:
+                    self.process_with_mc_campaign += ".mc16a"
+                if self.mc16c:
+                    self.process_with_mc_campaign += ".mc16c"
+                if self.mc16d:
+                    self.process_with_mc_campaign += ".mc16d"
+            if kwargs["split_mc"]:
+                self.process = self.process_with_mc_campaign
         if kwargs["friend_directory"]:
             self.attach_friend_files(kwargs["friend_directory"])
         self.trees_with_friends = None
@@ -154,14 +153,6 @@ class FileHandle(object):
         if "mc16d" in self.file_name.lower():
             self.mc16d = True
         process_name = self.file_name.split("-")[-1].split(".")[0]
-        if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
-        if "physics_Main" in self.file_name and '_cos.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_cosmics = True
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
         if switch_off_analysis:
             return process_name
         process_name = re.sub(r"(\_\d)$", "", process_name)

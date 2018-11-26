@@ -100,9 +100,6 @@ class Plotter(BasePlotter):
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
         return filter(lambda fh: find_process_config(getattr(fh, process_info), process_configs) is not None,
                       file_handles)
-        #TODO: CHECK SUSY MC
-        # return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
-        #               file_handles)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -166,7 +163,7 @@ class Plotter(BasePlotter):
         for process, histogram in data.iteritems():
             canvas = PT.plot_obj(histogram, plot_config)
             canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
-            canvas.SetRightMargin(0.2)
+            canvas.SetRightMargin(0.15)
             FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas)
 
@@ -340,6 +337,8 @@ class Plotter(BasePlotter):
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
+            #canvas_ratio = ratio_plotter.overlay_out_of_range_arrow(canvas_ratio)
+            #canvas_ratio.SaveAs("foo_"+canvas_ratio.GetName()+".pdf")
             canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
             self.output_handle.register_object(canvas_combined)
 

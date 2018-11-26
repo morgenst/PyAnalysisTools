@@ -156,7 +156,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
                 for i, cut in enumerate(region.get_cut_list()):
-                    yields.append((cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i+1]))['weight'].flatten().sum(),
+                    current_cut_list = region.get_cut_list()[:i+1]
+                    if file_handle.is_mc:
+                        current_cut_list = filter(lambda c: 'DATA' not in c, current_cut_list)
+                        current_cut_list = map(lambda c: c.replace('MC:', ''), current_cut_list)
+                    if file_handle.is_data:
+                        current_cut_list = filter(lambda c: 'MC' not in c, current_cut_list)
+                        current_cut_list = map(lambda c: c.replace('DATA:', ''), current_cut_list)
+                    yields.append((cut, self.converter.convert_to_array(tree, "&&".join(current_cut_list))['weight'].flatten().sum(),
                                    0, -1., -1.))
                 self.cutflows[systematic][region.name][process] = np.array(yields,
                                                                       dtype=[("cut", "S300"), ("yield", "f4"),
@@ -245,6 +252,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         for region, cutflows in self.cutflows["Nominal"].iteritems():
             signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
                                         cutflows.iteritems()))
+            if len(signal_yields) == 0:
+                continue
             canvas_cuts, canvas_final = get_signal_acceptance(signal_yields, signal_generated_events, None)
             canvas_cuts.SetName(canvas_cuts.GetName().replace("/","").replace(" ","").replace(">","_gt_").replace("<","_lt_").replace(".","") + "_{:s}".format(region))
             canvas_final.SetName(canvas_final.GetName().replace("/","").replace(" ","").replace(">","_gt_").replace("<","_lt_").replace(".","") + "_{:s}".format(region))
@@ -253,14 +262,12 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
     def execute(self):
         self.read_event_yields()
-        #TODO: need to check why this is not working
-        # self.plot_signal_yields()
+        self.plot_signal_yields()
 
         for systematic in self.cutflows.keys():
             for region in self.cutflows[systematic].keys():
                 self.apply_cross_section_weight(systematic, region)
-        #TODO: very suprising that this doesn't work in SUSY
-        #self.merge_yields()
+        self.merge_yields()
         if not self.disable_sm_total:
             self.calculate_sm_total()
 

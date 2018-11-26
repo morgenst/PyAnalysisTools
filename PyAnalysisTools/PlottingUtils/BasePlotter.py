@@ -127,9 +127,8 @@ class BasePlotter(object):
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        #TODO: needs fix
-        # if not plot_config.merge_mc_campaigns:
-        #     return plot_config, file_handle.process_with_mc_campaign, tmp
+        if not plot_config.merge_mc_campaigns:
+            return plot_config, file_handle.process_with_mc_campaign, tmp
         return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, file_handle, plot_config, systematic="Nominal"):
@@ -228,12 +227,7 @@ class BasePlotter(object):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
         comb = product(file_handle, plot_configs)
         pool = mp.ProcessPool(nodes=cpus)
-        #TODO: needs option to turn on/off, e.g via ncpu settings
-        histograms = []
-        for i in comb:
-            histograms.append(self.fetch_histograms(i, systematic=systematic))
-
-        #pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
+        histograms = pool.map(partial(self.fetch_histograms, systematic=systematic), comb)
         return histograms
 
     def categorise_histograms(self, histograms):

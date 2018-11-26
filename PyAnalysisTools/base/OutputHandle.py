@@ -13,12 +13,10 @@ class SysOutputHandle(object):
         if "output_dir" not in kwargs:
             _logger.warning("No output directory provied")
             kwargs.setdefault("output_dir", "./")
-        kwargs.setdefault('output_tag', None)
         kwargs.setdefault("sub_dir_name", "output")
         self.base_output_dir = kwargs["output_dir"]
         self.output_dir = self.resolve_output_dir(**kwargs)
-        self.output_tag = kwargs['output_tag']
-        if kwargs['output_tag'] is not None:
+        if 'output_tag' in kwargs and kwargs['output_tag']:
             self.output_dir += '_' + kwargs['output_tag']
         ShellUtils.make_dirs(self.output_dir)
 
@@ -76,7 +74,7 @@ class OutputFileHandle(SysOutputHandle):
         self.objects = dict()
         self.attached = False
         self.overload = overload
-        kwargs.setdefault("output_file", "output")
+        kwargs.setdefault("output_file", "output.root")
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
         self.extension = ".pdf"
@@ -90,10 +88,7 @@ class OutputFileHandle(SysOutputHandle):
 
     def attach_file(self):
         if not self.attached:
-            if self.output_tag is not None:
-                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, '_'.join([self.output_file_name, self.output_tag]) + '.root'), "RECREATE")
-            else:
-                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + '.root'), "RECREATE")
+            self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name), "RECREATE")
             self.output_file.cd()
             self.attached = True
 
@@ -108,8 +103,6 @@ class OutputFileHandle(SysOutputHandle):
             ROOT.gPad.Update()
             if not name:
                 name = canvas.GetName()
-            if self.output_tag is not None:
-                name += '_' + self.output_tag
             canvas.SaveAs(os.path.join(output_path, name + self.extension))
             return
         for c in canvas:
@@ -117,15 +110,16 @@ class OutputFileHandle(SysOutputHandle):
                ROOT.gStyle.SetLineScalePS(0.5)
             c.Draw()
             ROOT.gPad.Update()
-            if self.output_tag is not None:
-                name += '_' + self.output_tag
-            if canvas.index(c) == 0:
-                c.SaveAs(os.path.join(output_path, name + self.extension + "("))
-                continue
-            if canvas.index(c) == len(canvas) - 1:
-                c.SaveAs(os.path.join(output_path, name + self.extension + ")"))
-                continue
-            c.SaveAs(os.path.join(output_path, name + self.extension))
+            if len(canvas) > 1:
+               if canvas.index(c) == 0:
+                  c.SaveAs(os.path.join(output_path, name + self.extension + "("))
+               elif canvas.index(c) == len(canvas) - 1:
+                  c.SaveAs(os.path.join(output_path, name + self.extension + ")"))
+               else:
+                  c.SaveAs(os.path.join(output_path, name + self.extension))
+            else:
+               c.SaveAs(os.path.join(output_path, name + self.extension))
+        ROOT.gStyle.SetLineScalePS(3.)
 
     #todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):

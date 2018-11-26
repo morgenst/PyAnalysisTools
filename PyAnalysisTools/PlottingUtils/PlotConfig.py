@@ -64,6 +64,7 @@ class PlotConfig(object):
         kwargs.setdefault("decor_text_size", 0.05)
         kwargs.setdefault("lumi_text_x", 0.2)
         kwargs.setdefault("lumi_text_y", 0.9)
+        kwargs.setdefault("lumi_precision", 1)
         kwargs.setdefault('xtitle_offset', None)
         kwargs.setdefault('ytitle_offset', None)
         kwargs.setdefault('ztitle_offset', None)
@@ -71,7 +72,6 @@ class PlotConfig(object):
         kwargs.setdefault('ytitle_size', None)
         kwargs.setdefault('ztitle_size', None)
         kwargs.setdefault('axis_labels', None)
-
 
         for k, v in kwargs.iteritems():
             if k == "ratio_config" and v is not None:
@@ -109,7 +109,6 @@ class PlotConfig(object):
         kwargs.setdefault("dist", "ratio")
         kwargs.setdefault("ignore_style", False)
         kwargs.setdefault("enable_legend", False)
-        kwargs.setdefault("ignore_process_labels", False)
         setattr(self, attr_name, PlotConfig(**kwargs))
 
     def __str__(self):
@@ -344,7 +343,7 @@ def propagate_common_config(common_config, plot_configs):
         if hasattr(plot_config, attr) and getattr(plot_config, attr) != getattr(default_plot_config, attr) and \
                 attr not in PlotConfig.get_overwritable_options() or attr is None:
             return
-        if hasattr(default_plot_config, attr) and value == getattr(default_plot_config, attr):
+        if value == getattr(default_plot_config, attr):
             return
         if attr == "ratio_config":
             plot_config.ratio_config = deepcopy(value)
