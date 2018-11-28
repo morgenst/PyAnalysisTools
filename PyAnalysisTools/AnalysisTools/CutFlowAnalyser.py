@@ -1,4 +1,6 @@
 import operator
+from copy import deepcopy
+
 import numpy as np
 import pandas as pd
 import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
@@ -189,6 +191,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
                 for i, cut in enumerate(region.get_cut_list()):
+                    print cut
                     yields.append([cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i + 1]))[
                         'weight'].flatten().sum()])
                                    #0, -1., -1.))
@@ -310,16 +313,19 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             :return: merged yields
             :rtype: dict
             """
+            process_to_remove = []
+            tmp = deepcopy(yields)
             for process, yld in yields.iteritems():
+                len(yields)
                 if not '.mc16' in process:
                     continue
                 base_process = process.split('.')[0]
                 if base_process not in yields.keys():
-                    yields[base_process] = yields[process]
+                    tmp[base_process] = yields[process]
                 else:
-                    yields[base_process]["yield"] += yields[process]["yield"]
-                yields.pop(process)
-            return yields
+                    tmp[base_process]["yield"] += yields[process]["yield"]
+                tmp.pop(process)
+            return tmp
 
         for systematics, regions_data in self.cutflows.iteritems():
             for region, yields in regions_data.iteritems():
