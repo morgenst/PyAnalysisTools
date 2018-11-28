@@ -21,7 +21,7 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_con
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl
 from numpy.lib.recfunctions import rec_append_fields
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
+from PyAnalysisTools.AnalysisTools.RegionBuilder import NewRegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_signal_acceptance
@@ -163,7 +163,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         super(ExtendedCutFlowAnalyser, self).__init__(**kwargs)
         self.event_yields = {}
 
-        self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
+        self.selection = NewRegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
         self.converter = Root2NumpyConverter(["weight"])
         self.cutflow_tables = {}
         self.cutflows = {}
@@ -190,10 +190,11 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 process = file_handle.process
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
-                for i, cut in enumerate(region.get_cut_list()):
-                    print cut
-                    yields.append([cut, self.converter.convert_to_array(tree, "&&".join(region.get_cut_list()[:i + 1]))[
-                        'weight'].flatten().sum()])
+                cut_list = region.get_cut_list()
+                for i, cut in enumerate(cut_list):
+                    cut_string = "&&".join(map(lambda c: c.selection, cut_list[:i + 1]))
+                    yields.append([cut.name,
+                                   self.converter.convert_to_array(tree, cut_string)['weight'].flatten().sum()])
                                    #0, -1., -1.))
                 if process not in self.cutflows[systematic][region.name]:
                     self.cutflows[systematic][region.name][process] = yields
