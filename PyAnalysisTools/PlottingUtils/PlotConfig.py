@@ -1,12 +1,15 @@
 import ROOT
 import math
 import re
+import os
 from math import log10
 from array import array
 from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from collections import OrderedDict
+import root_numpy
+from PyAnalysisTools.base.ShellUtils import find_file
 
 
 class PlotConfig(object):
@@ -16,74 +19,21 @@ class PlotConfig(object):
         kwargs.setdefault("cuts", None)
         if not "draw" in kwargs:
             kwargs.setdefault("Draw", "hist")
-        kwargs.setdefault("outline", "hist")
-        kwargs.setdefault("stat_box", False)
-        kwargs.setdefault("weight", None)
-        kwargs.setdefault("normalise", False)
-        kwargs.setdefault("dist", None)
-        kwargs.setdefault("merge", True)
-        kwargs.setdefault("no_data", False)
-        kwargs.setdefault("ignore_style", False)
-        kwargs.setdefault("style", None)
-        kwargs.setdefault("rebin", None)
-        kwargs.setdefault("ratio", None)
-        kwargs.setdefault("ignore_rebin", False)
-        kwargs.setdefault("weight", False)
-        kwargs.setdefault("enable_legend", False)
-        kwargs.setdefault("blind", None)
-        kwargs.setdefault("legend_options", dict())
-        kwargs.setdefault("make_plot_book", False)
-        kwargs.setdefault("is_multidimensional", False)
-        kwargs.setdefault("ordering", None)
-        kwargs.setdefault("yscale", 1.2)
-        kwargs.setdefault("yscale_log", 100.)
-        kwargs.setdefault("ymin", 0.1)
-        kwargs.setdefault("xmin", None)
-        kwargs.setdefault("draw_option", None)
-        kwargs.setdefault("ymax", None)
-        kwargs.setdefault("yscale", None)
-        kwargs.setdefault("is_common", False)
-        kwargs.setdefault("normalise_range", None)
-        kwargs.setdefault("ratio_config", None)
-        kwargs.setdefault("grid", False)
-        kwargs.setdefault("logy", False)
-        kwargs.setdefault("logx", False)
-        kwargs.setdefault("logz", False)
-        kwargs.setdefault("signal_scale", None)
-        kwargs.setdefault("Lumi", 1.)
-        kwargs.setdefault("signal_extraction", True)
-        kwargs.setdefault("xtitle", None)
-        kwargs.setdefault("ytitle", None)
-        kwargs.setdefault("ztitle", None)
-        kwargs.setdefault("title", "")
-        kwargs.setdefault("merge_mc_campaigns", True)
-        kwargs.setdefault("total_lumi", None)
-        kwargs.setdefault("watermark", "Internal")
-        kwargs.setdefault("watermark_size", 0.065)
-        kwargs.setdefault("watermark_offset", 0.12)
-        kwargs.setdefault("watermark_x", 0.2)
-        kwargs.setdefault("watermark_y", 0.86)
-        kwargs.setdefault("watermark_size_ratio", 0.04875)
-        kwargs.setdefault("watermark_offset_ratio", 0.12)
-        kwargs.setdefault("watermark_x_ratio", 0.2)
-        kwargs.setdefault("watermark_y_ratio", 0.88)
-        kwargs.setdefault("decor_text", None)
-        kwargs.setdefault("decor_text_x", 0.2)
-        kwargs.setdefault("decor_text_y", 0.8)
-        kwargs.setdefault("decor_text_size", 0.05)
-        kwargs.setdefault("lumi_text_x", 0.2)
-        kwargs.setdefault("lumi_text_y", 0.8)
-        kwargs.setdefault("lumi_text_size", 0.05)
-        kwargs.setdefault("lumi_text_x_ratio", 0.2)
-        kwargs.setdefault("lumi_text_y_ratio", 0.835)
-        kwargs.setdefault("lumi_text_size_ratio", 0.0375)
-        kwargs.setdefault('xtitle_offset', None)
-        kwargs.setdefault('ytitle_offset', None)
-        kwargs.setdefault('ztitle_offset', None)
-        kwargs.setdefault('xtitle_size', None)
-        kwargs.setdefault('ytitle_size', None)
-        kwargs.setdefault('ztitle_size', None)
-        kwargs.setdefault('axis_labels', None)
+        user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
+        if user_config is not None:
+            config_file_name = user_config
+        else:
+            config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
+        defaults = yl.read_yaml(config_file_name)
+        for key, attr in defaults.iteritems():
+            if isinstance(attr, str):
+                try:
+                    print key, attr
+                    kwargs.setdefault(key, eval(attr))
+                except (NameError, SyntaxError):
+                    kwargs.setdefault(key, attr)
+            else:
+                kwargs.setdefault(key, attr)
 
         for k, v in kwargs.iteritems():
             if k == "ratio_config" and v is not None:
