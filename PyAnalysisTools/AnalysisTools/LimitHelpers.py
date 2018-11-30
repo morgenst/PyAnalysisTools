@@ -9,7 +9,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, expand_process_configs_new
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
@@ -485,6 +485,27 @@ class Sample(object):
         self.is_data = 'data' in name
         self.is_signal = False
 
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Sample : {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            if attribute == 'name':
+                continue
+            obj_str += '{}={} \n'.format(attribute, value)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
+
     def add_signal_region_yields(self, cut, nom_yields, shape_uncerts=None):
         for syst in nom_yields.keys():
             if syst == 'weight':
@@ -499,7 +520,7 @@ class Sample(object):
         for syst in nominal_evt_yields.keys():
             if syst == 'weight':
                 continue
-                nominal_evt_yields[syst] *= nominal_evt_yields['weight']
+            nominal_evt_yields[syst] *= nominal_evt_yields['weight']
 
         self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if not syst == 'weight'}
         if shape_uncert_yields is not None:
@@ -589,23 +610,25 @@ class Sample(object):
         self.is_signal = samples[0].is_signal
         for cut in samples[0].nominal_evt_yields.keys():
             self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
-        if not has_syst:
-            return
-        for cut in samples[0].shape_uncerts.keys():
-            self.shape_uncerts[cut] = {}
-            for syst in samples[0].shape_uncerts[cut].keys():
-                total_uncert = sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut], samples)) / \
-                               self.nominal_evt_yields[cut]
-                self.shape_uncerts[cut][syst] = total_uncert
-        for cut in samples[0].scale_uncerts.keys():
-            self.scale_uncerts[cut] = {}
-            for syst in samples[0].scale_uncerts[cut].keys():
-                total_uncert = sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut], samples)) / \
-                               self.nominal_evt_yields[cut]
-                self.scale_uncerts[cut][syst] = total_uncert
+
+        if has_syst:
+            for cut in samples[0].shape_uncerts.keys():
+                self.shape_uncerts[cut] = {}
+                for syst in samples[0].shape_uncerts[cut].keys():
+                    total_uncert = sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut], samples)) / \
+                                   self.nominal_evt_yields[cut]
+                    self.shape_uncerts[cut][syst] = total_uncert
+            for cut in samples[0].scale_uncerts.keys():
+                self.scale_uncerts[cut] = {}
+                for syst in samples[0].scale_uncerts[cut].keys():
+                    total_uncert = sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut], samples)) / \
+                                   self.nominal_evt_yields[cut]
+                    self.scale_uncerts[cut][syst] = total_uncert
 
         for region in samples[0].ctrl_region_yields:
             self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            if not has_syst:
+                continue
             self.ctrl_reg_scale_ylds[region] = {}
             self.ctrl_reg_shape_ylds[region] = {}
             for syst in samples[0].ctrl_reg_scale_ylds[region].keys():
@@ -668,6 +691,7 @@ class SampleStore(object):
             sample.calculate_relative_uncert()
 
     def merge_mc_campaigns(self):
+        samples_to_remove = []
         for sample in self.samples:
             if sample.is_data:
                 continue
@@ -678,10 +702,13 @@ class SampleStore(object):
             samples_to_merge = filter(lambda s: base_sample_name == s.name.split('.')[0], self.samples)
             merged_sample.merge_child_processes(samples_to_merge, self.with_syst)
             self.samples.append(merged_sample)
-            for s in samples_to_merge:
-                self.samples.remove(s)
+            samples_to_remove += samples_to_merge
+        for s in samples_to_remove:
+            self.samples.remove(s)
 
     def merge_processes(self):
+        samples_to_remove = []
+        self.process_configs = expand_process_configs_new(map(lambda s: s.name, self.samples), self.process_configs)
         for process, process_config in self.process_configs.iteritems():
             if not hasattr(process_config, "subprocesses"):
                 continue
@@ -690,13 +717,15 @@ class SampleStore(object):
             samples_to_merge = filter(lambda sample: sample.name in process_config.subprocesses, self.samples)
             if len(samples_to_merge) == 0:
                 continue
+
             if len(samples_to_merge) == 1:
                 samples_to_merge[0].name = process
             merged_sample = Sample(process, None)
             merged_sample.merge_child_processes(samples_to_merge, self.with_syst)
             self.samples.append(merged_sample)
-            for s in samples_to_merge:
-                self.samples.remove(s)
+            samples_to_remove += samples_to_merge
+        for s in samples_to_remove:
+            self.samples.remove(s)
 
     def retrieve_ctrl_region_yields(self):
         ctrl_region_ylds = {}
