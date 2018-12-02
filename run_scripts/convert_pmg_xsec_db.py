@@ -18,7 +18,10 @@ def main(argv):
             try:
                 ds_id, _, xsec, filter_eff, kfactor, _, _ = line.split()
             except ValueError:
-                continue
+                try:
+                    ds_id, _, xsec, filter_eff, kfactor, _, _, _ = line.split()
+                except ValueError:
+                    continue
             if int(ds_id) not in dataset_decoration.keys():
                 continue
             ds_id = int(ds_id)
