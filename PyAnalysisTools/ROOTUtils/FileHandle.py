@@ -71,12 +71,16 @@ class FileHandle(object):
         self.friend_tree_names = kwargs["friend_tree_names"]
         self.friend_pattern = kwargs["friend_pattern"]
         self.friend_files = []
+        self.switch_off_process_name_analysis = kwargs['switch_off_process_name_analysis']
+        if self.dataset_info is None:
+            _logger.debug("Turning off process name analysis because no dataset info provided")
+            self.switch_off_process_name_analysis = True
         if self.friend_tree_names is not None and not isinstance(self.friend_tree_names, list):
             self.friend_tree_names = [self.friend_tree_names]
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
             self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
-            self.process = self.parse_process(kwargs["switch_off_process_name_analysis"])
+            self.process = self.parse_process()
             if self.process is not None:
                 if self.mc16a:
                     self.process += ".mc16a"
@@ -119,7 +123,7 @@ class FileHandle(object):
         if self.initial_file_name is not None:
             move(self.file_name, self.initial_file_name)
 
-    def parse_process(self, switch_off_analysis=False):
+    def parse_process(self):
         def analyse_process_name():
             if "user.shanisch" in process_name:
                 self.year = process_name.split(".")[2]
@@ -169,7 +173,7 @@ class FileHandle(object):
             file_name = self.file_name.split("/")[-1]
             self.is_cosmics = True
             return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
-        if switch_off_analysis:
+        if self.switch_off_process_name_analysis:
             return process_name
         process_name = re.sub(r"(\_\d+)$", "", process_name)
         analysed_process_name = analyse_process_name()
