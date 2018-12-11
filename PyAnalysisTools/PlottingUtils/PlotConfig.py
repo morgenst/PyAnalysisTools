@@ -14,6 +14,7 @@ from PyAnalysisTools.base.ShellUtils import find_file
 
 class PlotConfig(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('process_weight', None)
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
@@ -28,7 +29,6 @@ class PlotConfig(object):
         for key, attr in defaults.iteritems():
             if isinstance(attr, str):
                 try:
-                    print key, attr
                     kwargs.setdefault(key, eval(attr))
                 except (NameError, SyntaxError):
                     kwargs.setdefault(key, attr)
@@ -404,7 +404,12 @@ def transform_color(color, index=None):
         color = getattr(ROOT, color.rstrip()) + int(offset)
 
     if isinstance(color, list):
-        return transform_color(color[index])
+        try:
+            return transform_color(color[index])
+        except IndexError:
+            _logger.error("Requested {:d}th color, but only provided {:d} colors in config. "
+                          "Returning black".format(index, len(color)))
+            return ROOT.kBlack
     return color
 
 
@@ -420,7 +425,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
-    if hasattr(plot_config, "color"):
+    if plot_config.color is not None:
         color = transform_color(plot_config.color, index)
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
