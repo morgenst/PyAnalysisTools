@@ -41,17 +41,19 @@ class Plotter(BasePlotter):
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
         kwargs.setdefault("module_config_file", None)
-
+        kwargs.setdefault('file_extension', ['.pdf'])
+      
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
-        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, extension=kwargs['file_extension'], **kwargs)
         self.syst_analyser = None
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
+
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.expand_process_configs()
         self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs,
@@ -263,9 +265,9 @@ class Plotter(BasePlotter):
             canvas = PT.plot_objects(data, plot_config, process_configs=self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
         if plot_config.legend_options is not None:
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_configs, **plot_config.legend_options)
+            FM.add_legend_to_canvas(canvas, False, process_configs=self.process_configs, **plot_config.legend_options)
         else:
-            FM.add_legend_to_canvas(canvas, process_configs=self.process_configs)
+            FM.add_legend_to_canvas(canvas, False, process_configs=self.process_configs)
         if hasattr(plot_config, "calcsig"):
             # todo: "Background" should be an actual type
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
