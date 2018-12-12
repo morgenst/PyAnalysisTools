@@ -165,10 +165,8 @@ class RatioPlotter(object):
             bin_center = hist.GetXaxis().GetBinCenter(b)
             if bin_content < y_min:
                 a = ROOT.TArrow(bin_center, y_min, bin_center, y_min+0.3, 0.03, "<")
-                print "Draw arraow at ", bin_center, y_min, bin_center, y_min+0.3, 0.03, "<"
             elif bin_content < y_min:
                 a = ROOT.TArrow(bin_center, y_max - 0.3, bin_center, y_max, 0.03, ">")
-                print "Draw arraow at ", bin_center, y_max - 0.3, bin_center, y_max, 0.03, ">"
             ROOT.SetOwnership(a, False)
             a.Draw("sames")
         canvas.Modified()
