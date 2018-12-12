@@ -160,13 +160,15 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault("raw", False)
         kwargs.setdefault("output_dir", None)
         kwargs.setdefault("format", "plain")
+        kwargs.setdefault('enable_eff', False)
+        kwargs.setdefault('percent_eff', False)
         super(ExtendedCutFlowAnalyser, self).__init__(**kwargs)
         self.event_yields = {}
-
         self.selection = NewRegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
         self.converter = Root2NumpyConverter(["weight"])
         self.cutflow_tables = {}
         self.cutflows = {}
+
         if kwargs["output_dir"] is not None:
             self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         for k, v in kwargs.iteritems():
@@ -180,6 +182,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                           lumi=self.lumi, watermark="Internal", ymin=0., ymax=100.)
 
     def read_event_yields(self, systematic="Nominal"):
+        _logger.info("Read event yields in directory {:s}".format(systematic))
         if systematic not in self.cutflows:
             self.cutflows[systematic] = {}
         for region in self.selection.regions:
@@ -259,10 +262,17 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 cutflow_tmp = self.stringify(cutflow)
                 if region not in cutflow_tables.keys():
                     cutflow_tables[region] = pd.DataFrame(cutflow_tmp, dtype=str)
-                    cutflow_tables[region].columns = ["cut", process]
+                    if self.enable_eff:
+                        cutflow_tables[region] = self.calculate_cut_efficiencies(cutflow_tables[region])
+                        cutflow_tables[region].columns = ["cut", process, 'eff_{:s}'.format(process)]
+                    else:
+                        cutflow_tables[region].columns = ["cut", process]
                     continue
                 d = {process: cutflow_tmp['yield']}
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
+                if self.enable_eff:
+                    cutflow_tables[region] = self.calculate_cut_efficiencies(cutflow_tables[region], cutflow_tmp,
+                                                                             process)
 
             self.cutflow_tables = {}
             ordering = None
@@ -276,7 +286,11 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     ordering = [p for p in ordering if p in processes]
                     ordering += [p for p in processes if p not in ordering]
                     v = v[ordering]
-                self.cutflow_tables[k] = v.to_latex()
+                fct = 'to_latex'
+                if self.format == 'plain':
+                    fct = 'to_string'
+
+                self.cutflow_tables[k] = getattr(v, fct)()
 
     def calculate_sm_total(self):
         def add(yields):
@@ -387,25 +401,45 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             self.output_handle.register_object(canvas_cuts_log)
             self.output_handle.register_object(canvas_final)
 
+    def calculate_cut_efficiencies(self, cutflow, np_cutflow = None, process = None):
+        """
+        Calculate cut efficiencies w.r.t to first yield
+        :param cutflow: cutflow yields
+        :type cutflow: pandas.DataFrame
+        :param cutflow: numpy array cutflow to be added to overall cutflow (cutflow)
+        :type cutflow: numpy.ndarray
+        :return: cutflow yields with efficiencies
+        :rtype: pandas.DataFrame
+        """
+        current_process_cf = cutflow
+        if np_cutflow is not None:
+            current_process_cf = np_cutflow
+        try:
+            cut_efficiencies = [float(i)/float(current_process_cf['yield'][0]) for i in current_process_cf['yield']]
+        except ZeroDivisionError:
+            cut_efficiencies = [1.] * len(current_process_cf['yield'])
+        if self.percent_eff:
+            cut_efficiencies = map(lambda val: val*100., cut_efficiencies)
+        cut_efficiencies = map(lambda val: '{:.2f}'.format(val), cut_efficiencies)
+        tag = 'eff'
+        if process is not None:
+            tag = 'eff_{:s}'.format(process)
+        return cutflow.assign(**{tag: cut_efficiencies})
+
     def execute(self):
         self.read_event_yields()
-        #TODO: need to check why this is not working
         self.plot_signal_yields()
 
         if not self.raw:
             for systematic in self.cutflows.keys():
                 for region in self.cutflows[systematic].keys():
                     self.apply_cross_section_weight(systematic, region)
-        #TODO: very suprising that this doesn't work in SUSY
         self.merge_mc_campaigns()
         self.merge_yields()
         if not self.disable_sm_total:
             self.calculate_sm_total()
 
         self.make_cutflow_tables()
-        # except Exception as e:
-        #     print e
-        # finally:
         if self.output_handle is not None:
             self.output_handle.write_and_close()
 
