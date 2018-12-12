@@ -356,12 +356,14 @@ class Plotter(BasePlotter):
             if self.stat_unc_hist:
                 plot_config_stat_unc_ratio = copy.copy(ratio_plot_config)
                 plot_config_stat_unc_ratio.name = ratio_plot_config.name.replace("ratio", "stat_unc")
-                plot_config_stat_unc_ratio.color = ROOT.kYellow
-                plot_config_stat_unc_ratio.style = 1001
+                plot_config_stat_unc_ratio.color = ROOT.kBlack
+                plot_config_stat_unc_ratio.style = 3244
                 plot_config_stat_unc_ratio.draw = "E2"
                 plot_config_stat_unc_ratio.logy = False
                 stat_unc_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
                 stat_unc_ratio.SetMarkerColor(ROOT.kYellow)
+                stat_unc_ratio.SetMarkerStyle(1)
+
                 if self.syst_analyser is None:
                     canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
                                                                            plot_config_stat_unc_ratio)
@@ -384,6 +386,8 @@ class Plotter(BasePlotter):
                                                                         plot_config_syst_unc_ratio,
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
+
+
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             #canvas_ratio = ratio_plotter.overlay_out_of_range_arrow(canvas_ratio)
             #canvas_ratio.SaveAs("foo_"+canvas_ratio.GetName()+".pdf")
@@ -398,7 +402,7 @@ class Plotter(BasePlotter):
                 self.syst_analyser.plot_configs = self.plot_configs
         if not self.read_hist:
             if len(self.modules_hist_fetching) == 0:
-                fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
+                fetched_histograms = self.read_histograms(file_handles=self.file_handles, plot_configs=self.plot_configs)
             else:
                 fetched_histograms = self.modules_hist_fetching[0].fetch()
         else:
