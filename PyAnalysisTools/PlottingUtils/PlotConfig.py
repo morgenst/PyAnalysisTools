@@ -60,7 +60,7 @@ class PlotConfig(object):
         kwargs.setdefault("watermark_y", 0.96)
         kwargs.setdefault("decor_text", None)
         kwargs.setdefault("decor_text_x", 0.2)
-        kwargs.setdefault("decor_text_y", 0.8)
+        kwargs.setdefault("decor_text_y", 0.77)
         kwargs.setdefault("decor_text_size", 0.05)
         kwargs.setdefault("lumi_text_x", 0.2)
         kwargs.setdefault("lumi_text_y", 0.9)
@@ -71,6 +71,9 @@ class PlotConfig(object):
         kwargs.setdefault('ytitle_size', None)
         kwargs.setdefault('ztitle_size', None)
         kwargs.setdefault('axis_labels', None)
+        # kwargs.setdefault('cuts_l1', None)
+        # kwargs.setdefault('cuts_l2', None)
+        kwargs.setdefault('multi_ref', None)
 
 
         for k, v in kwargs.iteritems():
@@ -206,8 +209,20 @@ def get_default_plot_config(hist):
 
 
 def get_default_color_scheme():
-    return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
-            ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+    # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
+    #         ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+    return [ROOT.kGray+3,
+            ROOT.kRed+2,
+            ROOT.kAzure+4,
+            ROOT.kSpring-6,
+            ROOT.kOrange-3,
+            ROOT.kCyan-3,
+            ROOT.kPink-2,
+            ROOT.kSpring-9,
+            ROOT.kMagenta-5,
+            ROOT.kOrange,
+            ROOT.kCyan+3,
+            ROOT.kPink+4]
 
 
 class ProcessConfig(object):
