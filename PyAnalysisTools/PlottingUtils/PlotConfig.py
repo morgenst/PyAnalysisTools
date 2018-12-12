@@ -408,7 +408,7 @@ def transform_color(color, index=None):
             return transform_color(color[index])
         except IndexError:
             _logger.error("Requested {:d}th color, but only provided {:d} colors in config. "
-                          "Returning black".format(index, len(color)))
+                          "Returning black".format(index+1, len(color)))
             return ROOT.kBlack
     return color
 
