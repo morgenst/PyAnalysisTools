@@ -22,6 +22,7 @@ from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_signal_acceptance
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 
 
 class CommonCutFlowAnalyser(object):
@@ -33,7 +34,8 @@ class CommonCutFlowAnalyser(object):
         self.lumi = kwargs["lumi"]
         self.disable_sm_total = kwargs["disable_sm_total"]
         self.xs_handle = XSHandle(kwargs["dataset_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"])for fn in kwargs["file_list"]]
+        # self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"])for fn in kwargs["file_list"]]
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"], switch_off_process_name_analysis=True )for fn in kwargs["file_list"]]
         if kwargs["process_config"] is not None:
             self.process_configs = parse_and_build_process_config(kwargs["process_config"])
         self.expand_process_configs()
@@ -41,6 +43,8 @@ class CommonCutFlowAnalyser(object):
         self.dtype = [("cut", "S300"), ("yield", "f4"), ("yield_unc", "f4"), ("eff", float), ("eff_total", float)]
         if kwargs["output_dir"] is not None:
             self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        kwargs.setdefault('batch', True)
+        set_batch_mode(kwargs['batch'])
 
     def load_dxaod_cutflows(self, file_handle):
         process = file_handle.process
@@ -254,13 +258,13 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
     def execute(self):
         self.read_event_yields()
         #TODO: need to check why this is not working
-        # self.plot_signal_yields()
+        self.plot_signal_yields()
 
         for systematic in self.cutflows.keys():
             for region in self.cutflows[systematic].keys():
                 self.apply_cross_section_weight(systematic, region)
         #TODO: very suprising that this doesn't work in SUSY
-        #self.merge_yields()
+        self.merge_yields()
         if not self.disable_sm_total:
             self.calculate_sm_total()
 
