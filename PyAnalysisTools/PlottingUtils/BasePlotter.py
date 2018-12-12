@@ -40,10 +40,12 @@ class BasePlotter(object):
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                        switch_off_process_name_analysis=True,
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
         self.filter_missing_friends()
+
 
     def parse_process_config(self):
         """
