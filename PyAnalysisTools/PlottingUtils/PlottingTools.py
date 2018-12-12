@@ -293,7 +293,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     if isinstance(hists, dict):
         hist_defs = hists.items()
         import re
-        hist_defs.sort(key=lambda s: int(re.findall('\d+', s[0])[0]))
+        #hist_defs.sort(key=lambda s: int(re.findall('\d+', s[0])[0]))
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
 
@@ -402,8 +402,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 hist.SetMaximum(hist.GetMaximum() * 10.)
                 if hasattr(plot_config, "ymin"):
                     hist.SetMinimum(max(0.1, plot_config.ymin))
-                    print "set minimum: ", max(0.1, plot_config.ymin)
-                    exit()
                 else:
                     hist.SetMinimum(0.0001)
                 canvas.SetLogy()
@@ -716,8 +714,8 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
     stack.GetXaxis().SetTitleSize(0)
     stack.GetXaxis().SetLabelSize(0)
-    if not canvas.GetLogy():
-        stack.SetMinimum(max(stack.GetMinimum(), 0.1))
+    # if not canvas.GetLogy():
+    #     stack.SetMinimum(max(stack.GetMinimum(), 0.1))
     scale = 1. / (1. - y_frac)
     scale_frame_text(stack, scale)
     canvas.DrawClonePad()
