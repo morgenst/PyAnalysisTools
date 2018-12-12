@@ -80,6 +80,7 @@ class PlotableObject():
         self.cuts = cuts
         self.process = process
         self.draw_option = draw_option
+        self.draw = draw_option
         self.marker_color = marker_color
         self.marker_size = marker_size
         self.marker_style = marker_style
