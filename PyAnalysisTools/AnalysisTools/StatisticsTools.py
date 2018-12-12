@@ -132,13 +132,14 @@ def get_signal_acceptance(signal_yields, generated_events, process_config):
             acceptance_hists[-1][-1].SetName(cut_name)
     pc = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
                     labels=[data[0] for data in acceptance_hists],
-                    xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker", lumi=80., watermark="Internal",
-                    ymin=0., ymax=1.)
+                    xtitle="Gluino mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal", watermark_size=0.02, watermark_offset = 1,
+                    ymin=0., ymax=100.)
     
     canvas = pt.plot_objects([data[1] for data in acceptance_hists], pc)
-    fm.add_legend_to_canvas(canvas, labels=pc.labels)
+    fm.add_legend_to_canvas(canvas, False, labels=pc.labels)
     fm.decorate_canvas(canvas, plot_config=pc)
-    canvas_final = pt.plot_graph(acceptance_hists[-1][1], pc)
+    from copy import deepcopy
+    canvas_final = pt.plot_graph(deepcopy(acceptance_hists[-1][1]), pc)
     fm.decorate_canvas(canvas_final, plot_config=pc)
 
     return canvas, canvas_final
