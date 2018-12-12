@@ -61,30 +61,41 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
     kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
 
+    # if hasattr(plot_config, "watermark"):
+    #     add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.88}, size=0.04875, offset=0.12)
+    # if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
+    #     add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.835}, size=0.0375)
+    
     # if plot_config.watermark is not None:
     #     add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'], "y": kwargs['watermark_y']},
     #                     size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
     # if plot_config.lumi is not None and plot_config.lumi >= 0:
     #     add_lumi_text(canvas, plot_config.lumi, {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']})
+
     #TODO: need proper integration
     if hasattr(plot_config, "ratio") and plot_config.ratio is False:
         if hasattr(plot_config, "watermark"):
             add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.88}, size=0.04875, offset=0.12)
         if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
             add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.835}, size=0.0375)
+        if plot_config.decor_text is not None:
+            add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.79}, size=0.0375)
+        # add_text_to_canvas(canvas, 'run 306147', {"x": 0.6, "y": 0.88}, size=0.0375)
+        # add_text_to_canvas(canvas, 'collisions reco', {"x": 0.6, "y": 0.835}, size=0.0375)
 
+            
     else:
         if hasattr(plot_config, "watermark"):
             add_atlas_label(canvas, plot_config.watermark, {"x": 0.2, "y": 0.86}, size=0.065, offset=0.12)
         if hasattr(plot_config, "lumi") and plot_config.lumi is not None and plot_config.lumi >= 0:
             add_lumi_text(canvas, plot_config.lumi, {"x": 0.2, "y": 0.8}, size=0.05)
+        if plot_config.decor_text is not None:
+            add_text_to_canvas(canvas, plot_config.decor_text, {"x": 0.2, "y": 0.74}, size=0.05)
+
     if plot_config.grid:
         canvas.SetGrid()
-    if plot_config.decor_text is not None:
-        add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
-                           size=kwargs['decor_text_size'])
 
-
+        
 def set_title_x(obj, title):
     if not hasattr(obj, "GetXaxis"):
         raise TypeError
@@ -205,11 +216,10 @@ def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi
         text_lumi = lumi
         text_energy = ''
     else:
-        text_lumi = '#scale[0.7]{{#int}}dt L = {:.{:d}f} fb^{{-1}}'.format(float(lumi), precision)
-        text_energy = '#sqrt{{s}} = {:d} TeV'.format(energy)
-
-    #     text_lumi = '#scale[0.7]{#int}dt L = %.2f fb^{-1},' % (float(lumi))
-    #     text_energy = '#sqrt{s} = 13 TeV'
+        # text_lumi = '#scale[0.7]{{#int}}dt L = {:.{:d}f} fb^{{-1}}'.format(float(lumi), precision)
+        # text_energy = '#sqrt{{s}} = {:d} TeV'.format(energy)
+        text_lumi = '#scale[0.7]{#int}dt L = %.2f fb^{-1},' % (float(lumi))
+        text_energy = '#sqrt{s} = 13 TeV'
 
     if split_lumi_text:
         label_lumi = make_text(x=pos['x'], y=pos['y'], text=text_lumi.rstrip(','), size=size)
@@ -250,13 +260,18 @@ def add_stat_box_to_canvas(canvas):
     def retrieve_stat_box(hist):
         ctmp = ROOT.TCanvas("c_tmp", "c_tmp")
         ctmp.cd()
-        ROOT.gStyle.SetOptStat(111111)
+        hist_name = hist.GetName()
+        hist.SetName('hist')
+        # ROOT.gStyle.SetOptStat(111111)
+        ROOT.gStyle.SetOptStat('emruo')
         hist.SetStats(1)
         hist.Draw()
+        ROOT.gPad.Update()
         ROOT.gPad.Update()
         stat_box = hist.FindObject("stats").Clone()
         ROOT.SetOwnership(stat_box, False)
         ROOT.gStyle.SetOptStat(0)
+        hist.SetName(hist_name)
         return stat_box
 
     hists = get_objects_from_canvas_by_type(canvas, "TH1F")
@@ -269,8 +284,10 @@ def add_stat_box_to_canvas(canvas):
         index = stat_boxes.index(stat_box)
         color = hists[index].GetLineColor()
         stat_box.SetTextColor(color)
-        stat_box.SetY1NDC(1. - (index + 1.) * height)
-        stat_box.SetY2NDC(1. - index * (height + offset))
+        stat_box.SetY1NDC(1. - (index + 1.) * height - 0.2)
+        stat_box.SetY2NDC(1. - index * (height + offset) - 0.2)
+        stat_box.SetX1NDC(0.7)
+        stat_box.SetX2NDC(0.9)
         stat_box.Draw("sames")
     canvas.Update()
 
@@ -431,12 +448,13 @@ def make_legend(position, columns, lines, max_length_label, ratio):
         leg_y = (position[1], position[3])
     leg = ROOT.TLegend(leg_x[0], leg_y[0], leg_x[1], leg_y[1])
     leg.SetNColumns(columns)
-    leg.SetMargin(min(0.2,0.1*max(columns,lines)))
+    leg.SetMargin(0.2)
+    # leg.SetMargin(min(0.2,0.1*max(columns,lines)))
     leg.SetLineColor(0)
     leg.SetLineStyle(0)
     leg.SetFillStyle(0)
     leg.SetFillColorAlpha(0, 0)
-    leg.SetBorderSize(1)
+    leg.SetBorderSize(0)
     leg.SetTextSize(text_size)
     leg.SetTextFont(42)
     ROOT.SetOwnership(leg, False)
