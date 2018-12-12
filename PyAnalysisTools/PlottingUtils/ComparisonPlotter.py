@@ -33,7 +33,6 @@ class ComparisonReader(object):
             if not hasattr(self, opt):
                 setattr(self, opt, val)
 
-                
     def get_instance(self, plot_config):
         if self.compare_files:
             if(hasattr(plot_config, 'multi_ref') and plot_config.multi_ref):
@@ -54,7 +53,6 @@ class ComparisonReader(object):
                 _logger.debug("Using SingleFileSingleRefReader instance")
                 return SingleFileSingleRefReader(plot_config=plot_config, **self.__dict__)
 
-            
     def get_data(self):
         data = {}
         for plot_config in self.plot_configs:
@@ -62,7 +60,6 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    
     def make_hist(self, file_handle, plot_config, cut_name, cut_string, tree_name=None):
         if file_handle.is_data:
             cut_string = cut_string.replace('DATA:', '')
@@ -90,7 +87,34 @@ class ComparisonReader(object):
                 continue
             result.Add(hist)
         return result
-    
+
+    @staticmethod
+    def merge_file_handles(file_handles, process_configs):
+        def find_parent_process(process):
+            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses,
+                                    process_configs.iteritems())
+            try:
+                return parent_process[0][0]
+            except IndexError:
+                _logger.error("Could not find parent process for process {:s}".format(process))
+                print "Available process configs:", process_configs
+                exit(-1)
+
+        def expand():
+            if process_configs is not None:
+                for fh in file_handles:
+                    _ = find_process_config(fh.process, process_configs)
+
+        expand()
+        tmp_file_handles = collections.OrderedDict()
+        for fh in file_handles:
+            parent_process = find_parent_process(fh.process)
+            if parent_process not in tmp_file_handles:
+                tmp_file_handles[parent_process] = [fh]
+                continue
+            tmp_file_handles[parent_process].append(fh)
+        return tmp_file_handles
+
     @staticmethod
     def merge_histograms(histograms, process_configs):
         def expand():
@@ -138,27 +162,6 @@ class SingleFileSingleRefReader(ComparisonReader):
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
                 
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-    
     def get_data(self):
         cuts = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -185,14 +188,14 @@ class SingleFileSingleRefReader(ComparisonReader):
         for k_cuts, v_cuts in cuts_ref.iteritems():
             reference = collections.OrderedDict()
             for process, file_handles in self.file_handles.iteritems():
-                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ''
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
                 plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
@@ -226,29 +229,7 @@ class SingleFileMultiRefReader(ComparisonReader):
                 setattr(self, opt, value)
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
-                
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
 
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-
-                
     def get_data(self):
         cuts_ref = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -330,28 +311,6 @@ class MultiFileSingleRefReader(ComparisonReader):
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
 
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-
-                
     def get_data(self):
         cuts = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -376,13 +335,13 @@ class MultiFileSingleRefReader(ComparisonReader):
             reference = collections.OrderedDict()
             for process, file_handles in self.file_handles.iteritems():
                 reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
                 plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))
@@ -391,8 +350,8 @@ class MultiFileSingleRefReader(ComparisonReader):
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label=""
@@ -419,27 +378,6 @@ class MultiFileMultiRefReader(ComparisonReader):
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
 
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-    
     def get_data(self):
         cuts = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -697,13 +635,13 @@ class ComparisonPlotter(BasePlotter):
             canvas.SetName(plot_config.name.replace(' ', '_'))
             self.output_handle.register_object(canvas)
         else:
-            if hasattr(plot_config, 'ratio_config'):
+            if plot_config.ratio_config is not None:
                 plot_config = plot_config.ratio_config
             if not plot_config.name.startswith('ratio'):
                 plot_config.name = 'ratio_' + plot_config.name
             canvas_ratio = None
             for ref in reference_hists:
-                for comp in map(lambda x : x.plot_object, filter(lambda y : y.ref_id==ref.ref_id, compare_hists)):
+                for comp in map(lambda x: x.plot_object, filter(lambda y: y.ref_id == ref.ref_id, compare_hists)):
                     if canvas_ratio:
                         ROOT.SetOwnership(canvas_ratio, False)
                         canvas_ratio.cd()
@@ -714,10 +652,14 @@ class ComparisonPlotter(BasePlotter):
                     else:
                         canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config).make_ratio_plot()
                         ROOT.SetOwnership(canvas_ratio, False)
+            if canvas_ratio is not None:
+                canvas_ratio.SetName(plot_config.name.replace(' ', '_') + '_ratio')
 
-            canvas_ratio.SetName(plot_config.name.replace(' ', '_') + '_ratio')
-
-            # self.output_handle.register_object(canvas)
-            # self.output_handle.register_object(canvas_ratio)
-            canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
-            self.output_handle.register_object(canvas_combined)
+                # self.output_handle.register_object(canvas)
+                # self.output_handle.register_object(canvas_ratio)
+                canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                self.output_handle.register_object(canvas_combined)
+            else:
+                _logger.error('Ratio canvas was not created.')
+                print 'reference hists: ', reference_hists
+                print 'compare hists: ', compare_hists
