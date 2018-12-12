@@ -64,3 +64,5 @@ xtitle_size: None
 ytitle_size: None
 axis_labels: None
 ztitle_size: None
+labels: None
+color: None
