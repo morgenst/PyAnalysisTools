@@ -1,3 +1,4 @@
+from collections import OrderedDict
 from copy import deepcopy
 from itertools import product
 
@@ -510,7 +511,9 @@ class RegionBuilder(object):
                 else:
                     region_pc.cuts += region.get_cut_list()#.append(region.convert2cut_string())
                 if region.weight:
-                    if region_pc.weight is not None and not region_pc.weight.lower() == "none":
+                    if isinstance(region.weight, OrderedDict):
+                        region_pc.process_weight = region.weight
+                    elif region_pc.weight is not None and not region_pc.weight.lower() == "none":
                         region_pc.weight += " * {:s}".format(region.weight)
                     else:
                         region_pc.weight = region.weight
