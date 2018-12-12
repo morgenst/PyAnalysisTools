@@ -45,6 +45,7 @@ class Plotter(BasePlotter):
         kwargs.setdefault("enable_systematics", False)
         kwargs.setdefault("module_config_file", None)
         kwargs.setdefault("read_hist", False)
+        kwargs.setdefault('file_extension', ['.pdf'])
 
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
@@ -52,10 +53,11 @@ class Plotter(BasePlotter):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
-        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, extension=kwargs['file_extension'], **kwargs)
         self.syst_analyser = None
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
+
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
                                                           self.process_configs,

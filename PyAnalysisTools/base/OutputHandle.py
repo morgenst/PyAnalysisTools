@@ -73,13 +73,16 @@ class OutputHandle(SysOutputHandle):
 class OutputFileHandle(SysOutputHandle):
     def __init__(self, overload=None, **kwargs):
         super(self.__class__, self).__init__(**kwargs)
+        kwargs.setdefault('extension', ['.pdf'])
         self.objects = dict()
         self.attached = False
         self.overload = overload
         kwargs.setdefault("output_file", "output")
         self.output_file_name = kwargs["output_file"]
         self.output_file = None
-        self.extension = ".pdf"
+        self.extension = kwargs['extension']
+        if not isinstance(self.extension, list):
+            self.extension = [self.extension]
         self.n_plots_per_page = 4
         self.plot_book_name = "plot_book"
         self.output_root_file_path = ""
@@ -115,7 +118,8 @@ class OutputFileHandle(SysOutputHandle):
                 name = canvas.GetName()
             if self.output_tag is not None:
                 name += '_' + self.output_tag
-            canvas.SaveAs(os.path.join(output_path, name + self.extension))
+            for extension in self.extension:
+                canvas.SaveAs(os.path.join(output_path, '{:s}.{:s}'.format(name, extension.lstrip('.'))))
             return
         for c in canvas:
             if self.n_plots_per_page > 2:

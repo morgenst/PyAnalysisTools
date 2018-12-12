@@ -186,11 +186,20 @@ def get_default_plot_config(hist):
 
 
 def get_default_color_scheme():
-    return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
-            ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
-    # return [ROOT.kBlack, ROOT.kYellow-3, ROOT.kRed+2, ROOT.kSpring-8, ROOT.kCyan, ROOT.kBlue-6, ROOT.kTeal - 2,
-    #         ROOT.kRed, ROOT.kGreen, ROOT.kBlue, ROOT.kGray]
-
+    # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
+    #         ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+    return [ROOT.kGray+3,
+            ROOT.kRed+2,
+            ROOT.kAzure+4,
+            ROOT.kSpring-6,
+            ROOT.kOrange-3,
+            ROOT.kCyan-3,
+            ROOT.kPink-2,
+            ROOT.kSpring-9,
+            ROOT.kMagenta-5,
+            ROOT.kOrange,
+            ROOT.kCyan+3,
+            ROOT.kPink+4]
 
 class ProcessConfig(object):
     def __init__(self, **kwargs):

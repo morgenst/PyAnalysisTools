@@ -195,7 +195,7 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False, energy=13, precision=1,
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False, energy=13, precision=2,
                   lumi_text=None):
     canvas.cd()
 
@@ -248,13 +248,17 @@ def add_stat_box_to_canvas(canvas):
     def retrieve_stat_box(hist):
         ctmp = ROOT.TCanvas("c_tmp", "c_tmp")
         ctmp.cd()
-        ROOT.gStyle.SetOptStat(111111)
+        hist_name = hist.GetName()
+        hist.SetName('hist')
+        # ROOT.gStyle.SetOptStat(111111)
+        ROOT.gStyle.SetOptStat('emruo')
         hist.SetStats(1)
         hist.Draw()
         ROOT.gPad.Update()
         stat_box = hist.FindObject("stats").Clone()
         ROOT.SetOwnership(stat_box, False)
         ROOT.gStyle.SetOptStat(0)
+        hist.SetName(hist_name)
         return stat_box
 
     hists = get_objects_from_canvas_by_type(canvas, "TH1F")
@@ -267,8 +271,10 @@ def add_stat_box_to_canvas(canvas):
         index = stat_boxes.index(stat_box)
         color = hists[index].GetLineColor()
         stat_box.SetTextColor(color)
-        stat_box.SetY1NDC(1. - (index + 1.) * height)
-        stat_box.SetY2NDC(1. - index * (height + offset))
+        stat_box.SetY1NDC(1. - (index + 1.) * height - 0.2)
+        stat_box.SetY2NDC(1. - index * (height + offset) - 0.2)
+        stat_box.SetX1NDC(0.7)
+        stat_box.SetX2NDC(0.9)
         stat_box.Draw("sames")
     canvas.Update()
 
@@ -429,14 +435,17 @@ def get_legend(lines, max_length_label, **kwargs):
     else:
         leg_x = (kwargs["xl"], kwargs["xh"])
         leg_y = (kwargs["yl"], kwargs["yh"])
+        # leg_x = (position[0], position[2])
+        # leg_y = (position[1], position[3])
     leg = ROOT.TLegend(leg_x[0], leg_y[0], leg_x[1], leg_y[1])
     leg.SetNColumns(columns)
-    leg.SetMargin(min(0.2, 0.1 * max(columns, lines)))
+    leg.SetMargin(0.2)
+    # leg.SetMargin(min(0.2,0.1*max(columns,lines)))
     leg.SetLineColor(0)
     leg.SetLineStyle(0)
     leg.SetFillStyle(0)
     leg.SetFillColorAlpha(0, 0)
-    leg.SetBorderSize(1)
+    leg.SetBorderSize(0)
     leg.SetTextSize(text_size)
     leg.SetTextFont(42)
     ROOT.SetOwnership(leg, False)

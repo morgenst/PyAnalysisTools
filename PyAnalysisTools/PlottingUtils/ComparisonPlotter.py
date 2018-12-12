@@ -485,12 +485,14 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('ref_module_config_file', None)
         kwargs.setdefault('module_config_file', None)
         kwargs.setdefault('json', False)
+        kwargs.setdefault('file_extension', ['.pdf'])
         if kwargs['json']:
             kwargs = JSONHandle(kwargs['json']).load()
         set_batch_mode(kwargs['batch'])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs['input_files']
-        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root', **kwargs)
+        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root',
+                                              extension=kwargs['file_extension'], **kwargs)
         # self.color_palette = [
         #     ROOT.kGray+3,
         #     ROOT.kPink+7,
@@ -687,6 +689,7 @@ class ComparisonPlotter(BasePlotter):
             self.output_handle.register_object(canvas)
         else:
             if plot_config.ratio_config is not None:
+                plot_config.ratio_config.draw = plot_config.draw
                 plot_config = plot_config.ratio_config
             if not plot_config.name.startswith('ratio'):
                 plot_config.name = 'ratio_' + plot_config.name

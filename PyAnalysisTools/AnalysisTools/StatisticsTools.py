@@ -124,6 +124,11 @@ def get_signal_acceptance(signal_yields, generated_events, plot_config, process_
         ROOT.SetOwnership(graph, False)
         return graph
 
+    #TODO: refactoring required
+    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
+                    labels=[data[0] for data in acceptance_hists],
+                    xtitle="Gluino mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal", watermark_size=0.02, watermark_offset = 1,
+                    ymin=0., ymax=100.)
     acceptance = [(float(re.findall("\d{3,4}", process)[0]), process,
                    yields) for process, yields in signal_yields.iteritems()]
     if isinstance(acceptance[0][2], (np.ndarray, np.generic)):

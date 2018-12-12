@@ -1,6 +1,6 @@
 import operator
 from copy import deepcopy
-
+from operator import add
 import numpy as np
 import pandas as pd
 import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
@@ -25,6 +25,7 @@ from PyAnalysisTools.AnalysisTools.RegionBuilder import NewRegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_signal_acceptance
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 
 
 class CommonCutFlowAnalyser(object):
@@ -34,6 +35,7 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault("disable_sm_total", False)
         kwargs.setdefault('plot_config_file', None)
         kwargs.setdefault('config_file', None)
+        kwargs.setdefault('batch', True)
         self.event_numbers = dict()
         self.lumi = kwargs["lumi"]
         self.disable_sm_total = kwargs["disable_sm_total"]
@@ -62,6 +64,7 @@ class CommonCutFlowAnalyser(object):
             self.config = YAMLLoader.read_yaml(kwargs['config_file'])
         if self.process_configs is not None:
             self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
+        set_batch_mode(kwargs['batch'])
 
     def load_dxaod_cutflows(self, file_handle):
         process = file_handle.process
@@ -91,7 +94,7 @@ class CommonCutFlowAnalyser(object):
         _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
                                                                                                self.lumi))
         return lumi_weight
-    
+
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
             if value > 10000.:

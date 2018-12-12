@@ -133,7 +133,8 @@ def plot_hist(hist, plot_config, **kwargs):
         if hist.GetMinimum() == 0.:
             hist.SetMinimum(0.9)
         if plot_config.normalise:
-            hist.SetMinimum(0.000001)
+            #hist.SetMinimum(0.000001)
+            hist.SetMinimum(0.)
             fm.set_minimum_y(hist, plot_config.ymin)
         canvas.SetLogy()
     if plot_config.logx:
@@ -228,6 +229,7 @@ def format_hist(hist, plot_config):
         fm.set_title_y_size(hist, plot_config.ytitle_size)
     yscale = 1.1
     if plot_config.logy:
+        yscale = 100.
         yscale = 10.
     if isinstance(hist, ROOT.TH2):
         if plot_config.ztitle is not None:
@@ -583,7 +585,8 @@ def plot_stack(hists, plot_config, **kwargs):
     format_hist(stack, plot_config)
     y_scale_offset = 1.1
     if plot_config.logy:
-        y_scale_offset = 10.
+        y_scale_offset = 100.
+        #y_scale_offset = 10.
     max_y = y_scale_offset * stack.GetMaximum()
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
