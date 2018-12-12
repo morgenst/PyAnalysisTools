@@ -513,12 +513,13 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('ref_module_config_file', None)
         kwargs.setdefault('module_config_file', None)
         kwargs.setdefault('json', False)
+        kwargs.setdefault('file_extension', ['.pdf'])
         if kwargs['json']:
             kwargs = JSONHandle(kwargs['json']).load()
         set_batch_mode(kwargs['batch'])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs['input_files']
-        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root', **kwargs)
+        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root', extension=kwargs['file_extension'], **kwargs)
         # self.color_palette = [
         #     ROOT.kGray+3,
         #     ROOT.kPink+7,
@@ -629,6 +630,7 @@ class ComparisonPlotter(BasePlotter):
         compare_hists = filter(lambda x : not x.is_ref, data)
 
         offset = len(reference_hists) if (len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
+
         for i, ref in enumerate(reference_hists):
             setattr(ref, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
@@ -664,6 +666,7 @@ class ComparisonPlotter(BasePlotter):
         # plot_config.styles = self.style_palette
 
         # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config, plotable_objects=reference_hists+compare_hists)
+
         canvas = PT.plot_objects(reference_hists+compare_hists, plot_config)
         canvas.SetName(plot_config.name.replace(' ', '_'))
 
@@ -695,6 +698,7 @@ class ComparisonPlotter(BasePlotter):
             self.output_handle.register_object(canvas)
         else:
             if hasattr(plot_config, 'ratio_config'):
+                plot_config.ratio_config.draw = plot_config.draw
                 plot_config = plot_config.ratio_config
             if not plot_config.name.startswith('ratio'):
                 plot_config.name = 'ratio_' + plot_config.name
