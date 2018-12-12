@@ -142,13 +142,14 @@ def get_signal_acceptance(signal_yields, generated_events, plot_config, process_
     pc_log.logy = True
     pc_log.ymin = 0.1
     canvas = pt.plot_objects([data[1] for data in acceptance_hists], plot_config)
-    fm.add_legend_to_canvas(canvas, labels=plot_config.labels)
+    #fm.add_legend_to_canvas(canvas, labels=plot_config.labels)
     fm.decorate_canvas(canvas, plot_config=plot_config)
     canvas_log = pt.plot_objects([data[1] for data in acceptance_hists], pc_log)
-    fm.add_legend_to_canvas(canvas_log, labels=pc_log.labels)
+    #fm.add_legend_to_canvas(canvas_log, labels=pc_log.labels)
     fm.decorate_canvas(canvas_log, plot_config=pc_log)
     acceptance_hists[-1][1].SetName("acceptance_final")
-    pc.name="acceptance_final_cuts"
-    canvas_final = pt.plot_graph(deepcopy(acceptance_hists[-1][1]), plot_config)
+    pc_final = deepcopy(plot_config)
+    pc_final.name = "acceptance_final_cuts"
+    canvas_final = pt.plot_graph(deepcopy(acceptance_hists[-1][1]), pc_final)
     fm.decorate_canvas(canvas_final, plot_config=plot_config)
     return canvas, canvas_log, canvas_final
