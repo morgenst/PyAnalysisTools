@@ -1,6 +1,10 @@
+#!/usr/bin/env python
 import argparse
 import sys
-from tabulate.tabulate import tabulate_formats
+try:
+    from tabulate.tabulate import tabulate_formats
+except ImportError:
+    from tabulate import tabulate_formats
 from PyAnalysisTools.AnalysisTools.DatasetPrinter import DatasetPrinter
 
 

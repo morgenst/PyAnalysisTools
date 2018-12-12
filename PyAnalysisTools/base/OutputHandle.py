@@ -93,10 +93,15 @@ class OutputFileHandle(SysOutputHandle):
 
     def attach_file(self):
         if not self.attached:
+            file_tag = '.root' if '.root' not in self.output_file_name else ''
             if self.output_tag is not None:
-                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, '_'.join([self.output_file_name, self.output_tag]) + '.root'), "RECREATE")
+                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir,
+                                                                '_'.join([self.output_file_name,
+                                                                          self.output_tag])
+                                                                + file_tag), "RECREATE")
             else:
-                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + '.root'), "RECREATE")
+                self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + file_tag),
+                                                   "RECREATE")
             self.output_file.cd()
             self.attached = True
 
@@ -117,8 +122,8 @@ class OutputFileHandle(SysOutputHandle):
                 canvas.SaveAs(os.path.join(output_path, '{:s}.{:s}'.format(name, extension.lstrip('.'))))
             return
         for c in canvas:
-	    if self.n_plots_per_page>2:
-               ROOT.gStyle.SetLineScalePS(0.5)
+            if self.n_plots_per_page > 2:
+                ROOT.gStyle.SetLineScalePS(0.5)
             c.Draw()
             ROOT.gPad.Update()
             if self.output_tag is not None:
@@ -163,7 +168,6 @@ class OutputFileHandle(SysOutputHandle):
         self.dump_canvas([self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket),
                                                prefix=self.plot_book_name+"_ratio") for plot_bucket in ratio_plots],
                          name=self.plot_book_name+"_ratio")
-
 
     def write_to_file(self, obj, tdir=None):
         if tdir is not None:

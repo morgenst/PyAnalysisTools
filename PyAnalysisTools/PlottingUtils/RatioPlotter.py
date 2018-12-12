@@ -97,6 +97,7 @@ class RatioPlotter(object):
                 colors = get_colors(self.compare)
                 self.plot_config.color = colors
             self.plot_config.ordering = None
+        self.plot_config.normalise = False
         canvas = pt.plot_histograms(ratios, self.plot_config)
         # self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
         # if len(self.compare) > 1:
@@ -109,7 +110,7 @@ class RatioPlotter(object):
         #canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
         return canvas
 
-    def add_uncertainty_to_canvas(self, canvas, hist, plot_config, n_systematics = 1):
+    def add_uncertainty_to_canvas(self, canvas, hist, plot_config, n_systematics=1):
         ratio_hist = fm.get_objects_from_canvas_by_type(canvas, "TH1F")[0]
         if not isinstance(hist, list):
             hist = [hist]

@@ -4,7 +4,10 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
-from tabulate.tabulate import tabulate
+try:
+    from tabulate.tabulate import tabulate
+except ImportError:
+    from tabulate import tabulate
 try:
     import pyAMI.client
 except Exception as e:
@@ -107,8 +110,8 @@ class NTupleAnalyser(object):
             missing_fraction = float(ds[-2])/float(ds[-1]) * 100.
             data.append((ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction))
         print tabulate(data, tablefmt='rst', floatfmt='.2f',
-                       headers=["Dataset", "Processed event", "Total avail. events", "missing fraction [%]",
-                                "available fraction [%]"])
+                       headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
+                                "missing fraction [%]"])
 
     def prepare_resubmit(self, incomplete, missing):
         """

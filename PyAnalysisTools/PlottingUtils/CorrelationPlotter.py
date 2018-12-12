@@ -248,6 +248,6 @@ class CorrelationPlotter(object):
                 else:
                     pt.add_object_to_canvas(profile_plots[hist_base_name], hist, pc, index=index)
         p = get_objects_from_canvas_by_type(profile_plots.values()[0], "TProfile")[0]
-        map(lambda c: fm.add_legend_to_canvas(c, process_configs=self.process_configs, format="marker"),
+        map(lambda c: fm.add_legend_to_canvas(c, ratio=False, process_configs=self.process_configs, format="marker"),
             profile_plots.values())
         map(lambda c: self.output_handle.register_object(c), profile_plots.values())

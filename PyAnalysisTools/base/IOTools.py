@@ -70,7 +70,7 @@ class Writer:
         self.dir = directory
 
 
-def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, ncpu=10):
+def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, postfix=None, ncpu=10):
     make_dirs(output_path)
     if len(os.listdir(merge_dir)) > 0:
         do_delete = raw_input("Merge directory contains already files. Shall I delete those?: [y|n]")
@@ -79,17 +79,17 @@ def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, ncpu=
 
     pool = Pool(processes=min(ncpu, len(data)))
     pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
-                     merge_dir=merge_dir, force=force), data.items())
+                     merge_dir=merge_dir, force=force, postfix=postfix), data.items())
 
 
-def parallel_merge_wrapper(dict_element, output_path, prefix, merge_dir=None, force=False):
+def parallel_merge_wrapper(dict_element, output_path, prefix, merge_dir=None, force=False, postfix=None):
     process, input_file_list = dict_element
     if merge_dir is not None:
         merge_dir = os.path.join(merge_dir, process)
-    merge_files(input_file_list, output_path, prefix + "{:s}".format(process), merge_dir, force)
+    merge_files(input_file_list, output_path, prefix + "{:s}".format(process), merge_dir, force, postfix)
 
 
-def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=False):
+def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=False, postfix=None):
     def build_buckets(file_list):
         limit = 2. * 1024. * 1024. * 1024.
         if sum(map(os.path.getsize, file_list)) < limit:
@@ -107,22 +107,25 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
         bucket_list.append(tmp)
         return bucket_list
 
-    def merge(file_lists, prefix, output_path, merge_dir=None, force=False):
+    def merge(file_lists):
         if len([f for chunk in file_lists for f in chunk]) == 0:
             return
         for file_list in file_lists:
-            merge_cmd = "hadd "
+            merge_cmd = 'hadd '
             if force:
-                merge_cmd += " -f "
-            output_file_name = "{:s}_{:d}.root".format(prefix, file_lists.index(file_list))
-            merge_cmd += "%s %s" % (output_file_name, " ".join(file_list))
+                merge_cmd += ' -f '
+            if postfix is not None:
+                output_file_name = '{:s}_{:d}.{:s}.root'.format(prefix, file_lists.index(file_list), postfix)
+            else:
+                output_file_name = '{:s}_{:d}.root'.format(prefix, file_lists.index(file_list))
+            merge_cmd += '%s %s' % (output_file_name, ' '.join(file_list))
             if not force and os.path.exists(os.path.join(output_path, output_file_name)):
                 continue
             check_call(merge_cmd.split())
             if not merge_dir == output_path:
                 move(os.path.join(merge_dir, output_file_name), os.path.join(output_path, output_file_name))
 
-    def setup_paths(output_path, merge_dir):
+    def setup_paths(merge_dir):
         if not os.path.exists(output_path):
             make_dirs(output_path)
         if merge_dir is None:
@@ -133,7 +136,8 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
         os.chdir(merge_dir)
 
     buckets = build_buckets(input_file_list)
-    setup_paths(output_path, merge_dir)
-    merge(buckets, prefix, output_path, merge_dir, force)
+    setup_paths(merge_dir)
+    #merge(buckets, prefix, output_path, merge_dir, force)
+    merge(buckets)
     if merge_dir is not None:
         remove_directory(os.path.abspath(merge_dir))

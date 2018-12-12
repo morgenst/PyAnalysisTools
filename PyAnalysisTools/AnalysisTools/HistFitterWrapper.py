@@ -22,7 +22,7 @@ from math import sqrt
 import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, \
-    transform_color
+    transform_color, expand_process_configs_new
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -69,18 +69,18 @@ class HistFitterWrapper(object):
 
     def __init__(self, **kwargs):
         kwargs.setdefault("interactive", False)
-        kwargs.setdefault("fit", True)
+        kwargs.setdefault("fit", False)
         kwargs.setdefault("fitname", "")
         kwargs.setdefault("minosPars", "")
-        kwargs.setdefault("disable_limit_plot", False)
+        kwargs.setdefault("disable_limit_plot", True)
         kwargs.setdefault("hypotest", False)
         kwargs.setdefault("discovery_hypotest", False)
-        kwargs.setdefault("draw", "before,after,corrMatrix")
+        kwargs.setdefault("draw", None)#"before,after,corrMatrix")
         kwargs.setdefault("draw_before", False)
         kwargs.setdefault("draw_after", False)
-        kwargs.setdefault("drawCorrelationMatrix", True)
+        kwargs.setdefault("drawCorrelationMatrix", False)
         kwargs.setdefault("drawSeparateComponents", False)
-        kwargs.setdefault("drawLogLikelihood", True)
+        kwargs.setdefault("drawLogLikelihood", False)
         kwargs.setdefault("drawSystematics", False)
         kwargs.setdefault("pickedSRs", [])
         kwargs.setdefault("runToys", False)
@@ -92,21 +92,17 @@ class HistFitterWrapper(object):
         kwargs.setdefault("fixedPars", "")
         kwargs.setdefault("validation", False)
         kwargs.setdefault("use_archive_histfile", False)
-        kwargs.setdefault("read_tree", False) #self.configMgr.readFromTree
-        kwargs.setdefault("create_workspace", False) #self.configMgr.executeHistFactory)
-        #kwargs.setdefault("use_XML", self.configMgr.writeXML)
+        kwargs.setdefault("read_tree", False)
+        kwargs.setdefault("create_workspace", False)
         kwargs.setdefault("use_XML", True)
-        kwargs.setdefault("num_toys", 1000) #self.configMgr.nTOYs)
-        kwargs.setdefault("seed", 0) #self.configMgr.toySeed)
-        kwargs.setdefault("use_asimov", False) #self.configMgr.useAsimovSet)
+        kwargs.setdefault("num_toys", 1000)
+        kwargs.setdefault("seed", 0)
+        kwargs.setdefault("use_asimov", False)
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
         kwargs.setdefault("multi_core", False)
         kwargs.setdefault("store_data", False)
-
-        #FitType = self.configMgr.FitType  # enum('FitType','Discovery , Exclusion , Background')
-        #myFitType = FitType.Background
 
         for key, val in kwargs.iteritems():
             if not hasattr(self, key):
@@ -130,14 +126,20 @@ class HistFitterWrapper(object):
         self.prepare_output()
 
     def parse_configs(self):
+        """
+        Parse limit and process config files. Expands process config.
+        :return: nothing
+        :rtype: None
+        """
         self.limit_config = None
         if hasattr(self, "limit_config_file"):
-            self.limit_config = LimiConfig(kwargs["limit_config_file"])
+            self.limit_config = LimiConfig(self.limit_config_file)
         if self.process_config_file is not None:
             self.process_configs = parse_and_build_process_config(self.process_config_file)
         self.file_handles = [FileHandle(file_name=fn,
                                         dataset_info=os.path.abspath(self.xs_config_file)) for fn in self.input_files]
-        self.expand_process_configs()
+        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
+                                                          self.process_configs)
 
     def reset_config_mgr(self):
         try:
@@ -189,7 +191,6 @@ class HistFitterWrapper(object):
 
         if self.discovery_hypotest:
             self.configMgr.doDiscoveryHypoTest = True
-        #self.configMgr.doDiscoveryHypoTest = True
 
         if self.no_empty:
             self.configMgr.removeEmptyBins = True
@@ -266,11 +267,6 @@ class HistFitterWrapper(object):
                             if Systs != "":
                                 Util.plotUpDown(self.configMgr.histCacheFile, sam.name, Systs,
                                                             chan.regionString, chan.variableName)
-
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                    _ = find_process_config(fh.process, self.process_configs)
 
     def build_samples(self):
         for fn in self.file_handles:
@@ -408,8 +404,6 @@ class HistFitterWrapper(object):
         _logger.debug("GenerateFitAndPlotCPP: ReduceCorrMatrix %s " % reduce_corr_matrix)
         _logger.debug("GenerateFitAndPlotCPP: noFit {0}".format(no_fit))
 
-        # draw_after_fit = False
-        # draw_before_fit = False
         Util.GenerateFitAndPlot(fc.name, ana_name, draw_before_fit, draw_after_fit, draw_correlation_matrix,
                                 draw_separate_components, draw_log_likelihood, minos, minos_pars, do_fix_parameters,
                                 fixed_pars, reduce_corr_matrix, no_fit)
@@ -427,19 +421,21 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("create_workspace", True)
         super(HistFitterCountingExperiment, self).__init__(**kwargs)
         self.control_regions = []
+        self.validation_regions = []
         self.bkg_name = kwargs["bkg_name"]
+        self.systematics = {}
 
     def run(self, **kwargs):
         self.control_regions = []
         if self.call > 0:
             self.setup_output(**kwargs)
-        #if False: #not kwargs["debug"] == True:
-        with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
-            with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
-                    std_stream_redirected(ferr, sys.stderr):
-                self.setup_regions(**kwargs)
-                self.call += 1
-                self.run_fit()
+        if False: #not kwargs["debug"] == True:
+            with open(os.path.join(self.output_dir, "HistFitter.log"), 'w') as f, std_stream_redirected(f):
+                with open(os.path.join(self.output_dir, "HistFitter.err"), 'w') as ferr, \
+                        std_stream_redirected(ferr, sys.stderr):
+                    self.setup_regions(**kwargs)
+                    self.call += 1
+                    self.run_fit()
         else:
             self.setup_regions(**kwargs)
             self.call += 1
@@ -493,21 +489,22 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("sig_name", "Sig")
         kwargs.setdefault("sig_yield", 1.)
         kwargs.setdefault("control_regions", None)
+        kwargs.setdefault("validation_regions", None)
         kwargs.setdefault("ctrl_config", None)
         kwargs.setdefault("var_name", "yield")
+        kwargs.setdefault("sr_syst", None)
         nbkg_yields = kwargs["bkg_yields"]
         var_name = kwargs["var_name"]
 
         self.reset_config_mgr()
-        print "config mgr: ", self.configMgr, " id: ", id(self.configMgr), " ", self.output_dir
         self.configMgr.cutsDict["SR"] = 1.
         self.configMgr.weights = "1."
 
-        self.configMgr.doExclusion = True  # True=exclusion, False=discovery
+        self.configMgr.doExclusion = True
         self.configMgr.nTOYs = 5000
-        self.configMgr.calculatorType = 2  # 2=asymptotic calculator, 0=frequentist calculator
-        self.configMgr.testStatType = 3  # 3=one-sided profile likelihood test statistic (LHC default)
-        self.configMgr.nPoints = 50  # number of values scanned of signal-strength for upper-limit determination of signal strength.
+        self.configMgr.calculatorType = 2
+        self.configMgr.testStatType = 3
+        self.configMgr.nPoints = 50
 
         self.configMgr.writeXML = True
         self.configMgr.blindSR = True
@@ -523,13 +520,13 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             bkg_samples = self.setup_multi_background(**kwargs)
             ndata = 0
 
-        nsig = kwargs["sig_yield"]  # Number of predicted signal events
-        nsig_err = 0.144  # (Absolute) Statistical error on signal estimate
-        lumi_error = 0.039  # Relative luminosity uncertainty
+        nsig = kwargs["sig_yield"]
+        nsig_err = 0.144
+        lumi_error = 0.039
 
         dataSample = Sample("Data", kBlack)
         dataSample.setData()
-        dataSample.buildHisto([5000.], "SR", var_name, 0.5) #ndata
+        dataSample.buildHisto([5.], "SR", var_name, 0.5)
 
         sigSample = Sample(kwargs["sig_name"], kPink)
         sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
@@ -540,17 +537,21 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         for sample in bkg_samples + [sigSample, dataSample]:
             samples[sample.name] = sample
         ana = self.configMgr.addFitConfig("SPlusB")
+        chan = ana.addChannel(var_name, ["SR"], 1, 0.5, 1.5)
+        for sample in samples.values():
+            chan.addSample(sample)
+        ana.setSignalSample(sigSample)
+        ana.addSignalChannels([chan])
 
-        # bkgSample.addSystematic(corb)
-        # bkgSample.addSystematic(ucb)
         if kwargs["control_regions"] is not None:
-            self.setup_control_regions(ana=ana, samples=samples, **kwargs)
+            #self.setup_control_regions(ana=ana, samples=samples, **kwargs)
+            self.setup_control_regions(ana=ana, samples=None, **kwargs)
             if kwargs["ctrl_config"] is not None:
                 norm_factors = {}
                 norm_regions = {}
                 ctrl_config = kwargs["ctrl_config"]
                 for region, config in ctrl_config.iteritems():
-                    if not config["is_norm_region"]:
+                    if not config["is_norm_region"] and not config['is_val_region']:
                         continue
                     for bkg, bkg_config in config["bgk_to_normalise"].iteritems():
                         if bkg not in samples:
@@ -566,36 +567,82 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                 norm_factors[bkg].append(norm_factor)
                             except KeyError:
                                 norm_factors[bkg] = [norm_factor]
+                    if config['is_val_region']:
+                        #self.validation = True
+                        val_channel = self.control_regions.pop()
+                        print region, config, self.control_regions
+                        #exit()
+                        self.validation_regions.append(val_channel)
                 for bkg, norm_factors in norm_factors.iteritems():
                     for norm_factor in norm_factors:
                         samples[bkg].setNormFactor(norm_factor, 1., 0., 5.)
                 for bkg in norm_regions.keys():
                     samples[bkg].setNormRegions([(region, var_name) for region in norm_regions[bkg]])
 
-        ana.addSamples(samples.values())
-        ana.setSignalSample(sigSample)
+        if kwargs["validation_regions"] is not None:
+            self.setup_validation_regions(ana=ana, samples=samples, **kwargs)
+            self.validation = True
+        # ana.addSamples(samples.values())
+        # ana.setSignalSample(sigSample)
 
         # Define measurement
         meas = ana.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=lumi_error)
         meas.addPOI("mu_Sig")
         # meas.addParamSetting("Lumi",True,1)
 
-        chan = ana.addChannel(var_name, ["SR"], 1, 0.5, 1.5)
-        ana.addSignalChannels([chan])
-        cr_channels = []
-        for cr in self.control_regions:
-            cr_channels.append(ana.addChannel(var_name, [cr], 1, 0.5, 1.5))
+        # chan = ana.addChannel(var_name, ["SR"], 1, 0.5, 1.5)
+        # for sample in samples.values():
+        #     chan.addSample(sample)
+        # ana.setSignalSample(sigSample)
+        # ana.addSignalChannels([chan])
+
+
+        cr_channels = self.control_regions
         if len(cr_channels) > 0:
+            print cr_channels
             ana.addBkgConstrainChannels(cr_channels)
+        validation_channels = []
+        # for vr in self.validation_regions:
+        #     validation_channels.append(ana.addChannel(var_name, [vr], 1, 0.5, 1.5))
+        if len(self.validation_regions) > 0:
+            print "add validation channels ", self.validation_regions
+            #ana.addValidationChannels(self.validation_regions)
+
+        if kwargs['sr_syst'] is not None:
+            systematics = kwargs['sr_syst']
+            self.systematics["SR"] = {}
+            for process in systematics.keys():
+                if 'data' in process:
+                    continue
+                print systematics[process]
+                systs = set(map(lambda k: k.split("__")[0], systematics[process].keys()))
+                uncert = systematics[process]
+                if process not in self.systematics["SR"]:
+                    self.systematics["SR"][process] = []
+                for syst in systs:
+                    try:
+                        self.systematics["SR"][process].append(Systematic(name=syst.replace("weight", "alpha"),
+                                                                          nominal=0., high=uncert[syst + '__1up'],
+                                                                          low=uncert[syst + '__1down'],
+                                                                          method='histoSys', type='user'))
+                    except KeyError:
+                        print "Could not find systematic {:s}".format(syst)
+            channel = ana.getChannel(var_name, ['SR'])
+
+        print self.systematics
+        for cr in self.systematics.keys():
+            channel = ana.getChannel(var_name, [cr])
+            for process, systematics in self.systematics[cr].iteritems():
+                for syst in systematics:
+                    channel.getSample(process).addSystematic(syst)
+
         self.configMgr.cutsDict.keys()
         self.initialise()
         self.clean()
 
-    def setup_control_regions(self, **kwargs):
-        data = kwargs["control_regions"]
+    def setup_validation_regions(self, **kwargs):
+        data = kwargs["validation_regions"]
         samples = kwargs["samples"]
-        cr_channels = []
-        ana = kwargs["ana"]
         for reg, yields in data.iteritems():
             self.configMgr.cutsDict[reg] = 1.
             for process, yld in yields.iteritems():
@@ -618,7 +665,61 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                     dataSample.buildHisto([data_yld], reg, kwargs["var_name"], 0.5)
             except IndexError:
                 print "No data found for ", reg
-            self.control_regions.append(reg)
+            self.validation_regions.append(reg)
+
+    def setup_control_regions(self, **kwargs):
+        data = kwargs["control_regions"]
+        samples = kwargs["samples"]
+        ana = kwargs['ana']
+        for reg, yields in data.iteritems():
+            channel = ana.addChannel(kwargs['var_name'], [reg], 1, 0.5, 1.5)
+            self.configMgr.cutsDict[reg] = 1.
+            for process, yld in yields.iteritems():
+                if process.lower() == "data":
+                    continue
+                sample = None
+                print yields
+                try:
+                    _ = self.build_sample(process, yld, kwargs["process_configs"], reg, samples[process])
+                except Exception:
+                    sample = self.build_sample(process, yld, kwargs["process_configs"], reg)
+                    if not sample:
+                        continue
+                if sample is not None:
+                    channel.addSample(sample)
+            print yields
+            try:
+                data_yld = filter(lambda kv: kv[0].lower() == "data", yields.iteritems())[0][1]
+                if isinstance(data_yld, numbers.Number):
+                    dataSample = Sample("Data", kBlack)
+                    dataSample.setData()
+                    dataSample.buildHisto([data_yld], reg, kwargs["var_name"], 0.5)
+                    channel.addSample(dataSample)
+            except IndexError:
+                print "No data found for ", reg
+                exit()
+            if kwargs['ctrl_syst'] is not None:
+                systematics = kwargs['ctrl_syst'][reg]
+                if reg not in self.systematics:
+                    self.systematics[reg] = {}
+                print systematics
+                for process in systematics.keys():
+                    systs = set(map(lambda k: k.split("__")[0], systematics[process].keys()))
+                    uncert = systematics[process]
+                    if process not in self.systematics[reg]:
+                        self.systematics[reg][process] = []
+                    for syst in systs:
+                        try:
+                            self.systematics[reg][process].append(Systematic(name=syst.replace("weight", "alpha"),
+                                                                             nominal=0.,
+                                                                             high=uncert[syst+'__1up'],
+                                                                             low=uncert[syst+'__1down'],
+                                                                             method='histoSys',
+                                                                             type='user'))
+                        except KeyError:
+                            print "Could not find systematic {:s}".format(syst)
+
+            self.control_regions.append(channel)
 
     def get_upper_limit(self, name="hypo_Sig"):
         f = ROOT.TFile.Open(os.path.join(self.output_dir,
@@ -656,8 +757,8 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
         self.configMgr.analysisName = self.analysis_name
 
         # Scaling calculated by outputLumi / inputLumi
-        self.configMgr.inputLumi = 0.001  # Luminosity of input TTree after weighting
-        self.configMgr.outputLumi = 4.713  # Luminosity required for output histograms
+        self.configMgr.inputLumi = 100  # Luminosity of input TTree after weighting
+        self.configMgr.outputLumi = 100. #4.713  # Luminosity required for output histograms
         self.configMgr.setLumiUnits("fb-1")
 
         for channel in self.limit_config.channels:
@@ -680,9 +781,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
             exclusionFitConfig.addSamples(self.samples.values())
             # Systematics
-            #exclusionFitConfig.getSample("Top").addSystematic(topKtScale)
-            #exclusionFitConfig.getSample("WZ").addSystematic(wzKtScale)
-            #exclusionFitConfig.addSystematic(jes)
             sigSample = Sample("LQ", kPink)
             sigSample.setFileList(["/eos/atlas/user/m/morgens/datasets/LQ/ntuples/v2/ntuple-364131_0.root"])
             sigSample.setTreeName("Nominal/BaseSelection_lq_tree_Final")
@@ -718,9 +816,6 @@ class HistFitterShapeAnalysis(HistFitterWrapper):
 
         # name of nominal histogram for systematics
         self.configMgr.nomName = "_NoSys"
-
-
-
 
 
         # -----------------------------

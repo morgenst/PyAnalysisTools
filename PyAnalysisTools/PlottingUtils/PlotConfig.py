@@ -1,80 +1,39 @@
 import ROOT
 import math
 import re
+import os
 from math import log10
 from array import array
 from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
+from collections import OrderedDict
+import root_numpy
+from PyAnalysisTools.base.ShellUtils import find_file
 
 
 class PlotConfig(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('process_weight', None)
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
         if not "draw" in kwargs:
             kwargs.setdefault("Draw", "hist")
-        kwargs.setdefault("outline", "hist")
-        kwargs.setdefault("stat_box", False)
-        kwargs.setdefault("weight", None)
-        kwargs.setdefault("normalise", False)
-        kwargs.setdefault("dist", None)
-        kwargs.setdefault("merge", True)
-        kwargs.setdefault("no_data", False)
-        kwargs.setdefault("ignore_style", False)
-        kwargs.setdefault("style", None)
-        kwargs.setdefault("rebin", None)
-        kwargs.setdefault("ratio", None)
-        kwargs.setdefault("ignore_rebin", False)
-        kwargs.setdefault("weight", False)
-        kwargs.setdefault("enable_legend", False)
-        kwargs.setdefault("blind", None)
-        kwargs.setdefault("legend_options", dict())
-        kwargs.setdefault("make_plot_book", False)
-        kwargs.setdefault("is_multidimensional", False)
-        kwargs.setdefault("ordering", None)
-        kwargs.setdefault("ymin", 0.)
-        kwargs.setdefault("xmin", None)
-        kwargs.setdefault("draw_option", None)
-        kwargs.setdefault("ymax", None)
-        kwargs.setdefault("yscale", None)
-        kwargs.setdefault("is_common", False)
-        kwargs.setdefault("normalise_range", None)
-        kwargs.setdefault("ratio_config", None)
-        kwargs.setdefault("grid", False)
-        kwargs.setdefault("logy", False)
-        kwargs.setdefault("logx", False)
-        kwargs.setdefault("signal_scale", None)
-        kwargs.setdefault("Lumi", 1.)
-        kwargs.setdefault("signal_extraction", True)
-        kwargs.setdefault("xtitle", None)
-        kwargs.setdefault("ytitle", None)
-        kwargs.setdefault("ztitle", None)
-        kwargs.setdefault("title", "")
-        kwargs.setdefault("merge_mc_campaigns", True)
-        kwargs.setdefault("watermark", "Internal")
-        kwargs.setdefault("watermark_size", 0.03)
-        kwargs.setdefault("watermark_offset", 0.08)
-        kwargs.setdefault("watermark_x", 0.15)
-        kwargs.setdefault("watermark_y", 0.96)
-        kwargs.setdefault("decor_text", None)
-        kwargs.setdefault("decor_text_x", 0.2)
-        kwargs.setdefault("decor_text_y", 0.77)
-        kwargs.setdefault("decor_text_size", 0.05)
-        kwargs.setdefault("lumi_text_x", 0.2)
-        kwargs.setdefault("lumi_text_y", 0.9)
-        kwargs.setdefault('xtitle_offset', None)
-        kwargs.setdefault('ytitle_offset', None)
-        kwargs.setdefault('ztitle_offset', None)
-        kwargs.setdefault('xtitle_size', None)
-        kwargs.setdefault('ytitle_size', None)
-        kwargs.setdefault('ztitle_size', None)
-        kwargs.setdefault('axis_labels', None)
-        # kwargs.setdefault('cuts_l1', None)
-        # kwargs.setdefault('cuts_l2', None)
-        kwargs.setdefault('multi_ref', None)
-
+        user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
+        if user_config is not None:
+            config_file_name = user_config
+        else:
+            config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
+        defaults = yl.read_yaml(config_file_name)
+        for key, attr in defaults.iteritems():
+            if isinstance(attr, str):
+                try:
+                    kwargs.setdefault(key, eval(attr))
+                except (NameError, SyntaxError):
+                    kwargs.setdefault(key, attr)
+            else:
+                kwargs.setdefault(key, attr)
 
         for k, v in kwargs.iteritems():
             if k == "ratio_config" and v is not None:
@@ -86,12 +45,16 @@ class PlotConfig(object):
                 continue
             if "xmin" in k or "xmax" in k:
                 v = eval(str(v))
-            if (k == "ymax" or k == "ymin") and v is not None and (re.match("[1-9].*[e][1-9]*", str(v)) or "math." in str(v)):
+            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
+                if isinstance(v, float):
+                    setattr(self, k.lower(), v)
+                    continue
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
         self.is_multidimensional = False
         self.auto_decorate()
+        self.used_mc_campaigns = []
 
     def is_set_to_value(self, attr, value):
         """
@@ -160,7 +123,7 @@ class PlotConfig(object):
         :rtype: list
         """
         return ["outline", "make_plot_book", "no_data", "draw", "ordering", "signal_scale", "lumi", "normalise",
-                "merge_mc_campaigns", "signal_extraction", "ratio", "cuts", "enable_legend"]
+                "merge_mc_campaigns", "signal_extraction", "ratio", "cuts", "enable_legend", 'total_lumi']
 
     def auto_decorate(self):
         if hasattr(self, "dist") and self.dist:
@@ -179,19 +142,33 @@ class PlotConfig(object):
         :return: None
         :rtype: None
         """
+        previous_choice = None
         for attr, val in other.__dict__.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                dec = raw_input("Different settings for attribute {:s} in common configs. "
-                                "Please choose 1) {:s} or 2) {:s}: ".format(attr, str(val), str(getattr(self, attr))))
-                if dec == "1":
+                dec = raw_input("Different settings for attribute {:s} in common configs."
+                                "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val), str(getattr(self, attr)),
+                                                                                   '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''))
+
+                if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
-                elif dec == "2":
+                    previous_choice = 1
+                elif dec == "2" or (dec != '1' and previous_choice == 2):
+                    previous_choice = 2
                     continue
                 else:
                     _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
+
+    def get_lumi(self):
+        if not isinstance(self.lumi, OrderedDict):
+            return self.lumi
+        if self.total_lumi is not None:
+            return self.total_lumi
+        if len(self.used_mc_campaigns):
+            self.total_lumi = sum([self.lumi[tag] for tag in set(self.used_mc_campaigns)])
+            return self.total_lumi
 
 
 default_plot_config = PlotConfig(name=None)
@@ -224,12 +201,30 @@ def get_default_color_scheme():
             ROOT.kCyan+3,
             ROOT.kPink+4]
 
-
 class ProcessConfig(object):
     def __init__(self, **kwargs):
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         self.transform_type()
+
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Process config: {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            obj_str += '{}={} \n'.format(attribute, value)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
 
     def transform_type(self):
         if "data" in self.type.lower():
@@ -250,6 +245,18 @@ class ProcessConfig(object):
     def add_subprocess(self, subprocess_name):
         self.subprocesses.append(subprocess_name)
         return ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+
+
+def parse_mc_campaign(process_name):
+    if 'mc16a' in process_name.lower():
+        return 'mc16a'
+    elif 'mc16c' in process_name.lower():
+        return 'mc16c'
+    elif 'mc16d' in process_name.lower():
+        return 'mc16d'
+    if 'mc16e' in process_name.lower():
+        return 'mc16e'
+    return None
 
 
 def expand_plot_config(plot_config):
@@ -348,7 +355,7 @@ def propagate_common_config(common_config, plot_configs):
     """
     def integrate(plot_config, attr, value):
         if attr == "cuts":
-            if plot_config.cuts is not None:
+            if plot_config.cuts is not None and value is not None:
                 plot_config.cuts += value
                 return
         if attr == "weight":
@@ -406,7 +413,12 @@ def transform_color(color, index=None):
         color = getattr(ROOT, color.rstrip()) + int(offset)
 
     if isinstance(color, list):
-        return transform_color(color[index])
+        try:
+            return transform_color(color[index])
+        except IndexError:
+            _logger.error("Requested {:d}th color, but only provided {:d} colors in config. "
+                          "Returning black".format(index+1, len(color)))
+            return ROOT.kBlack
     return color
 
 
@@ -422,14 +434,15 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
-    if hasattr(plot_config, "color"):
+    if plot_config.color is not None:
         color = transform_color(plot_config.color, index)
-
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
         elif style_attr:
-            style_setter = "Line"
+            #TODO: needs fix
+            #style_setter = 'Line'
+            style_setter = "Fill"
         else:
             #style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
@@ -491,14 +504,43 @@ def get_histogram_definition(plot_config):
     return hist
 
 
+def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
+    new_config = deepcopy(process_config)
+    for index, sub_process in enumerate(process_config.subprocesses):
+        if 're.' not in sub_process:
+            print 'Problem, this is not covered yet'
+            #raw_input('Hit enter to acknowledge and complain on jira.')
+            continue
+        if 'mc' not in sub_process:
+            process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
+        elif campaign_tag not in sub_process:
+            split_info = sub_process.split(')]$')
+            process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
+    new_config.name += '.{:s}'.format(campaign_tag)
+    for index, sub_process in enumerate(new_config.subprocesses):
+        new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
+    process_configs[new_config.name] = new_config
+
+
 def find_process_config(process_name, process_configs):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
     if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
         return process_configs[process_name]
     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-                                              any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-                           process_configs.iteritems()))
+                                           any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
+                                process_configs.iteritems()))
     for process_config in regex_configs.values():
         for sub_process in process_config.subprocesses:
             if not sub_process.startswith("re."):
@@ -506,9 +548,52 @@ def find_process_config(process_name, process_configs):
             match = re.match(sub_process.replace("re.", ""), process_name)
             if not match:
                 continue
-            process_configs[match.group()] = process_config.add_subprocess(match.group())
+            new_process = match.group()
+            process_configs[new_process] = process_config.add_subprocess(new_process)
             return process_configs[match.group()]
     return None
+
+
+def find_process_config_new(process_name, process_configs, ignore_mc_campaign=False):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
+    if process_configs is None or process_name is None:
+        return None
+    if process_name in process_configs:
+        return process_configs[process_name]
+    regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
+                                           any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
+                                process_configs.iteritems()))
+    mc_campaign = parse_mc_campaign(process_name)
+    for process_config in regex_configs.values():
+        for sub_process in process_config.subprocesses:
+            if not sub_process.startswith("re."):
+                continue
+            match = re.match(sub_process.replace("re.", ""), process_name)
+            if not match:
+                continue
+            new_process = match.group()
+            if mc_campaign is not None and not ignore_mc_campaign:
+                if '{:s}.{:s}'.format(process_config.name, mc_campaign) not in process_configs:
+                    add_campaign_specific_merge_process(process_config, process_configs, mc_campaign)
+            process_configs[new_process] = process_config.add_subprocess(new_process)
+            return process_configs[match.group()]
+    return None
+
+
+def expand_process_configs_new(processes, process_configs, ignore_mc_campaign=False):
+    for process in processes:
+        _ = find_process_config_new(process, process_configs, ignore_mc_campaign)
+    return process_configs
 
 
 def expand_process_configs(processes, process_configs):

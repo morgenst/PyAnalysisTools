@@ -34,8 +34,8 @@ def resolve_path_from_symbolic_links(symbolic_link, relative_path):
 def move(src, dest):
     try:
         shutil.move(src, dest)
-    except IOError:
-        raise
+    except IOError as e:
+        raise e
 
 
 def copy(src, dest):
@@ -51,8 +51,8 @@ def remove_directory(path, safe=False):
     if safe:
         try:
             os.removedirs(path)
-        except OSError:
-            raise
+        except OSError as e:
+            raise e
     else:
         try:
             shutil.rmtree(path)
@@ -94,3 +94,14 @@ def std_stream_redirected(dest=os.devnull, stream=sys.stdout, std_stream=None):
         finally:
             stream.flush()
             os.dup2(copied.fileno(), std_stream_fd)
+
+
+def find_file(file_name, subdirectory=''):
+    if subdirectory:
+        path = subdirectory
+    else:
+        path = os.getcwd()
+    for root, dirs, names in os.walk(path):
+        if file_name in names:
+            return os.path.join(root, file_name)
+    return None

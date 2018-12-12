@@ -12,7 +12,8 @@ import PyAnalysisTools.PlottingUtils.Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, get_objects_from_canvas
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, \
+    get_objects_from_canvas
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
     expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
@@ -33,10 +34,9 @@ class ComparisonReader(object):
             if not hasattr(self, opt):
                 setattr(self, opt, val)
 
-                
     def get_instance(self, plot_config):
         if self.compare_files:
-            if(hasattr(plot_config, 'multi_ref') and plot_config.multi_ref):
+            if hasattr(plot_config, 'multi_ref') and plot_config.multi_ref:
                 print "Using MultiFileMultiRefReader instance"
                 _logger.debug("Using MultiFileMultiRefReader instance")
                 return MultiFileMultiRefReader(plot_config=plot_config, **self.__dict__)
@@ -45,7 +45,7 @@ class ComparisonReader(object):
                 _logger.debug("Using MultiFileSingleRefReader instance")
                 return MultiFileSingleRefReader(plot_config=plot_config, **self.__dict__)
         else:
-            if(hasattr(plot_config, 'multi_ref') and plot_config.multi_ref):
+            if hasattr(plot_config, 'multi_ref') and plot_config.multi_ref:
                 print "Using SingleFileMultiRefReader instance"
                 _logger.debug("Using SingleFileMultiRefReader instance")
                 return SingleFileMultiRefReader(plot_config=plot_config, **self.__dict__)
@@ -54,7 +54,6 @@ class ComparisonReader(object):
                 _logger.debug("Using SingleFileSingleRefReader instance")
                 return SingleFileSingleRefReader(plot_config=plot_config, **self.__dict__)
 
-            
     def get_data(self):
         data = {}
         for plot_config in self.plot_configs:
@@ -62,7 +61,6 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    
     def make_hist(self, file_handle, plot_config, cut_name, cut_string, tree_name=None):
         if file_handle.is_data:
             cut_string = cut_string.replace('DATA:', '')
@@ -90,7 +88,34 @@ class ComparisonReader(object):
                 continue
             result.Add(hist)
         return result
-    
+
+    @staticmethod
+    def merge_file_handles(file_handles, process_configs):
+        def find_parent_process(process):
+            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses,
+                                    process_configs.iteritems())
+            try:
+                return parent_process[0][0]
+            except IndexError:
+                _logger.error("Could not find parent process for process {:s}".format(process))
+                print "Available process configs:", process_configs
+                exit(-1)
+
+        def expand():
+            if process_configs is not None:
+                for fh in file_handles:
+                    _ = find_process_config(fh.process, process_configs)
+
+        expand()
+        tmp_file_handles = collections.OrderedDict()
+        for fh in file_handles:
+            parent_process = find_parent_process(fh.process)
+            if parent_process not in tmp_file_handles:
+                tmp_file_handles[parent_process] = [fh]
+                continue
+            tmp_file_handles[parent_process].append(fh)
+        return tmp_file_handles
+
     @staticmethod
     def merge_histograms(histograms, process_configs):
         def expand():
@@ -115,7 +140,7 @@ class ComparisonReader(object):
         for process in histograms.keys():
             histograms[find_process_config(process, process_configs)] = histograms.pop(process)
 
-    #TODO: seems not to be needed
+    # TODO: seems not to be needed
     # @staticmethod
     # def parse_process_config(process_config_file):
     #     if process_config_file is None:
@@ -129,36 +154,16 @@ class SingleFileSingleRefReader(ComparisonReader):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files']
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in compare_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+                                     compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
         for opt, value in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, value)
-        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
+        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
-                
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
 
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-    
     def get_data(self):
         cuts = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -167,14 +172,15 @@ class SingleFileSingleRefReader(ComparisonReader):
             for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(
+                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+                cuts[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
         else:
-            cuts['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+            cuts['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
         cuts_ref = collections.OrderedDict([cuts.items()[0]])
         if len(cuts) == 2:
             cuts_comp = collections.OrderedDict([cuts.items()[-1]])
@@ -185,70 +191,54 @@ class SingleFileSingleRefReader(ComparisonReader):
         for k_cuts, v_cuts in cuts_ref.iteritems():
             reference = collections.OrderedDict()
             for process, file_handles in self.file_handles.iteritems():
-                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ''
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))                
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts,
+                                      process=k_ref))
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                                                   self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts,
+                                      process=k_comp))
         return plotable_objects
 
-    
+
 class SingleFileMultiRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files']
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in compare_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+                                     compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
         for opt, value in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, value)
-        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
+        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
-                
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
 
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-
-                
     def get_data(self):
         cuts_ref = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -256,13 +246,16 @@ class SingleFileMultiRefReader(ComparisonReader):
         if hasattr(self.plot_config, 'cuts_l1'):
             if hasattr(self.plot_config, 'cuts_l2'):
                 for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                    cuts_ref[' '.join([self.plot_config.cuts_l1.keys()[0], k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0] + v_l2))
+                    cuts_ref[' '.join([self.plot_config.cuts_l1.keys()[0], k_l2])] = '&&'.join(
+                        map(lambda v: str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0] + v_l2))
             else:
-                cuts_ref[self.plot_config.cuts_l1.keys()[0]] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0]))
+                cuts_ref[self.plot_config.cuts_l1.keys()[0]] = '&&'.join(
+                    map(lambda v: str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0]))
         elif hasattr(self.plot_config, 'cuts_l2'):
-            cuts_ref[self.plot_config.cuts_l2.keys()[0]] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + self.plot_config.cuts_l2.values()[0]))
+            cuts_ref[self.plot_config.cuts_l2.keys()[0]] = '&&'.join(
+                map(lambda v: str(v), self.plot_config.cuts + self.plot_config.cuts_l2.values()[0]))
         else:
-            cuts_ref['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+            cuts_ref['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
         cuts_comp = collections.OrderedDict()
         if not self.plot_config.cuts:
             setattr(self.plot_config, 'cuts', [])
@@ -272,86 +265,71 @@ class SingleFileMultiRefReader(ComparisonReader):
                     continue
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts_comp[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                        cuts_comp[' '.join([k_l1, k_l2])] = '&&'.join(
+                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
                 else:
-                    cuts_comp[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+                    cuts_comp[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
                 if self.plot_config.cuts_l2.keys().index(k_l2) == 0:
                     continue
-                cuts_comp[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+                cuts_comp[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
         else:
-            cuts_comp['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
-            
-        plotable_objects = []        
+            cuts_comp['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
+
+        plotable_objects = []
         for k_cuts, v_cuts in cuts_ref.iteritems():
             reference = collections.OrderedDict()
             for process, file_handles in self.file_handles.iteritems():
-                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label, cuts=v_cuts, process=k_ref))
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label,
+                                      cuts=v_cuts, process=k_ref))
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                                                   self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
                 ref_id = cuts_comp.keys().index(k_cuts) % len(cuts_ref)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts,
+                                      process=k_comp))
         return plotable_objects
 
-    
+
 class MultiFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files'] + kwargs['compare_files']
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in compare_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+                                     compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
         for opt, value in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, value)
-        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
+        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
 
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-
-                
     def get_data(self):
         cuts = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -360,86 +338,72 @@ class MultiFileSingleRefReader(ComparisonReader):
             for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(
+                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+                cuts[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
         else:
-            cuts['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
+            cuts['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
         cuts_ref = collections.OrderedDict([cuts.items()[0]])
         cuts_comp = cuts
-        
+
         plotable_objects = []
         for k_cuts, v_cuts in cuts_ref.iteritems():
             reference = collections.OrderedDict()
             for process, file_handles in self.file_handles.iteritems():
-                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts, process=k_ref))
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts,
+                                      process=k_ref))
 
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                                                   self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts,
+                                      process=k_comp))
         del plotable_objects[1]
         return plotable_objects
 
-    
+
 class MultiFileMultiRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['compare_files']
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in compare_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+                                     compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
         for opt, value in kwargs.iteritems():
             if not hasattr(self, opt):
                 setattr(self, opt, value)
-        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
+        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
 
-    @staticmethod
-    def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
-            return parent_process[0][0]
-        
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
-        tmp_file_handles = collections.OrderedDict()
-        for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
-            if parent_process not in tmp_file_handles:
-                tmp_file_handles[parent_process] = [fh]
-                continue
-            tmp_file_handles[parent_process].append(fh)
-        return tmp_file_handles
-    
     def get_data(self):
         cuts = collections.OrderedDict()
         if not self.plot_config.cuts:
@@ -448,15 +412,16 @@ class MultiFileMultiRefReader(ComparisonReader):
             for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1 + v_l2))
+                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(
+                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l1))
+                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                        cuts[' '.join([k_l2])] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts + v_l2))
+                cuts[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
         else:
-            cuts['cut'] = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
-                        
+            cuts['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
+
         plotable_objects = []
         for k_cuts, v_cuts in cuts.iteritems():
             reference = collections.OrderedDict()
@@ -464,28 +429,35 @@ class MultiFileMultiRefReader(ComparisonReader):
             for process, file_handles in self.file_handles.iteritems():
                 reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)                
-            if hasattr(self.plot_config, 'labels'):
-                label=self.plot_config.labels[cuts.keys().index(k_cuts)]
+                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                                                   self.tree_name)
+            if self.plot_config.labels is not None:
+                label = self.plot_config.labels[cuts.keys().index(k_cuts)]
             else:
                 if k_cuts == 'cut':
-                    label=""
+                    label = ""
                 else:
-                    label=k_cuts
+                    label = k_cuts
             for k_ref, v_ref in reference.iteritems():
                 v_ref.SetDirectory(0)
-                if len(reference)==len(compare):
-                    ref_id = ((reference.keys().index(k_ref) + 1) * 100) + ((reference.keys().index(k_ref) + 1) * 10) + cuts.keys().index(k_cuts)        
+                if len(reference) == len(compare):
+                    ref_id = ((reference.keys().index(k_ref) + 1) * 100) + (
+                                (reference.keys().index(k_ref) + 1) * 10) + cuts.keys().index(k_cuts)
                 else:
-                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)        
-                plotable_objects.append(PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=ref_id, label=label, cuts=v_cuts, process=k_ref))
-            for k_comp, v_comp in compare.iteritems():    
-                if len(reference)==len(compare):
-                    ref_id = ((compare.keys().index(k_comp) + 1) * 100) + ((compare.keys().index(k_comp) + 1) * 10) + cuts.keys().index(k_cuts)        
+                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=ref_id, label=label, cuts=v_cuts,
+                                      process=k_ref))
+            for k_comp, v_comp in compare.iteritems():
+                if len(reference) == len(compare):
+                    ref_id = ((compare.keys().index(k_comp) + 1) * 100) + (
+                                (compare.keys().index(k_comp) + 1) * 10) + cuts.keys().index(k_cuts)
                 else:
-                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)        
+                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)
                 v_comp.SetDirectory(0)
-                plotable_objects.append(PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts, process=k_comp))
+                plotable_objects.append(
+                    PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts,
+                                      process=k_comp))
         return plotable_objects
 
 
@@ -519,7 +491,8 @@ class ComparisonPlotter(BasePlotter):
         set_batch_mode(kwargs['batch'])
         super(ComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs['input_files']
-        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root', extension=kwargs['file_extension'], **kwargs)
+        self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root',
+                                              extension=kwargs['file_extension'], **kwargs)
         # self.color_palette = [
         #     ROOT.kGray+3,
         #     ROOT.kPink+7,
@@ -564,11 +537,11 @@ class ComparisonPlotter(BasePlotter):
                 setattr(self, attr, value)
         # if self.systematics is None:
         #     self.systematics = 'Nominal'
-            
+
         if 'process_config_files' in kwargs:
             self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
             self.expand_process_configs()
-            
+
         self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
         self.modules = load_modules(kwargs['module_config_file'], self)
         self.modules_data_providers = [m for m in self.modules if m.type == 'DataProvider']
@@ -579,7 +552,6 @@ class ComparisonPlotter(BasePlotter):
         if not kwargs['json']:
             JSONHandle(kwargs['output_dir'], **kwargs).dump()
 
-            
     def analyse_plot_config(self):
         if self.plot_configs is None:
             return None
@@ -599,13 +571,11 @@ class ComparisonPlotter(BasePlotter):
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
 
-
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
                 _ = find_process_config(fh.process, self.process_configs)
 
-                
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
             self.color_palette = [getattr(ROOT, 'k' + color.capitalize()) for color in self.common_config.colors]
@@ -614,60 +584,76 @@ class ComparisonPlotter(BasePlotter):
         else:
             _logger.warning("Unsuppored type %s for colors in common_config" % type(self.common_config.colors[0]))
 
-            
     def make_comparison_plots(self):
         data = self.getter.get_data()
         for k, v in data.iteritems():
             self.make_comparison_plot(k, v)
         self.output_handle.write_and_close()
 
-        
     def make_comparison_plot(self, plot_config, data):
         for i in data:
             HT.merge_overflow_bins(i.plot_object)
             HT.merge_underflow_bins(i.plot_object)
-        reference_hists = filter(lambda x : x.is_ref, data)
-        compare_hists = filter(lambda x : not x.is_ref, data)
+        reference_hists = filter(lambda x: x.is_ref, data)
+        compare_hists = filter(lambda x: not x.is_ref, data)
 
-        offset = len(reference_hists) if (len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
-
+        offset = len(reference_hists) if (
+                    len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
         for i, ref in enumerate(reference_hists):
             setattr(ref, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
-                setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'marker_style', PO.marker_style_palette_filled[i-(int(i/len(PO.marker_style_palette_filled))*len(PO.marker_style_palette_filled))])
-                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'marker_color',
+                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(ref, 'marker_style', PO.marker_style_palette_filled[
+                    i - (int(i / len(PO.marker_style_palette_filled)) * len(PO.marker_style_palette_filled))])
+                setattr(ref, 'line_color',
+                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
-                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'line_style', PO.line_style_palette_homogen[i-(int(i/len(PO.line_style_palette_homogen))*len(PO.line_style_palette_homogen))])
+                setattr(ref, 'line_color',
+                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(ref, 'line_style', PO.line_style_palette_homogen[
+                    i - (int(i / len(PO.line_style_palette_homogen)) * len(PO.line_style_palette_homogen))])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
-                setattr(ref, 'fill_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'fill_style', PO.fill_style_palette_left[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                
+                setattr(ref, 'fill_color',
+                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(ref, 'fill_style',
+                        PO.fill_style_palette_left[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(ref, 'line_color',
+                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(ref, 'marker_color',
+                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+
         for i, comp in enumerate(compare_hists):
             setattr(comp, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
-                setattr(comp, 'marker_color', PO.color_palette[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(comp, 'marker_style', PO.marker_style_palette_empty[(i+offset)-(int((i+offset)/len(PO.marker_style_palette_empty))*len(PO.marker_style_palette_empty))])
-                setattr(comp, 'line_color', PO.color_palette[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'marker_color', PO.color_palette[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(comp, 'marker_style', PO.marker_style_palette_empty[(i + offset) - (
+                            int((i + offset) / len(PO.marker_style_palette_empty)) * len(
+                        PO.marker_style_palette_empty))])
+                setattr(comp, 'line_color', PO.color_palette[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
-                setattr(comp, 'line_color', PO.color_palette[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(comp, 'line_style', PO.line_style_palette_heterogen[(i+offset)-(int((i+offset)/len(PO.line_style_palette_heterogen))*len(PO.line_style_palette_heterogen))])
+                setattr(comp, 'line_color', PO.color_palette[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(comp, 'line_style', PO.line_style_palette_heterogen[(i + offset) - (
+                            int((i + offset) / len(PO.line_style_palette_heterogen)) * len(
+                        PO.line_style_palette_heterogen))])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
-                setattr(comp, 'fill_color', PO.color_palette[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(comp, 'fill_style', PO.fill_style_palette_right[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(comp, 'line_color', PO.color_palette[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(comp, 'marker_color', PO.color_palette[(i+offset)-(int((i+offset)/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(comp, 'fill_color', PO.color_palette[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(comp, 'fill_style', PO.fill_style_palette_right[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(comp, 'line_color', PO.color_palette[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                setattr(comp, 'marker_color', PO.color_palette[
+                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
 
-    
         # plot_config.color = self.color_palette
         # plot_config.styles = self.style_palette
 
         # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config, plotable_objects=reference_hists+compare_hists)
-
-        canvas = PT.plot_objects(reference_hists+compare_hists, plot_config)
+        canvas = PT.plot_objects(reference_hists + compare_hists, plot_config)
         canvas.SetName(plot_config.name.replace(' ', '_'))
 
         if self.process_configs:
@@ -675,21 +661,26 @@ class ComparisonPlotter(BasePlotter):
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     ref.label = '{:s}'.format(ref.label)
                 else:
-                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label, ref.label)
+                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label,
+                                                   ref.label)
             for comp in compare_hists:
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     comp.label = '{:s}'.format(comp.label)
                 else:
-                    comp.label = '{:s} {:s}'.format(find_process_config(comp.process, self.process_configs).label, comp.label)
-            
+                    comp.label = '{:s} {:s}'.format(find_process_config(comp.process, self.process_configs).label,
+                                                    comp.label)
+
         ROOT.SetOwnership(canvas, False)
 
         if plot_config.enable_legend:
             labels = {}
-            FM.add_legend_to_canvas(canvas, plot_config.ratio, labels=map(lambda x : x.label, reference_hists+compare_hists), plot_objects=map(lambda x : x.plot_object, reference_hists+compare_hists), **plot_config.legend_options)
+            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio,
+                                    labels=map(lambda x: x.label, reference_hists + compare_hists),
+                                    plot_objects=map(lambda x: x.plot_object, reference_hists + compare_hists),
+                                    **plot_config.legend_options)
         if plot_config.lumi:
             FM.decorate_canvas(canvas, plot_config)
-            
+
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
 
@@ -697,14 +688,14 @@ class ComparisonPlotter(BasePlotter):
             canvas.SetName(plot_config.name.replace(' ', '_'))
             self.output_handle.register_object(canvas)
         else:
-            if hasattr(plot_config, 'ratio_config'):
+            if plot_config.ratio_config is not None:
                 plot_config.ratio_config.draw = plot_config.draw
                 plot_config = plot_config.ratio_config
             if not plot_config.name.startswith('ratio'):
                 plot_config.name = 'ratio_' + plot_config.name
             canvas_ratio = None
             for ref in reference_hists:
-                for comp in map(lambda x : x.plot_object, filter(lambda y : y.ref_id==ref.ref_id, compare_hists)):
+                for comp in map(lambda x: x.plot_object, filter(lambda y: y.ref_id == ref.ref_id, compare_hists)):
                     if canvas_ratio:
                         ROOT.SetOwnership(canvas_ratio, False)
                         canvas_ratio.cd()
@@ -713,12 +704,16 @@ class ComparisonPlotter(BasePlotter):
                         hist_ratio.Draw('same')
                         ROOT.SetOwnership(canvas_ratio, False)
                     else:
-                        canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config).make_ratio_plot()
+                        canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp,
+                                                    plot_config=plot_config).make_ratio_plot()
                         ROOT.SetOwnership(canvas_ratio, False)
-
-            canvas_ratio.SetName(plot_config.name.replace(' ', '_') + '_ratio')
-
-            # self.output_handle.register_object(canvas)
-            # self.output_handle.register_object(canvas_ratio)
-            canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
-            self.output_handle.register_object(canvas_combined)
+            if canvas_ratio is not None:
+                canvas_ratio.SetName(plot_config.name.replace(' ', '_') + '_ratio')
+                # self.output_handle.register_object(canvas)
+                # self.output_handle.register_object(canvas_ratio)
+                canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                self.output_handle.register_object(canvas_combined)
+            else:
+                _logger.error('Ratio canvas was not created.')
+                print 'reference hists: ', reference_hists
+                print 'compare hists: ', compare_hists
