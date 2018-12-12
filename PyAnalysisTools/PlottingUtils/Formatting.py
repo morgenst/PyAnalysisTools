@@ -73,14 +73,15 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     kwargs.setdefault('decor_text_x', plot_config.decor_text_x)
     kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
     kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
+    kwargs.setdefault('lumi_text', plot_config.lumi_text)
 
     if plot_config.watermark is not None:
         add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'],
                                                         "y": kwargs['watermark_y']},
                         size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
-    if plot_config.get_lumi() is not None and plot_config.get_lumi() >= 0:
-        add_lumi_text(canvas, plot_config.total_lumi, {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']},
-                      size=kwargs['lumi_text_size'])
+    if plot_config.get_lumi() is not None and plot_config.get_lumi() >= 0 or kwargs['lumi_text'] is not None:
+        add_lumi_text(canvas, plot_config.get_lumi(), {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']},
+                      size=kwargs['lumi_text_size'], lumi_text=kwargs['lumi_text'])
 
     if plot_config.grid:
         canvas.SetGrid()
@@ -194,11 +195,12 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False, energy=13, precision=1):
+def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False, energy=13, precision=1,
+                  lumi_text=None):
     canvas.cd()
 
-    if isinstance(lumi, str):
-        text_lumi = lumi
+    if lumi_text:
+        text_lumi = lumi_text
         text_energy = ''
     else:
         text_lumi = '#scale[0.7]{{#int}}dt L = {:.{:d}f} fb^{{-1}}'.format(float(lumi), precision)
