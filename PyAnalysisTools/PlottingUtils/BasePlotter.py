@@ -1,3 +1,5 @@
+import re
+
 import pathos.multiprocessing as mp
 import traceback
 from functools import partial
@@ -24,6 +26,7 @@ class BasePlotter(object):
         kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
+        kwargs.setdefault("nfile_handles", 1)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
@@ -172,6 +175,15 @@ class BasePlotter(object):
             selection_cuts = ""
             if plot_config.weight is not None:
                 weight = plot_config.weight
+            if plot_config.process_weight is not None:
+                match = filter(lambda k: re.match(k.replace('re.', ''), file_handle.process),
+                               plot_config.process_weight.keys())
+                if len(match) > 0:
+                    process_weight = plot_config.process_weight[match[0]]
+                    if weight is not None:
+                        weight += '* ({:s})'.format(process_weight)
+                    else:
+                        weight = process_weight
             if plot_config.cuts:
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
@@ -207,7 +219,7 @@ class BasePlotter(object):
                 return None
             except Exception as e:
                 _logger.error("Catched exception for process "
-                              "{:s} and plot_config {:s}".format(file_handle, self.process, plot_config.name))
+                              "{:s} and plot_config {:s}".format(file_handle, file_handle.process, plot_config.name))
                 print traceback.print_exc()
                 return None
             #hist.SetName(hist.GetName() + "_" + file_handle.process)
@@ -226,10 +238,9 @@ class BasePlotter(object):
             return None
         return hist
 
-    #TODO: very likely a type -> should be file_handles
-    def read_histograms(self, file_handle, plot_configs, systematic="Nominal"):
-        cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
-        comb = product(file_handle, plot_configs)
+    def read_histograms(self, file_handles, plot_configs, systematic="Nominal"):
+        cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
+        comb = product(file_handles, plot_configs)
         if cpus > 1:
             pool = mp.ProcessPool(nodes=cpus)
             histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
