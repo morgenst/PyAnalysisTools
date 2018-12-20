@@ -1,4 +1,5 @@
 import re
+from collections import OrderedDict
 
 import pathos.multiprocessing as mp
 import traceback
@@ -8,6 +9,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
 from PyAnalysisTools.PlottingUtils import Formatting as fm
+from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
     get_histogram_definition, find_process_config, merge_plot_configs
@@ -41,12 +43,11 @@ class BasePlotter(object):
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
-                                        switch_off_process_name_analysis=True,
+                                        switch_off_process_name_analysis=False,
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
         self.filter_missing_friends()
-
 
     def parse_process_config(self):
         """
@@ -104,6 +105,34 @@ class BasePlotter(object):
         :rtype: None
         """
         fm.load_atlas_style()
+
+    def apply_lumi_weights_new(self, histograms):
+        provided_wrong_info = False
+        for plot_config, hist_set in histograms.iteritems():
+            for process, hist in hist_set.iteritems():
+                if hist is None:
+                    _logger.error("Histogram for process {:s} is None".format(process))
+                    continue
+                if "data" in process.lower():
+                    continue
+                lumi = self.lumi
+                if isinstance(self.lumi, OrderedDict):
+                    if re.search('mc16[acde]$', process) is None:
+                        if provided_wrong_info is False:
+                            _logger.error('Could not find MC campaign informaiton, but lumi was provided per MC '
+                                          'campaing. Not clear what to do. It will be assumed that you meant to scale '
+                                          'to total lumi. Please update and acknowledge once.')
+                            raw_input('Hit enter to continue or Ctrl+c to quit...')
+                            provided_wrong_info = True
+                            plot_config.used_mc_campaigns = self.lumi.keys()
+                        lumi = sum(self.lumi.values())
+                    else:
+                        lumi = self.lumi[process.split('.')[-1]]
+                        plot_config.used_mc_campaigns.append(process.split('.')[-1])
+                print "FOO ", process.split(".")[0]
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
+                                                                            self.event_yields[process])
+                ht.scale(hist, cross_section_weight)
 
     def read_cutflows(self):
         """

@@ -3,7 +3,7 @@ import re
 import ROOT
 import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig, expand_process_configs_new
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config_new, ProcessConfig, expand_process_configs_new
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -96,11 +96,11 @@ class Plotter(BasePlotter):
         if process_configs is None:
             return file_handles
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                  filter(lambda fh: find_process_config_new(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
+        return filter(lambda fh: find_process_config_new(fh.process, process_configs) is not None,
                       file_handles)
 
     def initialise(self):
@@ -151,6 +151,8 @@ class Plotter(BasePlotter):
         return canvas
 
     def apply_lumi_weights(self, histograms):
+        print 'WRONG'
+        exit()
         for hist_set in histograms.values():
             for process, hist in hist_set.iteritems():
                 if hist is None:
@@ -159,33 +161,6 @@ class Plotter(BasePlotter):
                 if "data" in process.lower():
                     continue
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], self.lumi,
-                                                                            self.event_yields[process])
-                HT.scale(hist, cross_section_weight)
-
-    def apply_lumi_weights_new(self, histograms):
-        provided_wrong_info = False
-        for plot_config, hist_set in histograms.iteritems():
-            for process, hist in hist_set.iteritems():
-                if hist is None:
-                    _logger.error("Histogram for process {:s} is None".format(process))
-                    continue
-                if "data" in process.lower():
-                    continue
-                lumi = self.lumi
-                if isinstance(self.lumi, OrderedDict):
-                    if re.search('mc16[acde]$', process) is None:
-                        if provided_wrong_info is False:
-                            _logger.error('Could not find MC campaign informaiton, but lumi was provided per MC '
-                                          'campaing. Not clear what to do. It will be assumed that you meant to scale '
-                                          'to total lumi. Please update and acknowledge once.')
-                            raw_input('Hit enter to continue or Ctrl+c to quit...')
-                            provided_wrong_info = True
-                            plot_config.used_mc_campaigns = self.lumi.keys()
-                        lumi = sum(self.lumi.values())
-                    else:
-                        lumi = self.lumi[process.split('.')[-1]]
-                        plot_config.used_mc_campaigns.append(process.split('.')[-1])
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
                                                                             self.event_yields[process])
                 HT.scale(hist, cross_section_weight)
 
@@ -201,7 +176,7 @@ class Plotter(BasePlotter):
         event_yields = {}
         for file_handle in self.file_handles:
             cutflow = file_handle.get_object_by_name("Nominal/cutflow_BaseSelection")
-            process_config = find_process_config(file_handle.process, self.process_configs)
+            process_config = find_process_config_new(file_handle.process, self.process_configs)
             if process_config is None:
                 continue
             if process_config.is_data:
