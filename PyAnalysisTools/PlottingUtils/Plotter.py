@@ -107,9 +107,12 @@ class Plotter(BasePlotter):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
 
     def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name):
-            return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
-        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
+        def is_empty(file_handle, tree_name, syst_tree_name):
+            tn = tree_name
+            if syst_tree_name is not None and file_handle.is_mc:
+                tn = syst_tree_name
+            return file_handle.get_object_by_name(tn, "Nominal").GetEntries() > 0
+        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -349,13 +352,18 @@ class Plotter(BasePlotter):
                 plot_config_syst_unc_ratio = copy.copy(ratio_plot_config)
                 plot_config_syst_unc_ratio.name = ratio_plot_config.name.replace("ratio", "syst_unc")
                 plot_config_syst_unc_ratio.color = syst_color
-                plot_config_syst_unc_ratio.style = 1001
+                plot_config_syst_unc_ratio.style = 3244
                 plot_config_syst_unc_ratio.draw = "E2"
                 plot_config_syst_unc_ratio.logy = False
-                syst_sm_total_up_categotised, syst_sm_total_down_categotised, colors = self.syst_analyser.get_relative_unc_on_SM_total(
-                    plot_config, data)
-                ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_up_categotised)
-                ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio, syst_sm_total_down_categotised)
+                syst_sm_total_up_categotised, syst_sm_total_down_categotised, \
+                colors = self.syst_analyser.get_relative_unc_on_SM_total(plot_config, data)
+                ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio,
+                                                                  syst_sm_total_up_categotised)
+                ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio,
+                                                                    syst_sm_total_down_categotised)
+                map(lambda h: h.SetMarkerStyle(1), ratio_syst_up)
+                map(lambda h: h.SetMarkerStyle(1), ratio_syst_down)
+                colors.append(ROOT.kBlack)
                 plot_config_syst_unc_ratio.color = colors
                 canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio,
                                                                        ratio_syst_up + ratio_syst_down + [stat_unc_ratio],

@@ -29,6 +29,7 @@ class BasePlotter(object):
         kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
         kwargs.setdefault("nfile_handles", 1)
+        kwargs.setdefault('syst_tree_name', None)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
@@ -129,7 +130,6 @@ class BasePlotter(object):
                     else:
                         lumi = self.lumi[process.split('.')[-1]]
                         plot_config.used_mc_campaigns.append(process.split('.')[-1])
-                print "FOO ", process.split(".")[0]
                 cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
                                                                             self.event_yields[process])
                 ht.scale(hist, cross_section_weight)
@@ -172,7 +172,10 @@ class BasePlotter(object):
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
         try:
-            hist = file_handle.get_object_by_name("{:s}/{:s}".format(self.tree_name, plot_config.dist), systematic)
+            tn = self.tree_name
+            if self.syst_tree_name is not None and file_handle.is_mc:
+                tn = self.syst_tree_name
+            hist = file_handle.get_object_by_name("{:s}/{:s}".format(tn, plot_config.dist), systematic)
         except ValueError:
             #This happens if cut is not passed
             return [None, None, None]
@@ -242,7 +245,10 @@ class BasePlotter(object):
                 else:
                     hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
                 selection_cuts = selection_cuts.rstrip().rstrip("&&")
-                file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
+                tn = self.tree_name
+                if self.syst_tree_name is not None and file_handle.is_mc:
+                    tn = self.syst_tree_name
+                file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
             except RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))

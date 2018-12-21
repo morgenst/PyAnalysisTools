@@ -121,7 +121,7 @@ def plot_hist(hist, plot_config, **kwargs):
     hist = format_obj(hist, plot_config)
     hist.Draw(draw_option)
     hist.SetMarkerSize(0.7)
-    fm.apply_style(hist, plot_config, process_config, kwargs["index"])
+    fm.apply_style(hist, plot_config, process_config, index=kwargs["index"])
     if plot_config.ymin:
         fm.set_minimum_y(hist, plot_config.ymin)
     if plot_config.ymax:

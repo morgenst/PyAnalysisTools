@@ -1,9 +1,12 @@
+import imp
+
 import pathos.multiprocessing as mp
 from math import sqrt
 from copy import deepcopy
 from functools import partial
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 import ROOT
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 
@@ -25,9 +28,16 @@ class SystematicsCategory(object):
 
 class FixedSystematics(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('variation', None)
         self.name = kwargs["name"]
-        self.weights = ["weight_{:s}__1down".format(kwargs["weight"]),
-                        "weight_{:s}__1up".format(kwargs["weight"])]
+        if kwargs['variation'] is not None:
+            if kwargs['variation'] == 1:
+                self.weights = ["weight_{:s}__1up".format(kwargs["weight"])]
+            else:
+                self.weights = ["weight_{:s}__1down".format(kwargs["weight"])]
+        else:
+            self.weights = ["weight_{:s}__1down".format(kwargs["weight"]),
+                            "weight_{:s}__1up".format(kwargs["weight"])]
 
 
 class SystematicsAnalyser(BasePlotter):
@@ -40,24 +50,22 @@ class SystematicsAnalyser(BasePlotter):
         self.systematic_hists = {}
         self.systematic_variations = {}
         self.total_systematics = {}
+        _, self.shape_syst_config, self.scale_syst_config = \
+                imp.load_source('config_systematics',
+                                kwargs['systematics_config']).config_systematics('1:1')
         self.xs_handle = kwargs["xs_handle"]
-        self.syst_categories = [SystematicsCategory(name="Muon", systematics=["MUON_MS"]),
-                                SystematicsCategory(name="Electron", systematics=["EG_RESOLUTION_ALL"], color=ROOT.kYellow),
-                                SystematicsCategory(name="Total", systematics=[], color=ROOT.kRed)]
-        self.fixed_systematics = [FixedSystematics(name="", weight="MUON_EFF_ISO_STAT")]
-
-    def apply_lumi_weights(self, histograms):
-        for hist_set in histograms.values():
-            for process, hist in hist_set.iteritems():
-                if hist is None:
-                    #_logger.error("Histogram for process {:s} is None".format(process))
-                    continue
-                if "data" in process.lower():
-                    continue
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process, self.lumi,
-                                                                            self.event_yields[process])
-                HT.scale(hist, cross_section_weight)
-
+        # SystematicsCategory(name="Muon", systematics=["MUON_MS"]),
+        # SystematicsCategory(name="Electron", systematics=["EG_RESOLUTION_ALL"], color=ROOT.kYellow),
+        shape_syst = ['{:s}__1{:s}'.format(sn, 'up' if svar == 1 else 'down') for sn, svar in self.shape_syst_config]
+        scale_syst = map(lambda s: s[0], self.scale_syst_config)
+        single_direction_sys = filter(lambda sn: scale_syst.count(sn) != 2, set(scale_syst))
+        self.syst_categories = [SystematicsCategory(name="Total", systematics=shape_syst, color=ROOT.kRed)]
+        self.fixed_systematics = [FixedSystematics(name=sn, weight=sn)
+                                  for sn, _ in self.scale_syst_config if sn not in single_direction_sys]
+        for syst_name in single_direction_sys:
+            self.fixed_systematics.append(FixedSystematics(name=syst_name, weight=syst_name,
+                                                           variation=filter(lambda s: s[0] == syst_name,
+                                                                            self.scale_syst_config)[0][1]))
     def parse_systematics(self, file_handle):
         if self.systematics is not None:
             return
@@ -69,7 +77,7 @@ class SystematicsAnalyser(BasePlotter):
             self.histograms = {}
             fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
             self.categorise_histograms(fetched_histograms)
-            self.apply_lumi_weights(self.histograms)
+            self.apply_lumi_weights_new(self.histograms)
             if self.process_configs is not None:
                 for hist_set in self.histograms.values():
                     for process_name in hist_set.keys():
@@ -79,10 +87,10 @@ class SystematicsAnalyser(BasePlotter):
             map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
             self.systematic_hists[systematic] = deepcopy(self.histograms)
 
-        self.file_handles = file_handles
-        self.parse_systematics(self.file_handles[0])
+        file_handles = filter(lambda fh: fh.is_mc, self.file_handles)
+        self.parse_systematics(file_handles[0])
         for systematic in self.systematics:
-            fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs,
+            fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=self.plot_configs,
                                                       systematic=systematic)
             process_histograms(fetched_histograms)
         for fixed_systematic in self.fixed_systematics:
@@ -90,7 +98,7 @@ class SystematicsAnalyser(BasePlotter):
                 plot_configs = deepcopy(self.plot_configs)
                 for pc in plot_configs:
                     pc.weight = weight
-                fetched_histograms = self.read_histograms(file_handle=self.file_handles, plot_configs=plot_configs,
+                fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=plot_configs,
                                                           systematic="Nominal")
                 process_histograms(fetched_histograms)
 
@@ -145,6 +153,8 @@ class SystematicsAnalyser(BasePlotter):
     def get_variation_for_dist(self, plot_config, nominal_hists, systematic):
         variations = {}
         for process, hists in nominal_hists.iteritems():
+            if process.lower() == 'data':
+                continue
             variations[process] = self.get_variation_for_process(process, hists, plot_config, systematic)
         return variations
 
@@ -190,6 +200,7 @@ class SystematicsAnalyser(BasePlotter):
                 sm_total_hists_syst.append(sm_total_hist_syst)
             return sm_total_hists_syst, colors
 
-        sm_total_up_categorised, colors = get_sm_total(nominal, "up")
-        sm_total_down_categorised, colors = get_sm_total(nominal, "down")
+        sm_total_up_categorised, color_up = get_sm_total(nominal, "up")
+        sm_total_down_categorised, colors_down = get_sm_total(nominal, "down")
+        colors = color_up + colors_down
         return sm_total_up_categorised, sm_total_down_categorised, colors
