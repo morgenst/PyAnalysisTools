@@ -334,12 +334,14 @@ class TruthAnalyer(object):
 
 class LQTruthAnalyser(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('max_events', None)
         self.input_files = kwargs["input_files"]
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.histograms = dict()
         self.plot_configs = dict()
         self.references = dict()
         self.tree_name = "CollectionTree"
+        self.max_events = kwargs['max_events']
         process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
         self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
         self.current_process_config = None
@@ -682,10 +684,12 @@ class LQTruthAnalyser(object):
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
-        for entry in xrange(tree.GetEntries()):
-        #for entry in xrange(1):
+        max_entries = tree.GetEntries()
+        if self.max_events is not None:
+            max_entries = self.max_events
+
+        for entry in xrange(max_entries):
             tree.GetEntry(entry)
-            #tree.GetEntry(2)
             process_id = tree.EventInfo.runNumber()
             if process_id not in self.histograms:
                 self.book_histograms(process_id)
