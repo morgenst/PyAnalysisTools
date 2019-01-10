@@ -165,6 +165,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault("format", "plain")
         kwargs.setdefault('enable_eff', False)
         kwargs.setdefault('percent_eff', False)
+        kwargs.setdefault('disable_signal_plots', False)
         super(ExtendedCutFlowAnalyser, self).__init__(**kwargs)
         self.event_yields = {}
         self.selection = NewRegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
@@ -289,11 +290,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     ordering = [p for p in ordering if p in processes]
                     ordering += [p for p in processes if p not in ordering]
                     v = v[ordering]
-                fct = 'to_latex'
+                fct = 'to_csv'
                 if self.format == 'plain':
                     fct = 'to_string'
-
-                self.cutflow_tables[k] = getattr(v, fct)()
+                self.cutflow_tables[k] = getattr(v, fct)(sep=',')
 
     def calculate_sm_total(self):
         def add(yields):
@@ -376,6 +376,11 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 self.cutflows[systematics][region] = merge(yields)
 
     def plot_signal_yields(self):
+        """
+        Make plots of signal yields after each cut summarised per signal sample
+        :return: nothing
+        :rtype: None
+        """
         replace_items = [('/', ''), (' ', ''), ('>', '_gt_'), ('<', '_lt_'), ('$', ''), ('.', '')]
         signal_processes = filter(lambda prc: prc.type.lower() == "signal", self.process_configs.values())
         signal_generated_events = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
@@ -431,7 +436,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
     def execute(self):
         self.read_event_yields()
-        self.plot_signal_yields()
+        if not self.disable_signal_plots:
+            self.plot_signal_yields()
 
         if not self.raw:
             for systematic in self.cutflows.keys():
