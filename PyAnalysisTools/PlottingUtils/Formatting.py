@@ -74,6 +74,7 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
     kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
     kwargs.setdefault('lumi_text', plot_config.lumi_text)
+    kwargs.setdefault('lumi_precision', plot_config.lumi_precision)
 
     if plot_config.watermark is not None:
         add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'],
@@ -81,7 +82,7 @@ def decorate_canvas(canvas, plot_config, **kwargs):
                         size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
     if plot_config.get_lumi() is not None and plot_config.get_lumi() >= 0 or kwargs['lumi_text'] is not None:
         add_lumi_text(canvas, plot_config.get_lumi(), {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']},
-                      size=kwargs['lumi_text_size'], lumi_text=kwargs['lumi_text'])
+                      size=kwargs['lumi_text_size'], lumi_text=kwargs['lumi_text'], precision=kwargs['lumi_precision'])
 
     if plot_config.grid:
         canvas.SetGrid()
