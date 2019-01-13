@@ -8,7 +8,6 @@ from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from collections import OrderedDict
-import root_numpy
 from PyAnalysisTools.base.ShellUtils import find_file
 
 
@@ -339,6 +338,9 @@ def merge_plot_configs(plot_configs):
             merged_common_config = common_config
             continue
         merged_plot_config += plot_config
+        if merged_common_config is None:
+            merged_common_config = common_config
+            continue
         merged_common_config.merge_configs(common_config)
     return merged_plot_config, merged_common_config
 
