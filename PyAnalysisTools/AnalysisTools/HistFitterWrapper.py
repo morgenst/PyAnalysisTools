@@ -537,6 +537,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         for sample in bkg_samples + [sigSample, dataSample]:
             samples[sample.name] = sample
         ana = self.configMgr.addFitConfig("SPlusB")
+        ana.statErrorType = "Poisson"
         chan = ana.addChannel(var_name, ["SR"], 1, 0.5, 1.5)
         for sample in samples.values():
             chan.addSample(sample)
