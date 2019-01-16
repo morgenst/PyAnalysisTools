@@ -115,7 +115,7 @@ def set_axis_title_offset(obj, offset, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
-        getattr(obj, 'Get{:s}axis()'.format(axis.capitalize()))().SetTitleOffset(offset)
+        getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
@@ -125,7 +125,7 @@ def set_axis_title_size(obj, size, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
-        getattr(obj, 'Get{:s}axis()'.format(axis.capitalize()))().SetTitleSize(size)
+        getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitleSize(size)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
@@ -155,14 +155,41 @@ def set_title_z_offset(obj, offset):
 
 
 def set_title_x_size(obj, size):
+    """
+    Set x-axis title size for plotable object
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param size: font size
+    :type size: int
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_size(obj, size, 'x')
 
 
 def set_title_y_size(obj, size):
+    """
+    Set y-axis title size for plotable object
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param size: font size
+    :type size: int
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_size(obj, size, 'y')
 
 
 def set_title_z_size(obj, size):
+    """
+    Set z-axis title size for plotable object
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param size: font size
+    :type size: int
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_size(obj, size, 'z')
 
 
