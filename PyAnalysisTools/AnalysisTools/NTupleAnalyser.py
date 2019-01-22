@@ -1,4 +1,5 @@
 import os
+import re
 from subprocess import check_output, CalledProcessError
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
@@ -34,6 +35,10 @@ class NTupleAnalyser(object):
         self.datasets = dict(filter(lambda kv: "resubmit" not in kv[0], self.datasets.iteritems()))
         self.input_path = kwargs["input_path"]
         self.resubmit = kwargs["resubmit"]
+        self.filter = kwargs['filter']
+        if self.filter is not None:
+            for pattern in self.filter:
+                self.datasets = dict(filter(lambda kv: not re.match(pattern, kv[0]), self.datasets.iteritems()))
 
     @staticmethod
     def check_valid_proxy():
@@ -141,7 +146,7 @@ class NTupleAnalyser(object):
         missing_datasets = filter(lambda ds: ds[2] is None, self.datasets)
         self.datasets = filter(lambda ds: ds not in missing_datasets, self.datasets)
         mp.ThreadPool(10).map(self.get_events, self.datasets)
-        incomplete_datasets = filter(lambda ds: not ds[-2] ==ds[-1], self.datasets)
+        incomplete_datasets = filter(lambda ds: not ds[-2] == ds[-1], self.datasets)
         self.print_summary(missing_datasets, incomplete_datasets)
         if self.resubmit:
             self.prepare_resubmit(incomplete_datasets, missing_datasets)
