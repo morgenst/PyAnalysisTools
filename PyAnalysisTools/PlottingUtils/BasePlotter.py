@@ -30,9 +30,16 @@ class BasePlotter(object):
         kwargs.setdefault("plot_config_files", [])
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault('syst_tree_name', None)
+        kwargs.setdefault('cluster_config', None)
+
+        self.event_yields = {}
+        set_batch_mode(kwargs["batch"])
+
+        if kwargs['cluster_config'] is not None:
+            self.cluster_setup(kwargs['cluster_config'])
+            return
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
-        set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
@@ -41,7 +48,6 @@ class BasePlotter(object):
             self.split_mc_campaigns = True
             self.add_mc_campaigns()
 
-        self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
                                         switch_off_process_name_analysis=False,
@@ -49,6 +55,10 @@ class BasePlotter(object):
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
         self.filter_missing_friends()
+
+    def cluster_setup(self, config):
+        print config
+        self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
 
     def parse_process_config(self):
         """
@@ -108,6 +118,15 @@ class BasePlotter(object):
         fm.load_atlas_style()
 
     def apply_lumi_weights_new(self, histograms):
+        """
+        Weight histograms according to process cross section and luminosity. If MC samples are split in several
+        production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
+        and luminosity as value each campaign will be scaled to this luminosity and processes will be added up later
+        :param histograms: all plottable objects
+        :type histograms: dict
+        :return: nothing
+        :rtype: None
+        """
         provided_wrong_info = False
         for plot_config, hist_set in histograms.iteritems():
             for process, hist in hist_set.iteritems():
@@ -278,13 +297,14 @@ class BasePlotter(object):
     def read_histograms(self, file_handles, plot_configs, systematic="Nominal"):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
-        if cpus > 1:
+        if cpus > 0:
             pool = mp.ProcessPool(nodes=cpus)
             histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
         else:
             histograms = []
         for i in comb:
-            histograms.append(self.fetch_histograms(i, systematic=systematic))
+            histograms.append(self.fetch_histograms_new(i, systematic=systematic))
+            #histograms.append(self.fetch_histograms(i, systematic=systematic))
         return histograms
 
     def read_histograms_plain(self, file_handle, plot_configs, systematic="Nominal"):

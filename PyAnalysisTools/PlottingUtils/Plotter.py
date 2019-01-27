@@ -1,7 +1,11 @@
+import glob
 import re
+from itertools import product
 
 import ROOT
 import copy
+import os
+from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config_new, ProcessConfig, expand_process_configs_new
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -22,8 +26,22 @@ from PyAnalysisTools.base.Modules import load_modules
 from collections import OrderedDict
 
 
+class PlotArgs(object):
+    def __init__(self, **kwargs):
+        for attr, val in kwargs.iteritems():
+            setattr(self, attr, val)
+
+
 class Plotter(BasePlotter):
     def __init__(self, **kwargs):
+        kwargs.setdefault('cluster_config', None)
+        kwargs.setdefault("ncpu", 1)
+        if kwargs['cluster_config'] is not None:
+            self.cluster_init(kwargs['cluster_config'])
+            self.cluster_mode = True
+            self.ncpu = kwargs['ncpu']
+            return
+        self.cluster_mode = False
         if "input_files" not in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("No input files")
@@ -39,7 +57,6 @@ class Plotter(BasePlotter):
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("ncpu", 1)
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
@@ -53,11 +70,9 @@ class Plotter(BasePlotter):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
-        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, extension=kwargs['file_extension'], **kwargs)
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
+                                              extension=kwargs['file_extension'], **kwargs)
         self.syst_analyser = None
-        if kwargs["enable_systematics"]:
-            self.syst_analyser = SystematicsAnalyser(**self.__dict__)
-
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
                                                           self.process_configs,
@@ -71,6 +86,33 @@ class Plotter(BasePlotter):
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
         #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
+        self.expand_plot_configs()
+        if kwargs["enable_systematics"]:
+            self.syst_analyser = SystematicsAnalyser(**self.__dict__)
+
+    def expand_plot_configs(self):
+        for mod in self.modules_pc_modifiers:
+            self.plot_configs = mod.execute(self.plot_configs)
+
+    def cluster_init(self, config):
+        super(Plotter, self).__init__(cluster_config=config)
+        for attr, val in config.extra_args.iteritems():
+            setattr(self, attr, val)
+        self.histograms = {}
+        self.plot_configs = config.plot_config
+        self.modules_pc_modifiers = []
+        self.modules_data_providers = []
+        self.modules_hist_fetching = []
+        self.read_hist = False
+        self.ncpu = 1
+        self.nfile_handles = 1
+        self.syst_analyser.file_handles = self.file_handles
+        self.syst_analyser.event_yields = self.event_yields
+        self.syst_analyser.dump_hists = True
+        self.syst_analyser.plot_configs = self.plot_configs
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
+                                              extension=None, output_dir=config.output_dir,
+                                              output_file='hist-{:s}'.format(config.file_name.split('-')[1]))
 
     def add_mc_campaigns(self):
         if self.process_configs is None:
@@ -152,20 +194,6 @@ class Plotter(BasePlotter):
         else:
             canvas = pt.plot_hist(ratio, plot_config)
         return canvas
-
-    def apply_lumi_weights(self, histograms):
-        print 'WRONG'
-        exit()
-        for hist_set in histograms.values():
-            for process, hist in hist_set.iteritems():
-                if hist is None:
-                    _logger.error("Histogram for process {:s} is None".format(process))
-                    continue
-                if "data" in process.lower():
-                    continue
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], self.lumi,
-                                                                            self.event_yields[process])
-                HT.scale(hist, cross_section_weight)
 
     def make_multidimensional_plot(self, plot_config, data):
         for process, histogram in data.iteritems():
@@ -275,11 +303,12 @@ class Plotter(BasePlotter):
         else:
             canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
-        if plot_config.legend_options is not None:
-            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
-                                    **plot_config.legend_options)
-        else:
-            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
+        if not plot_config.disable_legend:
+            if plot_config.legend_options is not None:
+                FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
+                                        **plot_config.legend_options)
+            else:
+                FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
         if hasattr(plot_config, "calcsig"):
             # todo: "Background" should be an actual type
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
@@ -325,6 +354,8 @@ class Plotter(BasePlotter):
                 ratio_plot_config = plot_config.ratio_config
                 if plot_config.logx:
                     ratio_plot_config.logx = True
+                    ratio_plot_config.xmin = plot_config.xmin
+                    ratio_plot_config.xmax = plot_config.xmax
             else:
                 ratio_plot_config = copy.copy(plot_config)
                 ratio_plot_config.name = "ratio_" + plot_config.name
@@ -371,43 +402,63 @@ class Plotter(BasePlotter):
                                                                         plot_config_syst_unc_ratio,
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
-
+                self.syst_analyser.make_overview_plots(plot_config)
 
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
-            #canvas_ratio = ratio_plotter.overlay_out_of_range_arrow(canvas_ratio)
-            #canvas_ratio.SaveAs("foo_"+canvas_ratio.GetName()+".pdf")
             canvas_combined = pt.add_ratio_to_canvas(canvas, canvas_ratio)
             self.output_handle.register_object(canvas_combined)
 
-    def make_plots(self):
-        self.read_cutflows()
-        for mod in self.modules_pc_modifiers:
-            self.plot_configs = mod.execute(self.plot_configs)
+    def build_fetched_histograms(self):
+        l = []
+        for arg in product(self.file_handles, self.plot_configs):
+            l.append(self.get_fetched_hist(arg))
+
+        #"[(<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x12545f2d0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_data17.periodK") at 0x7f8ec2568400>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979fd0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_data17.periodK") at 0x7f8ec2567850>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485650>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_data17.periodK") at 0x7f8ec2ab4da0>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979d90>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_data17.periodK") at 0x7f8ec2567080>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485690>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec216cd30>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485910>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178970>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979c10>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ebe6f5580>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124d7be90>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178e60>)]"
+        return l
+
+    def get_fetched_hist(self, args):
+        fh = args[0]
+        pc = args[1]
+        c = fh.get_object_by_name(pc.name)
+        return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
+
+    def make_plots(self, dumped_hist_path=None):
+        if dumped_hist_path is None:
+            self.read_cutflows()
+            # for mod in self.modules_pc_modifiers:
+            #     self.plot_configs = mod.execute(self.plot_configs)
             if self.syst_analyser is not None:
                 self.syst_analyser.plot_configs = self.plot_configs
-        if not self.read_hist:
-            if len(self.modules_hist_fetching) == 0:
-                fetched_histograms = self.read_histograms(file_handles=self.file_handles, plot_configs=self.plot_configs)
+            if not self.read_hist:
+                if len(self.modules_hist_fetching) == 0:
+                    fetched_histograms = self.read_histograms(file_handles=self.file_handles, plot_configs=self.plot_configs)
+                else:
+                    fetched_histograms = self.modules_hist_fetching[0].fetch()
             else:
-                fetched_histograms = self.modules_hist_fetching[0].fetch()
+                fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
+                                                                plot_configs=self.plot_configs)
+            fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
         else:
-            fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
-                                                            plot_configs=self.plot_configs)
-        fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+            self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
+                                            split_mc=self.split_mc_campaigns) for fn in glob.glob(os.path.join(dumped_hist_path, '*.root'))]
+            self.syst_analyser.file_handles = self.file_handles
+            fetched_histograms = self.build_fetched_histograms()
         self.categorise_histograms(fetched_histograms)
-        if not self.lumi < 0:
-            self.apply_lumi_weights_new(self.histograms)
-
-        if hasattr(self.plot_configs, "normalise_after_cut"):
-            self.cut_based_normalise(self.plot_configs.normalise_after_cut)
+        if not self.cluster_mode:
+            if not self.lumi < 0:
+                self.apply_lumi_weights_new(self.histograms)
+            if hasattr(self.plot_configs, "normalise_after_cut"):
+                self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
         if self.process_configs is not None:
             self.merge_histograms()
         if self.syst_analyser is not None:
-            self.syst_analyser.retrieve_sys_hists(self.file_handles)
+            self.syst_analyser.retrieve_sys_hists(dumped_hist_path)
             self.syst_analyser.calculate_variations(self.histograms)
             self.syst_analyser.calculate_total_systematics()
+            #For some reason need to transfer histograms
+            for tdir, obj in self.syst_analyser.output_handle.objects.iteritems():
+                self.output_handle.register_object(obj, tdir=tdir[0])
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()
-
