@@ -142,6 +142,8 @@ class PlotConfig(object):
         :rtype: None
         """
         previous_choice = None
+        if other is None:
+            return
         for attr, val in other.__dict__.iteritems():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
@@ -436,8 +438,6 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_attr = plot_config.style
     if hasattr(process_config, "color"):
         color = transform_color(process_config.color)
-    if plot_config.color is not None:
-        color = transform_color(plot_config.color, index)
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
             style_setter = process_config.format.capitalize()
@@ -454,6 +454,11 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
         style_setter = plot_config.style_setter
+    if plot_config.color is not None:
+        if isinstance(plot_config.color, list) and index > len(plot_config.color):
+            index = index % len(plot_config.color)
+            style_attr = 10
+        color = transform_color(plot_config.color, index)
     # else:
     #     style_attr = None
     if not isinstance(style_setter, list):
@@ -485,7 +490,7 @@ def get_histogram_definition(plot_config):
             binwidth = (logxmax - logxmin) / plot_config.bins
             xbins = []
             for i in range(0, plot_config.bins+1):
-                xbins.append(plot_config.xmin + pow(10, logxmin + i * binwidth))
+                xbins.append(pow(10, logxmin + i * binwidth))
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, array('d', xbins))
     elif dimension == 1:
         if isinstance(plot_config.xbins, list):
