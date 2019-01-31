@@ -103,6 +103,22 @@ def plot_objects(objects, plot_config, process_configs=None):
 
 
 def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=None):
+    """
+    Add an object to a canvas
+    :param canvas: canvas to which the object should be added
+    :type canvas: ROOT.TCanvas
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param plot_config: plot configuration defining outline
+    :type plot_config: PlotConfig
+    :param process_config: specific process configuration (optional)
+    :type process_config: ProcessConfig
+    :param index: index of plot object in list of all plot objects to set specific styles like colors attached to
+    plot_config (optional)
+    :type index: int
+    :return: nothing
+    :rtype: None
+    """
     if isinstance(obj, ROOT.TH1):
         add_histogram_to_canvas(canvas, obj, plot_config, process_config, index)
     if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
@@ -257,17 +273,6 @@ def format_hist(hist, plot_config):
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
-    # if hasattr(plot_config, "logy") and plot_config.logy:
-    #     print hist.GetMaximum()
-    #     hist.SetMaximum(hist.GetMaximum() * 100.)
-    #     print hist.GetMaximum()
-    #     if hasattr(plot_config, "ymin"):
-    #         hist.SetMinimum(max(0.1, plot_config.ymin))
-    #     else:
-    #         hist.SetMinimum(0.9)
-    #     if hist.GetMinimum() == 0.:
-    #         hist.SetMinimum(0.9)
-        #canvas.SetLogy()
     ROOT.SetOwnership(hist, False)
     return hist
 
@@ -390,16 +395,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 fm.set_minimum(hist, plot_config.xmin, "x")
             elif plot_config.xmin and plot_config.xmax:
                 fm.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
-            # if plot_config.logy:
-            #     hist.SetMaximum(hist.GetMaximum() * 10.)
-            #     if hasattr(plot_config, "ymin"):
-            #         hist.SetMinimum(max(0.1, plot_config.ymin))
-            #         print "set minimum: ", max(0.1, plot_config.ymin)
-            #         exit()
-            #     else:
-            #         hist.SetMinimum(0.0001)
-            #     canvas.SetLogy()
-            #TODO: ADDED
             if plot_config.logy:
                 hist.SetMaximum(hist.GetMaximum() * 10.)
                 if hasattr(plot_config, "ymin"):
@@ -407,7 +402,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 else:
                     hist.SetMinimum(0.0001)
                 canvas.SetLogy()
-            #DONE
             if plot_config.logx:
                 canvas.SetLogx()
             format_hist(hist, plot_config)
@@ -614,6 +608,7 @@ def plot_stack(hists, plot_config, **kwargs):
     #     stack.SetMinimum(0.1)
     #     canvas.SetLogy()
     if plot_config.logx:
+        fm.set_range_x(stack, plot_config.xmin, plot_config.xmax)
         canvas.SetLogx()
 
     return canvas
