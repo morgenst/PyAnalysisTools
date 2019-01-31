@@ -24,8 +24,12 @@ except ImportError:
 class LimitArgs(object):
     def __init__(self, output_dir, fit_mode, **kwargs):
         kwargs.setdefault("ctrl_syst", None)
+        kwargs.setdefault("skip_ws_build", False)
+        kwargs.setdefault("base_output_dir", output_dir)
+        self.skip_ws_build = kwargs['skip_ws_build']
         self.fit_mode = fit_mode
         self.output_dir = output_dir
+        self.base_output_dir = kwargs['base_output_dir']
         self.job_id = kwargs["jobid"]
         self.sig_reg_name = kwargs["sig_reg_name"]
         self.kwargs = kwargs
@@ -266,8 +270,7 @@ class LimitScanAnalyser(object):
             if 'mc' in scan.kwargs['sig_name']:
                 continue
             self.sig_reg_name = scan.sig_reg_name
-            #analyser = LimitAnalyser(scan.output_dir, self.analysis_name)
-            analyser = LimitAnalyserCL(os.path.join(scan.output_dir, 'limits', str(scan.kwargs['jobid'])))
+            analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
                 limit_info = analyser.analyse_limit()#scan.kwargs['sig_name'])
             except ReferenceError:
@@ -310,7 +313,6 @@ class LimitScanAnalyser(object):
 
         headers = ['mass', 'mass_cut', 'UL [pb]', 'Signal'] + ordering
         print tabulate(data, headers=headers)
-
 
     @staticmethod
     def find_best_limit(limits):
@@ -428,7 +430,7 @@ class LimitScanAnalyser(object):
         else:
             self.min_mass_diff = 50
         if len(self.scanned_mass_cuts) > 1:
-            self.mass_cut_offset = (self.scanned_mass_cuts[1] - self.scanned_mass_cuts[0])  / 2.
+            self.mass_cut_offset = (self.scanned_mass_cuts[1] - self.scanned_mass_cuts[0]) / 2.
         else:
             self.mass_cut_offset = 50.
 
@@ -438,25 +440,30 @@ class LimitScanAnalyser(object):
         self.scan_mass_binning = [int((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]) / (self.mass_cut_offset * 2)) + 1,
                                   self.scanned_mass_cuts[0] - self.mass_cut_offset,
                                   self.scanned_mass_cuts[-1] + self.mass_cut_offset]
-
-        hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning+self.scan_mass_binning))
+        y_binning =self.scan_mass_binning
+        y_binning[2] += (y_binning[2]-y_binning[1])/y_binning[0]*10
+        y_binning[0] += 10
+        hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning+y_binning))
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
         for limit_info in parsed_data:
-            hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
+            if limit_info.exp_limit > 0:
+                hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000. * 1000.)
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status+1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
         ROOT.gStyle.SetPalette(1)
         ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
-                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95 \% CL U.L. #sigma [fb]")
+                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [ab]",
+                        watermark='Internal', lumi=140.3)
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                               ztitle="fit status + 1", zmin=-1.)
+                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=140.3)
         pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                     xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                                    ztitle="fit cov quality")
+                                    ztitle="fit cov quality", watermark='Internal', lumi=140.3)
         canvas = pt.plot_obj(hist, pc)
+        fm.decorate_canvas(canvas, pc)
         self.output_handle.register_object(canvas)
         canvas_status = pt.plot_obj(hist_fit_status, pc_status)
         self.output_handle.register_object(canvas_status)
@@ -525,6 +532,11 @@ class Sample(object):
         self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if not syst == 'weight'}
         if shape_uncert_yields is not None:
             self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in shape_uncert_yields.iteritems()}
+        else:
+            if self.ctrl_reg_shape_ylds is None:
+                self.ctrl_reg_shape_ylds = {region_name: {}}
+            else:
+                self.ctrl_reg_shape_ylds[region_name] = {}
         self.ctrl_region_yields[region_name] = sum_ylds(nominal_evt_yields['weight'])
 
     def remove_empties(self):
@@ -580,8 +592,21 @@ class Sample(object):
             self.ctrl_region_yields[region] += other.ctrl_region_yields[region]
             for syst in self.ctrl_reg_scale_ylds[region].keys():
                 self.ctrl_reg_scale_ylds[region][syst] += other.ctrl_reg_scale_ylds[region][syst]
-            for syst in self.ctrl_reg_shape_ylds[region].keys():
-                self.ctrl_reg_shape_ylds[region][syst] += other.ctrl_reg_shape_ylds[region][syst]
+            try:
+                for syst in self.ctrl_reg_shape_ylds[region].keys():
+                    try:
+                        self.ctrl_reg_shape_ylds[region][syst] += other.ctrl_reg_shape_ylds[region][syst]
+                    except KeyError as ke:
+                        print 'Could not find control region systematic {:s} for region {:s}'.format(syst, region)
+                        print 'Available systematics {:s}'.format(', '.join(self.ctrl_reg_shape_ylds[region].keys()))
+
+                        raise ke
+            except KeyError as ke:
+                print 'Could not find control region systematic b/c of missing region {:s}'.format(region)
+                print 'Available regions {:s}'.format(', '.join(self.ctrl_reg_shape_ylds.keys()))
+                if self.ctrl_region_yields[region] == 0:
+                    continue
+                raise ke
         return self
 
     def __radd__(self, other):
@@ -675,7 +700,8 @@ class SampleStore(object):
                 self.samples.remove(s)
             self.samples.append(summed_sample)
             for s in duplicate_samples:
-                self.samples.remove(s)
+                if s in self.samples:
+                    self.samples.remove(s)
 
     def apply_xsec_weight(self):
         for sample in self.samples:
@@ -703,7 +729,7 @@ class SampleStore(object):
             merged_sample.merge_child_processes(samples_to_merge, self.with_syst)
             self.samples.append(merged_sample)
             samples_to_remove += samples_to_merge
-        for s in samples_to_remove:
+        for s in set(samples_to_remove):
             self.samples.remove(s)
 
     def merge_processes(self):
@@ -724,7 +750,7 @@ class SampleStore(object):
             merged_sample.merge_child_processes(samples_to_merge, self.with_syst)
             self.samples.append(merged_sample)
             samples_to_remove += samples_to_merge
-        for s in samples_to_remove:
+        for s in set(samples_to_remove):
             self.samples.remove(s)
 
     def retrieve_ctrl_region_yields(self):
