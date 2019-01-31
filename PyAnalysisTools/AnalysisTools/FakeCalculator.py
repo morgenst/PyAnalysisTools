@@ -39,7 +39,7 @@ class MuonFakeCalculator(object):
                              for num_conf in numerator_configs]
 
     def make_plots(self):
-        fetched_histograms = self.plotter.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
+        fetched_histograms = self.plotter.read_histograms(file_handles=self.file_handles, plot_configs=self.plot_configs)
         fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
         self.plotter.categorise_histograms(fetched_histograms)
         self.plotter.apply_lumi_weights(self.plotter.histograms)

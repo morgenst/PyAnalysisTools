@@ -56,6 +56,7 @@ class NewRegion(object):
         kwargs.setdefault("operator", "eq")
         kwargs.setdefault("muon_operator", "eq")
         kwargs.setdefault("label", None)
+        kwargs.setdefault('label_position', None)
         kwargs.setdefault("good_muon", None)
         kwargs.setdefault("fake_muon", None)
         kwargs.setdefault("inverted_muon", None)
