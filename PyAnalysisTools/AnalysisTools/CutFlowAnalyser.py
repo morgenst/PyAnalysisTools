@@ -10,7 +10,7 @@ try:
     from tabulate.tabulate import tabulate
 except ImportError:
     from tabulate import tabulate
-from collections import defaultdict
+from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils import set_batch_mode
@@ -84,6 +84,7 @@ class CommonCutFlowAnalyser(object):
         :return: weighting factor
         :rtype: float
         """
+
         if process is None:
             _logger.error("Process is None")
             raise InvalidInputError("Process is NoneType")
@@ -97,7 +98,7 @@ class CommonCutFlowAnalyser(object):
 
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
-            if value > 10000.:
+            if value > 100000000.:
                 return "{:.3e}".format(value)
             else:
                 return "{:.2f} ".format(value)
@@ -113,10 +114,13 @@ class CommonCutFlowAnalyser(object):
                                dtype=[("cut", "S100"), ("yield", "S100")])
         else:
             cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-                                 # cutflow[i]["eff"],
-                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
+                                 format_yield(cutflow[i]["yield"])) for i in range(len(cutflow))],
+                               dtype=[("cut", "S100"), ("yield", "S100")])
+            # cutflow = np.array([(cutflow[i]["cut"],
+            #                      format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
+            #                      # cutflow[i]["eff"],
+            #                      #cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+            #                    dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
         return cutflow
 
     def print_cutflow_table(self):
@@ -200,9 +204,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 cut_list = region.get_cut_list()
                 for i, cut in enumerate(cut_list):
                     cut_string = "&&".join(map(lambda c: c.selection, cut_list[:i + 1]))
-                    yields.append([cut.name,
-                                   self.converter.convert_to_array(tree, cut_string)['weight'].flatten().sum()])
-                                   #0, -1., -1.))
+                    if not self.raw:
+                        yields.append([cut.name,
+                                       self.converter.convert_to_array(tree, cut_string)['weight'].flatten().sum()])
+                                       #0, -1., -1.))
+                    else:
+                        yields.append([cut.name,
+                                       len(filter(lambda y: y != 0., self.converter.convert_to_array(tree, cut_string)['weight'].flatten()))])
+                        # 0, -1., -1.))
                 if process not in self.cutflows[systematic][region.name]:
                     self.cutflows[systematic][region.name][process] = yields
                 else:
@@ -260,7 +269,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     choices = map(int, choice.split(","))
                 if choices is not None:
                     signals = [process[1] for process in signals if signals.index(process) in choices]
-                    self.cutflows[systematic][region] = dict(filter(lambda kv: keep_process(kv[0], signals),
+                    self.cutflows[systematic][region] = OrderedDict(filter(lambda kv: keep_process(kv[0], signals),
                                                                     self.cutflows[systematic][region].iteritems()))
             for process, cutflow in self.cutflows[systematic][region].items():
                 cutflow_tmp = self.stringify(cutflow)
@@ -291,9 +300,15 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     ordering += [p for p in processes if p not in ordering]
                     v = v[ordering]
                 fct = 'to_csv'
+                default_args = {'sep': ','}
                 if self.format == 'plain':
                     fct = 'to_string'
-                self.cutflow_tables[k] = getattr(v, fct)(sep=',')
+                    default_args = {}
+                if self.format == 'latex':
+                    fct = 'to_latex'
+                    default_args = {'index': False}
+
+                self.cutflow_tables[k] = getattr(v, fct)(**default_args)
 
     def calculate_sm_total(self):
         def add(yields):
