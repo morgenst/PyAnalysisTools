@@ -14,6 +14,11 @@ import ROOT
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 
 
+def parse_syst_config(config_file):
+    _, shape_syst, scale_syst = imp.load_source('config_systematics', config_file).config_systematics('1:1')
+    return shape_syst, scale_syst
+
+
 class SystematicsCategory(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("name", "total")
@@ -55,9 +60,7 @@ class SystematicsAnalyser(BasePlotter):
         self.systematic_hists = {}
         self.systematic_variations = {}
         self.total_systematics = {}
-        _, self.shape_syst_config, self.scale_syst_config = \
-                imp.load_source('config_systematics',
-                                kwargs['systematics_config']).config_systematics('1:1')
+        self.shape_syst_config, self.scale_syst_config = parse_syst_config(kwargs['systematics_config'])
         self.xs_handle = kwargs["xs_handle"]
         # SystematicsCategory(name="Muon", systematics=["MUON_MS"]),
         # SystematicsCategory(name="Electron", systematics=["EG_RESOLUTION_ALL"], color=ROOT.kYellow),
