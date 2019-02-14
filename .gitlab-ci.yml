@@ -18,6 +18,8 @@ test:
   image: atlas/analysisbase:latest
   stage: test
   before_script:
+    - which python
+    - which pip
     - pip install nose
   script:
     - nosetests tests.TestLogger
