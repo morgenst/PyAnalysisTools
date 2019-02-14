@@ -18,6 +18,7 @@ test:
   image: atlas/analysisbase:latest
   stage: test
   before_script:
+    - source /home/atlas/release_setup.sh
     - which python
     - which pip
     - pip install nose
