@@ -21,7 +21,8 @@ test:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
-    - pip install nose
+    - pip install nose --user
+    - pip install oyaml --user
   script:
     - nosetests tests.TestLogger
 # build_image:
