@@ -8,11 +8,11 @@ stages:
   - test
   
 
-trigger_LQ:
-  stage: trigger
-  image: appropriate/curl
-  script:
-    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
+# trigger_LQ:
+#   stage: trigger
+#   image: appropriate/curl
+#   script:
+#     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
 
 test:
   stage: test
