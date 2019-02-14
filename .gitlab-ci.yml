@@ -4,7 +4,9 @@ variables:
 
 stages:
   - docker
-  - trigger
+  #- trigger
+  - test
+  
 
 trigger_LQ:
   stage: trigger
@@ -12,6 +14,12 @@ trigger_LQ:
   script:
     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
 
+test:
+  stage: test
+  before_script:
+    - pip install nose
+  script:
+    - nosetests tests.TestLogger
 build_image:
   stage: docker
   except:
@@ -31,3 +39,4 @@ build_tagged_image:
     - docker-image-build
   script:
     - ignore
+    
