@@ -23,6 +23,7 @@ test:
     - which pip
     - pip install nose --user
     - pip install oyaml --user
+    - pip install coverage --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.TestLogger --with-coverage
