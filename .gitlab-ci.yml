@@ -25,7 +25,7 @@ test:
     - pip install oyaml --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.TestLogger
+    - nosetests tests.TestLogger --with-coverage
 # build_image:
 #   stage: docker
 #   except:
