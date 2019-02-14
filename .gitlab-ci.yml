@@ -3,7 +3,7 @@ variables:
   PACKAGE_NAME: PyAnalysisTools
 
 stages:
-  - docker
+  #- docker
   #- trigger
   - test
   
@@ -15,28 +15,29 @@ stages:
 #     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
 
 test:
+  image: rootproject/root-ubuntu16
   stage: test
   before_script:
     - pip install nose
   script:
     - nosetests tests.TestLogger
-build_image:
-  stage: docker
-  except:
-    - tags
-  tags:
-    - docker-image-build
-  script:
-    - ignore
+# build_image:
+#   stage: docker
+#   except:
+#     - tags
+#   tags:
+#     - docker-image-build
+#   script:
+#     - ignore
 
-build_tagged_image:
-  stage: docker
-  variables:
-    TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
-  only:
-    - tags
-  tags:
-    - docker-image-build
-  script:
-    - ignore
+# build_tagged_image:
+#   stage: docker
+#   variables:
+#     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+#   only:
+#     - tags
+#   tags:
+#     - docker-image-build
+#   script:
+#     - ignore
     
