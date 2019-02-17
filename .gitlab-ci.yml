@@ -3,31 +3,47 @@ variables:
   PACKAGE_NAME: PyAnalysisTools
 
 stages:
-  - docker
-  - trigger
+  #- docker
+  #- trigger
+  - test
+  
 
-trigger_LQ:
-  stage: trigger
-  image: appropriate/curl
-  script:
-    - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
+# trigger_LQ:
+#   stage: trigger
+#   image: appropriate/curl
+#   script:
+#     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
 
-build_image:
-  stage: docker
-  except:
-    - tags
-  tags:
-    - docker-image-build
+test:
+  image: atlas/analysisbase:latest
+  stage: test
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - which python
+    - which pip
+    - pip install nose --user
+    - pip install oyaml --user
+    - pip install coverage --user
+    - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - ignore
+    - nosetests tests.TestLogger --with-coverage
+# build_image:
+#   stage: docker
+#   except:
+#     - tags
+#   tags:
+#     - docker-image-build
+#   script:
+#     - ignore
 
-build_tagged_image:
-  stage: docker
-  variables:
-    TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
-  only:
-    - tags
-  tags:
-    - docker-image-build
-  script:
-    - ignore
+# build_tagged_image:
+#   stage: docker
+#   variables:
+#     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
+#   only:
+#     - tags
+#   tags:
+#     - docker-image-build
+#   script:
+#     - ignore
+    
