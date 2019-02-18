@@ -12,6 +12,16 @@ class Cut(object):
             self.name = selection
             self.selection = selection
 
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: Cut object to compare to
+        :type other: Cut
+        :return: True/False
+        :rtype: boolean
+        """
+        return self.__dict__ == other.__dict__
+
     def __str__(self):
         """
         Overloaded str operator. Get's called if object is printed
@@ -84,6 +94,13 @@ class NewRegion(object):
         self.build_cuts()
 
     def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: Region object to compare to
+        :type other: Region
+        :return: True/False
+        :rtype: boolean
+        """
         if isinstance(self, other.__class__):
             return self.__dict__ == other.__dict__
         return False
@@ -93,6 +110,19 @@ class NewRegion(object):
 
     def __hash__(self):
         return hash(self.name)
+
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Region: {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            if attribute == 'name':
+                continue
+            obj_str += '{}={} '.format(attribute, value)
+        return obj_str
 
     def build_cuts(self):
         self.cut_list = self.build_cut_list(self.event_cuts, 'event_cuts')
@@ -245,13 +275,15 @@ class NewRegionBuilder(object):
 
     def modify_plot_configs(self, plot_configs):
         tmp = []
+        print self.regions
         for region in self.regions:
             for pc in plot_configs:
                 region_pc = deepcopy(pc)
+                cuts = map(lambda c: c.selection, region.get_cut_list())
                 if region_pc.cuts is None:
-                    region_pc.cuts = region.get_cut_list()  # [region.convert2cut_string()]
+                    region_pc.cuts = cuts  # [region.convert2cut_string()]
                 else:
-                    region_pc.cuts += region.get_cut_list()  # .append(region.convert2cut_string())
+                    region_pc.cuts += cuts  # .append(region.convert2cut_string())
                 if region.weight:
                     if region_pc.weight is not None and not region_pc.weight.lower() == "none":
                         region_pc.weight += " * {:s}".format(region.weight)
@@ -268,9 +300,10 @@ class NewRegionBuilder(object):
         return self.modify_plot_configs(plot_configs)
 
 
-
-class Region(object):
+class Region(NewRegion):
     def __init__(self, **kwargs):
+        super(Region, self).__init__(**kwargs)
+        return
         kwargs.setdefault("n_lep", -1)
         kwargs.setdefault("n_electron", -1)
         kwargs.setdefault("n_muon", -1)
@@ -326,6 +359,7 @@ class Region(object):
         if self.label is None:
             self.build_label()
         self.convert_lepton_selections()
+        raw_input('Deprecated. Please try to switch to NewRegionBuilder. Acknowledge by hitting enter')
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):
@@ -348,7 +382,6 @@ class Region(object):
         :rtype: string
         """
         new_cut_list = []
-
         if self.common_selection is not None and selection is not None:
             if selection in self.common_selection:
                 new_cut_list += self.common_selection[selection]
@@ -451,8 +484,10 @@ class Region(object):
             self.label += " on-Z" if self.is_on_z else " off-Z"
 
 
-class RegionBuilder(object):
+class RegionBuilder(NewRegionBuilder):
     def __init__(self, **kwargs):
+        super(RegionBuilder, self).__init__(**kwargs)
+        return
         """
         contructor
 
@@ -501,29 +536,29 @@ class RegionBuilder(object):
 
     def build_custom_region(self):
         pass
+    #
+    # def modify_plot_configs(self, plot_configs):
+    #     tmp = []
+    #     for region in self.regions:
+    #         for pc in plot_configs:
+    #             region_pc = deepcopy(pc)
+    #             if region_pc.cuts is None:
+    #                 region_pc.cuts = region.get_cut_list()#[region.convert2cut_string()]
+    #             else:
+    #                 region_pc.cuts += region.get_cut_list()#.append(region.convert2cut_string())
+    #             if region.weight:
+    #                 if isinstance(region.weight, OrderedDict):
+    #                     region_pc.process_weight = region.weight
+    #                 elif region_pc.weight is not None and not region_pc.weight.lower() == "none":
+    #                     region_pc.weight += " * {:s}".format(region.weight)
+    #                 else:
+    #                     region_pc.weight = region.weight
+    #
+    #             region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
+    #             region_pc.decor_text = region.label
+    #             region_pc.region = region
+    #             tmp.append(region_pc)
+    #     return tmp
 
-    def modify_plot_configs(self, plot_configs):
-        tmp = []
-        for region in self.regions:
-            for pc in plot_configs:
-                region_pc = deepcopy(pc)
-                if region_pc.cuts is None:
-                    region_pc.cuts = region.get_cut_list()#[region.convert2cut_string()]
-                else:
-                    region_pc.cuts += region.get_cut_list()#.append(region.convert2cut_string())
-                if region.weight:
-                    if isinstance(region.weight, OrderedDict):
-                        region_pc.process_weight = region.weight
-                    elif region_pc.weight is not None and not region_pc.weight.lower() == "none":
-                        region_pc.weight += " * {:s}".format(region.weight)
-                    else:
-                        region_pc.weight = region.weight
-
-                region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
-                region_pc.decor_text = region.label
-                region_pc.region = region
-                tmp.append(region_pc)
-        return tmp
-
-    def execute(self, plot_configs):
-        return self.modify_plot_configs(plot_configs)
+    # def execute(self, plot_configs):
+    #     return self.modify_plot_configs(plot_configs)
