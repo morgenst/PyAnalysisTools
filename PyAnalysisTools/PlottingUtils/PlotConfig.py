@@ -202,8 +202,10 @@ def get_default_color_scheme():
             ROOT.kCyan+3,
             ROOT.kPink+4]
 
+
 class ProcessConfig(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('parent_process', None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         self.transform_type()
@@ -245,7 +247,9 @@ class ProcessConfig(object):
 
     def add_subprocess(self, subprocess_name):
         self.subprocesses.append(subprocess_name)
-        return ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+        pc.parent_process = self.name
+        return pc
 
 
 def parse_mc_campaign(process_name):
@@ -323,8 +327,6 @@ def parse_and_build_process_config(process_config_files):
             parsed_process_configs = [yl.read_yaml(pcf) for pcf in process_config_files]
             process_configs = {k: ProcessConfig(name=k, **v) for parsed_config in parsed_process_configs
                                for k, v in parsed_config.iteritems()}
-        for process_config in process_configs.values():
-            process_configs.update(process_config.retrieve_subprocess_config())
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
@@ -523,9 +525,11 @@ def add_campaign_specific_merge_process(process_config, process_configs, campaig
         elif campaign_tag not in sub_process:
             split_info = sub_process.split(')]$')
             process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
+
     new_config.name += '.{:s}'.format(campaign_tag)
     for index, sub_process in enumerate(new_config.subprocesses):
         new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
+    new_config.parent_process = process_config
     process_configs[new_config.name] = new_config
 
 
