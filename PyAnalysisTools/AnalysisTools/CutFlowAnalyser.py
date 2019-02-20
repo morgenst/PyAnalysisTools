@@ -1,4 +1,5 @@
 import operator
+import re
 from copy import deepcopy
 from operator import add
 import numpy as np
@@ -16,7 +17,7 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config_new, PlotConfig, \
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config_new2, PlotConfig, \
     parse_and_build_plot_config, get_default_color_scheme, expand_process_configs_new
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl
@@ -48,8 +49,8 @@ class CommonCutFlowAnalyser(object):
             kwargs['process_configs'] = kwargs['process_configs']
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
-        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
-                                                          self.process_configs)
+        # self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
+        #                                                   self.process_configs)
         map(self.load_dxaod_cutflows, self.file_handles)
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
@@ -62,9 +63,24 @@ class CommonCutFlowAnalyser(object):
             self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         if kwargs['config_file'] is not None:
             self.config = YAMLLoader.read_yaml(kwargs['config_file'])
+            if 'Lumi' in self.config:
+                self.lumi = self.config['Lumi']
         if self.process_configs is not None:
-            self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
+            #self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
+            self.file_handles = self.filter_processes_new(self.file_handles, self.process_configs)
         set_batch_mode(kwargs['batch'])
+
+    @staticmethod
+    def filter_processes_new(file_handles, process_configs):
+        if process_configs is None:
+            return file_handles
+        unavailable_process = map(lambda fh: fh.process,
+                                  filter(lambda fh: find_process_config_new2(fh.process, process_configs) is None,
+                                         file_handles))
+        for process in unavailable_process:
+            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
+        return filter(lambda fh: find_process_config_new2(fh.process, process_configs) is not None,
+                      file_handles)
 
     def load_dxaod_cutflows(self, file_handle):
         process = file_handle.process
@@ -90,11 +106,37 @@ class CommonCutFlowAnalyser(object):
             raise InvalidInputError("Process is NoneType")
         if self.lumi is None or "data" in process.lower() or self.lumi == -1:
             return 1.
+        #exit()
         lumi_weight = self.xs_handle.get_lumi_scale_factor(process.split('.')[0], self.lumi,
                                                            self.event_numbers[process])
         _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
                                                                                                self.lumi))
         return lumi_weight
+
+    def get_cross_section_weight_new(self, process):
+        """
+        Weight histograms according to process cross section and luminosity. If MC samples are split in several
+        production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
+        and luminosity as value each campaign will be scaled to this luminosity and processes will be added up later
+        :param histograms: all plottable objects
+        :type histograms: dict
+        :return: nothing
+        :rtype: None
+        """
+        provided_wrong_info = False
+        lumi = self.lumi
+        if isinstance(self.lumi, OrderedDict):
+            if re.search('mc16[acde]$', process) is None:
+                _logger.error('Could not find MC campaign information, but lumi was provided per MC '
+                              'campaing. Not clear what to do. It will be assumed that you meant to scale '
+                              'to total lumi. Please update and acknowledge once.')
+                raw_input('Hit enter to continue or Ctrl+c to quit...')
+                lumi = sum(self.lumi.values())
+            else:
+                lumi = self.lumi[process.split('.')[-1]]
+        cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
+                                                                    self.event_numbers[process])
+        return cross_section_weight
 
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
@@ -199,11 +241,21 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 self.cutflows[systematic][region.name] = {}
             for file_handle in self.file_handles:
                 process = file_handle.process
+                process_config = find_process_config_new2(process, process_configs=self.process_configs)
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
                 cut_list = region.get_cut_list()
+                cut_string = ""
                 for i, cut in enumerate(cut_list):
-                    cut_string = "&&".join(map(lambda c: c.selection, cut_list[:i + 1]))
+                    if "TYPE_" in cut.selection:
+                        if process_config.type.upper() in cut.selection:
+                           current_cut = cut.selection.replace('TYPE_{:s}'.format(process_config.type.upper),'')
+                        else:
+                            current_cut = "1"
+                    else:
+                        current_cut = cut.selection
+                    #cut_string = "&&".join(map(lambda c: c.selection, cut_list[:i + 1]))
+                    cut_string = '&&'.join([cut_string, current_cut]).lstrip('&&')
                     if not self.raw:
                         yields.append([cut.name,
                                        self.converter.convert_to_array(tree, cut_string)['weight'].flatten().sum()])
@@ -225,8 +277,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
     def apply_cross_section_weight(self, systematic, region):
         for process in self.cutflows[systematic][region].keys():
+            if 'data' in process:
+                continue
             try:
-                lumi_weight = self.get_cross_section_weight(process)
+                lumi_weight = self.get_cross_section_weight_new(process)
             except InvalidInputError:
                 _logger.error("None type parsed for ", process)
                 continue
@@ -239,7 +293,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             if process == "SMTotal":
                 return True
 
-            prcf = find_process_config_new(process, self.process_configs)
+            prcf = find_process_config_new2(process, self.process_configs)
             if prcf is None:
                 _logger.error("Could not find process config for {:s}. This is not expected. Removing process. "
                               "Please investigate".format(process))
@@ -252,7 +306,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
         for region in self.cutflows[systematic].keys():
             process_configs = [(process,
-                                find_process_config_new(process,
+                                find_process_config_new2(process,
                                                     self.process_configs)) for process in self.cutflows[systematic][region].keys()]
             if len(filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)) > 3:
                 signals = filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)
@@ -316,7 +370,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for process, evn_yields in yields.iteritems():
                 if 'data' in process.lower():
                     continue
-                if find_process_config_new(process, self.process_configs).type.lower() == "signal":
+                if find_process_config_new2(process, self.process_configs).type.lower() == "signal":
                     continue
                 if len(sm_yield) == 0:
                     sm_yield = list(evn_yields)
@@ -331,39 +385,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for region, yields in regions_data.iteritems():
                 self.cutflows[systematics][region]['SMTotal'] = add(yields)
 
-    def merge_mc_campaigns(self):
-        """
-        Merge mc campaigns into single process
-        :return:
-        :rtype:
-        """
-
-        def merge(yields):
-            """
-            Merge event yields for subprocesses
-            :param yields: pair of process and yields
-            :type yields: dict
-            :return: merged yields
-            :rtype: dict
-            """
-            process_to_remove = []
-            tmp = deepcopy(yields)
-            for process, yld in yields.iteritems():
-                len(yields)
-                if not '.mc16' in process:
-                    continue
-                base_process = process.split('.')[0]
-                if base_process not in yields.keys():
-                    tmp[base_process] = yields[process]
-                else:
-                    tmp[base_process]["yield"] += yields[process]["yield"]
-                tmp.pop(process)
-            return tmp
-
-        for systematics, regions_data in self.cutflows.iteritems():
-            for region, yields in regions_data.iteritems():
-                self.cutflows[systematics][region] = merge(yields)
-
     def merge_yields(self):
         def merge(yields):
             """
@@ -373,17 +394,15 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             :return: merged yields
             :rtype: dict
             """
-            for process, process_config in self.process_configs.iteritems():
-                if not hasattr(process_config, "subprocesses"):
+            for process in yields.keys():
+                parent_process = find_process_config_new2(process, self.process_configs).name
+                if parent_process is None:
                     continue
-                for sub_process in process_config.subprocesses:
-                    if sub_process not in yields.keys():
-                        continue
-                    if not process in yields.keys():
-                        yields[process] = yields[sub_process]
-                    else:
-                        yields[process]["yield"] += yields[sub_process]["yield"]
-                    yields.pop(sub_process)
+                if not parent_process in yields.keys():
+                    yields[parent_process] = yields[process]
+                else:
+                    yields[parent_process]["yield"] += yields[process]["yield"]
+                yields.pop(process)
             return yields
 
         for systematics, regions_data in self.cutflows.iteritems():
@@ -458,7 +477,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for systematic in self.cutflows.keys():
                 for region in self.cutflows[systematic].keys():
                     self.apply_cross_section_weight(systematic, region)
-        self.merge_mc_campaigns()
         self.merge_yields()
         if not self.disable_sm_total:
             self.calculate_sm_total()
@@ -501,8 +519,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
             self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
-        if self.process_configs is not None:
-            self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
 
     def apply_cross_section_weight(self):
         for process in self.cutflow_hists.keys():
@@ -518,8 +534,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def analyse_cutflow(self):
         self.apply_cross_section_weight()
         if self.process_configs is not None and self.merge:
-            for process_name in self.cutflow_hists.keys():
-                _ = find_process_config_new(process_name, self.process_configs)
             self.merge_histograms(self.cutflow_hists)
         if not self.disable_sm_total:
             self.calculate_sm_total()
@@ -535,38 +549,32 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
                     self.cutflows[systematic][process][k] = self._analyse_cutflow(v, raw_cutflow, process)
         self.calculate_cut_efficiencies()
 
-    def merge_histograms(self, hist_dict):
-
-        def merge(histograms):
-            for process, process_config in self.process_configs.iteritems():
-                if not hasattr(process_config, 'subprocesses'):
-                    continue
-                for sub_process in process_config.subprocesses:
-                    if sub_process not in histograms.keys():
+    def merge_histograms(self, histograms):
+        for process in histograms.keys():
+            parent_process = find_process_config_new2(process, self.process_configs).name
+            if parent_process is None:
+                continue
+            for systematic in histograms[process].keys():
+                for selection in histograms[process][systematic].keys():
+                    if not parent_process in histograms.keys():
+                        histograms[parent_process] = dict((syst,
+                                                    dict((sel, None) for sel in
+                                                         histograms[process][syst].keys()))
+                                                   for syst in histograms[process].keys())
+                    if selection not in histograms[process][systematic]:
+                        print "could not find selection ", selection, " for process ", process
                         continue
-                    for systematic in histograms[sub_process].keys():
-                        for selection in histograms[sub_process][systematic].keys():
-                            if not process in histograms.keys():
-                                histograms[process] = dict((syst,
-                                                            dict((sel, None) for sel in
-                                                                 histograms[sub_process][syst].keys()))
-                                                           for syst in histograms[sub_process].keys())
-                            if selection not in histograms[process][systematic]:
-                                print "could not find selection ", selection, " for process ", process
-                                continue
-                            new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(
-                                sub_process, process)
-                            if histograms[process][systematic][selection] is None:
-                                new_hist_name = histograms[sub_process][systematic][selection].GetName().replace(
-                                    sub_process, process)
-                                histograms[process][systematic][selection] = histograms[sub_process][systematic][
-                                    selection].Clone(new_hist_name)
-                            else:
-                                histograms[process][systematic][selection].Add(
-                                    histograms[sub_process][systematic][selection].Clone(new_hist_name))
-                    histograms.pop(sub_process)
-
-        merge(hist_dict)
+                    print histograms[process][systematic][selection].GetName()
+                    new_hist_name = histograms[process][systematic][selection].GetName().replace(process, parent_process)
+                    if histograms[parent_process][systematic][selection] is None:
+                        new_hist_name = histograms[process][systematic][selection].GetName().replace(
+                            process, parent_process)
+                        histograms[parent_process][systematic][selection] = histograms[process][systematic][
+                            selection].Clone(new_hist_name)
+                    else:
+                        histograms[parent_process][systematic][selection].Add(
+                            histograms[process][systematic][selection].Clone(new_hist_name))
+            histograms.pop(process)
 
     def calculate_sm_total(self):
         sm_total_cutflows = {}

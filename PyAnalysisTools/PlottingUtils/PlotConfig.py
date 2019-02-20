@@ -517,7 +517,7 @@ def add_campaign_specific_merge_process(process_config, process_configs, campaig
     new_config = deepcopy(process_config)
     for index, sub_process in enumerate(process_config.subprocesses):
         if 're.' not in sub_process:
-            print 'Problem, this is not covered yet'
+            print 'Problem, this is not covered yet - process:', process_config.name
             #raw_input('Hit enter to acknowledge and complain on jira.')
             continue
         if 'mc' not in sub_process:
@@ -545,6 +545,8 @@ def find_process_config(process_name, process_configs):
     :return:
     :rtype:
     """
+    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
+
     if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
@@ -577,6 +579,8 @@ def find_process_config_new(process_name, process_configs, ignore_mc_campaign=Fa
     :return:
     :rtype:
     """
+    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
+
     if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
@@ -601,13 +605,50 @@ def find_process_config_new(process_name, process_configs, ignore_mc_campaign=Fa
     return None
 
 
+def find_process_config_new2(process_name, process_configs, ignore_mc_campaign=False):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
+    def is_sub_process(config):
+        if process_name == config.name:
+            return True
+        if not hasattr(config, 'subprocesses'):
+            return False
+        if process_name in config.subprocesses:
+            return True
+        if any(re.match(sub_process.replace("re.", ""), process_name) for sub_process in config.subprocesses):
+            return True
+        return False
+
+    if process_configs is None or process_name is None:
+        return None
+    if process_name in process_configs:
+        return process_configs[process_name]
+    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    if len(matched_process_cfg) != 1:
+        if len(matched_process_cfg) > 0:
+            print 'SOMEHOW matched to multiple configs'
+        return None
+    return matched_process_cfg[0]
+
+
 def expand_process_configs_new(processes, process_configs, ignore_mc_campaign=False):
+    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
     for process in processes:
         _ = find_process_config_new(process, process_configs, ignore_mc_campaign)
     return process_configs
 
 
 def expand_process_configs(processes, process_configs):
+    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
     for process in processes:
         _ = find_process_config(process, process_configs)
     return process_configs
