@@ -140,7 +140,7 @@ class CommonCutFlowAnalyser(object):
 
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
-            if value > 100000000.:
+            if value > 10000.:
                 return "{:.3e}".format(value)
             else:
                 return "{:.2f} ".format(value)
@@ -360,7 +360,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     default_args = {}
                 if self.format == 'latex':
                     fct = 'to_latex'
-                    default_args = {'index': False}
+                    default_args = {'index': False, 'escape': False}
 
                 self.cutflow_tables[k] = getattr(v, fct)(**default_args)
 
