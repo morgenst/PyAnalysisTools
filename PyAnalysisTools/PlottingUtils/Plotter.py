@@ -7,7 +7,7 @@ import copy
 import os
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config_new, ProcessConfig, expand_process_configs_new
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config_new2, ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -22,6 +22,7 @@ from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
+from PyAnalysisTools.AnalysisTools.FakeEstimator import ElectronFakeEstimator
 from PyAnalysisTools.base.Modules import load_modules
 from collections import OrderedDict
 
@@ -74,18 +75,15 @@ class Plotter(BasePlotter):
                                               extension=kwargs['file_extension'], **kwargs)
         self.syst_analyser = None
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
-        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
-                                                          self.process_configs,
-                                                          any(map(lambda pc: pc.merge_mc_campaigns, self.plot_configs)))
-
-        self.file_handles = self.filter_process_configs(self.file_handles, self.process_configs)
+        self.file_handles = self.filter_processes_new(self.file_handles, self.process_configs)
         if not self.read_hist:
             self.filter_empty_trees()
         self.modules = load_modules(kwargs["module_config_file"], self)
+        self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
+        #self.modules.append(self.fake_estimator)
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
-        #self.fake_estimator = MuonFakeEstimator(self, file_handles=self.file_handles)
         self.expand_plot_configs()
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
@@ -143,6 +141,18 @@ class Plotter(BasePlotter):
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
         return filter(lambda fh: find_process_config_new(fh.process, process_configs) is not None,
+                      file_handles)
+
+    @staticmethod
+    def filter_processes_new(file_handles, process_configs):
+        if process_configs is None:
+            return file_handles
+        unavailable_process = map(lambda fh: fh.process,
+                                  filter(lambda fh: find_process_config_new2(fh.process, process_configs) is None,
+                                         file_handles))
+        for process in unavailable_process:
+            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
+        return filter(lambda fh: find_process_config_new2(fh.process, process_configs) is not None,
                       file_handles)
 
     def initialise(self):
