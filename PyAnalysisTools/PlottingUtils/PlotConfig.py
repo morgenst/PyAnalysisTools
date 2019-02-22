@@ -20,12 +20,16 @@ class PlotConfig(object):
         if not "draw" in kwargs:
             kwargs.setdefault("Draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
+        py_ana_config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
+        defaults_py_ana = yl.read_yaml(py_ana_config_file_name)
+        usr_defaults = defaults_py_ana
         if user_config is not None:
             config_file_name = user_config
-        else:
-            config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
-        defaults = yl.read_yaml(config_file_name)
-        for key, attr in defaults.iteritems():
+            usr_defaults = yl.read_yaml(config_file_name)
+
+        for key, attr in defaults_py_ana.iteritems():
+            if key in usr_defaults:
+                attr = usr_defaults[key]
             if isinstance(attr, str):
                 try:
                     kwargs.setdefault(key, eval(attr))
@@ -442,7 +446,11 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         color = transform_color(process_config.color)
     if draw_option.lower() == "hist" or re.match(r"e\d", draw_option.lower()):
         if hasattr(process_config, "format"):
-            style_setter = process_config.format.capitalize()
+            try:
+                style_setter = process_config.format.capitalize()
+            except AttributeError:
+                _logger.error('Problem getting style from format ')
+                print process_config.format
         elif style_attr:
             #TODO: needs fix
             #style_setter = 'Line'
@@ -468,7 +476,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     return style_setter, style_attr, color
 
 
-def get_histogram_definition(plot_config):
+def get_histogram_definition(plot_config, systematics='Nominal', factor_syst=''):
     """
     Create histogram defintion based on plot configuration. Dimension is parsed counting : in the distribution. If no
     distribution is provided by default a one dimension histogram will be created
@@ -482,7 +490,7 @@ def get_histogram_definition(plot_config):
     else:
         dimension = 0
     hist = None
-    hist_name = plot_config.name
+    hist_name = '{:s}%%{:s}_{:s}%%'.format(plot_config.name, systematics, factor_syst)
     if dimension == 0:
         if not plot_config.logx:
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
@@ -499,8 +507,12 @@ def get_histogram_definition(plot_config):
             hist = ROOT.TH2F(hist_name, "", len(plot_config.xbins) - 1, array("d", plot_config.xbins),
                              plot_config.ybins, plot_config.ymin, plot_config.ymax)
         else:
-            hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
-                             plot_config.ybins, plot_config.ymin, plot_config.ymax)
+            if plot_config.ybins is not None:
+                hist = ROOT.TH2F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
+                                 plot_config.ybins, plot_config.ymin, plot_config.ymax)
+            else:
+                hist = ROOT.TProfile(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
+                                     plot_config.ymin, plot_config.ymax)
     elif dimension == 2:
         hist = ROOT.TH3F(hist_name, "", plot_config.xbins, plot_config.xmin, plot_config.xmax,
                          plot_config.ybins, plot_config.ymin, plot_config.ymax,
@@ -546,7 +558,7 @@ def find_process_config(process_name, process_configs):
     :rtype:
     """
     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-
+    raise TypeError
     if process_configs is None or process_name is None:
         return None
     if process_name in process_configs:
@@ -638,17 +650,3 @@ def find_process_config_new2(process_name, process_configs, ignore_mc_campaign=F
             print 'SOMEHOW matched to multiple configs'
         return None
     return matched_process_cfg[0]
-
-
-def expand_process_configs_new(processes, process_configs, ignore_mc_campaign=False):
-    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-    for process in processes:
-        _ = find_process_config_new(process, process_configs, ignore_mc_campaign)
-    return process_configs
-
-
-def expand_process_configs(processes, process_configs):
-    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-    for process in processes:
-        _ = find_process_config(process, process_configs)
-    return process_configs
