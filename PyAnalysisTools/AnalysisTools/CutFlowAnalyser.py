@@ -18,7 +18,7 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config_new2, PlotConfig, \
-    parse_and_build_plot_config, get_default_color_scheme, expand_process_configs_new
+    parse_and_build_plot_config, get_default_color_scheme
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl
 from numpy.lib.recfunctions import rec_append_fields
@@ -49,8 +49,6 @@ class CommonCutFlowAnalyser(object):
             kwargs['process_configs'] = kwargs['process_configs']
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
-        # self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
-        #                                                   self.process_configs)
         map(self.load_dxaod_cutflows, self.file_handles)
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
@@ -66,21 +64,8 @@ class CommonCutFlowAnalyser(object):
             if 'Lumi' in self.config:
                 self.lumi = self.config['Lumi']
         if self.process_configs is not None:
-            #self.file_handles = pl.filter_process_configs(self.file_handles, self.process_configs)
-            self.file_handles = self.filter_processes_new(self.file_handles, self.process_configs)
+            self.file_handles = pl.filter_processes_new(self.file_handles, self.process_configs)
         set_batch_mode(kwargs['batch'])
-
-    @staticmethod
-    def filter_processes_new(file_handles, process_configs):
-        if process_configs is None:
-            return file_handles
-        unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config_new2(fh.process, process_configs) is None,
-                                         file_handles))
-        for process in unavailable_process:
-            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config_new2(fh.process, process_configs) is not None,
-                      file_handles)
 
     def load_dxaod_cutflows(self, file_handle):
         process = file_handle.process
@@ -106,7 +91,6 @@ class CommonCutFlowAnalyser(object):
             raise InvalidInputError("Process is NoneType")
         if self.lumi is None or "data" in process.lower() or self.lumi == -1:
             return 1.
-        #exit()
         lumi_weight = self.xs_handle.get_lumi_scale_factor(process.split('.')[0], self.lumi,
                                                            self.event_numbers[process])
         _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
@@ -309,22 +293,38 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                 find_process_config_new2(process,
                                                     self.process_configs)) for process in self.cutflows[systematic][region].keys()]
             if len(filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)) > 3:
-                signals = filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)
-                signals.sort(key=lambda p: p[0])
+                signals = filter(lambda pc: pc[1].type.lower() == "signal", process_configs) #pc[0] == "SMTotal" or
+                signals.sort(key=lambda i: int(re.findall('\d{2,4}', i[0])[0]))
+                if 'ordering' in self.config:
+                    for sig in signals:
+                        sig_name = sig[0]
+                        if sig_name in self.config['ordering']:
+                            continue
+                        self.config['ordering'].append(sig_name)
+                elif self.config is not None:
+                    self.config['ordering'] = map(lambda s: s[0], signals)
+                else:
+                    self.config = OrderedDict(('ordering', map(lambda s: s[0], signals)))
+
                 for i, process in enumerate(sorted(signals, key=lambda p: p[0])):
                     print "{:d}, {:s}".format(i, process[0])
                 print "a) All"
                 choice = raw_input("What processes do you like to have shown (comma/space seperated)?")
-                if choice.lower() == "a":
+                try:
+                    if choice.lower() == "a":
+                        choices = None
+                    elif "," in choice:
+                        choices = map(int, choice.split(","))
+                    else:
+                        choices = map(int, choice.split(","))
+                except ValueError:
                     choices = None
-                elif "," in choice:
-                    choices = map(int, choice.split(","))
-                else:
-                    choices = map(int, choice.split(","))
                 if choices is not None:
+                    choices.sort(key=lambda i: int(re.findall('\d{2,4}', i[0])[0]))
                     signals = [process[1] for process in signals if signals.index(process) in choices]
                     self.cutflows[systematic][region] = OrderedDict(filter(lambda kv: keep_process(kv[0], signals),
                                                                     self.cutflows[systematic][region].iteritems()))
+
             for process, cutflow in self.cutflows[systematic][region].items():
                 cutflow_tmp = self.stringify(cutflow)
                 if region not in cutflow_tables.keys():
