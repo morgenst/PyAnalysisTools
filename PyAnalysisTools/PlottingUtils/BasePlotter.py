@@ -40,6 +40,7 @@ class BasePlotter(object):
             return
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
+        set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
         self.split_mc_campaigns = False
@@ -48,6 +49,7 @@ class BasePlotter(object):
             self.split_mc_campaigns = True
             self.add_mc_campaigns()
 
+        self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
                                         switch_off_process_name_analysis=False,
@@ -57,7 +59,6 @@ class BasePlotter(object):
         self.filter_missing_friends()
 
     def cluster_setup(self, config):
-        print config
         self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
 
     def parse_process_config(self):
@@ -185,7 +186,6 @@ class BasePlotter(object):
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
         tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
-        print 'NEW hist name ', tmp.GetName()
         return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, data, systematic="Nominal"):

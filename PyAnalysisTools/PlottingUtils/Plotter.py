@@ -74,6 +74,9 @@ class Plotter(BasePlotter):
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=kwargs['file_extension'], **kwargs)
         self.syst_analyser = None
+        if kwargs["enable_systematics"]:
+            self.syst_analyser = SystematicsAnalyser(**self.__dict__)
+
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
         self.file_handles = self.filter_processes_new(self.file_handles, self.process_configs)
         if not self.read_hist:
@@ -269,13 +272,14 @@ class Plotter(BasePlotter):
             HT.normalise(data, integration_range=[0, -1])
         HT.merge_overflow_bins(data)
         HT.merge_underflow_bins(data)
+        signals = None
         if plot_config.signal_extraction:
             signals = self.get_signal_hists(data)
         #todo: need proper fix for this
-        #if plot_config.signal_scale is not None:
-        self.scale_signals(signals, plot_config)
+        if plot_config.signal_scale is not None and signals is not None:
+            self.scale_signals(signals, plot_config)
         signal_only = False
-        if len(signals) > 0 and len(data) == 0:
+        if signals is not None and len(signals) > 0 and len(data) == 0:
             signal_only = True
         if plot_config.outline == "stack" and not plot_config.is_multidimensional and not signal_only:
             canvas = pt.plot_stack(data, plot_config=plot_config,
@@ -460,3 +464,4 @@ class Plotter(BasePlotter):
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()
+

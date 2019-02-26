@@ -5,12 +5,29 @@ from itertools import product
 
 class Cut(object):
     def __init__(self, selection):
-        #TODO: need implementation for data/MC
+        self.is_data = False
+        self.is_mc = False
         if '::' in selection:
             self.selection, self.name = selection.split('::')
         else:
             self.name = selection
             self.selection = selection
+        if 'DATA:' in self.selection:
+            self.selection.replace('Data:', '')
+            self.is_data = True
+        if 'MC:' in self.selection:
+            self.selection.replace('MC:', '')
+            self.is_mc = True
+
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: Cut object to compare to
+        :type other: Cut
+        :return: True/False
+        :rtype: boolean
+        """
+        return self.__dict__ == other.__dict__
 
     def __eq__(self, other):
         """
@@ -149,8 +166,23 @@ class NewRegion(object):
         return Cut('Sum$({:s}) == {:s} && {:s} {:s} {:d}'.format('&& '.join(cut_list), particle,
                                                                  particle, operator, count))
 
-    def get_cut_list(self):
-        return self.cut_list
+    def get_cut_list(self, is_data=False):
+        """
+        Retrieve cut list for region. Replace data/MC-only selections according to is_data flag
+        :param is_data: flag if cut list should be retrieved for data or MC
+        :type is_data: boolean
+        :return: cut list
+        :rtype: list
+        """
+        def validate_cut(cut):
+            if cut.is_data and not is_data:
+                cut = deepcopy(cut)
+                cut.selection = '1'
+            if cut.is_mc and is_data:
+                cut = deepcopy(cut)
+                cut.selection = '1'
+            return cut
+        return map(lambda c: validate_cut(c), self.cut_list)
 
     def convert_lepton_selections(self):
         """
