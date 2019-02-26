@@ -604,6 +604,7 @@ def add_legend_to_canvas(canvas, **kwargs):
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
+                print 'Could not find process label for ', plot_obj.GetName().split("_")[-1]
                 pass
             if label is None:
                 continue

@@ -1,13 +1,10 @@
 import imp
+import math
 from itertools import product
-
-import pathos.multiprocessing as mp
 from math import sqrt
 from copy import deepcopy
-from functools import partial
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, get_default_color_scheme
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import ROOT
@@ -108,16 +105,12 @@ class SystematicsAnalyser(BasePlotter):
         return l
 
     def retrieve_sys_hists(self, dumped_hist_path=None):
-        def process_histograms(fetched_histograms, syst, disable_weighting=False):
+        def process_histograms(fetched_histograms, syst):
             self.histograms = {}
             fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
             self.categorise_histograms(fetched_histograms)
             if not self.cluster_mode:
                 self.apply_lumi_weights_new(self.histograms)
-            if self.process_configs is not None:
-                for hist_set in self.histograms.values():
-                    for process_name in hist_set.keys():
-                        _ = find_process_config(process_name, self.process_configs)
             self.merge_histograms()
             map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
             map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
@@ -143,14 +136,15 @@ class SystematicsAnalyser(BasePlotter):
             process_histograms(fetched_histograms, systematic)
         for fixed_systematic in self.fixed_systematics:
             for weight in fixed_systematic.weights:
-                if weight == 'weight_MUON_EFF_TTVA_SYS__1down' or 'weight_MUON_EFF_ISO' in weight or 'weight_MUON_EFF_RECO' in weight or 'JvtEffic' in weight:
-                    continue
+                # if weight == 'weight_MUON_EFF_TTVA_SYS__1down' or 'weight_MUON_EFF_ISO' in weight or 'weight_MUON_EFF_RECO' in weight or 'JvtEffic' in weight:
+                #     continue
                 plot_configs = deepcopy(self.plot_configs)
                 for pc in plot_configs:
                     pc.weight = pc.weight.replace('weight', "{:s}*{:s}".format(pc.weight, weight))
                 if dumped_hist_path is None:
+                    print 'CALL WITH ', weight
                     fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=plot_configs,
-                                                              systematic="Nominal")
+                                                              systematic="Nominal", factor_syst=weight)
                 else:
                     fetched_histograms = self.load_dumped_hists(file_handles, self.plot_configs, weight)
 
@@ -228,10 +222,14 @@ class SystematicsAnalyser(BasePlotter):
                     hist.SetBinContent(b, (variation - nominal) / nominal)
                 else:
                     hist.SetBinContent(b, 0.)
+                if math.isnan(hist.GetBinContent(b)):
+                    print 'FOUND NAN om calc diff nom: {:f} and var: {:f} in hist {:s}'.format(nominal, variation, systematic_hist.GetName())
+                    exit(0)
             return hist
 
         def find_plot_config():
             return filter(lambda pc: pc.name == plot_config.name, self.systematic_hists[systematic].keys())[0]
+
         systematic_plot_config = find_plot_config()
         if systematic_plot_config is None:
             return nominal
@@ -245,21 +243,39 @@ class SystematicsAnalyser(BasePlotter):
             for category in self.total_systematics.keys():
                 colors.append(category.color)
                 syst_hists = self.total_systematics[category][variation][plot_config]
+                print syst_hists
                 sm_total_hist_syst = None
                 for process, nominal_hist in nominal_hists.iteritems():
                     if "data" in process.lower():
                         continue
-                    tmp_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
+                    tmp_nominal_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
                     tmp_syst = syst_hists[process]
                     for b in range(tmp_syst.GetNbinsX()):
+                        if tmp_syst.GetBinContent(b) > 1. or tmp_syst.GetBinContent(b) < 1.:
+                            print 'FOUND BIN {:d} larger than 1 in {:s} with {:f}'.format(b, tmp_syst.GetName(),
+                                                                                          tmp_syst.GetBinContent(b))
+                            tmp_syst.SetBinContent(b, 1.)
+                            continue
                         tmp_syst.SetBinContent(b, 1. + tmp_syst.GetBinContent(b))
-                    tmp_hist.Multiply(tmp_syst)
+                    print 'NOMINAL BINS:'
+                    for b in range(tmp_nominal_hist.GetNbinsX()):
+                        print 'Nominal hist bin {:d} content: {:f}'.format(b, tmp_nominal_hist.GetBinContent(b))
+                    print 'SYST BINS:'
+                    for b in range(tmp_nominal_hist.GetNbinsX()):
+                        if math.isnan(tmp_syst.GetBinContent(b)):
+                            print 'FOUND NAN exit now'
+                            exit(0)
+                        print 'SYST hist bin {:d} content: {:f}'.format(b, tmp_syst.GetBinContent(b))
+
+                    tmp_nominal_hist.Multiply(tmp_syst)
                     if sm_total_hist_syst is None:
-                        sm_total_hist_syst = tmp_hist.Clone(
+                        sm_total_hist_syst = tmp_nominal_hist.Clone(
                             "SM_{:s}_{:s}_{:s}".format(category.name, nominal_hist.GetName(), variation))
                         continue
-                    sm_total_hist_syst.Add(tmp_hist)
+                    sm_total_hist_syst.Add(tmp_nominal_hist)
                 sm_total_hists_syst.append(sm_total_hist_syst)
+                for b in range(sm_total_hist_syst.GetNbinsX()):
+                    print 'SYST uncert hist bin {:d} content: {:f}'.format(b, sm_total_hist_syst.GetBinContent(b))
             return sm_total_hists_syst, colors
 
         sm_total_up_categorised, color_up = get_sm_total(nominal, "up")

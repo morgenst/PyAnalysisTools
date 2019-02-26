@@ -280,3 +280,137 @@ class ElectronFakeDecorator(object):
                 raise e
             finally:
                 file_handle.close()
+
+
+class ElectronFakeEstimator(object):
+    def __init__(self, plotter_instance, **kwargs):
+        kwargs.setdefault("sample_name", "Fakes")
+        self.plotter = plotter_instance
+        self.file_handles = filter(lambda fh: "data" in fh.process.lower(), kwargs["file_handles"])
+        self.sample_name = kwargs["sample_name"]
+        self.type = "DataProvider"
+
+    def execute(self, plot_config):
+        return "Fakes", self.get_fake_background(plot_config)
+
+    def get_fake_background(self, plot_config):
+        def rebuild_dict_structure():
+            for key, data in fake_histograms.iteritems():
+                data = filter(lambda hist_set: all(hist_set), data)
+                hist_data = {}
+                for plot_config, process, hist in data:
+                    if hist is None:
+                        _logger.warning("hist for process {:s} is None".format(process))
+                        continue
+                    try:
+                        if process not in hist_data[plot_config].keys():
+                            hist_data[plot_config][process] = hist
+                        else:
+                            hist_data[plot_config][process].Add(hist)
+                    except KeyError:
+                        hist_data[plot_config] = {process: hist}
+                print data
+                #hist_data = {k: v for k, v in data[0][1]}
+                fake_histograms[key] = hist_data
+
+        fake_plot_configs = self.retrieve_fake_plot_configs(plot_config)
+        if len(fake_plot_configs) == 0:
+            return None
+        fake_histograms = dict()
+
+        for key, plot_config in fake_plot_configs.iteritems():
+            fake_histograms[key] = self.plotter.read_histograms(self.file_handles, [plot_config], systematic="Nominal")
+        rebuild_dict_structure()
+        for key, data in fake_histograms.iteritems():
+            self.plotter.apply_lumi_weights_new(data)
+            #print self.plotter.process_configs
+            #print hists
+            #self.plotter.merge(hists, self.plotter.process_configs)
+            for plot_config, hists in data.iteritems():
+                fake_histograms[key][plot_config] = self.merge(hists, self.plotter.process_configs)
+        #fake_histograms = self.merge(fake_histograms)
+        fake_hist = self.build_fake_contribution(fake_histograms)
+        fake_hist.SetName("{:s}_{:s}".format(plot_config.name, self.sample_name))
+        return fake_hist
+
+    @staticmethod
+    def build_fake_contribution(fake_histograms):
+        fake_contribution = None
+        single_lepton_fake_contribution = dict(filter(lambda (k, v): k[0] == 1, fake_histograms.iteritems()))
+        for key, data in single_lepton_fake_contribution.iteritems():
+            for pc, hist in data.iteritems():
+                if fake_contribution is None:
+                    fake_contribution = hist.values()[0]
+        # print fake_contribution
+        # exit()
+        return fake_contribution
+
+        # single_lepton_fake_contribution = filter(lambda (k, v): k[0] == 1, fake_histograms.iteritems())
+        # #print single_lepton_fake_contribution
+        # #print single_lepton_fake_contribution[1]
+        # fake_contribution = single_lepton_fake_contribution.values()
+        # # print single_lepton_fake_contribution
+        # # while len(single_lepton_fake_contribution) > 0:
+        # #     fake_contribution.Add(single_lepton_fake_contribution[1].pop()[-1])
+        # di_lepton_fake_contribution = filter(lambda (k, v): k[0] == 2, fake_histograms.iteritems())
+        # while len(di_lepton_fake_contribution) > 0:
+        #     fake_contribution.Add(di_lepton_fake_contribution[0][1]..values(), -1)
+        # tri_lepton_fake_contribution = filter(lambda (k, v): k[0] == 3, fake_histograms.iteritems())
+        # while len(tri_lepton_fake_contribution) > 0:
+        #     fake_contribution.Add(tri_lepton_fake_contribution.pop()[-1])
+        # return fake_contribution
+
+    # def merge(self, fake_histograms):
+    #     for key, histograms in fake_histograms.iteritems():
+    #         hist = histograms.pop(histograms.keys()[0])
+    #         for process in histograms.keys():
+    #             hist.Add(histograms.pop(process))
+    #         fake_histograms[key] = hist
+    #     return fake_histograms
+
+    def merge(self, histograms, process_configs):
+        for process, process_config in process_configs.iteritems():
+            if not hasattr(process_config, "subprocesses"):
+                continue
+            print process_config
+            for sub_process in process_config.subprocesses:
+                if sub_process not in histograms.keys():
+                    continue
+                if process not in histograms.keys():
+                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
+                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
+                else:
+                    histograms[process].Add(histograms[sub_process])
+                histograms.pop(sub_process)
+        return histograms
+
+    def retrieve_fake_plot_configs(self, plot_config):
+        n_electron = plot_config.region.n_electron
+        fake_plot_configs = dict()
+        l = range(1, n_electron + 1)
+        combinations = [zip(x, [n_electron]) for x in permutations(l, len(l))]
+        combinations = [i for comb in combinations for i in comb]
+        combinations = filter(lambda e: e[1] >= e[0], combinations)
+        combinations = filter(lambda e: e[1] >= e[0], combinations)
+        for combination in combinations:
+            fake_plot_configs[combination] = self.retrieve_single_fake_plot_config(plot_config, *combination)
+        return fake_plot_configs
+
+    @staticmethod
+    def retrieve_single_fake_plot_config(plot_config, n_fake_electron, n_total_electron):
+        pc = deepcopy(plot_config)
+        pc.name = "fake_single_lep"
+        cut_name = "Sum$(electron_is_num==1)"
+
+        good_electron = "electron_is_num==1"
+        bad_electron = "electron_is_denom==1"
+        electron_selector = "Sum$({:s})".format(good_electron)
+        cut = filter(lambda cut: cut_name in cut, pc.cuts)[0]
+        cut_index = pc.cuts.index(cut)
+        cut = cut.replace("{:s} == electron_n".format(electron_selector),
+                          "{:s} == (electron_n - {:d})".format(electron_selector, n_fake_electron))
+        cut = cut.replace("electron_n == {:d}".format(n_total_electron),
+                          "electron_n == {:d} && Sum$({:s}) == {:d}".format(n_total_electron, bad_electron, n_fake_electron))
+        pc.cuts[cut_index] = cut
+        pc.weight += " * 0.5"
+        return pc

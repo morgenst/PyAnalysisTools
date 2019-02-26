@@ -15,8 +15,8 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, \
     get_objects_from_canvas
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
-    expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, parse_and_build_process_config, \
+    find_process_config
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 
@@ -91,62 +91,24 @@ class ComparisonReader(object):
 
     @staticmethod
     def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses,
-                                    process_configs.iteritems())
-            try:
-                return parent_process[0][0]
-            except IndexError:
-                _logger.error("Could not find parent process for process {:s}".format(process))
-                print "Available process configs:", process_configs
-                exit(-1)
+        # def find_parent_process(process):
+        #     parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses,
+        #                             process_configs.iteritems())
+        #     try:
+        #         return parent_process[0][0]
+        #     except IndexError:
+        #         _logger.error("Could not find parent process for process {:s}".format(process))
+        #         print "Available process configs:", process_configs
+        #         exit(-1)
 
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
         tmp_file_handles = collections.OrderedDict()
         for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
+            parent_process = find_process_config(fh.process, process_configs)#find_parent_process(fh.process)
             if parent_process not in tmp_file_handles:
                 tmp_file_handles[parent_process] = [fh]
                 continue
             tmp_file_handles[parent_process].append(fh)
         return tmp_file_handles
-
-    @staticmethod
-    def merge_histograms(histograms, process_configs):
-        def expand():
-            if process_configs is not None:
-                for process_name in histograms.keys():
-                    _ = find_process_config(process_name, process_configs)
-
-        expand()
-        for process, process_config in process_configs.iteritems():
-            if not hasattr(process_config, 'subprocesses'):
-                continue
-            for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
-                    continue
-                if process not in histograms.keys():
-                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
-                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
-                else:
-                    histograms[process].Add(histograms[sub_process])
-                histograms.pop(sub_process)
-
-        for process in histograms.keys():
-            histograms[find_process_config(process, process_configs)] = histograms.pop(process)
-
-    # TODO: seems not to be needed
-    # @staticmethod
-    # def parse_process_config(process_config_file):
-    #     if process_config_file is None:
-    #         return None
-    #     process_config = parse_and_build_process_config(process_config_file)
-    #     return process_config
 
 
 class SingleFileSingleRefReader(ComparisonReader):
@@ -540,7 +502,6 @@ class ComparisonPlotter(BasePlotter):
 
         if 'process_config_files' in kwargs:
             self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
-            self.expand_process_configs()
 
         self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
         self.modules = load_modules(kwargs['module_config_file'], self)
@@ -571,10 +532,6 @@ class ComparisonPlotter(BasePlotter):
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
 
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                _ = find_process_config(fh.process, self.process_configs)
 
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
@@ -661,13 +618,13 @@ class ComparisonPlotter(BasePlotter):
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     ref.label = '{:s}'.format(ref.label)
                 else:
-                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label,
+                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process.name, self.process_configs).label,
                                                    ref.label)
             for comp in compare_hists:
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     comp.label = '{:s}'.format(comp.label)
                 else:
-                    comp.label = '{:s} {:s}'.format(find_process_config(comp.process, self.process_configs).label,
+                    comp.label = '{:s} {:s}'.format(find_process_config(comp.process.name, self.process_configs).label,
                                                     comp.label)
 
         ROOT.SetOwnership(canvas, False)

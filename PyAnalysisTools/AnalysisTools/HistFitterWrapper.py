@@ -22,7 +22,7 @@ from math import sqrt
 import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, \
-    transform_color, expand_process_configs_new
+    transform_color
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
@@ -138,8 +138,6 @@ class HistFitterWrapper(object):
             self.process_configs = parse_and_build_process_config(self.process_config_file)
         self.file_handles = [FileHandle(file_name=fn,
                                         dataset_info=os.path.abspath(self.xs_config_file)) for fn in self.input_files]
-        self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
-                                                          self.process_configs)
 
     def reset_config_mgr(self):
         try:

@@ -69,3 +69,4 @@ color: None
 lumi_text: None
 lumi_precision: 1
 disable_legend: False
+ybins: None

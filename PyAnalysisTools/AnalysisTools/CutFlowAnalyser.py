@@ -17,7 +17,7 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config_new2, PlotConfig, \
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig, \
     parse_and_build_plot_config, get_default_color_scheme
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl
@@ -49,7 +49,7 @@ class CommonCutFlowAnalyser(object):
             kwargs['process_configs'] = kwargs['process_configs']
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
-        map(self.load_dxaod_cutflows, self.file_handles)
+
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
         self.output_handle = None
@@ -65,6 +65,7 @@ class CommonCutFlowAnalyser(object):
                 self.lumi = self.config['Lumi']
         if self.process_configs is not None:
             self.file_handles = pl.filter_processes_new(self.file_handles, self.process_configs)
+        map(self.load_dxaod_cutflows, self.file_handles)
         set_batch_mode(kwargs['batch'])
 
     def load_dxaod_cutflows(self, file_handle):
@@ -225,7 +226,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 self.cutflows[systematic][region.name] = {}
             for file_handle in self.file_handles:
                 process = file_handle.process
-                process_config = find_process_config_new2(process, process_configs=self.process_configs)
+                process_config = find_process_config(process, process_configs=self.process_configs)
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
                 cut_list = region.get_cut_list()
@@ -238,7 +239,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                             current_cut = "1"
                     else:
                         current_cut = cut.selection
-                    #cut_string = "&&".join(map(lambda c: c.selection, cut_list[:i + 1]))
                     cut_string = '&&'.join([cut_string, current_cut]).lstrip('&&')
                     if not self.raw:
                         yields.append([cut.name,
@@ -277,7 +277,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             if process == "SMTotal":
                 return True
 
-            prcf = find_process_config_new2(process, self.process_configs)
+            prcf = find_process_config(process, self.process_configs)
             if prcf is None:
                 _logger.error("Could not find process config for {:s}. This is not expected. Removing process. "
                               "Please investigate".format(process))
@@ -290,22 +290,23 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
         for region in self.cutflows[systematic].keys():
             process_configs = [(process,
-                                find_process_config_new2(process,
+                                find_process_config(process,
                                                     self.process_configs)) for process in self.cutflows[systematic][region].keys()]
             if len(filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)) > 3:
-                signals = filter(lambda pc: pc[1].type.lower() == "signal", process_configs) #pc[0] == "SMTotal" or
+                signals = filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)
+                #print i
                 signals.sort(key=lambda i: int(re.findall('\d{2,4}', i[0])[0]))
-                if 'ordering' in self.config:
-                    for sig in signals:
-                        sig_name = sig[0]
-                        if sig_name in self.config['ordering']:
-                            continue
-                        self.config['ordering'].append(sig_name)
-                elif self.config is not None:
-                    self.config['ordering'] = map(lambda s: s[0], signals)
+                if self.config is not None:
+                    if 'ordering' in self.config:
+                        for sig in signals:
+                            sig_name = sig[0]
+                            if sig_name in self.config['ordering']:
+                                continue
+                            self.config['ordering'].append(sig_name)
+                    else:
+                        self.config['ordering'] = map(lambda s: s[0], signals)
                 else:
-                    self.config = OrderedDict(('ordering', map(lambda s: s[0], signals)))
-
+                    self.config = OrderedDict({'ordering': map(lambda s: s[0], signals)})
                 for i, process in enumerate(sorted(signals, key=lambda p: p[0])):
                     print "{:d}, {:s}".format(i, process[0])
                 print "a) All"
@@ -370,7 +371,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for process, evn_yields in yields.iteritems():
                 if 'data' in process.lower():
                     continue
-                if find_process_config_new2(process, self.process_configs).type.lower() == "signal":
+                if find_process_config(process, self.process_configs).type.lower() == "signal":
                     continue
                 if len(sm_yield) == 0:
                     sm_yield = list(evn_yields)
@@ -385,29 +386,31 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for region, yields in regions_data.iteritems():
                 self.cutflows[systematics][region]['SMTotal'] = add(yields)
 
-    def merge_yields(self):
-        def merge(yields):
-            """
-            Merge event yields for subprocesses
-            :param yields: pair of process and yields
-            :type yields: dict
-            :return: merged yields
-            :rtype: dict
-            """
-            for process in yields.keys():
-                parent_process = find_process_config_new2(process, self.process_configs).name
-                if parent_process is None:
-                    continue
-                if not parent_process in yields.keys():
-                    yields[parent_process] = yields[process]
-                else:
-                    yields[parent_process]["yield"] += yields[process]["yield"]
-                yields.pop(process)
-            return yields
+    def merge(self, yields):
+        """
+        Merge event yields for subprocesses
+        :param yields: pair of process and yields
+        :type yields: dict
+        :return: merged yields
+        :rtype: dict
+        """
+        print yields.keys()
+        for process in yields.keys():
+            print process
+            parent_process = find_process_config(process, self.process_configs).name
+            if parent_process is None:
+                continue
+            if not parent_process in yields.keys():
+                yields[parent_process] = yields[process]
+            else:
+                yields[parent_process]["yield"] += yields[process]["yield"]
+            yields.pop(process)
+        return yields
 
+    def merge_yields(self):
         for systematics, regions_data in self.cutflows.iteritems():
             for region, yields in regions_data.iteritems():
-                self.cutflows[systematics][region] = merge(yields)
+                self.cutflows[systematics][region] = self.merge(yields)
 
     def plot_signal_yields(self):
         """
@@ -417,8 +420,11 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         """
         replace_items = [('/', ''), (' ', ''), ('>', '_gt_'), ('<', '_lt_'), ('$', ''), ('.', '')]
         signal_processes = filter(lambda prc: prc.type.lower() == "signal", self.process_configs.values())
+
+
+        signal_generated_events = self.merge(self.event_numbers)
         signal_generated_events = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
-                                              self.event_numbers.iteritems()))
+                                              signal_generated_events.iteritems()))
 
         for region, cutflows in self.cutflows["Nominal"].iteritems():
             signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
@@ -470,14 +476,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
     def execute(self):
         self.read_event_yields()
-        if not self.disable_signal_plots:
-            self.plot_signal_yields()
-
         if not self.raw:
             for systematic in self.cutflows.keys():
                 for region in self.cutflows[systematic].keys():
                     self.apply_cross_section_weight(systematic, region)
         self.merge_yields()
+        if not self.disable_signal_plots:
+            self.plot_signal_yields()
+
         if not self.disable_sm_total:
             self.calculate_sm_total()
 
@@ -551,7 +557,8 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
 
     def merge_histograms(self, histograms):
         for process in histograms.keys():
-            parent_process = find_process_config_new2(process, self.process_configs).name
+            parent_process = find_process_config(process, self.process_configs).name
+            print 'PARENT ', parent_process
             if parent_process is None:
                 continue
             for systematic in histograms[process].keys():
@@ -645,8 +652,11 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
             self.make_cutflow_table(systematic)
 
     def make_cutflow_table(self, systematic):
-        cutflow_tables = dict()
+        cutflow_tables = OrderedDict()
+        # signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
+        #                             cutflows.iteritems()))
         for process in self.cutflows[systematic].keys():
+
             for selection, cutflow in self.cutflows[systematic][process].items():
                 cutflow_tmp = self.stringify(cutflow)
                 if selection not in cutflow_tables.keys():

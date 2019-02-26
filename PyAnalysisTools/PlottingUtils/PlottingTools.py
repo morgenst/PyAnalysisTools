@@ -7,7 +7,7 @@ from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, find_process_config
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
@@ -56,11 +56,14 @@ def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False
         else:
             cut_string = "%s * (%s)" % (weight, cut_string)
     n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
+    print cut_string
+    print n_selected_events, hist.GetEntries(), int(n_selected_events) != int(hist.GetEntries()), hist.GetName()
     _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." % (n_selected_events,
                                                                                        tree.GetName(),
                                                                                        var_name,
                                                                                        cut_string))
     if n_selected_events != hist.GetEntries():
+        exit()
         _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
                       "initialised after histogram definition has been received")
         raise RuntimeError("Inconsistency in TTree::Project")
@@ -183,8 +186,8 @@ def plot_2d_hist(hist, plot_config, **kwargs):
     return canvas
 
 
-# todo: memoise
-def fetch_process_config(process, process_config):
+# todo: remove
+def fetch_process_config_old(process, process_config):
     if process is None or process_config is None:
         return None
     if process not in process_config:
@@ -310,7 +313,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
 
         for process, hist in hist_defs:
             hist.plot_object = format_hist(hist.plot_object, plot_config)
-            process_config = fetch_process_config(process, process_configs)
+            process_config = find_process_config(process, process_configs) #fetch_process_config(process, process_configs)
             if not (plot_config.is_set_to_value("ignore_style", True)) and \
                     plot_config.is_set_to_value("ignore_style", False):
                 setattr(plot_config, 'draw', hist.draw_option)
@@ -367,7 +370,10 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     for process, hist in hist_defs:
         index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)
-        process_config = fetch_process_config(process, process_configs)
+        try:
+            process_config = find_process_config(process, process_configs)
+        except AttributeError:
+            process_config = None
         if not (plot_config.is_set_to_value("ignore_style", True)) and \
                 plot_config.is_set_to_value("ignore_style", False):
             draw_option = get_draw_option_as_root_str(plot_config, process_config)
@@ -570,7 +576,7 @@ def plot_stack(hists, plot_config, **kwargs):
         except AttributeError:
             pass
         hist = format_hist(hist, plot_config)
-        process_config = fetch_process_config(process, process_configs)
+        process_config = find_process_config(process, process_configs)#fetch_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
         fm.apply_style(hist, plot_config, process_config, index)
         stack.Add(hist, draw_option)

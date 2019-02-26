@@ -545,79 +545,79 @@ def add_campaign_specific_merge_process(process_config, process_configs, campaig
     process_configs[new_config.name] = new_config
 
 
-def find_process_config(process_name, process_configs):
-    """
-    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
-    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
-    MC campaign info exists it will be created adding
-    :param process_name:
-    :type process_name:
-    :param process_configs:
-    :type process_configs:
-    :return:
-    :rtype:
-    """
-    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-    raise TypeError
-    if process_configs is None or process_name is None:
-        return None
-    if process_name in process_configs:
-        return process_configs[process_name]
-    regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-                                           any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-                                process_configs.iteritems()))
-    for process_config in regex_configs.values():
-        for sub_process in process_config.subprocesses:
-            if not sub_process.startswith("re."):
-                continue
-            match = re.match(sub_process.replace("re.", ""), process_name)
-            if not match:
-                continue
-            new_process = match.group()
-            process_configs[new_process] = process_config.add_subprocess(new_process)
-            return process_configs[match.group()]
-    return None
+# def find_process_config(process_name, process_configs):
+#     """
+#     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+#     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+#     MC campaign info exists it will be created adding
+#     :param process_name:
+#     :type process_name:
+#     :param process_configs:
+#     :type process_configs:
+#     :return:
+#     :rtype:
+#     """
+#     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
+#     raise TypeError
+#     if process_configs is None or process_name is None:
+#         return None
+#     if process_name in process_configs:
+#         return process_configs[process_name]
+#     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
+#                                            any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
+#                                 process_configs.iteritems()))
+#     for process_config in regex_configs.values():
+#         for sub_process in process_config.subprocesses:
+#             if not sub_process.startswith("re."):
+#                 continue
+#             match = re.match(sub_process.replace("re.", ""), process_name)
+#             if not match:
+#                 continue
+#             new_process = match.group()
+#             process_configs[new_process] = process_config.add_subprocess(new_process)
+#             return process_configs[match.group()]
+#     return None
 
 
-def find_process_config_new(process_name, process_configs, ignore_mc_campaign=False):
-    """
-    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
-    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
-    MC campaign info exists it will be created adding
-    :param process_name:
-    :type process_name:
-    :param process_configs:
-    :type process_configs:
-    :return:
-    :rtype:
-    """
-    _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
+# def find_process_config_new(process_name, process_configs, ignore_mc_campaign=False):
+#     """
+#     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+#     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+#     MC campaign info exists it will be created adding
+#     :param process_name:
+#     :type process_name:
+#     :param process_configs:
+#     :type process_configs:
+#     :return:
+#     :rtype:
+#     """
+#     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
+#
+#     if process_configs is None or process_name is None:
+#         return None
+#     if process_name in process_configs:
+#         return process_configs[process_name]
+#     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
+#                                            any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
+#                                 process_configs.iteritems()))
+#     mc_campaign = parse_mc_campaign(process_name)
+#     for process_config in regex_configs.values():
+#         for sub_process in process_config.subprocesses:
+#             if not sub_process.startswith("re."):
+#                 continue
+#             match = re.match(sub_process.replace("re.", ""), process_name)
+#             if not match:
+#                 continue
+#             new_process = match.group()
+#             if mc_campaign is not None and not ignore_mc_campaign:
+#                 if '{:s}.{:s}'.format(process_config.name, mc_campaign) not in process_configs:
+#                     add_campaign_specific_merge_process(process_config, process_configs, mc_campaign)
+#             process_configs[new_process] = process_config.add_subprocess(new_process)
+#             return process_configs[match.group()]
+#     return None
 
-    if process_configs is None or process_name is None:
-        return None
-    if process_name in process_configs:
-        return process_configs[process_name]
-    regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-                                           any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-                                process_configs.iteritems()))
-    mc_campaign = parse_mc_campaign(process_name)
-    for process_config in regex_configs.values():
-        for sub_process in process_config.subprocesses:
-            if not sub_process.startswith("re."):
-                continue
-            match = re.match(sub_process.replace("re.", ""), process_name)
-            if not match:
-                continue
-            new_process = match.group()
-            if mc_campaign is not None and not ignore_mc_campaign:
-                if '{:s}.{:s}'.format(process_config.name, mc_campaign) not in process_configs:
-                    add_campaign_specific_merge_process(process_config, process_configs, mc_campaign)
-            process_configs[new_process] = process_config.add_subprocess(new_process)
-            return process_configs[match.group()]
-    return None
 
-
-def find_process_config_new2(process_name, process_configs, ignore_mc_campaign=False):
+def find_process_config(process_name, process_configs, ignore_mc_campaign=False):
     """
     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with

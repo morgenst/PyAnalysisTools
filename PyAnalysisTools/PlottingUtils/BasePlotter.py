@@ -139,7 +139,7 @@ class BasePlotter(object):
                 if isinstance(self.lumi, OrderedDict):
                     if re.search('mc16[acde]$', process) is None:
                         if provided_wrong_info is False:
-                            _logger.error('Could not find MC campaign informaiton, but lumi was provided per MC '
+                            _logger.error('Could not find MC campaign information, but lumi was provided per MC '
                                           'campaing. Not clear what to do. It will be assumed that you meant to scale '
                                           'to total lumi. Please update and acknowledge once.')
                             raw_input('Hit enter to continue or Ctrl+c to quit...')
@@ -179,11 +179,13 @@ class BasePlotter(object):
             return plot_config, file_handle.process, tmp
         return plot_config, file_handle.process, tmp
 
-    def fetch_histograms_new(self, data, systematic="Nominal"):
+    def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
         file_handle, plot_config = data
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
-        tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
+        tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
+        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
+        print 'NEW hist name ', tmp.GetName()
         return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, data, systematic="Nominal"):
@@ -201,7 +203,7 @@ class BasePlotter(object):
         hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
         return plot_config, file_handle.process, hist
 
-    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal"):
+    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal", factor_syst = ''):
         """
         Read data from ROOT file and build histogram according to definition in plot_config
 
@@ -217,7 +219,7 @@ class BasePlotter(object):
         file_handle.open()
         file_handle.reset_friends()
         try:
-            hist = get_histogram_definition(plot_config)
+            hist = get_histogram_definition(plot_config, systematic, factor_syst)
         except ValueError as e:
             _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
             range settings.".format(plot_config.name))
@@ -253,7 +255,7 @@ class BasePlotter(object):
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
 
-            if plot_config.blind and self.process_configs[file_handle.process].type == "Data":
+            if plot_config.blind and find_process_config(file_handle.process, self.process_configs).type == "Data":
                 if selection_cuts == "":
                     selection_cuts = "!({:s})".format(" && ".join(plot_config.blind))
                 else:
@@ -269,7 +271,7 @@ class BasePlotter(object):
                     tn = self.syst_tree_name
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
-            except RuntimeError:
+            except TypeError: #RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
@@ -282,7 +284,7 @@ class BasePlotter(object):
             _logger.debug("try to access config for process {:s}".format(file_handle.process))
             if self.process_configs is None:
                 return hist
-            process_config = find_process_config(file_handle.process, self.process_configs)
+            process_config = find_process_config(file_handle.process, self.process_configs).name
             if process_config is None:
                 _logger.error("Could not find process config for {:s}".format(file_handle.process))
                 return None
@@ -294,7 +296,7 @@ class BasePlotter(object):
             return None
         return hist
 
-    def read_histograms(self, file_handles, plot_configs, systematic="Nominal"):
+    def read_histograms(self, file_handles, plot_configs, systematic="Nominal", factor_syst=''):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
         if cpus > 0:
@@ -302,9 +304,10 @@ class BasePlotter(object):
             histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
         else:
             histograms = []
-        for i in comb:
-            histograms.append(self.fetch_histograms_new(i, systematic=systematic))
-            #histograms.append(self.fetch_histograms(i, systematic=systematic))
+            for i in comb:
+                hist = self.fetch_histograms_new(i, systematic=systematic, factor_syst=factor_syst)
+                histograms.append(hist)
+                #histograms.append(self.fetch_histograms(i, systematic=systematic))
         return histograms
 
     def read_histograms_plain(self, file_handle, plot_configs, systematic="Nominal"):
@@ -334,7 +337,7 @@ class BasePlotter(object):
                 self.histograms[plot_config] = {process: hist}
 
     @staticmethod
-    def merge(histograms, process_configs):
+    def merge_old(histograms, process_configs):
         for process, process_config in process_configs.iteritems():
             if not hasattr(process_config, "subprocesses"):
                 continue
@@ -347,6 +350,17 @@ class BasePlotter(object):
                 else:
                     histograms[process].Add(histograms[sub_process])
                 histograms.pop(sub_process)
+
+    @staticmethod
+    def merge(histograms, process_configs):
+        for process in histograms.keys():
+            parent_process = find_process_config(process, process_configs).name
+            if parent_process not in histograms.keys():
+                new_hist_name = histograms[process].GetName().replace(process, parent_process)
+                histograms[parent_process] = histograms[process].Clone(new_hist_name)
+            else:
+                histograms[parent_process].Add(histograms[process])
+            histograms.pop(process)
 
     def merge_histograms(self):
         for plot_config, histograms in self.histograms.iteritems():

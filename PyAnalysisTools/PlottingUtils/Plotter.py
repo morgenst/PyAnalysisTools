@@ -7,7 +7,7 @@ import copy
 import os
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config_new2, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -136,11 +136,11 @@ class Plotter(BasePlotter):
         if process_configs is None:
             return file_handles
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config_new2(fh.process, process_configs) is None,
+                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config_new2(fh.process, process_configs) is not None,
+        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
 
     def initialise(self):
