@@ -4,7 +4,7 @@ if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ 
     export PYTHONPATH=~/pythonmodules/lib/python2.7/site-packages/:$PYTHONPATH
 fi
 
-if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ $(hostname -s) = *pc-tbed-pub-* ]] || [[ $(hostname -s) = *stbc-* ]]; then
+if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ $(hostname -s) = *pc-tbed-pub-* ]] || [[ $(hostname -s) = *stbc-* ]]  || [[ $(hostname) = *nikhef.nl* ]]; then
     CWD=`dirname $(readlink -f "${BASH_SOURCE[0]}")`
 else
     called=$_
