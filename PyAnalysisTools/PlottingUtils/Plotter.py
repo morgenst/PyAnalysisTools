@@ -132,18 +132,6 @@ class Plotter(BasePlotter):
             self.process_configs.pop(process_config_name)
 
     @staticmethod
-    def filter_process_configs(file_handles, process_configs=None, split_mc_campaigns=False):
-        if process_configs is None:
-            return file_handles
-        unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config_new(fh.process, process_configs) is None,
-                                         file_handles))
-        for process in unavailable_process:
-            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config_new(fh.process, process_configs) is not None,
-                      file_handles)
-
-    @staticmethod
     def filter_processes_new(file_handles, process_configs):
         if process_configs is None:
             return file_handles
