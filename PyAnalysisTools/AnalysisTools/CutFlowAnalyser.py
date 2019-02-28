@@ -11,6 +11,8 @@ try:
     from tabulate.tabulate import tabulate
 except ImportError:
     from tabulate import tabulate
+tabulate.LATEX_ESCAPE_RULES={}
+
 from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
@@ -403,7 +405,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             if not parent_process in yields.keys():
                 yields[parent_process] = yields[process]
             else:
-                yields[parent_process]["yield"] += yields[process]["yield"]
+                try:
+                    yields[parent_process]["yield"] += yields[process]["yield"]
+                except TypeError:
+                    yields[parent_process] += yields[process]
             yields.pop(process)
         return yields
 
@@ -420,7 +425,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         """
         replace_items = [('/', ''), (' ', ''), ('>', '_gt_'), ('<', '_lt_'), ('$', ''), ('.', '')]
         signal_processes = filter(lambda prc: prc.type.lower() == "signal", self.process_configs.values())
-
 
         signal_generated_events = self.merge(self.event_numbers)
         signal_generated_events = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
@@ -459,11 +463,15 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         :return: cutflow yields with efficiencies
         :rtype: pandas.DataFrame
         """
+
+        def get_reference():
+            return current_process_cf['yield'][0]
+
         current_process_cf = cutflow
         if np_cutflow is not None:
             current_process_cf = np_cutflow
         try:
-            cut_efficiencies = [float(i)/float(current_process_cf['yield'][0]) for i in current_process_cf['yield']]
+            cut_efficiencies = [float(i)/float(get_reference()) for i in current_process_cf['yield']]
         except ZeroDivisionError:
             cut_efficiencies = [1.] * len(current_process_cf['yield'])
         if self.percent_eff:
