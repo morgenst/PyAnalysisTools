@@ -243,7 +243,6 @@ class SystematicsAnalyser(BasePlotter):
             for category in self.total_systematics.keys():
                 colors.append(category.color)
                 syst_hists = self.total_systematics[category][variation][plot_config]
-                print syst_hists
                 sm_total_hist_syst = None
                 for process, nominal_hist in nominal_hists.iteritems():
                     if "data" in process.lower():
@@ -282,50 +281,3 @@ class SystematicsAnalyser(BasePlotter):
         sm_total_down_categorised, colors_down = get_sm_total(nominal, "down")
         colors = color_up + colors_down
         return sm_total_up_categorised, sm_total_down_categorised, colors
-
-    def make_overview_plots(self, plot_config):
-        """
-        Make summary plot of each single systematic uncertainty for variable defined in plot_config for a single process
-        :param plot_config:
-        :type plot_config:
-        :return:
-        :rtype:
-        """
-        def format_plot(canvas, labels, **kwargs):
-            fm.decorate_canvas(canvas, plot_config)
-            fm.add_legend_to_canvas(canvas, labels=labels, **kwargs)
-
-        overview_hists = {}
-        syst_plot_config = deepcopy(plot_config)
-        syst_plot_config.name = "syst_overview_{:s}".format(plot_config.name)
-        syst_plot_config.logy = False
-        syst_plot_config.ymin = -50.
-        syst_plot_config.ymax = 50.
-        syst_plot_config.ytitle = 'variation [%]'
-        labels = []
-        syst_plot_config.color = get_default_color_scheme()
-        skipped = 0
-        for index, variation in enumerate(self.systematic_variations.keys()):
-            labels.append(variation)
-            sys_hists = self.systematic_variations[variation][plot_config]
-            for process, hist in sys_hists.iteritems():
-                hist_base_name = "sys_overview_{:s}_{:s}".format(plot_config.name, process)
-                syst_plot_config.name = hist_base_name
-                if hist_base_name not in overview_hists:
-                    overview_hists[hist_base_name] = pt.plot_obj(hist.Clone(hist_base_name), syst_plot_config, index=0)
-                    continue
-                overview_canvas = overview_hists[hist_base_name]
-                if hist.GetMaximum() < 0.1 and abs(hist.GetMinimum()) < 0.1:
-                    if len(labels) > 0:
-                        labels.pop(-1)
-                    skipped += 1
-                    continue
-                pt.add_object_to_canvas(overview_canvas,
-                                        hist.Clone("{:s}_{:s}".format(hist_base_name, variation)),
-                                        syst_plot_config,
-                                        index=index - skipped)
-        if len(labels) == 0:
-            return
-
-        map(lambda c: format_plot(c, labels, format = 'Line'), overview_hists.values())
-        map(lambda h: self.output_handle.register_object(h), overview_hists.values())
