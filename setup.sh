@@ -11,5 +11,6 @@ else
     [[ $called != $0 ]]
     CWD=`dirname "${BASH_SOURCE[@]}"`
 fi
+
 export PYTHONPATH=${CWD}:${PYTHONPATH}
 export PATH=${CWD}/run_scripts:${PATH}
