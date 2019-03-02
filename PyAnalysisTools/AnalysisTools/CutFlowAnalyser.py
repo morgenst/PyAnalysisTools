@@ -396,7 +396,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         :return: merged yields
         :rtype: dict
         """
-        print yields.keys()
         for process in yields.keys():
             print process
             parent_process = find_process_config(process, self.process_configs).name
