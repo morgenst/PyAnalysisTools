@@ -29,6 +29,57 @@ def get_default_argparser(description=''):
     return parser
 
 
+def add_process_args(parser):
+    """
+    add default arguments for process configurations
+    :param parser: argument parser
+    :type parser: argparse.ArgumentParser
+    :return: nothing
+    :rtype: None
+    """
+
+    parser.add_argument("--lumi", "-l", type=float, default=None, help="Luminosity in fb^-1")
+    parser.add_argument("--dataset_config", "-xcf", type=str, default=None, help="dataset config file")
+    parser.add_argument("--process_configs", "-prcf", nargs='+', default=None, help="process definition files")
+
+
+def add_output_args(parser):
+    """
+    add default arguments for output
+    :param parser: argument parser
+    :type parser: argparse.ArgumentParser
+    :return: nothing
+    :rtype: None
+    """
+
+    parser.add_argument("--output_dir", "-o", default=None, help="output directory")
+
+
+def add_input_args(parser):
+    """
+    add default arguments for input
+    :param parser: argument parser
+    :type parser: argparse.ArgumentParser
+    :return: nothing
+    :rtype: None
+    """
+
+    parser.add_argument("input_file_list", nargs="+", type=str, help="input file list")
+    parser.add_argument('--tree_name', '-tn', default=None, help="tree name (required for extended CA")
+
+
+def add_selection_args(parser):
+    """
+    add default arguments for selection
+    :param parser: argument parser
+    :type parser: argparse.ArgumentParser
+    :return: nothing
+    :rtype: None
+    """
+
+    parser.add_argument('--selection_config', '-sc', default=None, help="config for additional cuts")
+
+
 def default_init(parser):
     """
     default initialisation of steering scripts and parsing of arguments
