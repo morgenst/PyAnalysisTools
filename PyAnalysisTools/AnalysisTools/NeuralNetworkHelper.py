@@ -20,7 +20,26 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
+from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
 np.seterr(divide='ignore', invalid='ignore')
+import tensorflow as tf
+import sys
+sys.setrecursionlimit(10000)
+
+
+class GridScanConfig(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('batch_size', [16])
+        kwargs.setdefault('epochs', [10])
+        kwargs.setdefault('optimizer', ['SGD'])
+        kwargs.setdefault('activation', ['relu'])
+        kwargs.setdefault('neurons', [30])
+        kwargs.setdefault('dropout', [0.2])
+
+        for attr, val in kwargs.iteritems():
+            if not isinstance(val, list):
+                val = [val]
+            setattr(self, attr, val)
 
 
 class LimitConfig(object):
@@ -54,10 +73,10 @@ class LimitConfig(object):
 class NeuralNetwork(object):
     def __init__(self, num_features, limit_config):
         model = Sequential()
-        width = 32
-        model.add(Dense(units=width, input_dim=num_features, activation=limit_config.activation, kernel_initializer='random_normal'))
+        model.add(Dense(units=limit_config.neurons, input_dim=num_features, activation=limit_config.activation,
+                        kernel_initializer='random_normal'))
         for i in range(limit_config.nlayers - 1):
-            model.add(Dense(width, activation=limit_config.activation, kernel_initializer='random_normal'))
+            model.add(Dense(limit_config.neurons, activation=limit_config.activation, kernel_initializer='random_normal'))
             #model.add(Dropout(0.5))
         model.add(Dense(1, activation=limit_config.final_activation))
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
@@ -71,7 +90,12 @@ class NNTrainer(object):
         kwargs.setdefault("epochs", 10)
         kwargs.setdefault("control_plots", False)
         kwargs.setdefault("disable_scaling", False)
+        kwargs.setdefault("disable_event_weights", False)
+        kwargs.setdefault("scale_algo", 'standard')
+        kwargs.setdefault("disable_array_safe", False)
         kwargs.setdefault("verbosity", 1)
+        kwargs.setdefault("max_events", None)
+
         self.reader = TrainingReader(**kwargs)
         self.variable_list = kwargs["variables"]
         self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
@@ -158,10 +182,13 @@ class NNTrainer(object):
         plt.savefig(os.path.join(self.output_path, 'plots/{:s}.png'.format(name)))
         plt.close()
 
-    def train(self):
-        self.build_input()
+    def convert_pd(self):
         self.npa_data_train = self.df_data_train[self.variable_list].as_matrix()
         self.npa_data_eval = self.df_data_eval[self.variable_list].as_matrix()
+
+    def train(self):
+        self.build_input()
+        self.convert_pd()
 
         if not self.disable_event_weights:
             self.weight_train = self.df_data_train['weight']
@@ -287,6 +314,7 @@ class NNTrainer(object):
 class NNReader(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("selection_config", None)
+        kwargs.setdefault("ncpu", 1)
         self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"],
                                         dataset_info=kwargs["xs_config_file"])
                              for fn in kwargs["input_files"]]
@@ -294,6 +322,7 @@ class NNReader(object):
         self.input_path = os.path.abspath(kwargs["input_path"])
         self.model_train = load_model(os.path.join(self.input_path, "models/model_train.h5"))
         self.model_eval = load_model(os.path.join(self.input_path, "models/model_eval.h5"))
+        self.graph = tf.get_default_graph()
         self.variable_list = kwargs["branches"]
         self.converter = Root2NumpyConverter(self.variable_list + ["weight", "train_flag"])
         self.converter_selection = Root2NumpyConverter(["event_number", "run_number"])
@@ -302,11 +331,13 @@ class NNReader(object):
         self.friend_name = kwargs["friend_name"]
         self.input_path = os.path.abspath(kwargs["input_path"])
         self.output_path = kwargs["output_path"]
+        self.ncpu = kwargs['ncpu']
         self.selection = None
         if kwargs["selection_config"]:
             self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         make_dirs(self.output_path)
         self.scaler = DataScaler(kwargs["scale_algo"])
+        MLConfigHandle(**self.__dict__).dump_config()
 
     def build_friend_tree(self, file_handle):
         self.is_new_tree = False
@@ -331,7 +362,11 @@ class NNReader(object):
 
     def run(self):
         for file_handle in self.file_handles:
-            self.attach_NN_output(file_handle)
+            try:
+                self.attach_NN_output(file_handle)
+            except Exception as e:
+                _logger.error('Detected problem for file: {:s}'.format(file_handle.tfile))
+                continue
 
     def apply_scaling(self):
         self.npa_data_train, _ = self.scaler.apply_scaling(self.npa_data, None,
