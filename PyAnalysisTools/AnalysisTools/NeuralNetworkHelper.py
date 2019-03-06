@@ -186,8 +186,8 @@ class NNTrainer(object):
         plt.close()
 
     def convert_pd(self):
-        self.npa_data_train = self.df_data_train[self.variable_list].as_matrix()
-        self.npa_data_eval = self.df_data_eval[self.variable_list].as_matrix()
+        self.npa_data_train = self.df_data_train[self.variable_list].values
+        self.npa_data_eval = self.df_data_eval[self.variable_list].values
 
     def train(self):
         self.build_input()
@@ -236,9 +236,9 @@ class NNTrainer(object):
             sig_weights = np.ones_like(signal_pred) / float(len(signal_pred))
             bkg_weights = np.ones_like(bkg_pred) / float(len(bkg_pred))
             plt.hist(signal_pred, 50, range=[0., 1.], histtype='step', label='signal model0', weights=sig_weights,
-                     normed=True)
+                     density=True)
             plt.hist(bkg_pred, 50, range=[0., 1.], histtype='step', label='bkg model1', weights=bkg_weights,
-                     normed=True)
+                     density=True)
             plt.yscale('log')
             plt.grid(True)
             plt.legend(["signal", "background"], loc="upper right")
@@ -289,9 +289,9 @@ class NNTrainer(object):
             if "/" in variable_name:
                 variable_name = "_".join(variable_name.split("/")).replace(" ", "")
             var_range = np.percentile(data, [2.5, 97.5])
-            plt.hist(map(float, signal.values), 100, range=var_range, histtype='step', label='signal', normed=True)
+            plt.hist(map(float, signal.values), 100, range=var_range, histtype='step', label='signal', density=True)
             plt.hist(map(float, background.values), 100, range=var_range, histtype='step', label='background',
-                     normed=True)
+                     density=True)
             if data.ptp() > 1000.:
                 plt.yscale('log')
             plt.legend(["signal", "background"], loc="upper right")
@@ -381,8 +381,8 @@ class NNReader(object):
 
     def make_control_plots(self, train_pred, eval_pred, label):
         _logger.debug("Consistency plots")
-        plt.hist(train_pred, 50, range=[0., 1.], histtype='step', label='model0', normed=True)
-        plt.hist(eval_pred, 50, range=[0., 1.], histtype='step', label='model1', normed=True)
+        plt.hist(train_pred, 50, range=[0., 1.], histtype='step', label='model0', density=True)
+        plt.hist(eval_pred, 50, range=[0., 1.], histtype='step', label='model1', density=True)
         plt.yscale('log')
         plt.grid(True)
         plt.legend(["train", "eval"], loc="upper right")
@@ -397,7 +397,7 @@ class NNReader(object):
             if "/" in variable_name:
                 variable_name = "_".join(variable_name.split("/")).replace(" ", "")
             var_range = np.percentile(data, [2.5, 97.5])
-            plt.hist(map(float, signal), 100, range=var_range, histtype='step', label='signal', normed=False)
+            plt.hist(map(float, signal), 100, range=var_range, histtype='step', label='signal', density=False)
             if data.ptp() > 1000.:
                 plt.yscale('log')
             plt.legend(["scaled"], loc="upper right")
@@ -417,10 +417,10 @@ class NNReader(object):
             selection = self.selection[0] if file_handle.is_mc else self.selection[1]
 
         data_selected = self.converter.convert_to_array(tree, selection)
-        selected_event_numbers = pd.DataFrame(self.converter_selection.convert_to_array(tree, selection)).as_matrix()
+        selected_event_numbers = pd.DataFrame(self.converter_selection.convert_to_array(tree, selection)).values
         data_selected = pd.DataFrame(data_selected)
 
-        self.npa_data = data_selected[self.variable_list].as_matrix()
+        self.npa_data = data_selected[self.variable_list].values
         self.apply_scaling()
         prediction0 = self.model_train.predict(self.npa_data_train)
         prediction1 = self.model_eval.predict(self.npa_data_eval)
