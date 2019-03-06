@@ -126,7 +126,8 @@ class Plotter(BasePlotter):
         self.syst_analyser.plot_configs = self.plot_configs
         #config.output_dir = "/Users/morgens/tmp/test"
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
-                                              extension=['.pdf'], output_dir=config.output_dir)
+                                              extension=['.pdf'], output_dir=kwargs['output_dir'])
+        self.output_handle.reinitialise_output_dir()
 
     def cluster_init(self, config):
         super(Plotter, self).__init__(cluster_config=config)
@@ -145,7 +146,7 @@ class Plotter(BasePlotter):
         self.syst_analyser.dump_hists = True
         self.syst_analyser.plot_configs = self.plot_configs
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
-                                              extension=None, output_dir=config.output_dir,
+                                              extension=None, output_dir=config.output_dir, sub_dir_name='hists',
                                               output_file='hist-{:s}'.format(config.file_name.split('-')[1]))
 
     def add_mc_campaigns(self):
