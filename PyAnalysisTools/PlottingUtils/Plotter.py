@@ -36,13 +36,20 @@ class PlotArgs(object):
 class Plotter(BasePlotter):
     def __init__(self, **kwargs):
         kwargs.setdefault('cluster_config', None)
-        kwargs.setdefault("ncpu", 1)
+        kwargs.setdefault('ncpu', 1)
+        kwargs.setdefault('cluster_mode', False)
+        kwargs.setdefault('redraw_hists', None)
+
         if kwargs['cluster_config'] is not None:
             self.cluster_init(kwargs['cluster_config'])
             self.cluster_mode = True
             self.ncpu = kwargs['ncpu']
             return
-        self.cluster_mode = False
+        self.cluster_mode = kwargs['cluster_mode']
+        if kwargs['redraw_hists'] is not None:
+            self.redraw_init(**kwargs)
+            return
+
         if "input_files" not in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("No input files")
@@ -94,6 +101,32 @@ class Plotter(BasePlotter):
     def expand_plot_configs(self):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
+
+    def redraw_init(self, **kwargs):
+        super(Plotter, self).__init__(cluster_mode=False, redraw=True)
+        config = kwargs['config']
+        self.histograms = {}
+        self.modules = load_modules(kwargs["module_config_file"], self)
+        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        self.read_hist = True
+        self.xs_handle = XSHandle(config.extra_args["xs_config_file"])
+        self.ncpu = 1
+        self.nfile_handles = 1
+        self.plot_config_files = kwargs['plot_config_files']
+        self.parse_plot_config()
+        self.expand_plot_configs()
+        self.xs_config_file = config.extra_args['xs_config_file']
+        self.process_configs = config.extra_args['process_configs']
+        self.syst_analyser = config.extra_args['syst_analyser']
+        self.syst_analyser.file_handles = self.file_handles
+        self.syst_analyser.event_yields = self.event_yields
+        self.syst_analyser.dump_hists = False
+        self.syst_analyser.plot_configs = self.plot_configs
+        #config.output_dir = "/Users/morgens/tmp/test"
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
+                                              extension=['.pdf'], output_dir=config.output_dir)
 
     def cluster_init(self, config):
         super(Plotter, self).__init__(cluster_config=config)
@@ -208,7 +241,7 @@ class Plotter(BasePlotter):
         event_yields = {}
         for file_handle in self.file_handles:
             cutflow = file_handle.get_object_by_name("Nominal/cutflow_BaseSelection")
-            process_config = find_process_config_new(file_handle.process, self.process_configs)
+            process_config = find_process_config(file_handle.process, self.process_configs)
             if process_config is None:
                 continue
             if process_config.is_data:
@@ -408,6 +441,7 @@ class Plotter(BasePlotter):
 
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = pt.add_ratio_to_canvas(canvas, canvas_ratio)
+            print 'register canvas {:s}'.format(canvas_combined.GetName())
             self.output_handle.register_object(canvas_combined)
 
     def build_fetched_histograms(self):
@@ -418,37 +452,47 @@ class Plotter(BasePlotter):
         #"[(<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x12545f2d0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_data17.periodK") at 0x7f8ec2568400>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979fd0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_data17.periodK") at 0x7f8ec2567850>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485650>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_data17.periodK") at 0x7f8ec2ab4da0>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979d90>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_data17.periodK") at 0x7f8ec2567080>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485690>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec216cd30>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485910>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178970>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979c10>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ebe6f5580>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124d7be90>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178e60>)]"
         return l
 
-    def get_fetched_hist(self, args):
+    @staticmethod
+    def get_fetched_hist(args):
         fh = args[0]
         pc = args[1]
         c = fh.get_object_by_name(pc.name)
         return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
 
+    def project_hists(self):
+        self.read_cutflows()
+        # for mod in self.modules_pc_modifiers:
+        #     self.plot_configs = mod.execute(self.plot_configs)
+        if self.syst_analyser is not None:
+            self.syst_analyser.plot_configs = self.plot_configs
+        if not self.read_hist:
+            if len(self.modules_hist_fetching) == 0:
+                fetched_histograms = self.read_histograms(file_handles=self.file_handles,
+                                                          plot_configs=self.plot_configs)
+            else:
+                fetched_histograms = self.modules_hist_fetching[0].fetch()
+        else:
+            fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
+                                                            plot_configs=self.plot_configs)
+        return filter(lambda hist_set: all(hist_set), fetched_histograms)
+
+    def read_hists(self, path):
+        input_files = glob.glob(os.path.join(path, '*.root'))
+        _logger.debug("Reading {:d} files now from path".format(len(input_files)))
+        self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
+                                        split_mc=False) for fn in input_files]
+        self.syst_analyser.file_handles = self.file_handles
+        return self.build_fetched_histograms()
+
     def make_plots(self, dumped_hist_path=None):
         if dumped_hist_path is None:
-            self.read_cutflows()
-            # for mod in self.modules_pc_modifiers:
-            #     self.plot_configs = mod.execute(self.plot_configs)
-            if self.syst_analyser is not None:
-                self.syst_analyser.plot_configs = self.plot_configs
-            if not self.read_hist:
-                if len(self.modules_hist_fetching) == 0:
-                    fetched_histograms = self.read_histograms(file_handles=self.file_handles, plot_configs=self.plot_configs)
-                else:
-                    fetched_histograms = self.modules_hist_fetching[0].fetch()
-            else:
-                fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
-                                                                plot_configs=self.plot_configs)
-            fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+            fetched_histograms = self.project_hists()
         else:
-            self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
-                                            split_mc=self.split_mc_campaigns) for fn in glob.glob(os.path.join(dumped_hist_path, '*.root'))]
-            self.syst_analyser.file_handles = self.file_handles
-            fetched_histograms = self.build_fetched_histograms()
+            fetched_histograms = self.read_hists(dumped_hist_path)
         self.categorise_histograms(fetched_histograms)
         if not self.cluster_mode:
             if not self.lumi < 0:
-                self.apply_lumi_weights_new(self.histograms)
+                self.apply_lumi_weights(self.histograms)
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
