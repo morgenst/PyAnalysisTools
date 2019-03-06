@@ -31,6 +31,7 @@ class BasePlotter(object):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault('syst_tree_name', None)
         kwargs.setdefault('cluster_config', None)
+        kwargs.setdefault('redraw', False)
 
         self.event_yields = {}
         set_batch_mode(kwargs["batch"])
@@ -38,6 +39,10 @@ class BasePlotter(object):
         if kwargs['cluster_config'] is not None:
             self.cluster_setup(kwargs['cluster_config'])
             return
+        if kwargs['redraw']:
+            self.file_handles = []
+            return
+
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
@@ -118,7 +123,7 @@ class BasePlotter(object):
         """
         fm.load_atlas_style()
 
-    def apply_lumi_weights_new(self, histograms):
+    def apply_lumi_weights(self, histograms):
         """
         Weight histograms according to process cross section and luminosity. If MC samples are split in several
         production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
