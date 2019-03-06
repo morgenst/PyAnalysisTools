@@ -41,10 +41,12 @@ class GridScanConfig(object):
                 val = [val]
             setattr(self, attr, val)
 
-
+#TODO: should be renamed
 class LimitConfig(object):
     def __init__(self, name, **kwargs):
         kwargs.setdefault("nlayers", 3)
+        kwargs.setdefault("dropout", None)
+
         self.name = name
         for attr, value in kwargs.iteritems():
             if attr == "optimiser":
@@ -77,7 +79,8 @@ class NeuralNetwork(object):
                         kernel_initializer='random_normal'))
         for i in range(limit_config.nlayers - 1):
             model.add(Dense(limit_config.neurons, activation=limit_config.activation, kernel_initializer='random_normal'))
-            #model.add(Dropout(0.5))
+            if limit_config.dropout is not None:
+                model.add(Dropout(limit_config.dropout))
         model.add(Dense(1, activation=limit_config.final_activation))
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
         self.kerasmodel = model
@@ -203,11 +206,13 @@ class NNTrainer(object):
             self.make_control_plots("postscaling")
 
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
-                                         epochs=self.epochs, verbose=self.verbosity, batch_size=64, shuffle=True,
+                                         epochs=self.epochs, verbose=self.verbosity,
+                                         batch_size=self.limit_config.batch_size, shuffle=True,
                                          validation_data=(self.npa_data_eval, self.label_eval),
                                          sample_weight=self.weight_train)
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
-                                        epochs=self.epochs, verbose=self.verbosity, batch_size=64, shuffle=True,
+                                        epochs=self.epochs, verbose=self.verbosity,
+                                        batch_size=self.limit_config.batch_size, shuffle=True,
                                         validation_data=(self.npa_data_train, self.label_train),
                                         sample_weight=self.weight_eval)
         if self.plot:
