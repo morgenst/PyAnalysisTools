@@ -197,8 +197,6 @@ class OutputFileHandle(SysOutputHandle):
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
-        print ("Written file %s" % self.output_file.GetName())
-
         self.output_root_file_path = self.output_file.GetName()
 
     def register_object(self, obj, tdir=None):
