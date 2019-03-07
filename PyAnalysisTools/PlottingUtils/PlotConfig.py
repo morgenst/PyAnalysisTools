@@ -390,10 +390,12 @@ def propagate_common_config(common_config, plot_configs):
 
 def _parse_draw_option(plot_config, process_config=None):
     draw_option = "Hist"
+
     if hasattr(plot_config, "draw"):
         draw_option = plot_config.draw
     if process_config and hasattr(process_config, "draw"):
         draw_option = process_config.draw
+    #print 'DO: ', draw_option, plot_config.draw, process_config.draw
     return draw_option
 
 
@@ -433,6 +435,17 @@ def transform_color(color, index=None):
 
 
 def get_style_setters_and_values(plot_config, process_config=None, index=None):
+    """
+    Parse style setter and values from draw option and config files
+    :param plot_config: current plot configuration
+    :type plot_config: PlotConfig
+    :param process_config: process configuration
+    :type process_config: ProcessConfig
+    :param index: index of current object in multi-object plotting
+    :type index: int
+    :return: style setters (Marker, Line etc), attribute (color, size etc) and color
+    :rtype: list
+    """
     style_setter = None
     style_attr, color = None, None
     draw_option = _parse_draw_option(plot_config, process_config)
@@ -473,6 +486,8 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     #     style_attr = None
     if not isinstance(style_setter, list):
         style_setter = [style_setter]
+    _logger.debug("Parsed style setter {:s} from draw option {:s}".format(style_setter, draw_option))
+
     return style_setter, style_attr, color
 
 
