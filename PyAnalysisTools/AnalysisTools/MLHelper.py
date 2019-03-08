@@ -14,6 +14,56 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
 
 
+class MLConfig(object):
+    """
+    Class containing configration of ML classifier
+    """
+    def __init__(self, **kwargs):
+        kwargs.setdefault('scaler', None)
+        self.score_name = kwargs['branch_name']
+        self.varset = kwargs['variable_list']
+        self.scaler = kwargs['scaler']
+        self.selection = kwargs['selection']
+
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Attached ML branch {:s} was created with the following configuration \n".format(self.score_name)
+        obj_str += 'variables: \n'
+        for var in self.varset:
+            obj_str += '\t {:s}\n'.format(var)
+        obj_str += 'selection: \n'
+        for sel in self.selection:
+            obj_str += '\t {:s}\n'.format(sel)
+        obj_str += 'scaler: {:s}'.format(self.scaler)
+        return obj_str
+
+
+class MLConfigHandle(object):
+    """
+    Handle to create and add ML configuration to summary file in friend directory
+    """
+    def __init__(self, **kwargs):
+        self.config = MLConfig(**kwargs)
+        self.output_path = kwargs['output_path']
+        self.file_name = os.path.join(self.output_path, 'ml_config_summary.pkl')
+
+    def dump_config(self):
+        data = {}
+        if os.path.exists(self.file_name):
+            with open(self.file_name, 'r') as f:
+                data = pickle.load(f)
+        if self.config.score_name in data:
+            print 'Score with name {:s} does already exist. Will give up adding it'.format(self.config.score_name)
+            exit()
+        data[self.config.score_name] = self.config
+        with open(self.file_name, 'w') as f:
+            pickle.dump(data, f)
+
+
 class DataScaler(object):
     def __init__(self, algo="default"):
         self.scale_algo = algo
