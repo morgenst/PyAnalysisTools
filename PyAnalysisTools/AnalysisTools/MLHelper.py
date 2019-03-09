@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import ROOT
+import os
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
