@@ -136,7 +136,7 @@ class TriggerAcceptancePlotter(BasePlotter):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book, **kwargs)
         self.trigger_list = self.build_trigger_list()
-        self.trigger_list = filter(lambda t: "prescales" not in t, self.trigger_list)
+        self.trigger_list = filter(lambda t: 'prescale' not in t and 'online' not in t, self.trigger_list)
         self.overlap_hist = None
         self.unqiue_rate_hist = None
 
@@ -224,8 +224,11 @@ class TriggerAcceptancePlotter(BasePlotter):
             if sum(trigger_data[comb[0]]) > 0. and sum(trigger_data[comb[1]]) > 0.:
                 overlap = sum(map(float, map(lambda d: d[0] == d[1] and d[0] == 1, zip(trigger_data[comb[0]],
                                                                                        trigger_data[comb[1]]))))
-                overlap /= sum(map(float, map(lambda d: d[0] == 1, zip(trigger_data[comb[0]],
-                                                                       trigger_data[comb[1]]))))
+                try:
+                    overlap /= sum(map(float, map(lambda d: d[0] == 1, zip(trigger_data[comb[0]],
+                                                                           trigger_data[comb[1]]))))
+                except ZeroDivisionError:
+                    overlap = 0.
             else:
                 overlap = 0.
             trigger_overlap[comb] = overlap
