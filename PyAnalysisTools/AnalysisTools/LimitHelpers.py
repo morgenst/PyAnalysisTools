@@ -1,10 +1,13 @@
 import pickle
 from copy import deepcopy
+from math import sqrt
+
 import numpy as np
 import pandas as pd
 import ROOT
 import os
 import re
+import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
@@ -20,6 +23,7 @@ try:
     from tabulate.tabulate import tabulate
 except ImportError:
     from tabulate import tabulate
+sys.modules[tabulate.__module__].LATEX_ESCAPE_RULES = {}
 
 
 class LimitArgs(object):
@@ -50,25 +54,27 @@ class LimitArgs(object):
             obj_str += '\t{:s}\n'.format(process)
         obj_str += 'SR yield: {:.2f}\n'.format(self.kwargs['sig_yield'])
         obj_str += 'SR systematics: \n'
-        for process in self.kwargs['sr_syst'].keys():
-            obj_str += 'Process: {:s}\n'.format(process)
-            for name, unc in self.kwargs['sr_syst'][process].iteritems():
-                obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
-            obj_str += '\n'
+        if 'sr_syst' in self.kwargs:
+            for process in self.kwargs['sr_syst'].keys():
+                obj_str += 'Process: {:s}\n'.format(process)
+                for name, unc in self.kwargs['sr_syst'][process].iteritems():
+                    obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
+                obj_str += '\n'
         obj_str += 'Bkg yields: \n'
         for process, ylds in self.kwargs['bkg_yields'].iteritems():
             obj_str += '\t{:s}\t\t{:.2f}\n'.format(process, ylds)
         # for attribute, value in self.__dict__.items():
         #     obj_str += '{}={} '.format(attribute, value)
         #
-        obj_str += 'CR systematics: \n'
-        for region in self.kwargs['ctrl_syst'].keys():
-            obj_str += 'CR: {:s}\n'.format(region)
-            for process in self.kwargs['ctrl_syst'][region].keys():
-                obj_str += 'Process: {:s}\n'.format(process)
-                for name, unc in self.kwargs['ctrl_syst'][region][process].iteritems():
-                    obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
-                obj_str += '\n'
+        if self.kwargs['ctrl_syst'] is not None:
+            obj_str += 'CR systematics: \n'
+            for region in self.kwargs['ctrl_syst'].keys():
+                obj_str += 'CR: {:s}\n'.format(region)
+                for process in self.kwargs['ctrl_syst'][region].keys():
+                    obj_str += 'Process: {:s}\n'.format(process)
+                    for name, unc in self.kwargs['ctrl_syst'][region][process].iteritems():
+                        obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
+                    obj_str += '\n'
         return obj_str
 
     def __repr__(self):
@@ -78,6 +84,8 @@ class LimitArgs(object):
         :rtype: str
         """
         return self.__str__() + '\n'
+
+
 def build_region_info(control_region_defs):
     limit_region_info = {}
     for region in control_region_defs:
@@ -191,8 +199,9 @@ class LimitAnalyserCL(object):
             data = self.converter.convert_to_array(tree=tree)
             fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
-            self.limit_info.add_info(exp_limit=data['exp_upperlimit'], exp_limit_up=data['exp_upperlimit_plus1'],
-                                     exp_limit_low=data['exp_upperlimit_minus1'])
+            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * 1000.,
+                                     exp_limit_up=data['exp_upperlimit_plus1'] * 1000.,
+                                     exp_limit_low=data['exp_upperlimit_minus1'] * 1000.)
 
         except ValueError:
             self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
@@ -220,8 +229,8 @@ class LimitPlotter(object):
         limits.sort(key=lambda li: li.mass)
         ytitle = "95% CL U.L on #sigma [pb]"
         pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle=plot_config['xtitle'], draw="pLX", logy=True,
-                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-7),
-                        ymax=float(1e-2), )
+                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-4),
+                        ymax=float(1.), )
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
         pc_1sigma.color = ROOT.kGreen
@@ -243,11 +252,14 @@ class LimitPlotter(object):
             graph_2sigma.SetPointEYhigh(i, 2. * (limit.exp_limit_up - limit.exp_limit))
             graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
         if theory_xsec is not None:
-            graph_theory = ROOT.TGraph(len(limits))
-            for i, mass in enumerate(sorted(map(lambda l: l.mass,limits))):
-                theory_xsec = filter(lambda xs: xs[0] == mass, theory_xsec)[0]
-                graph_theory.SetPoint(i, mass, theory_xsec[-1])
-            limits.sort(key=lambda li: li.mass)
+            graph_theory = []
+            for process, xsecs in theory_xsec.iteritems():
+                graph_theory.append(ROOT.TGraph(len(limits)))
+                for j, mass in enumerate(sorted(map(lambda l: l.mass, limits))):
+                    xs = filter(lambda xs: xs[0] == mass, xsecs)[0]
+                    graph_theory[-1].SetPoint(j, mass, xs[-1])
+                limits.sort(key=lambda li: li.mass)
+                graph_theory[-1].SetName('Theory_prediction_{:s}'.format(process))
         graph_2sigma.SetName('xsec_limit')
         canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
         pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
@@ -257,34 +269,44 @@ class LimitPlotter(object):
         plot_objects = [graph, graph_1sigma, graph_2sigma]
         if theory_xsec is not None:
             pc_theory = deepcopy(pc)
-            pc_theory.draw = 'l'
-            pt.add_graph_to_canvas(canvas, graph_theory, pc_theory)
-            labels.append("Theory")
-            legend_format.append("L")
-            plot_objects.append(graph_theory)
+            pc_theory.draw = 'line'
+            colors = get_default_color_scheme()
+            for i, g in enumerate(graph_theory):
+                pc_theory.color = colors[i]
+                pt.add_graph_to_canvas(canvas, g, pc_theory)
+                labels.append("Theory {:s}".format(g.GetName().split('_')[-1]))
+                legend_format.append("L")
+                plot_objects.append(g)
         fm.decorate_canvas(canvas, pc)
         fm.add_legend_to_canvas(canvas, plot_objects=plot_objects, labels=labels, format=legend_format)
         self.output_handle.register_object(canvas)
 
-    def make_limit_plot_plane(self, limits, plot_config, xsec, sig_name):
-        def find_excluded_lambda(mass, excl_limit):
+    def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sig_name):
+        def find_excluded_lambda(mass, xsec, excl_limit):
             xsecs = filter(lambda xs: xs[0] == mass, xsec)
+            xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
+            return sqrt(excl_limit / xsecs[0][-1])
             xsecs.sort(key=lambda i: i[-1])
             try:
                 return filter(lambda i: i[-1] > excl_limit, xsecs)[0][1]
             except IndexError:
                 return 1.
-        sig_type = re.split(r'(\d+)', sig_name)[0]
-        excl_lambdas = [find_excluded_lambda(limit.mass, limit.exp_limit) for limit in limits]
-        graph = ROOT.TGraph(len(excl_lambdas))
-        for i, limit in enumerate(limits):
-            graph.SetPoint(i, limit.mass, excl_lambdas[i])
-        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=1.2, ymin=0., draw_option='AL',
-                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], logy=False,
-                        lumi=plot_config['lumi'])
-        canvas = pt.plot_graph(graph, pc)
+
+        graphs_contour = []
+        for process, xsecs in theory_xsec.iteritems():
+            excl_lambdas = [find_excluded_lambda(limit.mass, xsecs, limit.exp_limit) for limit in limits]
+            graphs_contour.append(ROOT.TGraph(len(excl_lambdas)))
+            for i, limit in enumerate(limits):
+                graphs_contour[-1].SetPoint(i, limit.mass, excl_lambdas[i])
+            graphs_contour[-1].SetName('Limit_contour_{:s}'.format(process))
+
+        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=1.2, ymin=0., draw='Line',
+                        xtitle=plot_config['xtitle'], ytitle='#lambda', logy=False,
+                        lumi=plot_config['lumi'], labels=map(lambda g: g.GetName().split('_')[-1], graphs_contour),
+                        color=get_default_color_scheme())
+        canvas = pt.plot_graphs(graphs_contour, pc)
         fm.decorate_canvas(canvas, pc)
-        fm.add_legend_to_canvas(canvas, labels=['95% CL U.L'])
+        fm.add_legend_to_canvas(canvas, labels=pc.labels)
         self.output_handle.register_object(canvas)
 
 
@@ -419,12 +441,19 @@ class LimitScanAnalyser(object):
         best_limits = self.find_best_limit(parsed_data)
         self.tabulate_limits(best_limits)
         theory_xsec = None
+
         if self.xsec_map is not None:
+            chains = ['LQmud', 'LQmus']
+            theory_xsec = OrderedDict()
             # TODO: needs proper implementation
-            self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map['LQed'],
-                                               scan.kwargs['sig_name'])
-            theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+            for mode in chains:
+                # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
+                #                                    scan.kwargs['sig_name'])
+                theory_xsec[mode] = filter(lambda l: l[1] == 1.0, self.xsec_map[mode])
         self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec)
+        if theory_xsec is not None:
+            self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
+                                               scan.kwargs['sig_name'])
         self.output_handle.write_and_close()
 
     def tabulate_limits(self, limits):
@@ -436,21 +465,21 @@ class LimitScanAnalyser(object):
         for limit in limits:
             data_mass_point = [limit.mass, limit.mass_cut, limit.exp_limit]
             prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut)
-            prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut)
-            data_mass_point.append(prefit_ylds_sig)# * limit.exp_limit)
+            prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut) / 1000.
+            data_mass_point.append(prefit_ylds_sig * limit.exp_limit)
             for process in ordering:
                 data_mass_point.append(prefit_ylds_bkg[process])
             data.append(data_mass_point)
-
-        headers = ['mass', 'mass_cut', 'UL [pb]', 'Signal'] + ordering
-        print tabulate(data, headers=headers, tablefmt='latex')
+        headers = ['m_{LQ}^{gen} [GeV]', 'm_{LQ}^{max} cut [GeV]]', 'UL [pb]', 'Signal'] + ordering
+        print tabulate(data, headers=headers, tablefmt='latex_raw')
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
         data = {}
         for limit in best_limits:
             data[limit.sig_name] = {'threshold': limit.mass_cut}
-        yd.dump_yaml(data, os.path.join(self.output_handle.output_dir, 'limit_thresholds.yml'))
+        yd.dump_yaml(data, os.path.join(self.output_handle.output_dir, 'limit_thresholds.yml'),
+                     default_flow_style=False)
 
     @staticmethod
     def find_best_limit(limits):
@@ -586,13 +615,13 @@ class LimitScanAnalyser(object):
         hist_fit_quality = hist.Clone("fit_quality")
         for limit_info in parsed_data:
             if limit_info.exp_limit > 0:
-                hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000. * 1000.)
+                hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status+1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
         ROOT.gStyle.SetPalette(1)
         ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
-                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [ab]",
+                        xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
                         watermark='Internal', lumi=140.3)
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
@@ -710,11 +739,12 @@ class Sample(object):
     def remove_unused(self):
         self.remove_low_systematics()
 
-    def apply_xsec_weight(self, lumi, xs_handle):
+    def apply_xsec_weight(self, lumi, xs_handle, signal_xsec):
         if self.is_data:
             return
         if self.is_signal:
-            weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds, fixed_xsec=1.)
+            weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds,
+                                                     fixed_xsec=signal_xsec)
         else:
             weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds)
         for cut in self.nominal_evt_yields.keys():
@@ -762,7 +792,6 @@ class Sample(object):
         return self.__add__(other)
 
     def filter_systematics(self):
-        return
         for cut in self.shape_uncerts.keys():
             self.shape_uncerts[cut] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
                                                   self.shape_uncerts[cut].iteritems()))
@@ -847,14 +876,14 @@ class SampleStore(object):
                 if s in self.samples:
                     self.samples.remove(s)
 
-    def apply_xsec_weight(self):
+    def apply_xsec_weight(self, signal_xsec=1.):
         for sample in self.samples:
             if sample.is_data:
                 return
             lumi = self.lumi
             if isinstance(self.lumi, OrderedDict):
                 lumi = self.lumi[sample.name.split('.')[-1]]
-            sample.apply_xsec_weight(lumi, self.xs_handle)
+            sample.apply_xsec_weight(lumi, self.xs_handle, signal_xsec)
 
     def calculate_uncertainties(self):
         for sample in self.samples:
