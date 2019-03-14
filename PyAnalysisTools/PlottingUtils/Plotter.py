@@ -32,6 +32,25 @@ class PlotArgs(object):
         for attr, val in kwargs.iteritems():
             setattr(self, attr, val)
 
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Plot arguments \n"
+        for attribute, value in self.__dict__.items():
+            obj_str += '{}={} \n'.format(attribute, value)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
+
 
 class Plotter(BasePlotter):
     def __init__(self, **kwargs):
