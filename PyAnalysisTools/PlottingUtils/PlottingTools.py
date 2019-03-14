@@ -11,7 +11,7 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, fi
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
-def retrieve_new_canvas(name, title, size_x=800, size_y=600):
+def retrieve_new_canvas(name, title="", size_x=800, size_y=600):
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
     ROOT.SetOwnership(canvas, False)
     return canvas
@@ -280,6 +280,15 @@ def format_hist(hist, plot_config):
     return hist
 
 
+def make_graph(name, x_vals, y_vals):
+    g = ROOT.TGraph(len(x_vals))
+    g.SetName(name)
+    for i, x in enumerate(x_vals):
+        g.SetPoint(i, x, y_vals[i])
+    ROOT.SetOwnership(g, False)
+    return g
+
+
 def plot_graphs(graphs, plot_config):
     if isinstance(graphs, dict):
         graphs = graphs.values()
@@ -349,10 +358,10 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.2)
             if plot_config.logy:
                 hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 100.)
-                if hasattr(plot_config, "ymin"):
-                    hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
-                else:
-                    hist.plot_object.SetMinimum(0.9)
+                #if hasattr(plot_config, ymin:
+                hist.plot_object.SetMinimum(plot_config.ymin)
+                # else:
+                #     hist.plot_object.SetMinimum(0.9)
                 if hist.plot_object.GetMinimum() == 0.:
                     hist.plot_object.SetMinimum(0.9)
                 canvas.SetLogy()
