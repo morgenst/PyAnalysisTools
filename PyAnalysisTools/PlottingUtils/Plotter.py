@@ -85,7 +85,7 @@ class Plotter(BasePlotter):
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
 
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
-        self.file_handles = self.filter_processes_new(self.file_handles, self.process_configs)
+        self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if not self.read_hist:
             self.filter_empty_trees()
         self.modules = load_modules(kwargs["module_config_file"], self)
@@ -169,7 +169,7 @@ class Plotter(BasePlotter):
             self.process_configs.pop(process_config_name)
 
     @staticmethod
-    def filter_processes_new(file_handles, process_configs):
+    def filter_unavailable_processes(file_handles, process_configs):
         if process_configs is None:
             return file_handles
         unavailable_process = map(lambda fh: fh.process,
@@ -177,6 +177,10 @@ class Plotter(BasePlotter):
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
+        failed_file_handles = filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                     file_handles)
+        _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name, failed_file_handles))))
+        map(lambda fh: fh.close(), failed_file_handles)
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
 
@@ -189,7 +193,10 @@ class Plotter(BasePlotter):
             if syst_tree_name is not None and file_handle.is_mc:
                 tn = syst_tree_name
             return file_handle.get_object_by_name(tn, "Nominal").GetEntries() > 0
+
+        empty_files = filter(lambda fh: not is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
         self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
+        map(lambda fh: fh.close(), empty_files)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -442,7 +449,7 @@ class Plotter(BasePlotter):
 
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = pt.add_ratio_to_canvas(canvas, canvas_ratio)
-            print 'register canvas {:s}'.format(canvas_combined.GetName())
+            _logger.debug('register canvas {:s}'.format(canvas_combined.GetName()))
             self.output_handle.register_object(canvas_combined)
 
     def build_fetched_histograms(self):
@@ -509,4 +516,5 @@ class Plotter(BasePlotter):
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()
+        _logger.info('DONE make plots')
 
