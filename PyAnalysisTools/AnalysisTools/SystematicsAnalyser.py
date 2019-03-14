@@ -9,6 +9,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import ROOT
 from PyAnalysisTools.PlottingUtils import HistTools as HT
+from PyAnalysisTools.base import _logger
 
 
 def parse_syst_config(config_file):
@@ -110,7 +111,7 @@ class SystematicsAnalyser(BasePlotter):
             fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
             self.categorise_histograms(fetched_histograms)
             if not self.cluster_mode:
-                self.apply_lumi_weights_new(self.histograms)
+                self.apply_lumi_weights(self.histograms)
             self.merge_histograms()
             map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
             map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
@@ -142,7 +143,6 @@ class SystematicsAnalyser(BasePlotter):
                 for pc in plot_configs:
                     pc.weight = pc.weight.replace('weight', "{:s}*{:s}".format(pc.weight, weight))
                 if dumped_hist_path is None:
-                    print 'CALL WITH ', weight
                     fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=plot_configs,
                                                               systematic="Nominal", factor_syst=weight)
                 else:
@@ -223,7 +223,9 @@ class SystematicsAnalyser(BasePlotter):
                 else:
                     hist.SetBinContent(b, 0.)
                 if math.isnan(hist.GetBinContent(b)):
-                    print 'FOUND NAN om calc diff nom: {:f} and var: {:f} in hist {:s}'.format(nominal, variation, systematic_hist.GetName())
+                    _logger.error('FOUND NAN om calc diff nom: {:f} and var: {:f} in hist {:s}'.format(nominal,
+                                                                                                       variation,
+                                                                                                       systematic_hist.GetName()))
                     exit(0)
             return hist
 
@@ -250,21 +252,16 @@ class SystematicsAnalyser(BasePlotter):
                     tmp_nominal_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
                     tmp_syst = syst_hists[process]
                     for b in range(tmp_syst.GetNbinsX()):
-                        if tmp_syst.GetBinContent(b) > 1. or tmp_syst.GetBinContent(b) < 1.:
-                            print 'FOUND BIN {:d} larger than 1 in {:s} with {:f}'.format(b, tmp_syst.GetName(),
-                                                                                          tmp_syst.GetBinContent(b))
+                        if tmp_syst.GetBinContent(b) > 1. or tmp_syst.GetBinContent(b) < 0.:
+                            _logger.warn('FOUND BIN {:d} larger than 1 in {:s} with {:f}'.format(b, tmp_syst.GetName(),
+                                                                                                 tmp_syst.GetBinContent(b)))
                             tmp_syst.SetBinContent(b, 1.)
                             continue
                         tmp_syst.SetBinContent(b, 1. + tmp_syst.GetBinContent(b))
-                    print 'NOMINAL BINS:'
-                    for b in range(tmp_nominal_hist.GetNbinsX()):
-                        print 'Nominal hist bin {:d} content: {:f}'.format(b, tmp_nominal_hist.GetBinContent(b))
-                    print 'SYST BINS:'
                     for b in range(tmp_nominal_hist.GetNbinsX()):
                         if math.isnan(tmp_syst.GetBinContent(b)):
-                            print 'FOUND NAN exit now'
+                            _logger.error('FOUND NAN in {:s} at bin {:d}. Exit now'.format(tmp_syst.GetName(), b))
                             exit(0)
-                        print 'SYST hist bin {:d} content: {:f}'.format(b, tmp_syst.GetBinContent(b))
 
                     tmp_nominal_hist.Multiply(tmp_syst)
                     if sm_total_hist_syst is None:
@@ -273,11 +270,56 @@ class SystematicsAnalyser(BasePlotter):
                         continue
                     sm_total_hist_syst.Add(tmp_nominal_hist)
                 sm_total_hists_syst.append(sm_total_hist_syst)
-                for b in range(sm_total_hist_syst.GetNbinsX()):
-                    print 'SYST uncert hist bin {:d} content: {:f}'.format(b, sm_total_hist_syst.GetBinContent(b))
             return sm_total_hists_syst, colors
 
         sm_total_up_categorised, color_up = get_sm_total(nominal, "up")
         sm_total_down_categorised, colors_down = get_sm_total(nominal, "down")
         colors = color_up + colors_down
         return sm_total_up_categorised, sm_total_down_categorised, colors
+
+    def make_overview_plots(self, plot_config):
+        """
+        Make summary plot of each single systematic uncertainty for variable defined in plot_config for a single process
+        :param plot_config:
+        :type plot_config:
+        :return:
+        :rtype:
+        """
+        def format_plot(canvas, labels, **kwargs):
+            fm.decorate_canvas(canvas, plot_config)
+            fm.add_legend_to_canvas(canvas, labels=labels, **kwargs)
+
+        overview_hists = {}
+        syst_plot_config = deepcopy(plot_config)
+        syst_plot_config.name = "syst_overview_{:s}".format(plot_config.name)
+        syst_plot_config.logy = False
+        syst_plot_config.ymin = -50.
+        syst_plot_config.ymax = 50.
+        syst_plot_config.ytitle = 'variation [%]'
+        labels = []
+        syst_plot_config.color = get_default_color_scheme()
+        skipped = 0
+        for index, variation in enumerate(self.systematic_variations.keys()):
+            labels.append(variation)
+            sys_hists = self.systematic_variations[variation][plot_config]
+            for process, hist in sys_hists.iteritems():
+                hist_base_name = "sys_overview_{:s}_{:s}".format(plot_config.name, process)
+                syst_plot_config.name = hist_base_name
+                if hist_base_name not in overview_hists:
+                    overview_hists[hist_base_name] = pt.plot_obj(hist.Clone(hist_base_name), syst_plot_config, index=0)
+                    continue
+                overview_canvas = overview_hists[hist_base_name]
+                if hist.GetMaximum() < 0.1 and abs(hist.GetMinimum()) < 0.1:
+                    if len(labels) > 0:
+                        labels.pop(-1)
+                    skipped += 1
+                    continue
+                pt.add_object_to_canvas(overview_canvas,
+                                        hist.Clone("{:s}_{:s}".format(hist_base_name, variation)),
+                                        syst_plot_config,
+                                        index=index - skipped)
+        if len(labels) == 0:
+            return
+
+        map(lambda c: format_plot(c, labels, format = 'Line'), overview_hists.values())
+        map(lambda h: self.output_handle.register_object(h), overview_hists.values())

@@ -1,4 +1,5 @@
 import threading
+
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import _logger, InvalidInputError
 
@@ -47,6 +48,7 @@ class XSHandle(object):
             self.invalid = True
             return
         self.invalid = False
+        _logger.debug("XSHandle read cross section file {:s}".format(cross_section_file))
         if not read_dsid:
             self.cross_sections = {value.process_name: XSInfo(value)
                                    for value in YAMLLoader.read_yaml(cross_section_file).values() if value.is_mc}

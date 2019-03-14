@@ -66,7 +66,7 @@ class CommonCutFlowAnalyser(object):
             if 'Lumi' in self.config:
                 self.lumi = self.config['Lumi']
         if self.process_configs is not None:
-            self.file_handles = pl.filter_processes_new(self.file_handles, self.process_configs)
+            self.file_handles = pl.filter_unavailable_processes(self.file_handles, self.process_configs)
         map(self.load_dxaod_cutflows, self.file_handles)
         set_batch_mode(kwargs['batch'])
 
@@ -397,7 +397,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         :rtype: dict
         """
         for process in yields.keys():
-            print process
             parent_process = find_process_config(process, self.process_configs).name
             if parent_process is None:
                 continue
@@ -487,7 +486,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for systematic in self.cutflows.keys():
                 for region in self.cutflows[systematic].keys():
                     self.apply_cross_section_weight(systematic, region)
-        self.merge_yields()
+        if self.no_merge is False:
+            self.merge_yields()
         if not self.disable_signal_plots:
             self.plot_signal_yields()
 
