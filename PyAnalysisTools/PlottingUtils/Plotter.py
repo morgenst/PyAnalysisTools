@@ -184,6 +184,11 @@ class Plotter(BasePlotter):
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
 
+    @staticmethod
+    def filter_processes_new(file_handles, process_configs):
+        _logger.error("This function is deprecated. Switch to filter_unavailable_processes.")
+        return Plotter.filter_unavailable_processes(file_handles, process_configs)
+
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
 
