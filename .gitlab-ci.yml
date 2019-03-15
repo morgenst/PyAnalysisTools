@@ -17,6 +17,7 @@ stages:
 test:
   image: atlas/analysisbase:latest
   stage: test
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
   before_script:
     - source /home/atlas/release_setup.sh
     - which python
@@ -27,7 +28,6 @@ test:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests --with-coverage
-  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
 
 # build_image:
 #   stage: docker
