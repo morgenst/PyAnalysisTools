@@ -27,6 +27,8 @@ test:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests --with-coverage
+  coverage: '^TOTAL\s+\d+\s+\d+\s+(\d+\%)$'
+
 # build_image:
 #   stage: docker
 #   except:
