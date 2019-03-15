@@ -223,23 +223,6 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def set_axis_labels(obj, plot_config):
-    """
-    Set bin labels for x axis
-
-    :param obj: plot object
-    :type obj: TH1, TGraph
-    :param plot_config: plot configuration
-    :type plot_config: PlotConfig
-    :return: nothing
-    :rtype: None
-    """
-    if plot_config.axis_labels is None:
-        return
-    for b, label in enumerate(plot_config.axis_labels):
-        obj.GetXaxis().SetBinLabel(b + 1, label)
-
-
 def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False, energy=13, precision=2,
                   lumi_text=None):
     canvas.cd()
