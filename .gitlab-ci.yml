@@ -6,6 +6,7 @@ stages:
   #- docker
   #- trigger
   - test
+#   - coverage
   
 
 # trigger_LQ:
@@ -17,6 +18,7 @@ stages:
 test:
   image: atlas/analysisbase:latest
   stage: test
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
   before_script:
     - source /home/atlas/release_setup.sh
     - which python
@@ -27,6 +29,17 @@ test:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.TestLogger --with-coverage
+
+# coverage:
+#     stage: coverage
+#     script:
+#         - nosetests -c .noserc -q --cover-html-dir=build --cover-html
+#         - coverage report -m
+#     coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
+#     artifacts:
+#         paths:
+#             - build
+#         expire_in: 1 day    
 # build_image:
 #   stage: docker
 #   except:
