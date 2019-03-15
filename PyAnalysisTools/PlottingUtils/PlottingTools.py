@@ -3,7 +3,7 @@ from collections import defaultdict
 from operator import itemgetter
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as fm
-from PyAnalysisTools.PlottingUtils import HistTools as HT
+from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
@@ -156,9 +156,7 @@ def plot_hist(hist, plot_config, **kwargs):
         canvas.SetLogy()
     if plot_config.logx:
         canvas.SetLogx()
-    if plot_config.axis_labels is not None:
-        for b in range(len(plot_config.axis_labels)):
-            hist.GetXaxis().SetBinLabel(b+1, plot_config.axis_labels[b])
+    ht.set_axis_labels(hist, plot_config)
     canvas.Update()
     return canvas
 
@@ -256,19 +254,19 @@ def format_hist(hist, plot_config):
         if plot_config.ztitle_size is not None:
             fm.set_title_z_size(hist, plot_config.ztitle_size)
         if hasattr(plot_config, "rebinX") and hasattr(plot_config.rebinY):
-            hist = HT.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
+            hist = ht.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
         if hasattr(plot_config, "zmin") and hasattr(plot_config, "zmax"):
             fm.set_range_z(hist, plot_config.zmin, plot_config.zmax)
 
     if plot_config.normalise:
-        HT.normalise(hist, plot_config.normalise_range)
+        ht.normalise(hist, plot_config.normalise_range)
         ymax = plot_config.yscale * hist.GetMaximum()
         if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
     if plot_config.rebin and not isinstance(hist, ROOT.THStack) and not plot_config.ignore_rebin:
-        hist = HT.rebin(hist, plot_config.rebin)
+        hist = ht.rebin(hist, plot_config.rebin)
         ymax = plot_config.yscale*hist.GetMaximum()
         if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
