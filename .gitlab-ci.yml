@@ -29,8 +29,7 @@ test:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.TestLogger --with-coverage
-    - coverage report -m
-    
+
 # coverage:
 #     stage: coverage
 #     script:
