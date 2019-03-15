@@ -28,7 +28,7 @@ test:
     - pip install coverage --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests --with-coverage
+    - nosetests tests.TestLogger --with-coverage
     - coverage report -m
     
 coverage:
