@@ -6,6 +6,7 @@ stages:
   #- docker
   #- trigger
   - test
+  - coverage
   
 
 # trigger_LQ:
@@ -29,6 +30,17 @@ test:
   script:
     - nosetests tests --with-coverage
     - coverage report -m
+    
+coverage:
+    stage: coverage
+    script:
+        - nosetests -c .noserc -q --cover-html-dir=build --cover-html
+        - coverage report -m
+    coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
+    artifacts:
+        paths:
+            - build
+        expire_in: 1 day    
 # build_image:
 #   stage: docker
 #   except:
