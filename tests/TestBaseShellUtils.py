@@ -6,7 +6,7 @@ import shutil
 
 class TestShellUtils(unittest.TestCase):
     def setUp(self):
-        self.test_dir = os.path.join(os.path.abspath(os.getcwd()), "test_dir")
+        self.test_dir = os.path.join(os.path.abspath(os.path.dirname(__file__)), "test_dir")
         if not os.path.exists(self.test_dir):
             os.makedirs(self.test_dir)
 
@@ -57,7 +57,7 @@ class TestShellUtils(unittest.TestCase):
     def test_copy_file_fail_non_existing_file(self):
         self.assertRaises(IOError, SU.copy, "non_exiting_file.txt", "dest.txt")
 
-    def test_move_file_fail_non_existing_dir(self):
+    def test_copy_file_fail_non_existing_dir(self):
         file_name = "test_file_copy_fail.txt"
         f = open(file_name, "w+")
         f.close()
@@ -84,7 +84,7 @@ class TestShellUtils(unittest.TestCase):
         #         shutil.rmtree(path)
 
     def test_remove_dir_fail_non_existing(self):
-        self.assertRaises(OSError, SU.remove_directory, "non_existing_dir")
+        self.assertIsNone(SU.remove_directory("non_existing_dir"))
 
     def test_remove_dir(self):
         dir_name = os.path.join(self.test_dir, "test_to_remove")
@@ -119,5 +119,5 @@ class TestShellUtils(unittest.TestCase):
     def test_resolve_path(self):
         link = os.path.join(self.test_dir, "test_link")
         os.symlink(self.test_dir, link)
-        self.assertEqual(SU.resolve_path_from_symbolic_links(link, "../../../tests"), os.getcwd())
+        self.assertEqual(SU.resolve_path_from_symbolic_links(link, "../../../tests"), os.path.dirname(__file__))
 
