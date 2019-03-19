@@ -6,6 +6,7 @@ from math import log10
 from array import array
 from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig, Process
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from collections import OrderedDict
 from PyAnalysisTools.base.ShellUtils import find_file
@@ -207,55 +208,6 @@ def get_default_color_scheme():
             ROOT.kPink+4]
 
 
-class ProcessConfig(object):
-    def __init__(self, **kwargs):
-        kwargs.setdefault('parent_process', None)
-        for k, v in kwargs.iteritems():
-            setattr(self, k.lower(), v)
-        self.transform_type()
-
-    def __str__(self):
-        """
-        Overloaded str operator. Get's called if object is printed
-        :return: formatted string with name and attributes
-        :rtype: str
-        """
-        obj_str = "Process config: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
-            obj_str += '{}={} \n'.format(attribute, value)
-        return obj_str
-
-    def __repr__(self):
-        """
-        Overloads representation operator. Get's called e.g. if list of objects are printed
-        :return: formatted string with name and attributes
-        :rtype: str
-        """
-        return self.__str__() + '\n'
-
-    def transform_type(self):
-        if "data" in self.type.lower():
-            self.is_data = True
-            self.is_mc = False
-        else:
-            self.is_data = False
-            self.is_mc = True
-
-    def retrieve_subprocess_config(self):
-        tmp = {}
-        if not hasattr(self, "subprocesses"):
-            return tmp
-        for sub_process in self.subprocesses:
-            tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
-        return tmp
-
-    def add_subprocess(self, subprocess_name):
-        self.subprocesses.append(subprocess_name)
-        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
-        pc.parent_process = self.name
-        return pc
-
-
 def parse_mc_campaign(process_name):
     if 'mc16a' in process_name.lower():
         return 'mc16a'
@@ -395,7 +347,6 @@ def _parse_draw_option(plot_config, process_config=None):
         draw_option = plot_config.draw
     if process_config and hasattr(process_config, "draw"):
         draw_option = process_config.draw
-    #print 'DO: ', draw_option, plot_config.draw, process_config.draw
     return draw_option
 
 
@@ -560,79 +511,42 @@ def add_campaign_specific_merge_process(process_config, process_configs, campaig
     process_configs[new_config.name] = new_config
 
 
-# def find_process_config(process_name, process_configs):
-#     """
-#     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
-#     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
-#     MC campaign info exists it will be created adding
-#     :param process_name:
-#     :type process_name:
-#     :param process_configs:
-#     :type process_configs:
-#     :return:
-#     :rtype:
-#     """
-#     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-#     raise TypeError
-#     if process_configs is None or process_name is None:
-#         return None
-#     if process_name in process_configs:
-#         return process_configs[process_name]
-#     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-#                                            any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-#                                 process_configs.iteritems()))
-#     for process_config in regex_configs.values():
-#         for sub_process in process_config.subprocesses:
-#             if not sub_process.startswith("re."):
-#                 continue
-#             match = re.match(sub_process.replace("re.", ""), process_name)
-#             if not match:
-#                 continue
-#             new_process = match.group()
-#             process_configs[new_process] = process_config.add_subprocess(new_process)
-#             return process_configs[match.group()]
-#     return None
+def find_process_config(process, process_configs):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
+    def is_sub_process(config):
+        if process.match(config.name):
+            return True
+        if not hasattr(config, 'subprocesses'):
+            return False
+        if process.matches_any(config.subprocesses) is not None:
+            return True
+        return False
 
+    if not isinstance(process, Process):
+        return find_process_config_str(process, process_configs)
+    if process_configs is None or process is None:
+        return None
+    match = process.matches_any(process_configs.keys())
+    if match is not None:
+        return process_configs[match]
+    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    if len(matched_process_cfg) != 1:
+        if len(matched_process_cfg) > 0:
+            print 'SOMEHOW matched to multiple configs'
+        return None
+    return matched_process_cfg[0]
 
-# def find_process_config_new(process_name, process_configs, ignore_mc_campaign=False):
-#     """
-#     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
-#     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
-#     MC campaign info exists it will be created adding
-#     :param process_name:
-#     :type process_name:
-#     :param process_configs:
-#     :type process_configs:
-#     :return:
-#     :rtype:
-#     """
-#     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-#
-#     if process_configs is None or process_name is None:
-#         return None
-#     if process_name in process_configs:
-#         return process_configs[process_name]
-#     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-#                                            any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-#                                 process_configs.iteritems()))
-#     mc_campaign = parse_mc_campaign(process_name)
-#     for process_config in regex_configs.values():
-#         for sub_process in process_config.subprocesses:
-#             if not sub_process.startswith("re."):
-#                 continue
-#             match = re.match(sub_process.replace("re.", ""), process_name)
-#             if not match:
-#                 continue
-#             new_process = match.group()
-#             if mc_campaign is not None and not ignore_mc_campaign:
-#                 if '{:s}.{:s}'.format(process_config.name, mc_campaign) not in process_configs:
-#                     add_campaign_specific_merge_process(process_config, process_configs, mc_campaign)
-#             process_configs[new_process] = process_config.add_subprocess(new_process)
-#             return process_configs[match.group()]
-#     return None
-
-
-def find_process_config(process_name, process_configs, ignore_mc_campaign=False):
+def find_process_config_str(process_name, process_configs):
     """
     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with

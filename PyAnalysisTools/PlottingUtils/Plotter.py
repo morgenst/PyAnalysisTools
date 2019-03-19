@@ -7,7 +7,8 @@ import copy
 import os
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -493,10 +494,9 @@ class Plotter(BasePlotter):
 
     def project_hists(self):
         self.read_cutflows()
-        # for mod in self.modules_pc_modifiers:
-        #     self.plot_configs = mod.execute(self.plot_configs)
         if self.syst_analyser is not None:
             self.syst_analyser.plot_configs = self.plot_configs
+
         if not self.read_hist:
             if len(self.modules_hist_fetching) == 0:
                 fetched_histograms = self.read_histograms(file_handles=self.file_handles,
@@ -506,6 +506,7 @@ class Plotter(BasePlotter):
         else:
             fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
                                                             plot_configs=self.plot_configs)
+
         return filter(lambda hist_set: all(hist_set), fetched_histograms)
 
     def read_hists(self, path):

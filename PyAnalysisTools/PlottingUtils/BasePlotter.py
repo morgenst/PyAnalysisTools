@@ -139,11 +139,12 @@ class BasePlotter(object):
                 if hist is None:
                     _logger.error("Histogram for process {:s} is None".format(process))
                     continue
-                if "data" in process.lower():
+                if process.is_data:
                     continue
+
                 lumi = self.lumi
                 if isinstance(self.lumi, OrderedDict):
-                    if re.search('mc16[acde]$', process) is None:
+                    if re.search('mc16[acde]$', process.mc_campaign) is None:
                         if provided_wrong_info is False:
                             _logger.error('Could not find MC campaign information, but lumi was provided per MC '
                                           'campaing. Not clear what to do. It will be assumed that you meant to scale '
@@ -153,9 +154,9 @@ class BasePlotter(object):
                             plot_config.used_mc_campaigns = self.lumi.keys()
                         lumi = sum(self.lumi.values())
                     else:
-                        lumi = self.lumi[process.split('.')[-1]]
-                        plot_config.used_mc_campaigns.append(process.split('.')[-1])
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
+                        lumi = self.lumi[process.mc_campaign]
+                        plot_config.used_mc_campaigns.append(process.mc_campaign)
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.process_name, lumi,
                                                                             self.event_yields[process])
                 ht.scale(hist, cross_section_weight)
 
@@ -187,7 +188,7 @@ class BasePlotter(object):
 
     def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
         file_handle, plot_config = data
-        if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
+        if file_handle.process is None or file_handle.process.is_data and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
         tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
@@ -259,23 +260,20 @@ class BasePlotter(object):
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
-
             if plot_config.blind and find_process_config(file_handle.process, self.process_configs).type == "Data":
                 if selection_cuts == "":
                     selection_cuts = "!({:s})".format(" && ".join(plot_config.blind))
                 else:
                     selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
             try:
-                if plot_config.merge_mc_campaigns:
-                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
-                else:
-                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+                hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process.process_name))
                 selection_cuts = selection_cuts.rstrip().rstrip("&&")
                 tn = self.tree_name
                 if self.syst_tree_name is not None and file_handle.is_mc:
                     tn = self.syst_tree_name
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
+
             except TypeError: #RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
@@ -361,7 +359,7 @@ class BasePlotter(object):
         for process in histograms.keys():
             parent_process = find_process_config(process, process_configs).name
             if parent_process not in histograms.keys():
-                new_hist_name = histograms[process].GetName().replace(process, parent_process)
+                new_hist_name = histograms[process].GetName().replace(process.process_name, parent_process)
                 histograms[parent_process] = histograms[process].Clone(new_hist_name)
             else:
                 histograms[parent_process].Add(histograms[process])

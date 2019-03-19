@@ -3,6 +3,7 @@ import re
 import time
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
 from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
@@ -80,7 +81,8 @@ class FileHandle(object):
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
             self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
-            self.process = self.parse_process()
+            #self.process = self.parse_process()
+            self.process = Process(self.file_name, self.dataset_info)
             if self.process is not None:
                 if self.mc16a:
                     self.process += ".mc16a"

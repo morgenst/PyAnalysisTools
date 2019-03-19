@@ -30,7 +30,6 @@ def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False
     if cut_string is None:
         cut_string = ""
     if weight:
-        mc_weights = None
         if "MC:" in weight:
             weight = weight.split("*")
             mc_weights = filter(lambda w: "MC:" in w, weight)
@@ -61,7 +60,6 @@ def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False
                                                                                        var_name,
                                                                                        cut_string))
     if n_selected_events != hist.GetEntries():
-        exit()
         _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
                       "initialised after histogram definition has been received")
         raise RuntimeError("Inconsistency in TTree::Project")
