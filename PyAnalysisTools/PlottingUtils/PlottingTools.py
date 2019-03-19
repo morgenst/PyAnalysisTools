@@ -300,8 +300,12 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         hist_defs = zip([None] * len(hists), hists)
 
     if isinstance(hist_defs[0][1], PO.PlotableObject):
-        if not switchOff:
+        if not switchOff and not isinstance(hist_defs[0][1].plot_object, ROOT.TH2):
             max_y = 1.4 * max([item[1].plot_object.GetMaximum() for item in hist_defs])
+        elif isinstance(hist_defs[0][1].plot_object, ROOT.TH2):
+            max_y = plot_config.ymax
+        # if plot_config.ordering is not None:
+        #     sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
 
         for process, hist in hist_defs:
             hist.plot_object = format_hist(hist.plot_object, plot_config)
@@ -323,6 +327,8 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 if isinstance(hist.plot_object, ROOT.TH2) and draw_option.lower() == "colz":
                     canvas.SetRightMargin(0.15)
                     fm.set_minimum_y(hist.plot_object, plot_config.ymin)
+                    if plot_config.logz:
+                        canvas.SetLogz()
                 if switchOff:
                     fm.set_maximum_y(hist.plot_object, plot_config.ymax)
                 else:
@@ -335,14 +341,17 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 if plot_config.logx:
                     canvas.SetLogx()
                 format_hist(hist.plot_object, plot_config)
-                if plot_config.ymax:
-                    hist.plot_object.SetMaximum(plot_config.ymax)
-                else:
-                    hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.2)
+                if not isinstance(hist.plot_object, ROOT.TH2):
+                    if plot_config.ymax:
+                        hist.plot_object.SetMaximum(plot_config.ymax)
+                    else:
+                        hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 1.2)
             if plot_config.logy:
                 hist.plot_object.SetMaximum(hist.plot_object.GetMaximum() * 100.)
-                if hasattr(plot_config, "ymin"):
-                    hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
+                if plot_config.ymin > 0.:
+                    hist.plot_object.SetMinimum(plot_config.ymin)
+                # if hasattr(plot_config, "ymin"):
+                #     hist.plot_object.SetMinimum(max(0.1, plot_config.ymin))
                 else:
                     hist.plot_object.SetMinimum(0.9)
                 if hist.plot_object.GetMinimum() == 0.:
@@ -358,7 +367,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     if not switchOff and plot_config.ymax is None:
         max_y = 1.4 * max([item[1].GetMaximum() for item in hist_defs])
     if plot_config.ordering is not None:
-        sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
+        hist_defs = sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
         index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)

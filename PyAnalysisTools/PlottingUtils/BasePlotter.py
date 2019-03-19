@@ -2,6 +2,7 @@ import re
 
 import pathos.multiprocessing as mp
 import traceback
+from copy import deepcopy
 from functools import partial
 from itertools import product
 from PyAnalysisTools.base import _logger
@@ -41,7 +42,7 @@ class BasePlotter(object):
         self.event_yields = {}
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
-                                        switch_off_process_name_analysis=True,
+                                        switch_off_process_name_analysis=False,
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
                              for input_file in self.input_files]
@@ -127,6 +128,7 @@ class BasePlotter(object):
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
+        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
         if not plot_config.merge_mc_campaigns:
             return plot_config, file_handle.process, tmp
         return plot_config, file_handle.process, tmp
@@ -187,6 +189,7 @@ class BasePlotter(object):
                     else:
                         weight = process_weight
             if plot_config.cuts:
+                plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
@@ -197,7 +200,7 @@ class BasePlotter(object):
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 for data_cut in data_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
-                    if "data" in file_handle.process:
+                    if self.process_configs[file_handle.process].type == "Data": #"data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
