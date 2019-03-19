@@ -168,7 +168,15 @@ class FileHandle(object):
         if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
             file_name = self.file_name.split("/")[-1]
             self.is_data = True
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Late')
+        if 'physics_CosmicCalo' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_CosmicCalo')
+        if 'physics_Background' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Background')
         if "physics_Main" in self.file_name and '_cos.' in self.file_name:
             file_name = self.file_name.split("/")[-1]
             self.is_cosmics = True
@@ -265,6 +273,8 @@ class FileHandle(object):
             raise e
 
     def fetch_and_link_hist_to_tree(self, tree_name, hist, var_name, cut_string="", tdirectory=None, weight=None):
+        # print self.file_name
+        # print cut_string
         tree = self.get_object_by_name(tree_name, tdirectory)
         if self.friends is not None:
             self.link_friend_trees(tree, tdirectory)
