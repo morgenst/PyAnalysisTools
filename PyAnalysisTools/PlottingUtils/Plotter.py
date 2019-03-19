@@ -3,7 +3,7 @@ import re
 import ROOT
 import copy
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig, expand_process_configs_new
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, find_process_config_new, ProcessConfig, expand_process_configs_new
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -96,11 +96,11 @@ class Plotter(BasePlotter):
         if process_configs is None:
             return file_handles
         unavailable_process = map(lambda fh: fh.process,
-                                  filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                  filter(lambda fh: find_process_config_new(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
             _logger.error("Unable to find merge process config for {:s}".format(str(process)))
-        return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
+        return filter(lambda fh: find_process_config_new(fh.process, process_configs) is not None,
                       file_handles)
 
     def initialise(self):
@@ -201,7 +201,7 @@ class Plotter(BasePlotter):
         event_yields = {}
         for file_handle in self.file_handles:
             cutflow = file_handle.get_object_by_name("Nominal/cutflow_BaseSelection")
-            process_config = find_process_config(file_handle.process, self.process_configs)
+            process_config = find_process_config_new(file_handle.process, self.process_configs)
             if process_config is None:
                 continue
             if process_config.is_data:
@@ -225,7 +225,7 @@ class Plotter(BasePlotter):
         _logger.debug("Calculated scale factor {:.2f} after cut {:s}".format(scale_factor, cut))
         for hist_set in self.histograms.values():
             for process_name, hist in hist_set.iteritems():
-                process_config = find_process_config(process_name, self.process_configs)
+                process_config = find_process_config_new(process_name, self.process_configs)
                 if process_config is None:
                     _logger.error("Could not find process config for {:s}".format(process_name))
                     continue
@@ -239,9 +239,12 @@ class Plotter(BasePlotter):
             return signals
         signal_process_configs = filter(lambda pc: isinstance(pc[1], ProcessConfig) and
                                                    pc[1].type.lower() == "signal", self.process_configs.iteritems())
+        print signal_process_configs
+        print data.keys()
         if len(signal_process_configs) == 0:
             return signals
         for process in signal_process_configs:
+            print 'check prcoess ', process[0], ' is in data?: ', process[0] in data
             try:
                 signals[process[0]] = data.pop(process[0])
             except KeyError:
@@ -267,12 +270,13 @@ class Plotter(BasePlotter):
         HT.merge_underflow_bins(data)
         if plot_config.signal_extraction:
             signals = self.get_signal_hists(data)
-        #todo: need proper fix for this
-        #if plot_config.signal_scale is not None:
-        self.scale_signals(signals, plot_config)
+        # todo: need proper fix for this
+        if plot_config.signal_scale is not None:
+            self.scale_signals(signals, plot_config)
         signal_only = False
-        if len(signals) > 0 and len(data) == 0:
-            signal_only = True
+        # print 'SIGNALS: ', signals
+        # if len(signals) > 0 and len(data) == 0:
+        #     signal_only = True
         if plot_config.outline == "stack" and not plot_config.is_multidimensional and not signal_only:
             canvas = pt.plot_stack(data, plot_config=plot_config,
                                    process_configs=self.process_configs)
@@ -296,6 +300,10 @@ class Plotter(BasePlotter):
             canvas = pt.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
             canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
+            if plot_config.signal_extraction:
+                for signal in signals.iteritems():
+                    pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
+            
         FM.decorate_canvas(canvas, plot_config)
         if plot_config.legend_options is not None:
             FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
@@ -307,20 +315,24 @@ class Plotter(BasePlotter):
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
                                                  self.process_configs.iteritems()))
             #signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
+            signal_hist = signals.values()[0]
             background_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Background")
+            print background_hist.GetEntries()
+            print signal_hist.GetEntries()
             if hasattr(plot_config, "significance_config"):
                 sig_plot_config = plot_config.significance_config
             else:
                 sig_plot_config = copy.copy(plot_config)
                 sig_plot_config.name = "sig_" + plot_config.name
-                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+                sig_plot_config.ytitle = "S/#sqrt{S + B}"
+                sig_plot_config.normalise = False
             significance_canvas = None
             for process, signal_hist in signals.iteritems():
                 sig_plot_config.color = self.process_configs[process].color
                 sig_plot_config.name = "significance_{:s}".format(process)
                 sig_plot_config.ymin = 0.00001
-                sig_plot_config.ymax = 1e5
-                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+                sig_plot_config.ymax = 10.
+                sig_plot_config.ytitle = "S/#sqrt{B}"
 
                 significance_canvas = ST.get_significance(signal_hist, background_hist, sig_plot_config,
                                                           significance_canvas)
