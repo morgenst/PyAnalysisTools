@@ -542,14 +542,25 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         ana.setSignalSample(sigSample)
         ana.addSignalChannels([chan])
 
+        print "CONTROL REGIONS ", kwargs['control_regions']
         if kwargs["control_regions"] is not None:
+            print "SETUP CRS"
             #self.setup_control_regions(ana=ana, samples=samples, **kwargs)
-            self.setup_control_regions(ana=ana, samples=None, **kwargs)
-            if kwargs["ctrl_config"] is not None:
+            self.setup_control_regions(ana=ana, samples=samples, **kwargs)
+
+            if kwargs['ctrl_config'] is not None:
                 norm_factors = {}
                 norm_regions = {}
                 ctrl_config = kwargs["ctrl_config"]
                 for region, config in ctrl_config.iteritems():
+                    print region, config
+                    print map(lambda c: c.name, self.control_regions)
+                    try:
+                        control_region = filter(lambda cr: region in cr.name, self.control_regions)[0]
+                    except:
+                        print region, self.control_regions
+                        #exit()
+
                     if not config["is_norm_region"] and not config['is_val_region']:
                         continue
                     for bkg, bkg_config in config["bgk_to_normalise"].iteritems():
@@ -566,15 +577,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                 norm_factors[bkg].append(norm_factor)
                             except KeyError:
                                 norm_factors[bkg] = [norm_factor]
+                            sample = filter(lambda s: s.name == bkg, control_region.sampleList)[0]
+                            sample.setNormFactor(norm_factor, 1., 0., 5.)
                     if config['is_val_region']:
                         #self.validation = True
-                        val_channel = self.control_regions.pop()
-                        print region, config, self.control_regions
-                        #exit()
+                        val_channel = self.control_regions.pop(self.control_regions.index(filter(lambda cr: region in cr.name, self.control_regions)[0]))
+                        print "DROP", region, config, self.control_regions, val_channel.name
                         self.validation_regions.append(val_channel)
                 for bkg, norm_factors in norm_factors.iteritems():
                     for norm_factor in norm_factors:
                         samples[bkg].setNormFactor(norm_factor, 1., 0., 5.)
+                print map(lambda s: s.normFactor, samples.values())
                 for bkg in norm_regions.keys():
                     samples[bkg].setNormRegions([(region, var_name) for region in norm_regions[bkg]])
 
@@ -595,11 +608,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         # ana.setSignalSample(sigSample)
         # ana.addSignalChannels([chan])
 
+        print map(lambda s: s.normFactor, samples.values())
 
+        print samples
         cr_channels = self.control_regions
         if len(cr_channels) > 0:
-            print cr_channels
+            # print cr_channels[0]
+            # print cr_channels[0].__dict__
+            print cr_channels[0].sampleList
+            print map(lambda s: (s.name, s.normFactor), cr_channels[0].sampleList)
             ana.addBkgConstrainChannels(cr_channels)
+        #exit()
         validation_channels = []
         # for vr in self.validation_regions:
         #     validation_channels.append(ana.addChannel(var_name, [vr], 1, 0.5, 1.5))
@@ -676,17 +695,23 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             for process, yld in yields.iteritems():
                 if process.lower() == "data":
                     continue
-                sample = None
-                print yields
+                sample = samples[process]
                 try:
                     _ = self.build_sample(process, yld, kwargs["process_configs"], reg, samples[process])
                 except Exception:
+                    print "DID NOT FIND ", process
                     sample = self.build_sample(process, yld, kwargs["process_configs"], reg)
                     if not sample:
                         continue
+                # try:
+                #     sample = samples[process]
+                # except KeyError:
+                #     print "DID NOT FIND ", process
+                #     sample = None
+                #print filter(lambda s: process in s.name, samples)
+                #exit()
                 if sample is not None:
                     channel.addSample(sample)
-            print yields
             try:
                 data_yld = filter(lambda kv: kv[0].lower() == "data", yields.iteritems())[0][1]
                 if isinstance(data_yld, numbers.Number):

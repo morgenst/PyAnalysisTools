@@ -88,7 +88,7 @@ class LimitArgs(object):
 
 def build_region_info(control_region_defs):
     limit_region_info = {}
-    for region in control_region_defs:
+    for region in control_region_defs.regions:
         limit_region_info[region.name] = {"is_norm_region": region.norm_region,
                                           "bgk_to_normalise": region.norm_backgrounds,
                                           'is_val_region': region.val_region}
@@ -653,8 +653,15 @@ def get_ratio(num, denom):
 
 
 class Sample(object):
-    def __init__(self, name, gen_ylds):
-        self.name = name
+    def __init__(self, process, gen_ylds):
+        if isinstance(process, str):
+            self.name = process
+            self.process = None
+            self.is_data = 'data' in process
+        else:
+            self.name = process.process_name
+            self.process = process
+            self.is_data = process.is_data
         self.generated_ylds = gen_ylds
         self.nominal_evt_yields = {}
         self.shape_uncerts = {}
@@ -662,7 +669,6 @@ class Sample(object):
         self.ctrl_region_yields = {}
         self.ctrl_reg_scale_ylds = {}
         self.ctrl_reg_shape_ylds = {}
-        self.is_data = 'data' in name
         self.is_signal = False
 
     def __str__(self):
@@ -882,7 +888,7 @@ class SampleStore(object):
                 return
             lumi = self.lumi
             if isinstance(self.lumi, OrderedDict):
-                lumi = self.lumi[sample.name.split('.')[-1]]
+                lumi = self.lumi[sample.process.mc_campaign]
             sample.apply_xsec_weight(lumi, self.xs_handle, signal_xsec)
 
     def calculate_uncertainties(self):

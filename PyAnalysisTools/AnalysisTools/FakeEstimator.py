@@ -286,7 +286,7 @@ class ElectronFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
-        self.file_handles = filter(lambda fh: "data" in fh.process.lower(), kwargs["file_handles"])
+        self.file_handles = filter(lambda fh: fh.process.is_data, kwargs["file_handles"])
         self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
