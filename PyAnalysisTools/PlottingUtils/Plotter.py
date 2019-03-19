@@ -70,7 +70,7 @@ class Plotter(BasePlotter):
             self.redraw_init(**kwargs)
             return
 
-        if "input_files" not in kwargs:
+        if "input_files" not in kwargs and not 'input_file_list' in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("No input files")
         if "plot_config_files" not in kwargs:

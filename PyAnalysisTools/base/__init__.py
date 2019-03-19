@@ -39,8 +39,8 @@ def add_process_args(parser):
     """
 
     parser.add_argument("--lumi", "-l", type=float, default=None, help="Luminosity in fb^-1")
-    parser.add_argument("--dataset_config", "-xcf", type=str, default=None, help="dataset config file")
-    parser.add_argument("--process_configs", "-prcf", nargs='+', default=None, help="process definition files")
+    parser.add_argument("--xs_config_file", "-xcf", type=str, default=None, help="dataset config file")
+    parser.add_argument("--process_config_files", "-prcf", nargs='+', default=None, help="process definition files")
 
 
 def add_output_args(parser):

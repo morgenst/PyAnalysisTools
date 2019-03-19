@@ -55,12 +55,16 @@ class BasePlotter(object):
             self.add_mc_campaigns()
 
         self.event_yields = {}
+        if hasattr(self, 'input_files'):
+            input_files = self.input_files
+        elif hasattr(self, 'input_file_list'):
+            input_files = self.input_file_list
         self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
                                         split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
                                         switch_off_process_name_analysis=False,
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"])
-                             for input_file in self.input_files]
+                             for input_file in input_files]
         self.filter_missing_friends()
 
     def cluster_setup(self, config):

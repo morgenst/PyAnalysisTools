@@ -546,6 +546,7 @@ def find_process_config(process, process_configs):
         return None
     return matched_process_cfg[0]
 
+
 def find_process_config_str(process_name, process_configs):
     """
     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
