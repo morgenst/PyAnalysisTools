@@ -74,6 +74,7 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
     kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
     kwargs.setdefault('lumi_text', plot_config.lumi_text)
+    kwargs.setdefault('add_text', plot_config.add_text)
 
     if plot_config.watermark is not None:
         add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'],
@@ -89,6 +90,9 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     if plot_config.decor_text is not None:
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
                            size=kwargs['decor_text_size'])
+
+    if plot_config.add_text is not None:
+        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]}, size=kwargs['add_text'][3])
 
 
 def check_valid_axis(axis):
@@ -114,7 +118,7 @@ def set_axis_title_offset(obj, offset, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
-        getattr(obj, 'Get{:s}axis()'.format(axis.capitalize()))().SetTitleOffset(offset)
+        getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitleOffset(offset)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
@@ -124,7 +128,7 @@ def set_axis_title_size(obj, size, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
-        getattr(obj, 'Get{:s}axis()'.format(axis.capitalize()))().SetTitleSize(size)
+        getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitleSize(size)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
 
@@ -326,7 +330,9 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
     elif isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.TGraph):
-        graph_obj.SetMaximum(maximum)
+        if not isinstance(graph_obj, ROOT.TH2):
+            graph_obj.SetMaximum(maximum)
+        # print 'Set range to ', minimum, maximum
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
@@ -335,6 +341,7 @@ def set_range_y(graph_obj, minimum, maximum):
 def set_range_z(graph_obj, minimum, maximum):
     if isinstance(graph_obj, ROOT.TH1):
         graph_obj.SetMaximum(maximum)
+        # print 'set z axis to ', minimum, maximum
         graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
 
 
@@ -355,6 +362,8 @@ def get_min_y(graph_obj):
 
 def get_max_y(graph_obj):
     if isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.THStack):
+        if isinstance(graph_obj, ROOT.TH2):
+            return graph_obj.GetYaxis().GetXmax()
         return graph_obj.GetMaximum()
     if isinstance(graph_obj, ROOT.TEfficiency):
         return graph_obj.GetPaintedGraph().GetMaximum()
@@ -551,6 +560,8 @@ def add_legend_to_canvas(canvas, **kwargs):
                 is_stacked = True
             try:
                 process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
+                if process_config is None:
+                    process_config = filter(lambda pn: pn[0] in plot_obj.GetName(), kwargs['process_configs'].iteritems())[0][1]
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
@@ -569,7 +580,6 @@ def add_legend_to_canvas(canvas, **kwargs):
         legend = get_legend(len(plot_objects), labels, **kwargs)
 
     plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
-
     canvas.cd()
     legend.SetFillStyle(kwargs["fill_style"])
     for plot_obj, label in zip(plot_objects, labels):
