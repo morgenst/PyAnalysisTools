@@ -35,16 +35,6 @@ class Cut(object):
         """
         return self.__dict__ == other.__dict__
 
-    def __eq__(self, other):
-        """
-        Comparison operator
-        :param other: Cut object to compare to
-        :type other: Cut
-        :return: True/False
-        :rtype: boolean
-        """
-        return self.__dict__ == other.__dict__
-
     def __str__(self):
         """
         Overloaded str operator. Get's called if object is printed
