@@ -10,6 +10,7 @@ from PyAnalysisTools.base import _logger, InvalidInputError
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme
+import pandas as pd
 
 
 def consistency_check_bins(obj1, obj2):
@@ -125,23 +126,26 @@ def get_signal_acceptance(signal_yields, generated_events, plot_config, process_
         return graph
 
     #TODO: refactoring required
-    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
-                    labels=[data[0] for data in acceptance_hists],
-                    xtitle="Gluino mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal", watermark_size=0.02, watermark_offset = 1,
-                    ymin=0., ymax=100.)
     acceptance = [(float(re.findall("\d{3,4}", process)[0]), process,
                    yields) for process, yields in signal_yields.iteritems()]
     if isinstance(acceptance[0][2], (np.ndarray, np.generic)):
         acceptance = [[(mass, cut_yield["cut"],
-                        cut_yield["yield"] / generated_events[process] * 100.) for cut_yield in yields]
+                        cut_yield["yield"] / generated_events[process] * 100., process) for cut_yield in yields]
                       for mass, process, yields in acceptance]
+    masses = map(lambda i: i[0][0], acceptance)
+    duplicated_masses = pd.Series(masses)[pd.Series(masses).duplicated()].values
+
     acceptance_hists = []
     if isinstance(acceptance[0], list):
         for icut in range(len(acceptance[0])):
             cut_name = acceptance[0][icut][1]
             acceptance_hists.append((cut_name, make_acceptance_graph([(signal[icut][0],
-                                                                      signal[icut][2]) for signal in acceptance])))
+                                                                       signal[icut][2]) for signal in acceptance])))
             acceptance_hists[-1][-1].SetName(cut_name)
+    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
+                             labels=[data[0] for data in acceptance_hists],
+                             xtitle="LQ mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1,
+                             watermark="Internal", watermark_size=0.02, watermark_offset=1, ymin=0., ymax=100.)
     pc_log = deepcopy(plot_config)
     pc_log.name += "_log"
     pc_log.logy = True
