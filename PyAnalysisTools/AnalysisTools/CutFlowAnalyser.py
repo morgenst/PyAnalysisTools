@@ -1,4 +1,5 @@
 import operator
+import os
 from copy import deepcopy
 from operator import add
 import numpy as np
@@ -40,12 +41,12 @@ class CommonCutFlowAnalyser(object):
         self.lumi = kwargs["lumi"]
         self.disable_sm_total = kwargs["disable_sm_total"]
         self.xs_handle = XSHandle(kwargs["dataset_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"]) for fn in kwargs["file_list"]]
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"], switch_off_process_name_analysis=True) for fn in kwargs["file_list"]]
         self.process_configs = None
         if "process_config" in kwargs and not "process_configs" in kwargs:
             raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
                       "hitting enter.")
-            kwargs['process_configs'] = kwargs['process_configs']
+            kwargs['process_configs'] = kwargs['process_config']
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
         self.process_configs = expand_process_configs_new(map(lambda fh: fh.process, self.file_handles),
@@ -98,7 +99,7 @@ class CommonCutFlowAnalyser(object):
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
             if value > 10000.:
-                return "{:.3e}".format(value)
+                return "{:.10e}".format(value)
             else:
                 return "{:.2f} ".format(value)
 
@@ -140,12 +141,22 @@ class CommonCutFlowAnalyser(object):
         else:
             print "{:s}Invalid input {:s}. Going for default.\033[0m".format("\033[91m", user_input)
             selections = ["BaseSelection"]
+
+        if self.save_table: 
+            if self.output_tag:
+                f = open(os.path.join(self.output_dir, 'cutflow_' + self.output_tag + '.txt'), 'w')
+            else:
+                f = open(os.path.join(self.output_dir, 'cutflow.txt'), 'w')
+            
         for selection, cutflow in self.cutflow_tables.iteritems():
             if selection not in selections:
                 continue
             print
             print "Cutflow for region %s" % selection
             print cutflow
+            if self.save_table: 
+                print >> f, "Cutflow for region %s" % selection
+                print >> f, cutflow
 
     def make_cutflow_tables(self):
         for systematic in self.systematics:
@@ -199,6 +210,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 cut_list = region.get_cut_list()
                 for i, cut in enumerate(cut_list):
                     cut_string = "&&".join(map(lambda c: c.selection, cut_list[:i + 1]))
+                    cut_string = cut_string.replace(' ', '')
                     yields.append([cut.name,
                                    self.converter.convert_to_array(tree, cut_string)['weight'].flatten().sum()])
                                    #0, -1., -1.))
@@ -215,6 +227,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
 
     def apply_cross_section_weight(self, systematic, region):
         for process in self.cutflows[systematic][region].keys():
+            if 'data' in process:
+                continue
             try:
                 lumi_weight = self.get_cross_section_weight(process)
             except InvalidInputError:
@@ -272,6 +286,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                         cutflow_tables[region].columns = ["cut", process]
                     continue
                 d = {process: cutflow_tmp['yield']}
+                print 'region: ', region
+                print d
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
                 if self.enable_eff:
                     cutflow_tables[region] = self.calculate_cut_efficiencies(cutflow_tables[region], cutflow_tmp,
