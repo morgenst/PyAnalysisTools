@@ -1,4 +1,5 @@
 from collections import OrderedDict
+import re
 from copy import deepcopy
 from itertools import product
 
@@ -7,17 +8,22 @@ class Cut(object):
     def __init__(self, selection):
         self.is_data = False
         self.is_mc = False
+        self.process_type = None
         if '::' in selection:
             self.selection, self.name = selection.split('::')
         else:
             self.name = selection
             self.selection = selection
         if 'DATA:' in self.selection:
-            self.selection.replace('Data:', '')
+            self.selection.replace('DATA:', '')
             self.is_data = True
-        if 'MC:' in self.selection:
+        elif 'MC:' in self.selection:
             self.selection.replace('MC:', '')
             self.is_mc = True
+        elif re.match(r'TYPE_[A-Z]*:', self.selection):
+            process_type = re.match(r'TYPE_[A-Z]*:', self.selection).group(0)
+            self.selection = self.selection.replace(process_type, '')
+            self.process_type = process_type.rstrip(':').lower()
 
     def __eq__(self, other):
         """
@@ -141,6 +147,14 @@ class NewRegion(object):
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
+
     def build_cuts(self):
         self.cut_list = self.build_cut_list(self.event_cuts, 'event_cuts')
         if self.disable_leptons:
@@ -192,16 +206,21 @@ class NewRegion(object):
         :return: None
         :rtype: None
         """
+        found_particle_cut = False
         if self.good_muon or self.common_selection and "good_muon" in self.common_selection:
             self.cut_list.append(self.build_particle_cut(self.good_muon, "good_muon", self.muon_operator,
                                                          'muon_n', self.n_muon))
+            found_particle_cut = True
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
         if self.good_electron or self.common_selection and "good_electron" in self.common_selection:
             self.cut_list.append(self.build_particle_cut(self.good_electron, "good_electron", self.electron_operator,
                                                          'electron_n', self.n_electron))
+            found_particle_cut = True
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
+        # if not found_particle_cut and self.n_electron > 0 or self.n_muon > 0:
+        #     self.cut_list.append(['Sum$({:s}) == {:s}')
 
     def convert2cut_string(self):
         """
@@ -237,6 +256,7 @@ class NewRegion(object):
             cut_list.append("{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon))
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
+        cut_list += map(lambda c: c.selection, self.cut_list)
         return " && ".join(cut_list)
 
     def build_label(self):
@@ -283,6 +303,14 @@ class NewRegionBuilder(object):
                                               **region_def))
         self.type = "PCModifier"
 
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string for all regions
+        :rtype: str
+        """
+        print self.regions
+
     def auto_generate_region(self, **kwargs):
         n_leptons = kwargs["nleptons"]
         for digits in product("".join(map(str, range(n_leptons + 1))), repeat=3):
@@ -307,7 +335,6 @@ class NewRegionBuilder(object):
 
     def modify_plot_configs(self, plot_configs):
         tmp = []
-        print self.regions
         for region in self.regions:
             for pc in plot_configs:
                 region_pc = deepcopy(pc)

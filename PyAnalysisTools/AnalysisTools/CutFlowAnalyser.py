@@ -265,9 +265,9 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 cut_list = region.get_cut_list()
                 cut_string = ""
                 for i, cut in enumerate(cut_list):
-                    if "TYPE_" in cut.selection:
-                        if process_config.type.upper() in cut.selection:
-                           current_cut = cut.selection.replace('TYPE_{:s}'.format(process_config.type.upper),'')
+                    if cut.process_type is not None:
+                        if process_config.type.lower() in cut.process_type:
+                           current_cut = cut.selection
                         else:
                             current_cut = "1"
                     else:
