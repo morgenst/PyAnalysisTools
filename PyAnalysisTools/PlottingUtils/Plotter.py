@@ -370,6 +370,10 @@ class Plotter(BasePlotter):
             canvas = pt.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
             canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
+            if plot_config.signal_extraction:
+                for signal in signals.iteritems():
+                    pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
+
         FM.decorate_canvas(canvas, plot_config)
         if not plot_config.disable_legend:
             if plot_config.legend_options is not None:
@@ -382,20 +386,22 @@ class Plotter(BasePlotter):
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
                                                  self.process_configs.iteritems()))
             #signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
+            signal_hist = signals.values()[0]
             background_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Background")
             if hasattr(plot_config, "significance_config"):
                 sig_plot_config = plot_config.significance_config
             else:
                 sig_plot_config = copy.copy(plot_config)
                 sig_plot_config.name = "sig_" + plot_config.name
-                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+                sig_plot_config.ytitle = "S/#sqrt{S + B}"
+                sig_plot_config.normalise = False
             significance_canvas = None
             for process, signal_hist in signals.iteritems():
                 sig_plot_config.color = self.process_configs[process].color
                 sig_plot_config.name = "significance_{:s}".format(process)
                 sig_plot_config.ymin = 0.00001
-                sig_plot_config.ymax = 1e5
-                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+                sig_plot_config.ymax = 10.
+                sig_plot_config.ytitle = "S/#sqrt{B}"
 
                 significance_canvas = ST.get_significance(signal_hist, background_hist, sig_plot_config,
                                                           significance_canvas)
@@ -541,5 +547,4 @@ class Plotter(BasePlotter):
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()
-        _logger.info('DONE make plots')
 

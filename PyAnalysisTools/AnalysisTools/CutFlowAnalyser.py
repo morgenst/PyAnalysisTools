@@ -1,5 +1,6 @@
 import operator
 import re
+import os
 from copy import deepcopy
 from operator import add
 import numpy as np
@@ -40,6 +41,7 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault('plot_config_file', None)
         kwargs.setdefault('config_file', None)
         kwargs.setdefault('disable_interactive', False)
+        kwargs.setdefault('save_table', False)
         kwargs.setdefault('batch', True)
         self.event_numbers = dict()
         self.lumi = kwargs["lumi"]
@@ -48,10 +50,11 @@ class CommonCutFlowAnalyser(object):
         self.xs_handle = XSHandle(kwargs["dataset_config"])
         self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"]) for fn in kwargs["file_list"]]
         self.process_configs = None
+        self.save_table = kwargs['save_table']
         if "process_config" in kwargs and not "process_configs" in kwargs:
             raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
                       "hitting enter.")
-            kwargs['process_configs'] = kwargs['process_configs']
+            kwargs['process_configs'] = kwargs['process_config']
         if kwargs['process_configs'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
 
@@ -156,7 +159,7 @@ class CommonCutFlowAnalyser(object):
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
             if value > 10000.:
-                return "{:.3e}".format(value)
+                return "{:.10e}".format(value)
             else:
                 return "{:.2f} ".format(value)
 
@@ -204,12 +207,20 @@ class CommonCutFlowAnalyser(object):
                 selections = ["BaseSelection"]
         else:
             selections = available_cutflows
+        if self.save_table:
+            if self.output_tag:
+                f = open(os.path.join(self.output_dir, 'cutflow_' + self.output_tag + '.txt'), 'w')
+            else:
+                f = open(os.path.join(self.output_dir, 'cutflow.txt'), 'w')
         for selection, cutflow in self.cutflow_tables.iteritems():
             if selection not in selections:
                 continue
             print
             print "Cutflow for region %s" % selection
             print cutflow
+            if self.save_table:
+                print >> f, "Cutflow for region %s" % selection
+                print >> f, cutflow
 
     def make_cutflow_tables(self):
         for systematic in self.systematics:
@@ -273,6 +284,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     else:
                         current_cut = cut.selection
                     cut_string = '&&'.join([cut_string, current_cut]).lstrip('&&')
+                    cut_string = cut_string.replace(' ', '')
                     if not self.raw:
                         yields.append([cut.name,
                                        self.converter.convert_to_array(tree, cut_string)['weight'].flatten().sum()])
@@ -369,7 +381,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                         cutflow_tables[region].columns = ["cut", process, 'eff_{:s}'.format(process)]
                     else:
                         cutflow_tables[region].columns = ["cut", process]
-                        #cutflow_tables[region].columns = ["cut", process]
                     continue
                 d = {process: cutflow_tmp['yield']}
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
@@ -611,7 +622,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def merge_histograms(self, histograms):
         for process in histograms.keys():
             parent_process = find_process_config(process, self.process_configs).name
-            print 'PARENT ', parent_process
             if parent_process is None:
                 continue
             for systematic in histograms[process].keys():
@@ -624,7 +634,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
                     if selection not in histograms[process][systematic]:
                         print "could not find selection ", selection, " for process ", process
                         continue
-                    print histograms[process][systematic][selection].GetName()
                     new_hist_name = histograms[process][systematic][selection].GetName().replace(process, parent_process)
                     if histograms[parent_process][systematic][selection] is None:
                         new_hist_name = histograms[process][systematic][selection].GetName().replace(
@@ -709,7 +718,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         # signal_yields = dict(filter(lambda cf: cf[0] in map(lambda prc: prc.name, signal_processes),
         #                             cutflows.iteritems()))
         for process in self.cutflows[systematic].keys():
-
             for selection, cutflow in self.cutflows[systematic][process].items():
                 cutflow_tmp = self.stringify(cutflow)
                 if selection not in cutflow_tables.keys():

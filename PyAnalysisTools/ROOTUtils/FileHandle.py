@@ -117,7 +117,7 @@ class FileHandle(object):
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
     def __del__(self):
-        _logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
+        #_logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
     def close(self):
@@ -178,8 +178,15 @@ class FileHandle(object):
         if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
             file_name = self.file_name.split("/")[-1]
             self.is_data = True
-            return simple_process_analysis(file_name)
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Late')
+        if 'physics_CosmicCalo' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_CosmicCalo')
+        if 'physics_Background' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Background')
         if "physics_Main" in self.file_name and '_cos.' in self.file_name:
             file_name = self.file_name.split("/")[-1]
             self.is_cosmics = True

@@ -18,6 +18,7 @@ class PlotConfig(object):
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
+        # kwargs.setdefault("cuts_l1", None)
         if not "draw" in kwargs:
             kwargs.setdefault("Draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
@@ -40,6 +41,8 @@ class PlotConfig(object):
                 kwargs.setdefault(key, attr)
 
         for k, v in kwargs.iteritems():
+            if v == "None":
+                v = None
             if k == "ratio_config" and v is not None:
                 v["logx"] = kwargs["logx"]
                 self.set_additional_config("ratio_config", **v)
@@ -49,7 +52,7 @@ class PlotConfig(object):
                 continue
             if "xmin" in k or "xmax" in k:
                 v = eval(str(v))
-            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
+            if (k == "ymax" or k == "ymin") and v is not None:
                 if isinstance(v, float):
                     setattr(self, k.lower(), v)
                     continue
@@ -194,7 +197,20 @@ def get_default_plot_config(hist):
 def get_default_color_scheme():
     # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
     #         ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+
     return [ROOT.kGray+3,
+            ROOT.kRed+2,
+            ROOT.kAzure+4,
+            ROOT.kSpring-6,
+            ROOT.kOrange-3,
+            ROOT.kCyan-3,
+            ROOT.kPink-2,
+            ROOT.kSpring-9,
+            ROOT.kMagenta-5,
+            ROOT.kOrange,
+            ROOT.kCyan+3,
+            ROOT.kPink+4,
+            ROOT.kGray+3,
             ROOT.kRed+2,
             ROOT.kAzure+4,
             ROOT.kSpring-6,
@@ -342,7 +358,6 @@ def propagate_common_config(common_config, plot_configs):
 
 def _parse_draw_option(plot_config, process_config=None):
     draw_option = "Hist"
-
     if hasattr(plot_config, "draw"):
         draw_option = plot_config.draw
     if process_config and hasattr(process_config, "draw"):
@@ -423,7 +438,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
             #style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
-        style_setter = "Marker"
+        style_setter = ["Marker", 'Line']
     elif draw_option.lower() == "line":
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
