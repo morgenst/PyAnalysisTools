@@ -141,10 +141,9 @@ class CommonCutFlowAnalyser(object):
         :return: nothing
         :rtype: None
         """
-        provided_wrong_info = False
         lumi = self.lumi
         if isinstance(self.lumi, OrderedDict):
-            if re.search('mc16[acde]$', process) is None:
+            if process.mc_campaign is None:
                 _logger.error('Could not find MC campaign information, but lumi was provided per MC '
                               'campaing. Not clear what to do. It will be assumed that you meant to scale '
                               'to total lumi. Please update and acknowledge once.')
