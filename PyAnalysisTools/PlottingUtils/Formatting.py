@@ -411,6 +411,29 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
         _logger.error("Invalid axis choice: {:s}".format(axis))
 
 
+def get_min_max_y(canvas, plot_config):
+    y_scale_offset = plot_config.yscale
+    if plot_config.logy:
+        y_scale_offset = plot_config.yscale_log
+    plotted_obj = get_objects_from_canvas_by_type(canvas, ['TH1', 'TH2', 'THStack', 'TGraph'])
+    max_y = max(map(lambda o: get_max_y(o), plotted_obj))
+    if plot_config.ymax is not None:
+        if isinstance(plot_config.ymax, str):
+            tmp_max = eval(plot_config.ymax)
+        max_y = max(max_y, tmp_max)
+    min_y = max(map(lambda o: get_min_y(o), plotted_obj))
+    if plot_config.ymin is not None:
+        min_y = plot_config.ymin
+    if plot_config.logy:
+        if plot_config.ymin is not None and plot_config.ymin > 0.:
+            min_y = plot_config.ymin
+        elif plot_config.ymin_log > 0.:
+            min_y = plot_config.ymin_log
+        else:
+            min_y = 0.1
+    return min_y, y_scale_offset * max_y
+
+
 def auto_scale_y_axis(canvas, offset=1.1):
     graph_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
     max_y = 1.1 * max([graph_obj.GetMaximum() for graph_obj in graph_objects])

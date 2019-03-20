@@ -582,24 +582,11 @@ def plot_stack(hists, plot_config, **kwargs):
     stack.Draw()
     canvas.Update()
     format_hist(stack, plot_config)
-    y_scale_offset = 1.1
-    if plot_config.logy:
-        y_scale_offset = plot_config.yscale_log
-    max_y = y_scale_offset * stack.GetMaximum()
+    min_y, max_y = fm.get_min_max_y(canvas, plot_config)
+    fm.set_range(stack, min_y, max_y)
     if data is not None:
         add_data_to_stack(canvas, data[1], plot_config)
-        max_y = max(max_y, y_scale_offset * data[1].GetMaximum())
-        if plot_config.rebin and not plot_config.ignore_rebin:
-            max_y = max(max_y, 1.3 * get_objects_from_canvas_by_name(canvas, data[1].GetName())[0].GetMaximum())
-    if plot_config.ymax:
-        max_y = plot_config.ymax
-        if isinstance(max_y, str):
-            max_y = eval(max_y)
-    fm.set_maximum_y(stack, max_y)
-    if hasattr(plot_config, "ymin"):
-        fm.set_minimum_y(stack, plot_config.ymin)
     if plot_config.logy:
-        stack.GetYaxis().SetRangeUser(0.1, stack.GetMaximum())
         canvas.SetLogy()
     if plot_config.logx:
         fm.set_range_x(stack, plot_config.xmin, plot_config.xmax)
