@@ -140,9 +140,9 @@ class MLAnalyser(object):
         process_config = parse_and_build_process_config(self.process_config_file)
         return process_config
 
-    def read_score(self):
+    def read_score(self, selection=None):
         trees = {fh.process: fh.get_object_by_name(self.tree_name, "Nominal") for fh in self.file_handles}
-        arrays = {process: self.converter.convert_to_array(tree) for process, tree in trees.iteritems()}
+        arrays = {process: self.converter.convert_to_array(tree, selection=selection) for process, tree in trees.iteritems()}
         signals = []
         backgrounds = []
 
@@ -160,19 +160,22 @@ class MLAnalyser(object):
                     backgrounds.append(arrays[sub_process])
                 else:
                     print "Could not classify {:s}".format(sub_process)
+
         signal = np.concatenate(signals)
         background = np.concatenate(backgrounds)
         return signal + 1., background + 1.
 
-    def plot_roc(self):
-        signal, background = self.read_score()
+    def plot_roc(self, selection=None):
+        signal, background = self.read_score(selection)
         efficiencies = [100. - i * 10. for i in range(10)]
-        cuts = [np.percentile(signal, eff) for eff in efficiencies]
+        for eff in efficiencies:
+            print eff, np.percentile(signal, eff), np.percentile(signal, 100. - eff) 
+        cuts = [np.percentile(signal, 100. - eff) for eff in efficiencies]
         signal_total = sum(signal)
-        signal_eff = [np.sum(signal[signal > cut] / signal_total) for cut in cuts]
+        signal_eff = [np.sum(signal[signal < cut] / signal_total) for cut in cuts]
 
         bkg_total = sum(background)
-        bkg_rej = [1. - np.sum(background[background > cut] / bkg_total) for cut in cuts]
+        bkg_rej = [1. - np.sum(background[background < cut] / bkg_total) for cut in cuts]
         curve = ROOT.TGraph(len(efficiencies))
         curve.SetName("roc_curve")
         for b in range(len(efficiencies)):

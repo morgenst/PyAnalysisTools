@@ -1,9 +1,11 @@
 import os
+import re
 from subprocess import check_output, CalledProcessError
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 import pathos.multiprocessing as mp
+import re
 try:
     from tabulate.tabulate import tabulate
 except ImportError:
@@ -34,7 +36,17 @@ class NTupleAnalyser(object):
         self.datasets = dict(filter(lambda kv: "resubmit" not in kv[0], self.datasets.iteritems()))
         self.input_path = kwargs["input_path"]
         self.resubmit = kwargs["resubmit"]
+        self.filter = kwargs['filter']
+        if self.filter is not None:
+            for pattern in self.filter:
+                self.datasets = dict(filter(lambda kv: not re.match(pattern, kv[0]), self.datasets.iteritems()))
 
+
+        self.filter = kwargs['filter']
+        if self.filter is not None:
+            for pattern in self.filter:
+                self.datasets = dict(filter(lambda kv: not re.match(pattern, kv[0]), self.datasets.iteritems()))
+        
     @staticmethod
     def check_valid_proxy():
         """
@@ -57,10 +69,16 @@ class NTupleAnalyser(object):
 
     def transform_dataset_list(self):
         self.datasets = [ds for campaign in self.datasets.values() for ds in campaign]
-        self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[5]])], self.datasets)
+        # self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[2], ds.split(".")[3], ds.split(".")[4], ds.split(".")[5]])], self.datasets)
+        self.datasets = map(lambda ds: [ds, ".".join(ds.split(".")[1:3])], self.datasets)
 
     def add_path(self):
+
+        # processed_datasets = []
+        # for path in self.input_path:
+        #     processed_datasets.append(os.listdir(path))        
         processed_datasets = os.listdir(self.input_path)
+        
         for ds in self.datasets:
             match = [ds[1] in pds for pds in processed_datasets]
             try:
@@ -71,10 +89,17 @@ class NTupleAnalyser(object):
 
     def get_events(self, ds):
         n_processed_events = 0
-        for rf in os.listdir(os.path.join(self.input_path, ds[2])):
 
+        # for path in self.input_path:
+        #     processed_datasets.append(os.listdir(path))        
+        #     for rf in os.listdir(os.path.join(path, ds[2])):
+        #         n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2], rf),
+        #                                              switch_off_process_name_analysis=True).get_daod_events())
+        
+        for rf in os.listdir(os.path.join(self.input_path, ds[2])):
             n_processed_events += int(FileHandle(file_name=os.path.join(self.input_path, ds[2], rf),
                                                  switch_off_process_name_analysis=True).get_daod_events())
+            
         ds.append(n_processed_events)
         client = pyAMI.client.Client('atlas')
         try:
@@ -141,7 +166,7 @@ class NTupleAnalyser(object):
         missing_datasets = filter(lambda ds: ds[2] is None, self.datasets)
         self.datasets = filter(lambda ds: ds not in missing_datasets, self.datasets)
         mp.ThreadPool(10).map(self.get_events, self.datasets)
-        incomplete_datasets = filter(lambda ds: not ds[-2] ==ds[-1], self.datasets)
+        incomplete_datasets = filter(lambda ds: not ds[-2] == ds[-1], self.datasets)
         self.print_summary(missing_datasets, incomplete_datasets)
         if self.resubmit:
             self.prepare_resubmit(incomplete_datasets, missing_datasets)
