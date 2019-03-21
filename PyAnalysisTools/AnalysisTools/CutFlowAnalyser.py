@@ -40,10 +40,13 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault('config_file', None)
         kwargs.setdefault('batch', True)
         self.event_numbers = dict()
-        self.lumi = kwargs["lumi"]
-        self.disable_sm_total = kwargs["disable_sm_total"]
-        self.xs_handle = XSHandle(kwargs["dataset_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"]) for fn in kwargs["file_list"]]
+        self.lumi = kwargs['lumi']
+        self.disable_sm_total = kwargs['disable_sm_total']
+        self.xs_handle = XSHandle(kwargs['dataset_config'])
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs['dataset_config'],
+                                friend_directory=kwargs['friend_directory'],
+                                friend_tree_names=kwargs['friend_tree_names'],
+                                friend_pattern=kwargs['friend_file_pattern']) for fn in kwargs['file_list']]
         self.process_configs = None
         if "process_config" in kwargs and not "process_configs" in kwargs:
             raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
@@ -211,6 +214,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         for k, v in kwargs.iteritems():
             if not hasattr(self, k):
                 setattr(self, k, v)
+        if kwargs['friend_tree_names'] is not None:
+            map(lambda fh: fh.reset_friends(), self.file_handles)
+            map(lambda fh: fh.link_friend_trees(self.tree_name, 'Nominal'), self.file_handles)
+
         self.region_selections = {}
         if self.plot_config is None:
             self.plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
@@ -296,7 +303,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                                     self.process_configs)) for process in self.cutflows[systematic][region].keys()]
             if len(filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)) > 3:
                 signals = filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)
-                #print i
                 signals.sort(key=lambda i: int(re.findall('\d{2,4}', i[0])[0]))
                 if self.config is not None:
                     if 'ordering' in self.config:
@@ -397,7 +403,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         :rtype: dict
         """
         for process in yields.keys():
-            print process
             parent_process = find_process_config(process, self.process_configs).name
             if parent_process is None:
                 continue

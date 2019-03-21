@@ -18,6 +18,7 @@ def main(argv):
     add_input_args(parser)
     add_output_args(parser)
     add_process_args(parser)
+    add_friend_args(parser)
     add_selection_args(parser)
     parser.add_argument("--format", "-f", type=str, choices=map(str, tabulate_formats),
                         help="format of printed table")

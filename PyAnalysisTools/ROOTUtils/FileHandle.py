@@ -273,6 +273,8 @@ class FileHandle(object):
         return project_hist(tree, hist, var_name, cut_string, weight, self.is_data)
 
     def link_friend_trees(self, nominal_tree, tdirectory):
+        if isinstance(nominal_tree, str):
+            nominal_tree = self.get_object_by_name(nominal_tree, tdirectory)
         if self.friend_tree_names is None:
             _logger.error("No friend tree names provided, but requested to link them.")
             return
@@ -311,6 +313,7 @@ class FileHandle(object):
                 self.friends.append(os.path.join(directory, friend_fn))
             except IndexError:
                 _logger.error("Could not find friend for ", base_file_name)
+
     @staticmethod
     def release_object_from_file(obj):
         obj.SetDirectory(0)
