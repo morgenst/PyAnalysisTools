@@ -1,12 +1,15 @@
 import os
-from sklearn.metrics import roc_curve, auc
+from sklearn.metrics import roc_curve, auc, classification_report
 from keras.models import Sequential, Model, load_model
 from keras.layers import Dense, Activation, Input, LSTM, Masking, Dropout, Flatten, Reshape
 from keras.layers.normalization import BatchNormalization
 from keras.optimizers import SGD, Adagrad, Adam
 from keras.utils import plot_model
+from keras import metrics
 import keras.backend as backend
 import matplotlib
+from sklearn.utils import class_weight
+
 matplotlib.use('Agg')
 import matplotlib.pyplot as plt
 import numpy as np
@@ -82,7 +85,9 @@ class NeuralNetwork(object):
             if limit_config.dropout is not None:
                 model.add(Dropout(limit_config.dropout))
         model.add(Dense(1, activation=limit_config.final_activation))
-        model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=['accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=[metrics.binary_accuracy,
+                                                                                             metrics.mean_absolute_percentage_error,
+                                                                                             'accuracy'])
         self.kerasmodel = model
 
 
@@ -205,16 +210,30 @@ class NNTrainer(object):
         if self.do_control_plots:
             self.make_control_plots("postscaling")
 
+        print "training signal: {:d} data: {:d}".format(len(self.label_train[self.label_train == 1]),
+                                                        len(self.label_train[self.label_train == 0]))
+        print "eval signal: {:d} data: {:d}".format(len(self.label_eval[self.label_eval == 1]),
+                                                    len(self.label_eval[self.label_eval == 0]))
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
                                          epochs=self.epochs, verbose=self.verbosity,
                                          batch_size=self.limit_config.batch_size, shuffle=True,
-                                         validation_data=(self.npa_data_eval, self.label_eval),
-                                         sample_weight=self.weight_train)
+                                         validation_data=(self.npa_data_eval, self.label_eval))#,
+                                         # class_weight=class_weight.compute_class_weight('balanced'
+                                         #                                                , np.unique(self.label_train)
+                                         #                                                , self.label_train)) #sample_weight=self.weight_train,
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
                                         epochs=self.epochs, verbose=self.verbosity,
                                         batch_size=self.limit_config.batch_size, shuffle=True,
-                                        validation_data=(self.npa_data_train, self.label_train),
-                                        sample_weight=self.weight_eval)
+                                        validation_data=(self.npa_data_train, self.label_train))#,
+                                        # class_weight=class_weight.compute_class_weight('balanced'
+                                        #                                                , np.unique(self.label_eval)
+                                        #                                                , self.label_eval)) #sample_weight=self.weight_eval,
+        print 'class weights train: ', class_weight.compute_class_weight('balanced'
+                                                                   , np.unique(self.label_train)
+                                                                   , self.label_train)
+        print 'class weights eval: ', class_weight.compute_class_weight('balanced',
+                                                                        np.unique(self.label_eval)
+                                                                        , self.label_eval)
         if self.plot:
             self.plot_train_control(history_train, "train")
             self.plot_train_control(history_eval, "eval")
@@ -251,6 +270,7 @@ class NNTrainer(object):
             return
         _logger.info("Evaluating predictions")
         preds_train = self.model_0.predict(self.npa_data_eval)
+
         preds_sig_train = preds_train[self.label_eval == 1]
         preds_bkg_train = preds_train[self.label_eval == 0]
 
@@ -259,6 +279,13 @@ class NNTrainer(object):
         preds_sig_eval = preds_eval[self.label_train == 1]
         preds_bkg_eval = preds_eval[self.label_train == 0]
         make_plot(preds_sig_eval, preds_bkg_eval, "eval")
+
+        #preds_train = self.model_0.predict(self.npa_data_train)
+        predicted_classes = self.model_0.predict_classes(self.npa_data_eval)
+
+        print classification_report(self.label_eval, predicted_classes)
+        #print classification_report(self.label_train, predicted_classes)
+
         self.make_roc_curve(self.label_train, preds_eval, "train")
         self.make_roc_curve(self.label_eval, preds_train, "eval")
 
@@ -320,29 +347,36 @@ class NNReader(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("selection_config", None)
         kwargs.setdefault("ncpu", 1)
-        self.file_handles = [FileHandle(file_name=fn, open_option="READ", run_dir=kwargs["run_dir"],
-                                        dataset_info=kwargs["xs_config_file"])
-                             for fn in kwargs["input_files"]]
-        self.tree_name = kwargs["tree_name"]
-        self.input_path = os.path.abspath(kwargs["input_path"])
-        self.model_train = load_model(os.path.join(self.input_path, "models/model_train.h5"))
-        self.model_eval = load_model(os.path.join(self.input_path, "models/model_eval.h5"))
+        kwargs.setdefault("nominal_dir", 'Nominal')
+
+        self.file_handles = [FileHandle(file_name=fn, open_option='READ', run_dir=kwargs['run_dir'],
+                                        dataset_info=kwargs['xs_config_file'])
+                             for fn in kwargs['input_files']]
+        self.tree_name = kwargs['tree_name']
+        self.input_path = os.path.abspath(kwargs['input_path'])
+        self.model_train = load_model(os.path.join(self.input_path, 'models/model_train.h5'))
+        self.model_eval = load_model(os.path.join(self.input_path, 'models/model_eval.h5'))
         self.graph = tf.get_default_graph()
-        self.variable_list = kwargs["branches"]
-        self.converter = Root2NumpyConverter(self.variable_list + ["weight", "train_flag"])
-        self.converter_selection = Root2NumpyConverter(["event_number", "run_number"])
-        self.branch_name = kwargs["branch_name"]
-        self.friend_file_pattern = kwargs["friend_file_pattern"]
-        self.friend_name = kwargs["friend_name"]
-        self.input_path = os.path.abspath(kwargs["input_path"])
-        self.output_path = kwargs["output_path"]
+        self.variable_list = kwargs['branches']
+        self.converter = Root2NumpyConverter(self.variable_list + ['weight', 'train_flag'])
+        self.converter_selection_data = Root2NumpyConverter(['event_number', 'run_number'])
+        self.converter_selection_mc = Root2NumpyConverter(['event_number', 'run_number', 'mc_channel_number'])
+        self.branch_name = kwargs['branch_name']
+        self.friend_file_pattern = kwargs['friend_file_pattern']
+        self.friend_name = kwargs['friend_name']
+        self.input_path = os.path.abspath(kwargs['input_path'])
+        self.output_path = kwargs['output_path']
         self.ncpu = kwargs['ncpu']
+        self.nominal_dir = kwargs['nominal_dir']
+        if self.nominal_dir.lower() == 'none':
+            self.nominal_dir = None
         self.selection = None
         if kwargs["selection_config"]:
             self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         make_dirs(self.output_path)
         self.scaler = DataScaler(kwargs["scale_algo"])
-        MLConfigHandle(**self.__dict__).dump_config()
+        #MLConfigHandle(**self.__dict__).dump_config()
+        print "Run over files {:s}".format(', '.join(map(lambda fh: fh.file_name, self.file_handles)))
 
     def build_friend_tree(self, file_handle):
         self.is_new_tree = False
@@ -355,7 +389,7 @@ class NNReader(object):
         else:
             file_handle_friend = FileHandle(file_name=friend_file_name, open_option="UPDATE")
         try:
-            friend_tree = file_handle_friend.get_object_by_name(self.friend_name, "Nominal")
+            friend_tree = file_handle_friend.get_object_by_name(self.friend_name, self.nominal_dir)
         except ValueError:
             self.is_new_tree = True
             friend_tree = ROOT.TTree(self.friend_name, "")
@@ -367,11 +401,14 @@ class NNReader(object):
 
     def run(self):
         for file_handle in self.file_handles:
-            try:
-                self.attach_NN_output(file_handle)
-            except Exception as e:
-                _logger.error('Detected problem for file: {:s}'.format(file_handle.tfile))
-                continue
+            self.attach_NN_output(file_handle)
+
+            # try:
+            #     self.attach_NN_output(file_handle)
+            # except Exception as e:
+            #     _logger.error('Detected problem for file: {:s}'.format(file_handle.tfile))
+            #     print e
+            #     continue
 
     def apply_scaling(self):
         self.npa_data_train, _ = self.scaler.apply_scaling(self.npa_data, None,
@@ -410,17 +447,31 @@ class NNReader(object):
             make_plot("{}_{}".format("post_scaling", "train"), name, self.npa_data[:,key])
 
     def attach_NN_output(self, file_handle):
-        tree = file_handle.get_object_by_name(self.tree_name, "Nominal")
+        def get_event_numbers(tree, is_mc):
+            if is_mc:
+                return [tree.event_number, tree.run_number, tree.mc_channel_number]
+            return [tree.event_number, tree.run_number]
+
+        tree = file_handle.get_object_by_name(self.tree_name, self.nominal_dir)
         file_handle_friend, friend_tree = self.get_friend_tree(file_handle)
         selection = ""
         if self.selection is not None:
             selection = self.selection[0] if file_handle.is_mc else self.selection[1]
-
+        if selection == '':
+            selection = 'object_n == 1 && HT>=0.'
         data_selected = self.converter.convert_to_array(tree, selection)
-        selected_event_numbers = pd.DataFrame(self.converter_selection.convert_to_array(tree, selection)).values
+        if file_handle.is_data:
+            selected_event_numbers = pd.DataFrame(self.converter_selection_data.convert_to_array(tree, selection)).values
+        else:
+            selected_event_numbers = pd.DataFrame(self.converter_selection_mc.convert_to_array(tree, selection)).values
         data_selected = pd.DataFrame(data_selected)
-
+        data_selected = data_selected[~data_selected.isin([np.nan, np.inf, -np.inf]).any(1)]
+        data_selected = data_selected.reset_index()
+        with open('test.pkl', 'w') as f:
+            data_selected.to_pickle(f)
         self.npa_data = data_selected[self.variable_list].values
+        self.npa_data = self.npa_data.astype(np.float64)
+        self.npa_data = self.npa_data[~np.isnan(self.npa_data).any(axis=1)]
         self.apply_scaling()
         prediction0 = self.model_train.predict(self.npa_data_train)
         prediction1 = self.model_eval.predict(self.npa_data_eval)
@@ -434,12 +485,14 @@ class NNReader(object):
         for entry in range(total_entries):
             tree.GetEntry(entry)
             is_train = tree.train_flag == 0
-            if not len(tree.object_pt) > 1 and (np.array([tree.event_number, tree.run_number]) == selected_event_numbers).all(1).any():
+            event_number = get_event_numbers(tree, file_handle.is_mc)
+            if not len(tree.object_pt) > 1 and (np.array(event_number) == selected_event_numbers).all(1).any():
                 processed_events += 1
                 if (tree.event_number, tree.run_number) in already_processed_events:
-                    _logger.error("ERROR already processed")
+                    _logger.error("already processed event with event no: {:d} and run number: {:d}".format(tree.event_number,
+                                                                                                            tree.run_number))
                 try:
-                    already_processed_events.append((tree.event_number, tree.run_number))
+                    already_processed_events.append(tuple(event_number))
                     if not is_train:
                         nn_prediction[0] = prediction1[entry-multiple_triplets]
                     else:
@@ -454,10 +507,11 @@ class NNReader(object):
                 friend_tree.Fill()
             branch.Fill()
         try:
-            file_handle_friend.get_object_by_name("Nominal")
+            file_handle_friend.get_object_by_name(self.nominal_dir)
         except:
-            file_handle_friend.tfile.mkdir("Nominal")
-        tdir = file_handle_friend.get_directory("Nominal")
+            if self.nominal_dir is not None:
+                file_handle_friend.tfile.mkdir(self.nominal_dir)
+        tdir = file_handle_friend.get_directory(self.nominal_dir)
         tdir.cd()
         friend_tree.Write()
         file_handle_friend.close()
