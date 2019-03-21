@@ -13,10 +13,10 @@ class Cut(object):
             self.name = selection
             self.selection = selection
         if 'DATA:' in self.selection:
-            self.selection.replace('Data:', '')
+            self.selection = self.selection.replace('DATA:', '')
             self.is_data = True
         if 'MC:' in self.selection:
-            self.selection.replace('MC:', '')
+            self.selection = self.selection.replace('MC:', '')
             self.is_mc = True
 
     def __eq__(self, other):
@@ -332,10 +332,10 @@ class NewRegionBuilder(object):
         return self.modify_plot_configs(plot_configs)
 
 
-class Region(NewRegion):
+class Region(object):
     def __init__(self, **kwargs):
-        super(Region, self).__init__(**kwargs)
-        return
+        # super(Region, self).__init__(**kwargs)
+        # return
         kwargs.setdefault("n_lep", -1)
         kwargs.setdefault("n_electron", -1)
         kwargs.setdefault("n_muon", -1)
@@ -516,10 +516,10 @@ class Region(NewRegion):
             self.label += " on-Z" if self.is_on_z else " off-Z"
 
 
-class RegionBuilder(NewRegionBuilder):
+class RegionBuilder(object):
     def __init__(self, **kwargs):
-        super(RegionBuilder, self).__init__(**kwargs)
-        return
+        #super(RegionBuilder, self).__init__(**kwargs)
+
         """
         contructor
 
