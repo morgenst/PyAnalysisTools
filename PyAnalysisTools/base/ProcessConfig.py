@@ -27,6 +27,39 @@ class Process(object):
         obj_str += ' parsed from file name {:s}'.format(self.base_name)
         return obj_str
 
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: plot config object to compare to
+        :type other: PlotConfig
+        :return: True/False
+        :rtype: boolean
+        """
+        if isinstance(self, other.__class__):
+            for k, v in self.__dict__.iteritems():
+                if k not in other.__dict__:
+                    return False
+                if k in ['base_name', 'dataset_info']:
+                    continue
+                if self.__dict__[k] != other.__dict__[k]:
+                    return False
+        else:
+            return False
+        return True
+
+    def __ne__(self, other):
+        """
+        Comparison operator (negative)
+        :param other: plot config object to compare to
+        :type other: PlotConfig
+        :return: True/False
+        :rtype: boolean
+        """
+        return not self.__eq__(other)
+
+    def __hash__(self):
+        return hash(self.process_name)
+
     def parse_file_name(self, file_name):
         if 'data' in file_name:
             self.set_data_name(file_name)
