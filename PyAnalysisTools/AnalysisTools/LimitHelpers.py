@@ -458,7 +458,7 @@ class LimitScanAnalyser(object):
 
     def tabulate_limits(self, limits):
         limits.sort(key=lambda l: l.mass)
-        with open(os.path.join(self.input_path, 'event_yields_nominal.yml'), 'r') as f:
+        with open(os.path.join(self.input_path, 'event_yields_nominal.pkl'), 'r') as f:
             event_yields = dill.load(f)
         data = []
         ordering = self.plot_config['ordering']
@@ -660,6 +660,8 @@ class Sample(object):
             self.is_data = 'data' in process
         else:
             self.name = process.process_name
+            if process.mc_campaign is not None:
+                self.name += '.{:s}'.format(process.mc_campaign)
             self.process = process
             self.is_data = process.is_data
         self.generated_ylds = gen_ylds
@@ -878,14 +880,11 @@ class SampleStore(object):
             for s in duplicate_samples:
                 self.samples.remove(s)
             self.samples.append(summed_sample)
-            for s in duplicate_samples:
-                if s in self.samples:
-                    self.samples.remove(s)
 
     def apply_xsec_weight(self, signal_xsec=1.):
         for sample in self.samples:
             if sample.is_data:
-                return
+                continue
             lumi = self.lumi
             if isinstance(self.lumi, OrderedDict):
                 lumi = self.lumi[sample.process.mc_campaign]
@@ -901,6 +900,8 @@ class SampleStore(object):
             if sample.is_data:
                 continue
             if not '.mc16' in sample.name:
+                continue
+            if sample in samples_to_remove:
                 continue
             base_sample_name = sample.name.split('.')[0]
             merged_sample = Sample(base_sample_name, None)
@@ -925,6 +926,8 @@ class SampleStore(object):
             else:
                 samples_to_merge[process_config.name].append(sample)
         for process, samples in samples_to_merge.iteritems():
+            if samples[0] in samples_to_remove:
+                continue
             merged_sample = Sample(process, None)
             if len(samples) == 1:
                 samples[0].name = process
