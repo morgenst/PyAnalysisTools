@@ -73,11 +73,14 @@ class SystematicsAnalyser(BasePlotter):
             self.fixed_systematics.append(FixedSystematics(name=syst_name, weight=syst_name,
                                                            variation=filter(lambda s: s[0] == syst_name,
                                                                             self.scale_syst_config)[0][1]))
-        file_handles = filter(lambda fh: fh.is_mc, self.file_handles)
+        file_handles = filter(lambda fh: fh.process.is_mc, self.file_handles)
         self.disable = False
         if len(file_handles) == 0:
             self.disable = True
-        self.parse_systematics(file_handles[0])
+        try:
+            self.parse_systematics(filter(lambda fh: fh.process.is_mc, file_handles)[0])
+        except IndexError:
+            _logger.error("Could not parse any systematics as no MC file handles are provided")
 
     def parse_systematics(self, file_handle):
         if self.systematics is not None:
@@ -90,12 +93,12 @@ class SystematicsAnalyser(BasePlotter):
         pc = arg[1]
         try:
             return pc, fh.process, fh.get_object_by_name('{:s}_{:s}_{:s}_clone_clone'.format(pc.name,
-                                                                                             fh.process,
-                                                                                             systematic))
+                                                                                                  fh.process.process_name,
+                                                                                                  systematic))
         except ValueError:
             print 'Could not find histogram: {:s}_{:s}_{:s}_clone_clone'.format(pc.name,
-                                                                                fh.process,
-                                                                                systematic)
+                                                                                     fh.process.process_name,
+                                                                                     systematic)
             exit()
             return None, None, None
 
@@ -119,7 +122,7 @@ class SystematicsAnalyser(BasePlotter):
 
         if self.disable:
             return
-        file_handles = filter(lambda fh: fh.is_mc, self.file_handles)
+        file_handles = filter(lambda fh: fh.process.is_mc, self.file_handles)
         if len(file_handles) == 0:
             return
         for systematic in self.systematics:
