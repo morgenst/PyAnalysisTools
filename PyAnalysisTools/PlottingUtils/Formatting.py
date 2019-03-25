@@ -418,6 +418,7 @@ def get_min_max_y(canvas, plot_config):
     plotted_obj = get_objects_from_canvas_by_type(canvas, ['TH1', 'TH2', 'THStack', 'TGraph'])
     max_y = max(map(lambda o: get_max_y(o), plotted_obj))
     if plot_config.ymax is not None:
+        tmp_max = max_y
         if isinstance(plot_config.ymax, str):
             tmp_max = eval(plot_config.ymax)
         max_y = max(max_y, tmp_max)
