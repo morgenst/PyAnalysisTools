@@ -80,6 +80,19 @@ def add_selection_args(parser):
     parser.add_argument('--selection_config', '-sc', default=None, help="config for additional cuts")
 
 
+def add_friend_args(parser):
+    """
+    add default arguments for friends to be linked
+    :param parser: argument parser
+    :type parser: argparse.ArgumentParser
+    :return: nothing
+    :rtype: None
+    """
+    parser.add_argument('--friend_directory', '-fd', default=None, help="directory containing friend tree files")
+    parser.add_argument('--friend_tree_names', '-ftn', nargs="+", default=None, help="friend tree name")
+    parser.add_argument('--friend_file_pattern', '-ffp', nargs="+", help="file name patterns of friends")
+
+
 def default_init(parser):
     """
     default initialisation of steering scripts and parsing of arguments
