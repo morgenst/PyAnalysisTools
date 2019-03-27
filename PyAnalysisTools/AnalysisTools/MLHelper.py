@@ -69,6 +69,7 @@ class DataScaler(object):
     def __init__(self, algo="default"):
         self.scale_algo = algo
         self.scaler = None
+
     @staticmethod
     def get_algos():
         return ["default", "standard", "min_max"]
@@ -163,13 +164,18 @@ class TrainingReader(object):
         return signal_train_tree_names, background_train_tree_names, signal_eval_tree_names, background_eval_tree_names
 
     def expand_tree_names(self, tree_names):
+        expanded_tree_names = []
+        tree_names_to_remove = []
         for tree_name in tree_names:
             if not tree_name.startswith("re."):
                 continue
             pattern = "train_" + tree_name.replace("re.", "").replace("*", ".*")
-            tree_names += list(set(map(lambda name: str.replace(name, "train_", ""),
+            expanded_tree_names += list(set(map(lambda name: str.replace(name, "train_", ""),
                                        map(lambda obj: obj.GetName(), self.input_file.get_objects_by_pattern(pattern)))))
+            tree_names_to_remove.append(tree_name)
+        for tree_name in tree_names_to_remove:
             tree_names.remove(tree_name)
+        tree_names += expanded_tree_names
 
 
 class MLAnalyser(object):
