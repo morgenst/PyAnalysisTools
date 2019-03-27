@@ -36,11 +36,45 @@ class MLConfig(object):
         obj_str += 'variables: \n'
         for var in self.varset:
             obj_str += '\t {:s}\n'.format(var)
-        obj_str += 'selection: \n'
-        for sel in self.selection:
-            obj_str += '\t {:s}\n'.format(sel)
+        if self.selection is not None:
+            obj_str += 'selection: \n'
+            for sel in self.selection:
+                obj_str += '\t {:s}\n'.format(sel)
+        else:
+            obj_str += 'selection: None\n'
         obj_str += 'scaler: {:s}'.format(self.scaler)
         return obj_str
+
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: ML config object to compare to
+        :type other: MLConfig
+        :return: True/False
+        :rtype: boolean
+        """
+        if isinstance(self, other.__class__):
+            for k, v in self.__dict__.iteritems():
+                if k not in other.__dict__:
+                    return False
+                if k == 'scaler':
+                    if self.__dict__[k].scale_algo != other.__dict__[k].scale_algo:
+                        return False
+                    continue
+                if self.__dict__[k] != other.__dict__[k]:
+                    return False
+            return True
+        return False
+
+    def __ne__(self, other):
+        """
+        Comparison operator (negative)
+        :param other: ML config object to compare to
+        :type other: MLConfig
+        :return: True/False
+        :rtype: boolean
+        """
+        return not self.__eq__(other)
 
 
 class MLConfigHandle(object):
@@ -58,7 +92,10 @@ class MLConfigHandle(object):
             with open(self.file_name, 'r') as f:
                 data = pickle.load(f)
         if self.config.score_name in data:
-            print 'Score with name {:s} does already exist. Will give up adding it'.format(self.config.score_name)
+            if self.config == data[self.config.score_name]:
+                return
+            _logger.error('Score with name {:s} does already exist, but has different config. '
+                          'Will give up adding it'.format(self.config.score_name))
             exit()
         data[self.config.score_name] = self.config
         with open(self.file_name, 'w') as f:

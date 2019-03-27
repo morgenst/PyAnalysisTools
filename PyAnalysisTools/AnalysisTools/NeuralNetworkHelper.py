@@ -1,3 +1,4 @@
+import json
 import os
 from sklearn.metrics import roc_curve, auc, classification_report
 from keras.models import Sequential, Model, load_model
@@ -44,8 +45,8 @@ class GridScanConfig(object):
                 val = [val]
             setattr(self, attr, val)
 
-#TODO: should be renamed
-class LimitConfig(object):
+
+class NNConfig(object):
     def __init__(self, name, **kwargs):
         kwargs.setdefault("nlayers", 3)
         kwargs.setdefault("dropout", None)
@@ -93,58 +94,61 @@ class NeuralNetwork(object):
 
 class NNTrainer(object):
     def __init__(self, **kwargs):
-        kwargs.setdefault("n_features", None)
-        kwargs.setdefault("units", 10)
-        kwargs.setdefault("epochs", 10)
-        kwargs.setdefault("control_plots", False)
-        kwargs.setdefault("disable_scaling", False)
-        kwargs.setdefault("disable_event_weights", False)
-        kwargs.setdefault("scale_algo", 'standard')
-        kwargs.setdefault("disable_array_safe", False)
-        kwargs.setdefault("verbosity", 1)
-        kwargs.setdefault("max_events", None)
+        kwargs.setdefault('n_features', None)
+        kwargs.setdefault('units', 10)
+        kwargs.setdefault('epochs', 10)
+        kwargs.setdefault('control_plots', False)
+        kwargs.setdefault('disable_scaling', False)
+        kwargs.setdefault('disable_event_weights', False)
+        kwargs.setdefault('scale_algo', 'standard')
+        kwargs.setdefault('disable_array_safe', False)
+        kwargs.setdefault('verbosity', 1)
+        kwargs.setdefault('max_events', None)
 
         self.reader = TrainingReader(**kwargs)
-        self.variable_list = kwargs["variables"]
-        self.converter = Root2NumpyConverter(self.variable_list + ["weight"])
-        self.n_features = kwargs["n_features"]
-        self.units = kwargs["units"]
-        self.epochs = kwargs["epochs"]
-        self.max_events = kwargs["max_events"]
-        self.disable_rescaling = kwargs["disable_scaling"]
+        self.variable_list = kwargs['variables']
+        self.converter = Root2NumpyConverter(self.variable_list + ['weight'])
+        self.n_features = kwargs['n_features']
+        self.units = kwargs['units']
+        self.epochs = kwargs['epochs']
+        self.max_events = kwargs['max_events']
+        self.disable_rescaling = kwargs['disable_scaling']
         self.plot = True
-        self.do_control_plots = kwargs["control_plots"]
-        self.output_path = self.get_resolved_output_path(kwargs["output_path"])
-        if kwargs["icomb"] is not None:
-            self.output_path = os.path.join(self.output_path, str(kwargs["icomb"]))
-        self.limit_config = self.build_limit_config(kwargs["training_config_file"])
-        self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
-        self.store_arrays = not kwargs["disable_array_safe"]
-        self.scaler = DataScaler(kwargs["scale_algo"])
-        self.disable_event_weights = kwargs["disable_event_weights"]
-        self.verbosity = kwargs["verbosity"]
-        make_dirs(os.path.join(self.output_path, "plots"))
-        make_dirs(os.path.join(self.output_path, "models"))
-        make_dirs(os.path.join(self.output_path, "scalers"))
-        copy(kwargs["training_config_file"], self.output_path)
-        copy(kwargs["variable_set"], self.output_path)
+        self.do_control_plots = kwargs['control_plots']
+        self.output_path = self.get_resolved_output_path(kwargs['output_path'])
+        if kwargs['icomb'] is not None:
+            self.output_path = os.path.join(self.output_path, str(kwargs['icomb']))
+        self.limit_config = self.build_limit_config(kwargs['training_config_file'])
+        self.selection = RegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[0].event_cut_string
+        self.store_arrays = not kwargs['disable_array_safe']
+        self.scaler = DataScaler(kwargs['scale_algo'])
+        self.disable_event_weights = kwargs['disable_event_weights']
+        self.verbosity = kwargs['verbosity']
+        make_dirs(os.path.join(self.output_path, 'plots'))
+        make_dirs(os.path.join(self.output_path, 'models'))
+        make_dirs(os.path.join(self.output_path, 'scalers'))
+        copy(kwargs['training_config_file'], self.output_path)
+        copy(kwargs['variable_set'], self.output_path)
+        copy(kwargs['selection_config'], self.output_path)
+        with open(os.path.join(self.output_path, 'args.json'), 'w') as f:
+            json.dump(kwargs, f)
         if self.store_arrays and not self.reader.numpy_input:
-            self.input_store_path = os.path.join(self.output_path, "inputs")
+            self.input_store_path = os.path.join(self.output_path, 'inputs')
             make_dirs(self.input_store_path)
         if self.reader.numpy_input:
-            self.input_store_path = "/".join(kwargs["input_file"][0].split("/")[:-1])
+            self.input_store_path = '/'.join(kwargs['input_file'][0].split('/')[:-1])
         self.weight_train = None
         self.weight_eval = None
 
     @staticmethod
     def get_resolved_output_path(output_path):
-        return so.resolve_output_dir(output_dir=output_path, sub_dir_name="NNtrain")
+        return so.resolve_output_dir(output_dir=output_path, sub_dir_name='NNtrain')
 
     @staticmethod
     def build_limit_config(config_file_name):
         configs = yl.read_yaml(config_file_name)
         for name, config in configs.iteritems():
-            return LimitConfig(name, **config)
+            return NNConfig(name, **config)
 
     def build_input(self):
         if not self.reader.numpy_input:
@@ -155,15 +159,15 @@ class NNTrainer(object):
             self.df_data_train, self.label_train = self.converter.merge(arrays[0], arrays[1])
             self.df_data_eval, self.label_eval = self.converter.merge(arrays[2], arrays[3])
             if self.store_arrays:
-                np.save(os.path.join(self.input_store_path, "data_train.npy"), self.df_data_train)
-                np.save(os.path.join(self.input_store_path, "label_train.npy"), self.label_train)
-                np.save(os.path.join(self.input_store_path, "data_eval.npy"), self.df_data_eval)
-                np.save(os.path.join(self.input_store_path, "label_eval.npy"), self.label_eval)
+                np.save(os.path.join(self.input_store_path, 'data_train.npy'), self.df_data_train)
+                np.save(os.path.join(self.input_store_path, 'label_train.npy'), self.label_train)
+                np.save(os.path.join(self.input_store_path, 'data_eval.npy'), self.df_data_eval)
+                np.save(os.path.join(self.input_store_path, 'label_eval.npy'), self.label_eval)
         else:
-            self.df_data_train = np.load(os.path.join(self.input_store_path, "data_train.npy"))
-            self.label_train = np.load(os.path.join(self.input_store_path, "label_train.npy"))
-            self.df_data_eval = np.load(os.path.join(self.input_store_path, "data_eval.npy"))
-            self.label_eval = np.load(os.path.join(self.input_store_path, "label_eval.npy"))
+            self.df_data_train = np.load(os.path.join(self.input_store_path, 'data_train.npy'))
+            self.label_train = np.load(os.path.join(self.input_store_path, 'label_train.npy'))
+            self.df_data_eval = np.load(os.path.join(self.input_store_path, 'data_eval.npy'))
+            self.label_eval = np.load(os.path.join(self.input_store_path, 'label_eval.npy'))
         self.df_data_train = pd.DataFrame(self.df_data_train)
         self.df_data_eval = pd.DataFrame(self.df_data_eval)
 
@@ -174,10 +178,10 @@ class NNTrainer(object):
     def apply_scaling(self):
         self.npa_data_train, self.label_train = self.scaler.apply_scaling(self.npa_data_train, self.label_train,
                                                                           dump=os.path.join(self.output_path,
-                                                                                            "scalers/train.pkl"))
+                                                                                            'scalers/train.pkl'))
         self.npa_data_eval, self.label_eval = self.scaler.apply_scaling(self.npa_data_eval, self.label_eval,
                                                                         dump=os.path.join(self.output_path,
-                                                                                          "scalers/eval.pkl"))
+                                                                                          'scalers/eval.pkl'))
 
     def plot_train_control(self, history, name):
         plt.plot(history.history['loss'])
@@ -375,7 +379,7 @@ class NNReader(object):
             self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
         make_dirs(self.output_path)
         self.scaler = DataScaler(kwargs["scale_algo"])
-        #MLConfigHandle(**self.__dict__).dump_config()
+        MLConfigHandle(**self.__dict__).dump_config()
         print "Run over files {:s}".format(', '.join(map(lambda fh: fh.file_name, self.file_handles)))
 
     def build_friend_tree(self, file_handle):
