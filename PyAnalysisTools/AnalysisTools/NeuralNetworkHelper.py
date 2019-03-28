@@ -22,7 +22,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
+from PyAnalysisTools.AnalysisTools.RegionBuilder import NewRegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
 np.seterr(divide='ignore', invalid='ignore')
@@ -119,7 +119,9 @@ class NNTrainer(object):
         if kwargs['icomb'] is not None:
             self.output_path = os.path.join(self.output_path, str(kwargs['icomb']))
         self.limit_config = self.build_limit_config(kwargs['training_config_file'])
-        self.selection = RegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[0].event_cut_string
+        self.selection_cfg = NewRegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[0]
+        self.selection = ['&&'.join(map(lambda c: c.selection, self.selection_cfg.get_cut_list(is_data=False))),
+                          '&&'.join(map(lambda c: c.selection, self.selection_cfg.get_cut_list(is_data=True)))]
         self.store_arrays = not kwargs['disable_array_safe']
         self.scaler = DataScaler(kwargs['scale_algo'])
         self.disable_event_weights = kwargs['disable_event_weights']
