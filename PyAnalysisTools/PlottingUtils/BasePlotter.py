@@ -33,6 +33,7 @@ class BasePlotter(object):
         kwargs.setdefault('syst_tree_name', None)
         kwargs.setdefault('cluster_config', None)
         kwargs.setdefault('redraw', False)
+        kwargs.setdefault('skip_fh_reading', False)
 
         self.event_yields = {}
         set_batch_mode(kwargs["batch"])
@@ -60,13 +61,14 @@ class BasePlotter(object):
             input_files = self.input_files
         elif hasattr(self, 'input_file_list'):
             input_files = self.input_file_list
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
-                                        split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
-                                        switch_off_process_name_analysis=False,
-                                        friend_tree_names=kwargs["friend_tree_names"],
-                                        friend_pattern=kwargs["friend_file_pattern"])
-                             for input_file in input_files]
-        self.filter_missing_friends()
+        if not kwargs['skip_fh_reading']:
+            self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
+                                            split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                            switch_off_process_name_analysis=False,
+                                            friend_tree_names=kwargs["friend_tree_names"],
+                                            friend_pattern=kwargs["friend_file_pattern"])
+                                 for input_file in input_files]
+            self.filter_missing_friends()
 
     def cluster_setup(self, config):
         self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
