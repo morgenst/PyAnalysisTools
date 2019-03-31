@@ -140,10 +140,11 @@ class Plotter(BasePlotter):
         self.xs_config_file = config.extra_args['xs_config_file']
         self.process_configs = config.extra_args['process_configs']
         self.syst_analyser = config.extra_args['syst_analyser']
-        self.syst_analyser.file_handles = self.file_handles
-        self.syst_analyser.event_yields = self.event_yields
-        self.syst_analyser.dump_hists = False
-        self.syst_analyser.plot_configs = self.plot_configs
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+            self.syst_analyser.event_yields = self.event_yields
+            self.syst_analyser.dump_hists = False
+            self.syst_analyser.plot_configs = self.plot_configs
         #config.output_dir = "/Users/morgens/tmp/test"
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=['.pdf'], output_dir=kwargs['output_dir'])
@@ -161,10 +162,11 @@ class Plotter(BasePlotter):
         self.read_hist = False
         self.ncpu = 1
         self.nfile_handles = 1
-        self.syst_analyser.file_handles = self.file_handles
-        self.syst_analyser.event_yields = self.event_yields
-        self.syst_analyser.dump_hists = True
-        self.syst_analyser.plot_configs = self.plot_configs
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+            self.syst_analyser.event_yields = self.event_yields
+            self.syst_analyser.dump_hists = True
+            self.syst_analyser.plot_configs = self.plot_configs
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=None, output_dir=config.output_dir, sub_dir_name='hists',
                                               output_file='hist-{:s}'.format(config.file_name.split('-')[1]))
@@ -196,7 +198,7 @@ class Plotter(BasePlotter):
                                   filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
-            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
+            _logger.debug("Unable to find merge process config for {:s}".format(str(process)))
         failed_file_handles = filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                      file_handles)
         _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name, failed_file_handles))))
@@ -520,7 +522,8 @@ class Plotter(BasePlotter):
         _logger.debug("Reading {:d} files now from path".format(len(input_files)))
         self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
                                         split_mc=False) for fn in input_files]
-        self.syst_analyser.file_handles = self.file_handles
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
         return self.build_fetched_histograms()
 
     def make_plots(self, dumped_hist_path=None):
