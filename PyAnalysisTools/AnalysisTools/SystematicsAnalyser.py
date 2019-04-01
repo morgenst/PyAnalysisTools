@@ -88,18 +88,15 @@ class SystematicsAnalyser(BasePlotter):
         self.systematics = map(lambda o: o.GetName(), file_handle.get_objects_by_type("TDirectoryFile"))
         self.systematics.remove("Nominal")
 
-    def load_dumped_hist(self, arg, systematic):
+    @staticmethod
+    def load_dumped_hist(arg, systematic):
         fh = arg[0]
         pc = arg[1]
+        hist_name = '{:s}_{:s}_{:s}_clone_clone'.format(pc.name, fh.process.process_name, systematic)
         try:
-            return pc, fh.process, fh.get_object_by_name('{:s}_{:s}_{:s}_clone_clone'.format(pc.name,
-                                                                                                  fh.process.process_name,
-                                                                                                  systematic))
+            return pc, fh.process, fh.get_object_by_name(hist_name)
         except ValueError:
-            print 'Could not find histogram: {:s}_{:s}_{:s}_clone_clone'.format(pc.name,
-                                                                                     fh.process.process_name,
-                                                                                     systematic)
-            exit()
+            _logger.error('Could not find histogram: {:s}'.format(hist_name))
             return None, None, None
 
     def load_dumped_hists(self, file_handles, plot_configs, systematic):

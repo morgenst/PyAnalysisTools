@@ -60,6 +60,13 @@ def remove_directory(path, safe=False):
             raise e
 
 
+def remove_file(file_name):
+    try:
+        os.remove(file_name)
+    except OSError as e:
+        raise e
+
+
 def source(script_name):
     pipe = subprocess.Popen(". %s; env" % script_name, stdout=subprocess.PIPE, shell=True)
     output = pipe.communicate()[0]

@@ -10,6 +10,7 @@ import re
 import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
+import PyAnalysisTools.PlottingUtils.HistTools as ht
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
@@ -17,6 +18,7 @@ from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd
+from PyAnalysisTools.base import _logger
 from collections import OrderedDict
 import dill
 try:
@@ -106,16 +108,16 @@ def get_fit_quality(file_name, ws_name="w", fr_name="RooExpandedFitResult_afterF
     return fit_result.status(), fit_result.covQual()
 
 
-def make_cross_section_limit_plot(data, plot_config):
+def make_cross_section_limit_plot(data, plot_config, sig_reg_name=''):
     data.sort()
     if plot_config['ytitle'] is None:
         ytitle = "95% CL U.L on #sigma [pb]"
-    pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle=plot_config['xtitle'], draw="ap", logy=True,
-                    lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
+    pc = PlotConfig(name="xsec_limit_{:s}".format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'], draw='ap',
+                    logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
     graph = ROOT.TGraph(len(data))
     for i, item in enumerate(data):
         graph.SetPoint(i, item[0], item[1] * item[2]/(plot_config.get_lumi() * 1000.))
-    graph.SetName("xsec_limit")
+    graph.SetName('xsec_limit_{:s}'.format(sig_reg_name))
     canvas = pt.plot_obj(graph, pc)
     fm.decorate_canvas(canvas, pc)
     return canvas
@@ -213,7 +215,7 @@ class LimitPlotter(object):
     def __init__(self, output_handle):
         self.output_handle = output_handle
 
-    def make_cross_section_limit_plot(self, limits, plot_config, theory_xsec=None):
+    def make_cross_section_limit_plot(self, limits, plot_config, theory_xsec=None, sig_reg_name=None):
         """
         make cross section limit plot based on expected limits as function of mass hypothesis
 
@@ -223,12 +225,20 @@ class LimitPlotter(object):
         :type plot_config: Ordered dict/dict
         :param theory_xsec: theory predictions
         :type theory_xsec: TGraph (default = None)
+        :param sig_reg_name: name of signal region
+        :type sig_reg_name: string (default = None)
         :return: None
         :rtype: None
         """
+        if sig_reg_name is not None:
+            if not sig_reg_name.startswith('_'):
+                sig_reg_name = '_{:s}'.format(sig_reg_name)
+        else:
+            sig_reg_name = ''
         limits.sort(key=lambda li: li.mass)
         ytitle = "95% CL U.L on #sigma [pb]"
-        pc = PlotConfig(name="xsec_limit", ytitle=ytitle, xtitle=plot_config['xtitle'], draw="pLX", logy=True,
+        pc = PlotConfig(name='xsec_limit{:s}'.format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
+                        draw='pLX', logy=True,
                         lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-4),
                         ymax=float(1.), )
         pc_1sigma = deepcopy(pc)
@@ -260,7 +270,7 @@ class LimitPlotter(object):
                     graph_theory[-1].SetPoint(j, mass, xs[-1])
                 limits.sort(key=lambda li: li.mass)
                 graph_theory[-1].SetName('Theory_prediction_{:s}'.format(process))
-        graph_2sigma.SetName('xsec_limit')
+        graph_2sigma.SetName('xsec_limit{:s}'.format(sig_reg_name))
         canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
         pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
         pt.add_graph_to_canvas(canvas, graph, pc)
@@ -396,7 +406,7 @@ class LimitScanAnalyser(object):
         kwargs.setdefault('scan_info', None)
         kwargs.setdefault('xsec_map', None)
         self.input_path = kwargs['input_path']
-        self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
+        self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'], sub_dir_name='plots')
         self.plotter = LimitPlotter(self.output_handle)
         self.xsec_handle = XSHandle("config/common/dataset_info_lq_new.yml")
         self.plot_config = yl.read_yaml(kwargs["plot_config"])
@@ -450,7 +460,7 @@ class LimitScanAnalyser(object):
                 # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
                 #                                    scan.kwargs['sig_name'])
                 theory_xsec[mode] = filter(lambda l: l[1] == 1.0, self.xsec_map[mode])
-        self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec)
+        self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec, self.sig_reg_name)
         if theory_xsec is not None:
             self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
                                                scan.kwargs['sig_name'])
@@ -622,13 +632,13 @@ class LimitScanAnalyser(object):
         ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
-                        watermark='Internal', lumi=140.3)
+                        watermark='Internal', lumi=139.0)
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=140.3)
+                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=139.0)
         pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                     xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                                    ztitle="fit cov quality", watermark='Internal', lumi=140.3)
+                                    ztitle="fit cov quality", watermark='Internal', lumi=139.0)
         canvas = pt.plot_obj(hist, pc)
         fm.decorate_canvas(canvas, pc)
         self.output_handle.register_object(canvas)
@@ -805,6 +815,7 @@ class Sample(object):
                                                   self.shape_uncerts[cut].iteritems()))
             self.scale_uncerts[cut] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
                                                   self.scale_uncerts[cut].iteritems()))
+
         for reg in self.ctrl_reg_shape_ylds.keys():
             self.ctrl_reg_shape_ylds[reg] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
                                                         self.ctrl_reg_shape_ylds[reg].iteritems()))
@@ -863,6 +874,14 @@ class SampleStore(object):
 
     def filter_entries(self):
         map(lambda s: s.filter_systematics(), self.samples)
+
+    def scale_signal(self, factor):
+        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        for sample in signal_samples:
+            for threshold in sample.nominal_evt_yields.keys():
+                sample.nominal_evt_yields[threshold] *= factor
+            for reg in sample.ctrl_region_yields.keys():
+                sample.ctrl_region_yields[reg] *= factor
 
     def merge_single_process(self):
         """
@@ -994,4 +1013,84 @@ class SampleStore(object):
             return systematics
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
         return {s.name: get_syst_dict(s) for s in mc_samples}
+
+
+class LimitValidator(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('scan_info', None)
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+
+        print self.input_path
+        if kwargs['scan_info'] is None:
+            self.scan_info = yl.read_yaml(os.path.join(self.input_path, 'scan_info.yml'), None)
+
+    def make_yield_summary_plots(self):
+        def get_hists_for_process(process):
+            if not process.lower() == 'data':
+                return filter(lambda h: process in h.GetName() and 'Nom' in h.GetName(), hists)
+            return filter(lambda h: process in h.GetName(), hists)
+
+        def fill_hists(hist, input_hists):
+            for ibin, reg in enumerate(regions):
+                if 'SR' in reg:
+                    reg = 'SR'
+                try:
+                    htmp = filter(lambda h: reg in h.GetName(), input_hists)[0]
+                except IndexError:
+                    hist.SetBinContent(ibin + 1, 0.)
+                    continue
+                hist.SetBinContent(ibin + 1, htmp.GetBinContent(1))
+
+
+        hist_fn = os.path.join(self.input_path, 'validation/5/hists.root')
+        if not os.path.exists(hist_fn):
+            _logger.error('Could not find file {:s}. Thus cannot make yield summary plot.'.format(hist_fn))
+        fh = FileHandle(file_name=hist_fn)
+        hists = fh.get_objects_by_type('TH1')
+        scan_info = self.scan_info[5]
+
+        print self.scan_info[5].__dict__.keys()
+        print self.scan_info[5].kwargs.keys()
+        print self.scan_info[5].kwargs['process_configs'].keys()
+        print self.scan_info[5].kwargs['ctrl_config'].keys()
+        bkg_processes = dict(filter(lambda p: p[1].type.lower() != 'signal' and p[1].type.lower() != 'data',
+                                    scan_info.kwargs['process_configs'].iteritems()))
+        bkg_hists = {p: get_hists_for_process(p.name) for p in bkg_processes.values()}
+        sig_hists = get_hists_for_process(scan_info.kwargs['sig_name'])
+        data_hists = get_hists_for_process('Data')
+        regions = [scan_info.sig_reg_name] + sorted(self.scan_info[5].kwargs['ctrl_config'].keys())
+        pc = PlotConfig(name="yld_summary_{:s}".format(scan_info.kwargs['sig_name']), ytitle='Events',
+                        logy=True, lumi=139.0, draw_option='Hist', watermark='Internal', axis_labels=regions, decor_text='Pre-Fit')
+        # pc = PlotConfig(name="xsec_limit_{:s}".format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
+        #                 draw='ap',
+        #                 logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
+
+        labels = []
+        hist = ROOT.TH1F('region_summary', '', len(regions), 0., len(regions))
+        ht.set_axis_labels(hist, pc)
+        summary_hists = {}
+        # print bkg_processes
+        # exit()
+        for bkg, hists in bkg_hists.iteritems():
+            new_hist = hist.Clone('region_summary_{:s}'.format(bkg.name))
+            fill_hists(new_hist, hists)
+            summary_hists[bkg.name] = new_hist
+            labels.append(bkg.label)
+
+        canvas = pt.plot_stack(summary_hists, pc, process_configs=bkg_processes)
+        data_hist = hist.Clone('region_summary_{:s}'.format('Data'))
+        fill_hists(data_hist, data_hists)
+        pt.add_data_to_stack(canvas, data_hist, pc)
+        labels.append('Data')
+        signal_hist = hist.Clone('region_summary_{:s}'.format('signal'))
+        fill_hists(signal_hist, sig_hists)
+        labels.append(scan_info.kwargs['sig_name'])
+        pt.add_signal_to_canvas((scan_info.kwargs['sig_name'], signal_hist), canvas, pc,
+                                scan_info.kwargs['process_configs'])
+        canvas.Update()
+        ROOT.gROOT.SetBatch(False)
+        fm.decorate_canvas(canvas, pc)
+        fm.add_legend_to_canvas(canvas, labels=labels)
+        raw_input()
 
