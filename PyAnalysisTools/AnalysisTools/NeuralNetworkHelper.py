@@ -368,6 +368,7 @@ class NNReader(object):
         self.converter_selection_data = Root2NumpyConverter(['event_number', 'run_number'])
         self.converter_selection_mc = Root2NumpyConverter(['event_number', 'run_number', 'mc_channel_number'])
         self.branch_name = kwargs['branch_name']
+        self.branch_name = self.branch_name.replace('-', '_')
         self.friend_file_pattern = kwargs['friend_file_pattern']
         self.friend_name = kwargs['friend_name']
         self.input_path = os.path.abspath(kwargs['input_path'])
@@ -378,7 +379,10 @@ class NNReader(object):
             self.nominal_dir = None
         self.selection = None
         if kwargs["selection_config"]:
-            self.selection = RegionBuilder(**yl.read_yaml(kwargs["selection_config"])["RegionBuilder"]).regions[0].event_cut_string
+            self.selection_cfg = NewRegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[
+                0]
+            self.selection = ['&&'.join(map(lambda c: c.selection, self.selection_cfg.get_cut_list(is_data=False))),
+                              '&&'.join(map(lambda c: c.selection, self.selection_cfg.get_cut_list(is_data=True)))]
         make_dirs(self.output_path)
         self.scaler = DataScaler(kwargs["scale_algo"])
         MLConfigHandle(**self.__dict__).dump_config()
