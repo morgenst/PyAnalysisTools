@@ -1,5 +1,6 @@
 import os
 import re
+import sys
 from subprocess import check_output, CalledProcessError
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
