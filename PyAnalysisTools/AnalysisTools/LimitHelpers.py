@@ -16,11 +16,13 @@ from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
+from PyAnalysisTools.base.ShellUtils import move
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd
-from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base import _logger, InvalidInputError
 from collections import OrderedDict
 import dill
+
 try:
     from tabulate.tabulate import tabulate
 except ImportError:
@@ -116,7 +118,7 @@ def make_cross_section_limit_plot(data, plot_config, sig_reg_name=''):
                     logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
     graph = ROOT.TGraph(len(data))
     for i, item in enumerate(data):
-        graph.SetPoint(i, item[0], item[1] * item[2]/(plot_config.get_lumi() * 1000.))
+        graph.SetPoint(i, item[0], item[1] * item[2] / (plot_config.get_lumi() * 1000.))
     graph.SetName('xsec_limit_{:s}'.format(sig_reg_name))
     canvas = pt.plot_obj(graph, pc)
     fm.decorate_canvas(canvas, pc)
@@ -180,9 +182,9 @@ class LimitAnalyser(object):
     def analyse_limit(self, sig_name="Sig"):
         fit_status, fit_cov_quality = get_fit_quality(self.fit_fname)
         self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=fit_cov_quality)
-        exp_limit, exp_limit_up,  exp_limit_low = get_expected_limit(self.limit_fname,
-                                                                     "hypo_{:s}".format(sig_name))
-        self.limit_info.add_info(exp_limit=exp_limit, exp_limit_up=exp_limit_up,  exp_limit_low=exp_limit_low)
+        exp_limit, exp_limit_up, exp_limit_low = get_expected_limit(self.limit_fname,
+                                                                    "hypo_{:s}".format(sig_name))
+        self.limit_info.add_info(exp_limit=exp_limit, exp_limit_up=exp_limit_up, exp_limit_low=exp_limit_low)
         return self.limit_info
 
 
@@ -263,6 +265,7 @@ class LimitPlotter(object):
             graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
         if theory_xsec is not None:
             graph_theory = []
+            print theory_xsec
             for process, xsecs in theory_xsec.iteritems():
                 graph_theory.append(ROOT.TGraph(len(limits)))
                 for j, mass in enumerate(sorted(map(lambda l: l.mass, limits))):
@@ -324,6 +327,7 @@ class XsecLimitAnalyser(object):
     """
     Class to analyse cross section limit
     """
+
     def __init__(self, **kwargs):
         """
         Constructor
@@ -366,7 +370,7 @@ class XsecLimitAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit()#scan.kwargs['sig_name'])
+                limit_info = analyser.analyse_limit()  # scan.kwargs['sig_name'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -377,13 +381,13 @@ class XsecLimitAnalyser(object):
                                 mass=mass)
             parsed_data.append(limit_info)
         limits = LimitScanAnalyser.find_best_limit(parsed_data)
-        #self.parse_prefit_yields(scan, mass)
-        #self.plot_prefit_yields()
+        # self.parse_prefit_yields(scan, mass)
+        # self.plot_prefit_yields()
         theory_xsec = None
         if self.xsec_map is not None:
             # TODO: needs proper implementation
-            self.plotter.make_limit_plot_plane(limits, self.plot_config, self.xsec_map['LQed'],
-                                               scan.kwargs['sig_name'])
+            # self.plotter.make_limit_plot_plane(limits, self.plot_config, self.xsec_map['LQed'],
+            #                                    scan.kwargs['sig_name'])
             theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec)
         self.output_handle.write_and_close()
@@ -393,6 +397,7 @@ class LimitScanAnalyser(object):
     """
     Class to analyse limit scan over mass range and mass cuts
     """
+
     def __init__(self, **kwargs):
         """
         Constructor
@@ -435,7 +440,7 @@ class LimitScanAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit()#scan.kwargs['sig_name'])
+                limit_info = analyser.analyse_limit()  # scan.kwargs['sig_name'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -445,15 +450,16 @@ class LimitScanAnalyser(object):
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
             parsed_data.append(limit_info)
-            #self.parse_prefit_yields(scan, mass)
+            # self.parse_prefit_yields(scan, mass)
         self.make_scan_plot(parsed_data, self.plot_config)
-        #self.plot_prefit_yields()
+        # self.plot_prefit_yields()
         best_limits = self.find_best_limit(parsed_data)
         self.tabulate_limits(best_limits)
         theory_xsec = None
 
         if self.xsec_map is not None:
-            chains = ['LQmud', 'LQmus']
+            # chains = ['LQmud', 'LQmus']
+            chains = ['LQeb']
             theory_xsec = OrderedDict()
             # TODO: needs proper implementation
             for mode in chains:
@@ -468,7 +474,7 @@ class LimitScanAnalyser(object):
 
     def tabulate_limits(self, limits):
         limits.sort(key=lambda l: l.mass)
-        with open(os.path.join(self.input_path, 'event_yields_nominal.pkl'), 'r') as f:
+        with open(os.path.join(self.input_path, 'event_yields_nom.pkl'), 'r') as f:
             event_yields = dill.load(f)
         data = []
         ordering = self.plot_config['ordering']
@@ -582,17 +588,17 @@ class LimitScanAnalyser(object):
                                               pc_vs_cut_log)
             pc_vs_cut.name = "yield_vs_cut_{:s}".format(str(mass))
             canvas_vs_mass = pt.plot_stack([yields_single_mass_hists[(mass, p)] for p in ordering + ["signal"]],
-                                          pc_vs_mass)
+                                           pc_vs_mass)
             canvas_vs_mass_log = pt.plot_stack([yields_single_mass_hists[(mass, p)] for p in ordering + ["signal"]],
                                                pc_vs_mass_log)
             fm.decorate_canvas(canvas_vs_cut, pc_vs_cut)
             fm.decorate_canvas(canvas_vs_mass, pc_vs_mass)
             fm.decorate_canvas(canvas_vs_cut_log, pc_vs_cut_log)
             fm.decorate_canvas(canvas_vs_mass_log, pc_vs_mass_log)
-            fm.add_legend_to_canvas(canvas_vs_mass, labels=ordering+["signal"])
-            fm.add_legend_to_canvas(canvas_vs_cut, labels=ordering+["signal"])
-            fm.add_legend_to_canvas(canvas_vs_mass_log, labels=ordering+["signal"])
-            fm.add_legend_to_canvas(canvas_vs_cut_log, labels=ordering+["signal"])
+            fm.add_legend_to_canvas(canvas_vs_mass, labels=ordering + ["signal"])
+            fm.add_legend_to_canvas(canvas_vs_cut, labels=ordering + ["signal"])
+            fm.add_legend_to_canvas(canvas_vs_mass_log, labels=ordering + ["signal"])
+            fm.add_legend_to_canvas(canvas_vs_cut_log, labels=ordering + ["signal"])
             self.output_handle.register_object(canvas_vs_cut)
             self.output_handle.register_object(canvas_vs_mass)
             self.output_handle.register_object(canvas_vs_cut_log)
@@ -603,7 +609,8 @@ class LimitScanAnalyser(object):
         self.scanned_sig_masses = sorted(list(set([li.mass for li in parsed_data])))
         if len(self.scanned_sig_masses) > 1:
             self.min_mass_diff = min(
-                [self.scanned_sig_masses[i + 1] - self.scanned_sig_masses[i] for i in range(len(self.scanned_sig_masses) - 1)]) / 2.
+                [self.scanned_sig_masses[i + 1] - self.scanned_sig_masses[i] for i in
+                 range(len(self.scanned_sig_masses) - 1)]) / 2.
         else:
             self.min_mass_diff = 50
         if len(self.scanned_mass_cuts) > 1:
@@ -611,22 +618,24 @@ class LimitScanAnalyser(object):
         else:
             self.mass_cut_offset = 50.
 
-        self.sig_mass_binning = [int((self.scanned_sig_masses[-1] - self.scanned_sig_masses[0]) / (self.min_mass_diff * 2)) + 1,
-                                 self.scanned_sig_masses[0] - self.min_mass_diff,
-                                 self.scanned_sig_masses[-1] + self.min_mass_diff]
-        self.scan_mass_binning = [int((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]) / (self.mass_cut_offset * 2)) + 1,
-                                  self.scanned_mass_cuts[0] - self.mass_cut_offset,
-                                  self.scanned_mass_cuts[-1] + self.mass_cut_offset]
-        y_binning =self.scan_mass_binning
-        y_binning[2] += (y_binning[2]-y_binning[1])/y_binning[0]*10
+        self.sig_mass_binning = [
+            int((self.scanned_sig_masses[-1] - self.scanned_sig_masses[0]) / (self.min_mass_diff * 2)) + 1,
+            self.scanned_sig_masses[0] - self.min_mass_diff,
+            self.scanned_sig_masses[-1] + self.min_mass_diff]
+        self.scan_mass_binning = [
+            int((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]) / (self.mass_cut_offset * 2)) + 1,
+            self.scanned_mass_cuts[0] - self.mass_cut_offset,
+            self.scanned_mass_cuts[-1] + self.mass_cut_offset]
+        y_binning = self.scan_mass_binning
+        y_binning[2] += (y_binning[2] - y_binning[1]) / y_binning[0] * 10
         y_binning[0] += 10
-        hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning+y_binning))
+        hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning + y_binning))
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
         for limit_info in parsed_data:
             if limit_info.exp_limit > 0:
                 hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
-            hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status+1)
+            hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status + 1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
         ROOT.gStyle.SetPalette(1)
         ROOT.gStyle.SetPaintTextFormat(".2g")
@@ -720,9 +729,11 @@ class Sample(object):
                 continue
             nominal_evt_yields[syst] *= nominal_evt_yields['weight']
 
-        self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if not syst == 'weight'}
+        self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
+                                                 not syst == 'weight'}
         if shape_uncert_yields is not None:
-            self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in shape_uncert_yields.iteritems()}
+            self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in
+                                                     shape_uncert_yields.iteritems()}
         else:
             if self.ctrl_reg_shape_ylds is None:
                 self.ctrl_reg_shape_ylds = {region_name: {}}
@@ -811,16 +822,18 @@ class Sample(object):
 
     def filter_systematics(self):
         for cut in self.shape_uncerts.keys():
-            self.shape_uncerts[cut] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
+            self.shape_uncerts[cut] = dict(filter(lambda kv: abs(1. - kv[1]) > 0.001,
                                                   self.shape_uncerts[cut].iteritems()))
-            self.scale_uncerts[cut] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
+            self.scale_uncerts[cut] = dict(filter(lambda kv: abs(1. - kv[1]) > 0.001,
                                                   self.scale_uncerts[cut].iteritems()))
 
         for reg in self.ctrl_reg_shape_ylds.keys():
-            self.ctrl_reg_shape_ylds[reg] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
-                                                        self.ctrl_reg_shape_ylds[reg].iteritems()))
-            self.ctrl_reg_scale_ylds[reg] = dict(filter(lambda kv: abs(1.-kv[1]) > 0.01,
-                                                        self.ctrl_reg_scale_ylds[reg].iteritems()))
+            self.ctrl_reg_shape_ylds[reg] = dict(
+                filter(lambda kv: abs(1. - kv[1]) > 0.001 or kv[0] in self.shape_uncerts[cut],
+                       self.ctrl_reg_shape_ylds[reg].iteritems()))
+            self.ctrl_reg_scale_ylds[reg] = dict(
+                filter(lambda kv: abs(1. - kv[1]) > 0.001 or kv[0] in self.scale_uncerts[cut],
+                       self.ctrl_reg_scale_ylds[reg].iteritems()))
 
     def merge_child_processes(self, samples, has_syst=True):
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
@@ -833,7 +846,7 @@ class Sample(object):
                 self.shape_uncerts[cut] = {}
                 for syst in samples[0].shape_uncerts[cut].keys():
                     total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
-                                                               samples)), self.nominal_evt_yields[cut])
+                                                     samples)), self.nominal_evt_yields[cut])
                     self.shape_uncerts[cut][syst] = total_uncert
             for cut in samples[0].scale_uncerts.keys():
                 self.scale_uncerts[cut] = {}
@@ -867,7 +880,9 @@ class SampleStore(object):
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.process_configs = kwargs['process_configs']
         self.lumi = OrderedDict([('mc16a', 36.1), ('mc16d', 43.6), ('mc16e', 59.93)])
-        #self.with_syst = False
+
+    def get_all_thresholds(self):
+        return self.samples[0].nominal_evt_yields.keys()
 
     def register_samples(self, samples):
         self.samples = samples
@@ -925,7 +940,7 @@ class SampleStore(object):
             base_sample_name = sample.name.split('.')[0]
             merged_sample = Sample(base_sample_name, None)
             samples_to_merge = filter(lambda s: base_sample_name == s.name.split('.')[0], self.samples)
-            merged_sample.merge_child_processes(samples_to_merge)#, self.with_syst)
+            merged_sample.merge_child_processes(samples_to_merge)  # , self.with_syst)
             self.samples.append(merged_sample)
             samples_to_remove += samples_to_merge
         for s in set(samples_to_remove):
@@ -950,7 +965,7 @@ class SampleStore(object):
             merged_sample = Sample(process, None)
             if len(samples) == 1:
                 samples[0].name = process
-            merged_sample.merge_child_processes(samples)#, self.with_syst)
+            merged_sample.merge_child_processes(samples)  # , self.with_syst)
             self.samples.append(merged_sample)
             samples_to_remove += samples
         for s in set(samples_to_remove):
@@ -976,10 +991,12 @@ class SampleStore(object):
                     systematics[region][s.name] = s.ctrl_reg_scale_ylds[region]
                 for syst_name, syst_yld in s.ctrl_reg_scale_ylds[region].iteritems():
                     systematics[region][s.name][syst_name] = syst_yld
+                for syst_name, syst_yld in s.ctrl_reg_shape_ylds[region].iteritems():
+                    systematics[region][s.name][syst_name] = syst_yld
         return systematics
 
     def retrieve_signal_ylds(self, sig_name, cut):
-        #todo: need some protections for missing signal, cut
+        # todo: need some protections for missing signal, cut
         try:
             signal_sample = filter(lambda s: s.name == sig_name, self.samples)[0]
         except Exception as e:
@@ -1004,6 +1021,7 @@ class SampleStore(object):
         :return: dictionary of systematics (empty if systematics have not been enabled)
         :rtype: dict
         """
+
         def get_syst_dict(s):
             if len(s.shape_uncerts) == 0:
                 return {}
@@ -1011,6 +1029,7 @@ class SampleStore(object):
             for syst_name, syst_yld in s.scale_uncerts[cut].iteritems():
                 systematics[syst_name] = syst_yld
             return systematics
+
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
         return {s.name: get_syst_dict(s) for s in mc_samples}
 
@@ -1021,9 +1040,9 @@ class LimitValidator(object):
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
 
-        print self.input_path
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, 'scan_info.yml'), None)
+
 
     def make_yield_summary_plots(self):
         def get_hists_for_process(process):
@@ -1041,7 +1060,6 @@ class LimitValidator(object):
                     hist.SetBinContent(ibin + 1, 0.)
                     continue
                 hist.SetBinContent(ibin + 1, htmp.GetBinContent(1))
-
 
         hist_fn = os.path.join(self.input_path, 'validation/5/hists.root')
         if not os.path.exists(hist_fn):
@@ -1061,7 +1079,8 @@ class LimitValidator(object):
         data_hists = get_hists_for_process('Data')
         regions = [scan_info.sig_reg_name] + sorted(self.scan_info[5].kwargs['ctrl_config'].keys())
         pc = PlotConfig(name="yld_summary_{:s}".format(scan_info.kwargs['sig_name']), ytitle='Events',
-                        logy=True, lumi=139.0, draw_option='Hist', watermark='Internal', axis_labels=regions, decor_text='Pre-Fit')
+                        logy=True, lumi=139.0, draw_option='Hist', watermark='Internal', axis_labels=regions,
+                        decor_text='Pre-Fit')
         # pc = PlotConfig(name="xsec_limit_{:s}".format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
         #                 draw='ap',
         #                 logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
@@ -1094,3 +1113,106 @@ class LimitValidator(object):
         fm.add_legend_to_canvas(canvas, labels=labels)
         raw_input()
 
+
+class LimitChecker(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('poi', 'mu_Sig')
+        kwargs.setdefault('workspace', 'combined')
+        if 'workspace_file' not in kwargs:
+            raise InvalidInputError('No workspace provided. Cannot do anything')
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+        self.stat_tools_path = '/user/mmorgens/workarea/devarea/rel21/Multilepton/source/CommonStatTools/'
+        self.setup()
+        self.output_path = OutputFileHandle(output_dir=kwargs['output_dir']).output_dir
+        self.counter = 0
+
+    def setup(self):
+        os.chdir(self.stat_tools_path)
+        ROOT.gROOT.LoadMacro("Minimization.C+")
+        ROOT.gROOT.LoadMacro("AsimovDataMaking.C+")
+        ROOT.gROOT.LoadMacro("FitCrossCheckForLimits.C+")
+        self.fit_cross_checker = ROOT.LimitCrossChecker()
+        self.fit_cross_checker.drawPlots = True
+
+    def make_pull_plots(self):
+        os.chdir(os.chdir(self.stat_tools_path, ''))
+        cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter mu_top --workspace {:s} --modelconfig {:s} ' \
+              '--data {:s} --folder test --loglevel INFO  --eps 1.0 --precision 0.01;'.format(self.workspace_file,
+                                                                                              self.poi,
+                                                                                              self.workspace,
+                                                                                              'ModelConfig',
+                                                                                              'asimovData')
+        os.system(cmd)
+
+    def plot_pulls(self):
+        path = 'root-files/test/pulls/'
+        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --postfit on --prefit on --rank on --label Run-2 --correlation on --top 1'.format(path,
+                                                                                                                                        self.poi)
+        os.system(cmd)
+
+    def run_fit_cross_checks(self):
+        self.run_conditional_asimov_fits()
+        self.run_unconditional_asimov_fits()
+        cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
+                                      os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks_*.root'))
+        os.system(cmd)
+
+    def run_conditional_asimov_fits(self):
+        algo = 'FitToAsimov'
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=0)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1)
+
+    def run_unconditional_asimov_fits(self):
+        algo = 'FitToAsimov'
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0, create_post_fit_asimov=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1, create_post_fit_asimov=1)
+
+    def make_pre_fit_plots(self):
+        algo = 'PlotHistosBeforeFit'
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+
+    def make_post_fit_plots(self):
+        algo = 'PlotHistosAfterFit'
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+
+    def run_fit_cross_check(self, **kwargs):
+        kwargs.setdefault('draw_response', 1)
+        kwargs.setdefault('create_post_fit_asimov', 0)
+        kwargs.setdefault('dataset_name', 'asimovData')
+        kwargs.setdefault('no_sigmas', '1')
+
+        # path = ''
+        # os.chdir(path)
+        output_dir = os.path.join(self.output_path, 'fit_cross_checks')
+        self.fit_cross_checker.run(getattr(ROOT, algo), float(kwargs['mu']), float(kwargs['no_sigmas']),
+                                   int(kwargs['conditional']), self.workspace_file, output_dir, self.workspace,
+                                   'ModelConfig', kwargs['dataset_name'], kwargs['draw_response'],
+                                   kwargs['create_post_fit_asimov'])
+        move(os.path.join(output_dir, 'FitCrossChecks.root'),
+             os.path.join(output_dir, 'FitCrossChecks_{:d}.root'.format(self.counter)))
+        self.counter += 1
+
+    def get_hf_tables(self, **kwargs):
+        tag=''
+        evalreg=''
+        fitreg=''
+        samples=''
+        args = '"\\"{:s}\\"","\\"{:s}\\"","\\{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"",kTrue,kTrue,{:s}'.format(self.workspace_file,
+                                                                                                      self.workspace,
+                                                                                                      'ModelConfig',
+                                                                                                      kwargs['dataset_name'],
+                                                                                                  tag,
+                                                                                                      outdir,
+                                                                                                              evalreg,
+                                                                                                              fitreg,
+                                                                                                                                                samples
+                                                                                                      )
+        #root -b -q getHFtables.C\(\"$WORKSPACEFILE\",\"$WORKSPACENAME\",\"$MODELCONFIGNAME\",\"$DATASETNAME\",
+        # \"$WORKSPACETAG\",\"$OUTPUTFOLDER\",\"$EVALUATIONREGIONS\",\"$FITREGIONS\",kTRUE,kTRUE,\"$SAMPLES\",3\);
