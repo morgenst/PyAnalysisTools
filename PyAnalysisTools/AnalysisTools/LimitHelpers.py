@@ -1164,14 +1164,21 @@ class LimitChecker(object):
                                                                                         tmp_output_dir)
             os.system(cmd)
             param = iter.Next()
-        output_dir = make_dirs(os.path.join(self.output_path, 'pulls'))
+        output_dir = os.path.join(self.output_path, 'pulls')
+        make_dirs(output_dir)
         move(os.path.join('root-files', tmp_output_dir, 'pulls/*.root'), output_dir)
         self.plot_pulls(output_dir)
 
     def plot_pulls(self, input_dir):
+        os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
+        rndm = int(100000. * random.random())
+        tmp_output_dir = 'tmp_{:d}'.format(rndm)
         cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --postfit on --prefit on --rank on --label Run-2 ' \
-              '--correlation on '.format(input_dir, self.poi)
+              '--correlation on --folder {:s}'.format(input_dir, self.poi, tmp_output_dir)
         os.system(cmd)
+        output_dir = os.path.join(self.output_path, 'pull_plots')
+        make_dirs(output_dir)
+        move(os.path.join(tmp_output_dir, 'pdf-files/*.pdf'), output_dir)
 
     def run_fit_cross_checks(self):
         self.run_conditional_asimov_fits()
