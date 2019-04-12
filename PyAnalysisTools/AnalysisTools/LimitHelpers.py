@@ -1,7 +1,7 @@
 import pickle
 from copy import deepcopy
 from math import sqrt
-
+import random
 import numpy as np
 import pandas as pd
 import ROOT
@@ -16,7 +16,7 @@ from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
-from PyAnalysisTools.base.ShellUtils import move
+from PyAnalysisTools.base.ShellUtils import move, make_dirs
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -451,9 +451,9 @@ class LimitScanAnalyser(object):
                                 mass=mass)
             parsed_data.append(limit_info)
             # self.parse_prefit_yields(scan, mass)
-        self.make_scan_plot(parsed_data, self.plot_config)
-        # self.plot_prefit_yields()
         best_limits = self.find_best_limit(parsed_data)
+        self.make_scan_plot(parsed_data, self.plot_config, best_limits)
+        # self.plot_prefit_yields()
         self.tabulate_limits(best_limits)
         theory_xsec = None
 
@@ -604,7 +604,7 @@ class LimitScanAnalyser(object):
             self.output_handle.register_object(canvas_vs_cut_log)
             self.output_handle.register_object(canvas_vs_mass_log)
 
-    def make_scan_plot(self, parsed_data, plot_config):
+    def make_scan_plot(self, parsed_data, plot_config, best_limits=None):
         self.scanned_mass_cuts = sorted(list(set([li.mass_cut for li in parsed_data])))
         self.scanned_sig_masses = sorted(list(set([li.mass for li in parsed_data])))
         if len(self.scanned_sig_masses) > 1:
@@ -630,6 +630,7 @@ class LimitScanAnalyser(object):
         y_binning[2] += (y_binning[2] - y_binning[1]) / y_binning[0] * 10
         y_binning[0] += 10
         hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning + y_binning))
+        hist_best = hist.Clone("best_limit")
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
         for limit_info in parsed_data:
@@ -637,6 +638,7 @@ class LimitScanAnalyser(object):
                 hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status + 1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
+
         ROOT.gStyle.SetPalette(1)
         ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
@@ -649,6 +651,12 @@ class LimitScanAnalyser(object):
                                     xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
                                     ztitle="fit cov quality", watermark='Internal', lumi=139.0)
         canvas = pt.plot_obj(hist, pc)
+        if best_limits is not None:
+            pc_best = PlotConfig(draw_option="BOX")
+            for limit in best_limits:
+                hist_best.Fill(limit.mass, limit.mass_cut, hist.GetMaximum())#hist.GetBinContent(hist.FindBin(limit.mass, limit.mass_cut)))
+            hist_best.SetLineColor(ROOT.kRed)
+            pt.add_histogram_to_canvas(canvas, hist_best, pc_best)
         fm.decorate_canvas(canvas, pc)
         self.output_handle.register_object(canvas)
         canvas_status = pt.plot_obj(hist_fit_status, pc_status)
@@ -1136,19 +1144,33 @@ class LimitChecker(object):
         self.fit_cross_checker.drawPlots = True
 
     def make_pull_plots(self):
-        os.chdir(os.chdir(self.stat_tools_path, ''))
-        cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter mu_top --workspace {:s} --modelconfig {:s} ' \
-              '--data {:s} --folder test --loglevel INFO  --eps 1.0 --precision 0.01;'.format(self.workspace_file,
-                                                                                              self.poi,
-                                                                                              self.workspace,
-                                                                                              'ModelConfig',
-                                                                                              'asimovData')
-        os.system(cmd)
+        rndm = int(100000. * random.random())
+        tmp_output_dir = 'tmp_{:d}'.format(rndm)
+        os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
+        f = ROOT.TFile.Open(self.workspace_file, 'READ')
+        w = f.Get(self.workspace)
+        mc = w.obj('ModelConfig')
+        nuis = mc.GetNuisanceParameters()
+        iter = nuis.createIterator()
+        param = iter.Next()
+        while param:
+            cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter {:s} --workspace {:s} --modelconfig {:s} ' \
+                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01;'.format(self.workspace_file,
+                                                                                        self.poi,
+                                                                                        param.GetName(),
+                                                                                        self.workspace,
+                                                                                        'ModelConfig',
+                                                                                        'asimovData',
+                                                                                        tmp_output_dir)
+            os.system(cmd)
+            param = iter.Next()
+        output_dir = make_dirs(os.path.join(self.output_path, 'pulls'))
+        move(os.path.join('root-files', tmp_output_dir, 'pulls/*.root'), output_dir)
+        self.plot_pulls(output_dir)
 
-    def plot_pulls(self):
-        path = 'root-files/test/pulls/'
-        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --postfit on --prefit on --rank on --label Run-2 --correlation on --top 1'.format(path,
-                                                                                                                                        self.poi)
+    def plot_pulls(self, input_dir):
+        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --postfit on --prefit on --rank on --label Run-2 ' \
+              '--correlation on '.format(input_dir, self.poi)
         os.system(cmd)
 
     def run_fit_cross_checks(self):
@@ -1188,10 +1210,8 @@ class LimitChecker(object):
         kwargs.setdefault('dataset_name', 'asimovData')
         kwargs.setdefault('no_sigmas', '1')
 
-        # path = ''
-        # os.chdir(path)
         output_dir = os.path.join(self.output_path, 'fit_cross_checks')
-        self.fit_cross_checker.run(getattr(ROOT, algo), float(kwargs['mu']), float(kwargs['no_sigmas']),
+        self.fit_cross_checker.run(getattr(ROOT, kwargs['algorithm']), float(kwargs['mu']), float(kwargs['no_sigmas']),
                                    int(kwargs['conditional']), self.workspace_file, output_dir, self.workspace,
                                    'ModelConfig', kwargs['dataset_name'], kwargs['draw_response'],
                                    kwargs['create_post_fit_asimov'])
