@@ -1143,6 +1143,19 @@ class LimitChecker(object):
         self.fit_cross_checker = ROOT.LimitCrossChecker()
         self.fit_cross_checker.drawPlots = True
 
+    def make_correlation_plots(self, dataset_name):
+        args = '"\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\""'.format(
+            self.workspace_file,
+            self.workspace,
+            'ModelConfig',
+            dataset_name,
+            'test',
+            self.output_path,
+            '.pdf')
+
+        cmd = 'root -b -q getCorrMatrix.C\({:s}\)'.format(args)
+        os.system(cmd)
+
     def make_pull_plots(self):
         rndm = int(100000. * random.random())
         tmp_output_dir = 'tmp_{:d}'.format(rndm)
