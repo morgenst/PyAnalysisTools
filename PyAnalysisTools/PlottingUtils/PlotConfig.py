@@ -453,7 +453,6 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     if not isinstance(style_setter, list):
         style_setter = [style_setter]
     _logger.debug("Parsed style setter {:s} from draw option {:s}".format(style_setter, draw_option))
-
     return style_setter, style_attr, color
 
 
@@ -506,24 +505,25 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     return hist
 
 
-def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
-    new_config = deepcopy(process_config)
-    for index, sub_process in enumerate(process_config.subprocesses):
-        if 're.' not in sub_process:
-            print 'Problem, this is not covered yet - process:', process_config.name
-            #raw_input('Hit enter to acknowledge and complain on jira.')
-            continue
-        if 'mc' not in sub_process:
-            process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
-        elif campaign_tag not in sub_process:
-            split_info = sub_process.split(')]$')
-            process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
-
-    new_config.name += '.{:s}'.format(campaign_tag)
-    for index, sub_process in enumerate(new_config.subprocesses):
-        new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
-    new_config.parent_process = process_config
-    process_configs[new_config.name] = new_config
+#todo: remove if not needed anymore
+# def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
+#     new_config = deepcopy(process_config)
+#     for index, sub_process in enumerate(process_config.subprocesses):
+#         if 're.' not in sub_process:
+#             print 'Problem, this is not covered yet - process:', process_config.name
+#             #raw_input('Hit enter to acknowledge and complain on jira.')
+#             continue
+#         if 'mc' not in sub_process:
+#             process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
+#         elif campaign_tag not in sub_process:
+#             split_info = sub_process.split(')]$')
+#             process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
+#
+#     new_config.name += '.{:s}'.format(campaign_tag)
+#     for index, sub_process in enumerate(new_config.subprocesses):
+#         new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
+#     new_config.parent_process = process_config
+#     process_configs[new_config.name] = new_config
 
 
 def find_process_config(process, process_configs):

@@ -98,7 +98,7 @@ class CommonCutFlowAnalyser(object):
         if process is None:
             _logger.error("Process is None")
             raise InvalidInputError("Process is NoneType")
-        if self.lumi is None or "data" in process.lower() or self.lumi == -1:
+        if self.lumi is None or process.is_data or self.lumi == -1:
             return 1.
         lumi_weight = self.xs_handle.get_lumi_scale_factor(process.split('.')[0], self.lumi,
                                                            self.event_numbers[process])
@@ -572,13 +572,13 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
         self.cutflow_tables = dict()
-        self.dataset_config_file = kwargs['dataset_config']
+        #self.dataset_config_file = kwargs['xs_config_file']
         self.lumi = kwargs['lumi']
         self.output_file_name = kwargs['output_file_name']
         self.systematics = kwargs['systematics']
         self.cutflow_hists = dict()
         self.cutflows = dict()
-        self.xs_handle = XSHandle(kwargs['dataset_config'])
+        #self.xs_handle = XSHandle(kwargs['dataset_config'])
         self.event_numbers = dict()
         self.process_configs = None
         self.raw = kwargs['raw']
@@ -633,10 +633,10 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
                     if selection not in histograms[process][systematic]:
                         print "could not find selection ", selection, " for process ", process
                         continue
-                    new_hist_name = histograms[process][systematic][selection].GetName().replace(process, parent_process)
+                    new_hist_name = histograms[process][systematic][selection].GetName().replace(process.process_name, parent_process)
                     if histograms[parent_process][systematic][selection] is None:
                         new_hist_name = histograms[process][systematic][selection].GetName().replace(
-                            process, parent_process)
+                            process.process_name, parent_process)
                         histograms[parent_process][systematic][selection] = histograms[process][systematic][
                             selection].Clone(new_hist_name)
                     else:
