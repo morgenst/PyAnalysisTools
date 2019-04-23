@@ -36,7 +36,7 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 class CommonCutFlowAnalyser(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("lumi", None)
-        kwargs.setdefault("process_config", None)
+        kwargs.setdefault("process_configs", None)
         kwargs.setdefault("disable_sm_total", False)
         kwargs.setdefault('plot_config_file', None)
         kwargs.setdefault('config_file', None)
@@ -104,32 +104,6 @@ class CommonCutFlowAnalyser(object):
                                                            self.event_numbers[process])
         _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
                                                                                                self.lumi))
-        return lumi_weight
-
-    # def get_cross_section_weight_new(self, process):
-    #     """
-    #     Weight histograms according to process cross section and luminosity. If MC samples are split in several
-    #     production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
-    #     and luminosity as value each campaign will be scaled to this luminosity and processes will be added up later
-    #     :param histograms: all plottable objects
-    #     :type histograms: dict
-    #     :return: nothing
-    #     :rtype: None
-    #     """
-    #     provided_wrong_info = False
-    #     lumi = self.lumi
-    #     if isinstance(self.lumi, OrderedDict):
-    #         if re.search('mc16[acde]$', process) is None:
-    #             _logger.error('Could not find MC campaign information, but lumi was provided per MC '
-    #                           'campaing. Not clear what to do. It will be assumed that you meant to scale '
-    #                           'to total lumi. Please update and acknowledge once.')
-    #             raw_input('Hit enter to continue or Ctrl+c to quit...')
-    #             lumi = sum(self.lumi.values())
-    #         else:
-    #             lumi = self.lumi[process.split('.')[-1]]
-    #     cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
-    #                                                                 self.event_numbers[process])
-    #     return cross_section_weight
 
     def get_cross_section_weight_new(self, process):
         """
@@ -155,10 +129,24 @@ class CommonCutFlowAnalyser(object):
                                                                     self.event_numbers[process])
         return cross_section_weight
 
+    @staticmethod
+    def format_yield(value, uncertainty=None):
+        if value > 10000.:
+            yld_string = '{:.3e}'.format(value)
+            if uncertainty is not None:
+                yld_string += ' +- {:.3e}'.format(uncertainty)
+        else:
+            yld_string = '{:.2f}'.format(value)
+        return yld_string
+        # if value > 10000.:
+        #     return "{:.3e} +- {:.3e}".format(value, uncertainty)
+        # else:
+        #     return "{:.2f} +- {:.2f}".format(value, uncertainty)
+
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
             if value > 10000.:
-                return "{:.10e}".format(value)
+                return "{:.2e}".format(value)
             else:
                 return "{:.2f} ".format(value)
 
@@ -563,7 +551,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def __init__(self, **kwargs):
         kwargs.setdefault('output_file_name', None)
         kwargs.setdefault('lumi', None)
-        kwargs.setdefault('process_config', None)
+        kwargs.setdefault('process_configs', None)
         kwargs.setdefault('no_merge', False)
         kwargs.setdefault('raw', False)
         kwargs.setdefault('output_dir', None)
