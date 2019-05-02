@@ -343,7 +343,7 @@ class XsecLimitAnalyser(object):
         self.input_path = kwargs['input_path']
         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         self.plotter = LimitPlotter(self.output_handle)
-        self.xsec_handle = XSHandle("config/common/dataset_info_lq_new.yml")
+        self.xsec_handle = XSHandle("config/common/dataset_info_pmg.yml")
         self.plot_config = yl.read_yaml(kwargs["plot_config"])
         self.theory_xsec = {}
         self.prefit_yields = {}
@@ -413,7 +413,7 @@ class LimitScanAnalyser(object):
         self.input_path = kwargs['input_path']
         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'], sub_dir_name='plots')
         self.plotter = LimitPlotter(self.output_handle)
-        self.xsec_handle = XSHandle("config/common/dataset_info_lq_new.yml")
+        self.xsec_handle = XSHandle("config/common/dataset_info_pmg.yml")
         self.plot_config = yl.read_yaml(kwargs["plot_config"])
         self.theory_xsec = {}
         self.prefit_yields = {}
@@ -1011,6 +1011,9 @@ class SampleStore(object):
             raise e
         return signal_sample.nominal_evt_yields[cut]
 
+    def retrieve_signal_names(self):
+        return map(lambda s: s.name, filter(lambda s: s.is_signal, self.samples))
+
     def retrieve_all_signal_ylds(self, cut):
         signal_samples = filter(lambda s: s.is_signal, self.samples)
         return {s.name: s.nominal_evt_yields[cut] for s in signal_samples}
@@ -1126,6 +1129,7 @@ class LimitChecker(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('poi', 'mu_Sig')
         kwargs.setdefault('workspace', 'combined')
+        kwargs.setdefault('pattern', 'test')
         if 'workspace_file' not in kwargs:
             raise InvalidInputError('No workspace provided. Cannot do anything')
         for k, v in kwargs.iteritems():
@@ -1149,7 +1153,7 @@ class LimitChecker(object):
             self.workspace,
             'ModelConfig',
             dataset_name,
-            'test',
+            self.pattern,
             self.output_path,
             '.pdf')
 
@@ -1196,6 +1200,8 @@ class LimitChecker(object):
     def run_fit_cross_checks(self):
         self.run_conditional_asimov_fits()
         self.run_unconditional_asimov_fits()
+        self.make_pre_fit_plots()
+        self.make_post_fit_plots()
         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
                                       os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks_*.root'))
         os.system(cmd)
@@ -1218,7 +1224,12 @@ class LimitChecker(object):
                                  create_post_fit_asimov=1, no_sigmas=1)
 
     def make_post_fit_plots(self):
-        algo = 'PlotHistosAfterFit'
+        algo = 'PlotHistosAfterFitGlobal'
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+        algo = 'PlotHistosAfterFitEachSubChannel'
         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
                                  create_post_fit_asimov=1, no_sigmas=1)
         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
