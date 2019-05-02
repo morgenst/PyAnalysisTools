@@ -195,7 +195,7 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self):
+    def analyse_limit(self, signal_scale=1.):
         try:
             fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL95.root'),
                             switch_off_process_name_analysis=True)
@@ -203,9 +203,9 @@ class LimitAnalyserCL(object):
             data = self.converter.convert_to_array(tree=tree)
             fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
-            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * 1000.,
-                                     exp_limit_up=data['exp_upperlimit_plus1'] * 1000.,
-                                     exp_limit_low=data['exp_upperlimit_minus1'] * 1000.)
+            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * 1000. * signal_scale,
+                                     exp_limit_up=data['exp_upperlimit_plus1'] * 1000. * signal_scale,
+                                     exp_limit_low=data['exp_upperlimit_minus1'] * 1000. * signal_scale)
 
         except ValueError:
             self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
@@ -440,7 +440,7 @@ class LimitScanAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit()  # scan.kwargs['sig_name'])
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'])  # scan.kwargs['sig_name'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
