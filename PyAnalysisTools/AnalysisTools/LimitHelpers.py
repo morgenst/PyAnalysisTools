@@ -195,7 +195,18 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self, signal_scale=1.):
+    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None):
+        """
+
+        :param signal_scale: signal scale factor applied on top of 1 pb fixed xsec in limit setting
+        :type signal_scale: float (default 1.0
+        :param fixed_signal: fixed signal yield input if used during limit setting
+        :type fixed_signal: float (default None)
+        :param sig_yield: signal yield scaled according to sigma=1pb
+        :type sig_yield: float (default None)
+        :return: limit info object containing parsed UL
+        :rtype: LimitInfo
+        """
         try:
             fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL95.root'),
                             switch_off_process_name_analysis=True)
@@ -203,9 +214,14 @@ class LimitAnalyserCL(object):
             data = self.converter.convert_to_array(tree=tree)
             fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
-            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * 1000. * signal_scale,
-                                     exp_limit_up=data['exp_upperlimit_plus1'] * 1000. * signal_scale,
-                                     exp_limit_low=data['exp_upperlimit_minus1'] * 1000. * signal_scale)
+            if signal_scale is None:
+                signal_scale = 1.
+            scale_factor = 1000. * signal_scale
+            if fixed_signal is not None:
+                scale_factor = scale_factor * fixed_signal / sig_yield
+            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
+                                     exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
+                                     exp_limit_low=data['exp_upperlimit_minus1'] * scale_factor)
 
         except ValueError:
             self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
@@ -241,7 +257,7 @@ class LimitPlotter(object):
         ytitle = "95% CL U.L on #sigma [pb]"
         pc = PlotConfig(name='xsec_limit{:s}'.format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
                         draw='pLX', logy=True,
-                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-4),
+                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-6),
                         ymax=float(1.), )
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
@@ -440,7 +456,8 @@ class LimitScanAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'])  # scan.kwargs['sig_name'])
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
+                                                    scan.kwargs['sig_yield'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -486,8 +503,13 @@ class LimitScanAnalyser(object):
             for process in ordering:
                 data_mass_point.append(prefit_ylds_bkg[process])
             data.append(data_mass_point)
-        headers = ['m_{LQ}^{gen} [GeV]', 'm_{LQ}^{max} cut [GeV]]', 'UL [pb]', 'Signal'] + ordering
+        headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [GeV]$', 'UL [pb]', 'Signal'] + ordering
         print tabulate(data, headers=headers, tablefmt='latex_raw')
+        with open(os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
+            print >> f, tabulate(data, headers=headers, tablefmt='latex_raw')
+        print 'wrote to file ', os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_{:s}.tex'.format(self.sig_reg_name))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -633,7 +655,13 @@ class LimitScanAnalyser(object):
         hist_best = hist.Clone("best_limit")
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
+        limit_scan_table = OrderedDict()
+        mass_points = sorted(set(map(lambda i: i.mass, parsed_data)))
         for limit_info in parsed_data:
+            if limit_info.mass_cut not in limit_scan_table:
+                limit_scan_table[limit_info.mass_cut] = [-1.] * len(mass_points)
+            limit_scan_table[limit_info.mass_cut][mass_points.index(limit_info.mass)] = limit_info.exp_limit
+
             if limit_info.exp_limit > 0:
                 hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status + 1)
@@ -654,7 +682,7 @@ class LimitScanAnalyser(object):
         if best_limits is not None:
             pc_best = PlotConfig(draw_option="BOX")
             for limit in best_limits:
-                hist_best.Fill(limit.mass, limit.mass_cut, hist.GetMaximum())#hist.GetBinContent(hist.FindBin(limit.mass, limit.mass_cut)))
+                hist_best.Fill(limit.mass, limit.mass_cut, hist.GetMaximum())
             hist_best.SetLineColor(ROOT.kRed)
             pt.add_histogram_to_canvas(canvas, hist_best, pc_best)
         fm.decorate_canvas(canvas, pc)
@@ -663,7 +691,10 @@ class LimitScanAnalyser(object):
         self.output_handle.register_object(canvas_status)
         canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
         self.output_handle.register_object(canvas_quality)
-
+        print tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw', floatfmt=".2e")
+        with open(os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
+            print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
 
 def sum_ylds(ylds):
     ylds.dtype = np.float64
