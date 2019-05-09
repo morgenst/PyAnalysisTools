@@ -4,3 +4,4 @@ pandas
 pathos
 numpy >= 1.13.0
 root-numpy >= 4.6.0
+#pyhf
