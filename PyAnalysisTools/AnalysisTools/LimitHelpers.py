@@ -1,6 +1,7 @@
 import pickle
 from copy import deepcopy
 from math import sqrt
+import json
 import random
 import numpy as np
 import pandas as pd
@@ -88,6 +89,82 @@ class LimitArgs(object):
         :rtype: str
         """
         return self.__str__() + '\n'
+
+    def to_json(self):
+        def add_signal_region(name):
+            channel = OrderedDict({'name': name})
+            sig_yield = self.kwargs['sig_yield']
+            if self.kwargs['signal_scale']:
+                sig_yield *= self.kwargs['signal_scale']
+            if self.kwargs['fixed_signal']:
+                sig_yield = self.kwargs['fixed_signal']
+            channel['samples'] = [build_sample(self.kwargs['sig_name'],
+                                               sig_yield,
+                                               'mu')]
+            for sn, sy in self.kwargs['bkg_yields'].iteritems():
+                channel['samples'].append(build_sample(sn, sy))
+            return channel
+
+        def add_channel(name, info):
+            data = None
+            channel = OrderedDict({'name': name, 'samples': []})
+            for sn, sy in info.iteritems():
+                if sn.lower() == 'data':
+                    data = [sy]
+                    continue
+                if sn == self.kwargs['sig_name']:
+                    continue
+                channel['samples'].append(build_sample(sn, sy))
+            return channel, data
+
+        def build_sample(name, yld, norm_factor=None):
+            sample = {'name': name, 'data': [yld]}
+            if norm_factor is not None:
+                sample['modifiers'] = [{'name': norm_factor, 'type': 'normfactor', 'data': None}]
+            else:
+                sample['modifiers'] = []
+            return sample
+
+        def add_systematics(channel_id, process, systematics):
+            sample = filter(lambda s: s['name'] == process, specs['channels'][channel_id]['samples'])[0]
+            syst_strings = set(map(lambda sn: sn.split('__')[0], systematics.keys()))
+            for sys in syst_strings:
+                try:
+                    down, up = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])
+                    sample['modifiers'].append({"type": "histosys", "data": {"lo_data": [down[1] * sample['data'][0]],
+                                                                             "hi_data": [up[1] * sample['data'][0]]},
+                                                'name': sys})
+                except ValueError:
+                    variation = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])[0]
+                    if variation[1] > 1.:
+                        sample['modifiers'].append({"type": "histosys",
+                                                    "data": {"lo_data": [sample['data'][0]],
+                                                             "hi_data": [variation[1] * sample['data'][0]]},
+                                                    'name': sys})
+                    else:
+                        sample['modifiers'].append({"type": "histosys",
+                                                    "data": {"lo_data": [variation[1] * sample['data'][0]],
+                                                             "hi_data": [sample['data'][0]]},
+                                                    'name': sys})
+        specs = OrderedDict()
+        specs['channels'] = [add_signal_region(self.sig_reg_name)]
+        specs['data'] = OrderedDict()
+        for region, info in self.kwargs['control_regions'].iteritems():
+            channel, data = add_channel(region, info)
+            specs['channels'].append(channel)
+            specs['data'][region] = data
+        specs['data'][self.sig_reg_name] = [0.]
+
+        specs['measurements'] = [{'config': {'poi': 'mu', 'parameters': []}, 'name': self.sig_reg_name}]
+
+        for process, systematics in self.kwargs['sr_syst'].iteritems():
+            add_systematics(0, process, systematics)
+        for region in self.kwargs['ctrl_syst'].keys():
+            channel_id = [i for i, c in enumerate(specs['channels']) if c['name'] == region][0]
+            add_systematics(channel_id, process, systematics)
+
+        with open('test_pyhf.json', 'w') as f:
+            json.dump(specs, f)
 
 
 def build_region_info(control_region_defs):
@@ -195,7 +272,7 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None):
+    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None, pmg_xsec=None):
         """
 
         :param signal_scale: signal scale factor applied on top of 1 pb fixed xsec in limit setting
@@ -219,6 +296,8 @@ class LimitAnalyserCL(object):
             scale_factor = 1000. * signal_scale
             if fixed_signal is not None:
                 scale_factor = scale_factor * fixed_signal / sig_yield
+            if pmg_xsec is not None:
+                scale_factor = 1000.
             self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
                                      exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
                                      exp_limit_low=data['exp_upperlimit_minus1'] * scale_factor)
@@ -386,7 +465,8 @@ class XsecLimitAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit()  # scan.kwargs['sig_name'])
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
+                                                    scan.kwargs['sig_yield'])  # scan.kwargs['sig_name'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -457,7 +537,7 @@ class LimitScanAnalyser(object):
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
                 limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
-                                                    scan.kwargs['sig_yield'])
+                                                    scan.kwargs['sig_yield'], scan.kwargs['fixed_xsec'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -936,6 +1016,13 @@ class SampleStore(object):
                 sample.nominal_evt_yields[threshold] *= factor
             for reg in sample.ctrl_region_yields.keys():
                 sample.ctrl_region_yields[reg] *= factor
+
+    def scale_signal_by_pmg_xsec(self, factor):
+        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        for sample in signal_samples:
+            factor = self.xs_handle.cross_sections[sample.name]
+            print 'FACTOR: ', factor
+            self.scale_signal(factor)
 
     def merge_single_process(self):
         """
