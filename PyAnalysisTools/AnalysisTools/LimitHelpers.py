@@ -31,11 +31,17 @@ except ImportError:
 sys.modules[tabulate.__module__].LATEX_ESCAPE_RULES = {}
 
 
+def dump_input_config(cfg, output_dir):
+    yd.dump_yaml(dict(filter(lambda kv: kv[0] != 'scan_info' and kv[0] != 'xsec_handle', cfg.iteritems())),
+                 os.path.join(output_dir, 'config.yml'))
+
+
 class LimitArgs(object):
     def __init__(self, output_dir, fit_mode, **kwargs):
         kwargs.setdefault("ctrl_syst", None)
         kwargs.setdefault("skip_ws_build", False)
         kwargs.setdefault("base_output_dir", output_dir)
+        kwargs.setdefault("fixed_xsec", None)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.fit_mode = fit_mode
         self.output_dir = output_dir
@@ -449,6 +455,7 @@ class XsecLimitAnalyser(object):
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+        dump_input_config(self.__dict__, self.output_handle.output_dir)
 
     def read_theory_cross_sections(self, file_name):
         if file_name is None:
@@ -520,6 +527,7 @@ class LimitScanAnalyser(object):
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+        dump_input_config(self.__dict__, self.output_handle.output_dir)
 
     def read_theory_cross_sections(self, file_name):
         if file_name is None:
@@ -536,8 +544,11 @@ class LimitScanAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
+                fixed_xsec = None
+                if 'fixed_xsec' in scan.kwargs:
+                    fixed_xsec = scan.kwargs['fixed_xsec']
                 limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
-                                                    scan.kwargs['sig_yield'], scan.kwargs['fixed_xsec'])
+                                                    scan.kwargs['sig_yield'], fixed_xsec)
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -776,15 +787,20 @@ class LimitScanAnalyser(object):
                                'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
 
+
 def sum_ylds(ylds):
     ylds.dtype = np.float64
     if True in pd.isnull(ylds):
         print "found NONE"
     ylds = ylds[~pd.isnull(ylds)]
-    return np.sum(ylds)
+    return np.sum(ylds), np.sum(ylds**2)
 
 
 def get_ratio(num, denom):
+    if isinstance(num, tuple) and isinstance(denom, tuple):
+        if denom[0] == 0.:
+            return 0., 0.
+        return num[0]/denom[0], num[1]
     if denom == 0.:
         return 0
     return num / denom
@@ -896,9 +912,10 @@ class Sample(object):
         else:
             weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds)
         for cut in self.nominal_evt_yields.keys():
-            self.nominal_evt_yields[cut] *= weight
+            self.nominal_evt_yields[cut] = tuple(i * weight for i in self.nominal_evt_yields[cut])
         for region in self.ctrl_region_yields.keys():
-            self.ctrl_region_yields[region] *= weight
+            self.ctrl_region_yields[region] = tuple(i * weight for i in self.ctrl_region_yields[region])
+            #self.ctrl_region_yields[region] *= weight
 
     def __add__(self, other):
         self.generated_ylds += other.generated_ylds
@@ -959,13 +976,17 @@ class Sample(object):
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
         for cut in samples[0].nominal_evt_yields.keys():
-            self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
+            #self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
+            self.nominal_evt_yields[cut] = map(sum, zip(*map(lambda s: s.nominal_evt_yields[cut], samples)))
         if has_syst:
             for cut in samples[0].shape_uncerts.keys():
                 self.shape_uncerts[cut] = {}
                 for syst in samples[0].shape_uncerts[cut].keys():
-                    total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
-                                                     samples)), self.nominal_evt_yields[cut])
+                    print samples[0].shape_uncerts[cut][syst], samples[0].nominal_evt_yields[cut]
+                    total_uncert = get_ratio(sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                                                     samples)), self.nominal_evt_yields[cut]))
+                    # total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
+                    #                                  samples)), self.nominal_evt_yields[cut])
                     self.shape_uncerts[cut][syst] = total_uncert
             for cut in samples[0].scale_uncerts.keys():
                 self.scale_uncerts[cut] = {}
@@ -1308,7 +1329,7 @@ class LimitChecker(object):
         os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
         rndm = int(100000. * random.random())
         tmp_output_dir = 'tmp_{:d}'.format(rndm)
-        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --postfit on --prefit on --rank on --label Run-2 ' \
+        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi 10 --postfit on --prefit on --rank on --label Run-2 ' \
               '--correlation on --folder {:s}'.format(input_dir, self.poi, tmp_output_dir)
         os.system(cmd)
         output_dir = os.path.join(self.output_path, 'pull_plots')
@@ -1316,9 +1337,9 @@ class LimitChecker(object):
         move(os.path.join(tmp_output_dir, 'pdf-files/*.pdf'), output_dir)
 
     def run_fit_cross_checks(self):
-        self.run_conditional_asimov_fits()
-        self.run_unconditional_asimov_fits()
-        self.make_pre_fit_plots()
+        # self.run_conditional_asimov_fits()
+        # self.run_unconditional_asimov_fits()
+        # self.make_pre_fit_plots()
         self.make_post_fit_plots()
         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
                                       os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks_*.root'))
@@ -1347,11 +1368,11 @@ class LimitChecker(object):
                                  create_post_fit_asimov=1, no_sigmas=1)
         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
                                  create_post_fit_asimov=1, no_sigmas=1)
-        algo = 'PlotHistosAfterFitEachSubChannel'
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
-                                 create_post_fit_asimov=1, no_sigmas=1)
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
-                                 create_post_fit_asimov=1, no_sigmas=1)
+        # algo = 'PlotHistosAfterFitEachSubChannel'
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
 
     def run_fit_cross_check(self, **kwargs):
         kwargs.setdefault('draw_response', 1)
@@ -1360,6 +1381,7 @@ class LimitChecker(object):
         kwargs.setdefault('no_sigmas', '1')
 
         output_dir = os.path.join(self.output_path, 'fit_cross_checks')
+        self.fit_cross_checker.setDebugLevel(0)
         self.fit_cross_checker.run(getattr(ROOT, kwargs['algorithm']), float(kwargs['mu']), float(kwargs['no_sigmas']),
                                    int(kwargs['conditional']), self.workspace_file, output_dir, self.workspace,
                                    'ModelConfig', kwargs['dataset_name'], kwargs['draw_response'],
