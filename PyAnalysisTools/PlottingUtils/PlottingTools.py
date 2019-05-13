@@ -6,12 +6,11 @@ from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, find_process_config
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
-def retrieve_new_canvas(name, title, size_x=800, size_y=600):
+def retrieve_new_canvas(name, title='', size_x=800, size_y=600):
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
     ROOT.SetOwnership(canvas, False)
     return canvas
