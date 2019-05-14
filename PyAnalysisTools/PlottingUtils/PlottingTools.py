@@ -225,6 +225,8 @@ def format_tefficiency(obj, plot_config):
 
 
 def format_hist(hist, plot_config):
+    if plot_config is None:
+        return hist
     xtitle, ytitle = get_title_from_plot_config(plot_config)
     if xtitle:
         fm.set_title_x(hist, xtitle)
