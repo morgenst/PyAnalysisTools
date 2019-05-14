@@ -15,6 +15,7 @@ import PyAnalysisTools.PlottingUtils.HistTools as ht
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
+from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.base.ShellUtils import move, make_dirs
@@ -1339,10 +1340,13 @@ class LimitChecker(object):
     def run_fit_cross_checks(self):
         # self.run_conditional_asimov_fits()
         # self.run_unconditional_asimov_fits()
-        # self.make_pre_fit_plots()
+        self.make_pre_fit_plots()
         self.make_post_fit_plots()
+
         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
                                       os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks_*.root'))
+        print cmd
+        print os.listdir(os.path.join(self.output_path, 'fit_cross_checks'))
         os.system(cmd)
 
     def run_conditional_asimov_fits(self):
@@ -1368,6 +1372,12 @@ class LimitChecker(object):
                                  create_post_fit_asimov=1, no_sigmas=1)
         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
                                  create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=0,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1,
+                                 create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1000,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
         # algo = 'PlotHistosAfterFitEachSubChannel'
         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
         #                          create_post_fit_asimov=1, no_sigmas=1)
@@ -1407,3 +1417,123 @@ class LimitChecker(object):
                                                                                                       )
         #root -b -q getHFtables.C\(\"$WORKSPACEFILE\",\"$WORKSPACENAME\",\"$MODELCONFIGNAME\",\"$DATASETNAME\",
         # \"$WORKSPACETAG\",\"$OUTPUTFOLDER\",\"$EVALUATIONREGIONS\",\"$FITREGIONS\",kTRUE,kTRUE,\"$SAMPLES\",3\);
+
+
+class LimitValidationPlotter(object):
+    def __init__(self, **kwargs):
+        self.input_path = kwargs['input_path']
+        self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
+
+    def make_norm_parameter_plot(self, result, name):
+        canvas = pt.retrieve_new_canvas('norm_parameters_{:s}'.format(name))
+        params = ['mu_Z', 'mu_top']
+        g = ROOT.TGraphAsymmErrors()
+        for i, param in enumerate(params):
+            g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i*2+1)
+            g.SetPointEXhigh(i, result.floatParsFinal().find(param).getErrorHi())
+            g.SetPointEXlow(i, abs(result.floatParsFinal().find(param).getErrorLo()))
+
+        h_dummy = ROOT.TH1D('h_dummy_{:s}'.format(name), '', 10, 0, 2.)
+        h_dummy.SetMaximum(4.)
+        canvas.cd()
+        h_dummy.GetYaxis().SetLabelSize(0)
+        h_dummy.Draw()
+        h_dummy.GetYaxis().SetNdivisions(0)
+        xmax = 2#len(params)*2+1
+        l0 = ROOT.TLine(1, 0, 1, 4)
+        l0.SetLineStyle(7)
+        l0.SetLineColor(ROOT.kBlack)
+        l0.Draw('same')
+        g.Draw("psame")
+        systs = ROOT.TLatex()
+        systs.SetTextSize(systs.GetTextSize() * 0.8)
+        for i, param in enumerate(params):
+            param_result = result.floatParsFinal().find(param)
+            systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\mu_{{{:s}}}'.format(param.replace('mu_', '')))
+            systs.DrawLatex(xmax * 0.7, 2 * i + 0.75, '{:.2f}^{{{:.2f}}}_{{{:.2f}}}'.format(param_result.getVal(),
+                                                                                        param_result.getErrorHi(),
+                                                                                        param_result.getErrorLo()))
+
+        h_dummy.GetXaxis().SetLabelSize(h_dummy.GetXaxis().GetLabelSize() * 0.9)
+        ROOT.gPad.RedrawAxis()
+        self.output_handle.register_object(canvas)
+
+    def make_norm_parameter_plots(self):
+        fh = FileHandle(file_name=os.path.join(self.input_path, 'fit_cross_checks/FitCrossChecks.root'))
+        td = fh.get_object_by_name('PlotsAfterGlobalFit')
+        for fit in td.GetListOfKeys():
+            fr = fh.get_object_by_name('PlotsAfterGlobalFit/{:s}/fitResult'.format(fit.GetName()))
+            self.make_norm_parameter_plot(fr, fit.GetName())
+        self.output_handle.write_and_close()
+
+    def make_yield_plot(self):
+        def get_hists(fname):
+            f = FileHandle(file_name=os.path.join(path, fname))
+            hists = f.get_objects_by_type('TH1F')
+            roo_hists = f.get_objects_by_type('RooHist')
+            map(lambda h: h.SetDirectory(0), hists)
+            #map(lambda h: h.SetDirectory(0), roo_hists)
+            return hists, roo_hists
+
+        path = '/Users/morgens/tmp/limit_20190514_12-46-20/workspaces/11/results/LQAnalysis/'
+        #signal_regions = ['']
+        bkg_regions = ['TopCR_mu_yield', 'ZCR_mu_yield', 'ZVR_mu_yield']
+        backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
+        ratios = ['pre-fit', 'post-fit']
+        tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
+                for bkg in backgrounds]
+        tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
+                           for fit in ratios]
+        for i, region in enumerate(bkg_regions):
+            hists, roo_hists = get_hists('{:s}_afterFit.root'.format(region))
+            hists = filter(lambda h: h.GetName() in backgrounds, hists)
+            for hist in hists:
+                if i == 0:
+                    hist.SetFillColor(i+hists.index(hist)+2)
+                process = hist.GetName()
+                tmp_hist = tmp_hists[backgrounds.index(process)]
+                tmp_hist.SetBinContent(i+1, hist.Integral())
+                tmp_hist.GetXaxis().SetBinLabel(i+1, region.split('_')[0])
+            tmp_hists[-1].SetBinContent(i+1, filter(lambda h: 'Data' in h.GetName(), roo_hists)[0].getFitRangeNEvt())
+            tmp_ratio_hists[-1].SetBinContent(i+1, filter(lambda h: 'ratio_h' in h.GetName(),
+                                                          roo_hists)[0].getFitRangeNEvt())
+            tmp_ratio_hists[-1].GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
+            _, roo_hists = get_hists('{:s}_beforeFit.root'.format(region))
+            tmp_ratio_hists[0].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
+                                                           roo_hists)[0].getFitRangeNEvt())
+
+
+
+        stack = ROOT.THStack()
+        map(lambda h: stack.Add(h, 'hist'), tmp_hists[0:-1])
+        c = pt.retrieve_new_canvas('post_fit_yields')
+        c_ratio = pt.retrieve_new_canvas('post_fit_yields_r')
+        c.cd()
+        stack.Draw()
+        for i, h in enumerate(tmp_hists[0:-1]):
+            h.SetFillColor(get_default_color_scheme()[i])
+        fm.set_minimum_y(stack, 0.1)
+        fm.set_maximum_y(stack, stack.GetMaximum()*1000.)
+        fm.set_axis_title(stack, 'Events', 'y')
+        fm.set_axis_title(stack, 'Region', 'x')
+        pt.add_data_to_stack(c, tmp_hists[-1])
+        fm.add_legend_to_canvas(c, labels=backgrounds, format=['F']*3+['p'], xl=0.7, yl=0.7, position=None,
+                                plot_objects=tmp_hists)
+        pc = pt.get_default_plot_config(stack)
+        c_ratio.cd()
+        tmp_ratio_hists[-1].Draw('p')
+        tmp_ratio_hists[0].Draw('psames')
+        tmp_ratio_hists[-1].SetMarkerColor(ROOT.kRed)
+        tmp_ratio_hists[-1].GetYaxis().SetRangeUser(0.9, 1.1)
+        fm.set_axis_title(tmp_ratio_hists[-1], 'Data/SM', 'y')
+        fm.add_legend_to_canvas(c_ratio, labels=ratios, format=['p'] * 2, xl=0.7, yl=0.7, position=None,
+                                plot_objects=tmp_ratio_hists)
+        c.SetLogy()
+        pc.lumi = 139.
+        fm.decorate_canvas(c, pc)
+        fm.add_text_to_canvas(c, 'Post-Fit', pos={'x': 0.2, 'y': 0.7}, size=0.06)
+        c_r = pt.add_ratio_to_canvas(c, c_ratio)
+
+        c_r.Modified()
+        c_r.Update()
+        c_r.SaveAs('test.pdf')
