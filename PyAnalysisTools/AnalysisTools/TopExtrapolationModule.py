@@ -24,17 +24,20 @@ class TopExtrapolationModule(object):
                 continue
             self.functions[reg_name] = build_fct(cfg['func'], cfg['params']), cfg['stitch']
 
+    def get_stitch_point(self, region):
+        return self.functions[region][1]
+
     def get_extrapolated_bin_content(self, region, xmin, xmax=None, lumi=1.):
         if xmax is None:
-            xmax = 1e12
+            xmax = 10000000.
         if xmin < self.functions[region][1]:
             return None
-        return lumi * self.functions[region][0][0].Integral(xmin, xmax)
+        return lumi * self.functions[region][0][0].Integral(xmin, xmax) / 1000.
 
     def execute(self, histograms):
         top_hist = histograms['ttbar']
         region = [r for r in self.functions.keys() if r in top_hist.GetName()][0]
-        print region
+        _logger.debug('Running top extrapolation in region {:s}'.format(region))
         for i in range(top_hist.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
                                                             top_hist.GetXaxis().GetBinUpEdge(i), 139.)
