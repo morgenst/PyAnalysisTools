@@ -15,8 +15,8 @@ import PyAnalysisTools.PlottingUtils.HistTools as ht
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
-from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.base.ShellUtils import move, make_dirs
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
@@ -33,6 +33,8 @@ sys.modules[tabulate.__module__].LATEX_ESCAPE_RULES = {}
 
 
 def dump_input_config(cfg, output_dir):
+    if output_dir is None:
+        return
     yd.dump_yaml(dict(filter(lambda kv: kv[0] != 'scan_info' and kv[0] != 'xsec_handle', cfg.iteritems())),
                  os.path.join(output_dir, 'config.yml'))
 
@@ -480,6 +482,7 @@ class XsecLimitAnalyser(object):
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
             mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
+            print mass, scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'], scan.kwargs['sig_yield'], limit_info.exp_limit
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -494,6 +497,8 @@ class XsecLimitAnalyser(object):
             #                                    scan.kwargs['sig_name'])
             theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec)
+
+    def save(self):
         self.output_handle.write_and_close()
 
 
@@ -913,6 +918,7 @@ class Sample(object):
         else:
             weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds)
         for cut in self.nominal_evt_yields.keys():
+            print cut, self.nominal_evt_yields, weight
             self.nominal_evt_yields[cut] = tuple(i * weight for i in self.nominal_evt_yields[cut])
         for region in self.ctrl_region_yields.keys():
             self.ctrl_region_yields[region] = tuple(i * weight for i in self.ctrl_region_yields[region])
@@ -1537,3 +1543,37 @@ class LimitValidationPlotter(object):
         c_r.Modified()
         c_r.Update()
         c_r.SaveAs('test.pdf')
+
+    def make_correlation_plot(self, hist, name):
+        def transform_label(label):
+            if 'alpha_' in label:
+                return '#alpha_{{{:s}}}'.format(label.replace('alpha_', ''))
+            if 'mu_' in label:
+                return '#mu_{{{:s}}}'.format(label.replace('mu_', ''))
+            if 'gamma_' in label:
+                return '#gamma_{{{:s}}}'.format(label.replace('gamma_', '').replace('bin_0', ''))
+            return label
+
+        pc = pt.get_default_plot_config(hist)
+        pc.draw_option = 'COLZ'
+        pc.ytitle = ''
+        canvas = pt.plot_2d_hist(hist, pc)
+        for b in range(1, hist.GetNbinsX()+1):
+            x_label = transform_label(hist.GetXaxis().GetBinLabel(b))
+            y_label = transform_label(hist.GetYaxis().GetBinLabel(b))
+            hist.GetXaxis().SetBinLabel(b, x_label)
+            hist.GetYaxis().SetBinLabel(b, y_label)
+        pc.lumi = 139.
+        fm.decorate_canvas(canvas, pc)
+        fm.add_text_to_canvas(canvas, 'Post-Fit', pos={'x': 0.2, 'y': 0.7}, size=0.06)
+        canvas.Update()
+        self.output_handle.register_object(canvas)
+
+    def make_correlation_plots(self):
+        fh = FileHandle(file_name=os.path.join(self.input_path, 'fit_cross_checks/FitCrossChecks.root'))
+        td = fh.get_object_by_name('PlotsAfterGlobalFit')
+        for fit in td.GetListOfKeys():
+            canvas = fh.get_objects_by_pattern('can_CorrMatrix', 'PlotsAfterGlobalFit/{:s}'.format(fit.GetName()))[0]
+            hist = get_objects_from_canvas_by_type(canvas, 'TH2D')[0]
+            self.make_correlation_plot(hist, fit.GetName())
+        self.output_handle.write_and_close()
