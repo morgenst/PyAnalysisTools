@@ -1478,7 +1478,6 @@ class LimitValidationPlotter(object):
             hists = f.get_objects_by_type('TH1F')
             roo_hists = f.get_objects_by_type('RooHist')
             map(lambda h: h.SetDirectory(0), hists)
-            #map(lambda h: h.SetDirectory(0), roo_hists)
             return hists, roo_hists
 
         path = '/Users/morgens/tmp/limit_20190514_12-46-20/workspaces/11/results/LQAnalysis/'
