@@ -603,10 +603,10 @@ class LimitScanAnalyser(object):
         headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [GeV]$', 'UL [pb]', 'Signal'] + ordering
         print tabulate(data, headers=headers, tablefmt='latex_raw')
         with open(os.path.join(self.output_handle.output_dir,
-                               'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
+                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print >> f, tabulate(data, headers=headers, tablefmt='latex_raw')
         print 'wrote to file ', os.path.join(self.output_handle.output_dir,
-                               'limit_scan_table_{:s}.tex'.format(self.sig_reg_name))
+                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -788,9 +788,9 @@ class LimitScanAnalyser(object):
         self.output_handle.register_object(canvas_status)
         canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
         self.output_handle.register_object(canvas_quality)
-        print tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw', floatfmt=".2e")
+        limit_scan_table = [['{:.0f}'.format(i[0])] + i[1] for i in limit_scan_table.items()]
         with open(os.path.join(self.output_handle.output_dir,
-                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
+                               'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
 
 
@@ -979,6 +979,12 @@ class Sample(object):
                        self.ctrl_reg_scale_ylds[reg].iteritems()))
 
     def merge_child_processes(self, samples, has_syst=True):
+        def product(syst, nom):
+            return [syst[0]*nom[0], nom[1]]
+
+        def yld_sum(syst):
+            return sum([s[0] for s in syst]), s[1]
+
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
@@ -987,11 +993,32 @@ class Sample(object):
             self.nominal_evt_yields[cut] = map(sum, zip(*map(lambda s: s.nominal_evt_yields[cut], samples)))
         if has_syst:
             for cut in samples[0].shape_uncerts.keys():
+                # for s in samples:
+                #     print 'NOMINAL: ', cut, s.nominal_evt_yields[cut]
+                # continue
                 self.shape_uncerts[cut] = {}
                 for syst in samples[0].shape_uncerts[cut].keys():
-                    print samples[0].shape_uncerts[cut][syst], samples[0].nominal_evt_yields[cut]
-                    total_uncert = get_ratio(sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
-                                                     samples)), self.nominal_evt_yields[cut]))
+                    print 'OUTPUT: ', samples[0].shape_uncerts[cut][syst], samples[0].nominal_evt_yields[cut]
+                    for s in samples:
+                        print np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut])
+                    print 'MAP:'
+                    print map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                                                     samples)
+                    print 'zip:'
+                    print zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                                                     samples))
+                    print self.nominal_evt_yields[cut]
+                    # print sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples)), self.nominal_evt_yields[cut])
+
+                    print 'FOO: ', yld_sum(map(lambda s: product(s.shape_uncerts[cut][syst],
+                                                                 s.nominal_evt_yields[cut]), samples)), self.nominal_evt_yields[cut]
+                    total_uncert = get_ratio(yld_sum(map(lambda s: product(s.shape_uncerts[cut][syst],
+                                                                           s.nominal_evt_yields[cut]), samples)),
+                                             self.nominal_evt_yields[cut])
+
+                    # total_uncert = get_ratio(sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples))_, self.nominal_evt_yields[cut])
                     # total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
                     #                                  samples)), self.nominal_evt_yields[cut])
                     self.shape_uncerts[cut][syst] = total_uncert
@@ -1318,13 +1345,14 @@ class LimitChecker(object):
         param = iter.Next()
         while param:
             cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter {:s} --workspace {:s} --modelconfig {:s} ' \
-                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01;'.format(self.workspace_file,
-                                                                                        self.poi,
-                                                                                        param.GetName(),
-                                                                                        self.workspace,
-                                                                                        'ModelConfig',
-                                                                                        'asimovData',
-                                                                                        tmp_output_dir)
+                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01 ' \
+                  '--scale_poi 2 --scale_theta 2;'.format(self.workspace_file,
+                                                          self.poi,
+                                                          param.GetName(),
+                                                          self.workspace,
+                                                          'ModelConfig',
+                                                          'asimovData',
+                                                          tmp_output_dir)
             os.system(cmd)
             param = iter.Next()
         output_dir = os.path.join(self.output_path, 'pulls')
@@ -1337,7 +1365,7 @@ class LimitChecker(object):
         rndm = int(100000. * random.random())
         tmp_output_dir = 'tmp_{:d}'.format(rndm)
         cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi 10 --postfit on --prefit on --rank on --label Run-2 ' \
-              '--correlation on --folder {:s}'.format(input_dir, self.poi, tmp_output_dir)
+              '--correlation on --folder {:s} --scale_theta '.format(input_dir, self.poi, tmp_output_dir)
         os.system(cmd)
         output_dir = os.path.join(self.output_path, 'pull_plots')
         make_dirs(output_dir)
