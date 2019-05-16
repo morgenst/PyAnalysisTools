@@ -691,7 +691,10 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         try:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TEfficiency")[0]
         except IndexError:
-            stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            try:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            except:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TGraph")[0]
     stack.GetXaxis().SetTitleSize(0)
     stack.GetXaxis().SetLabelSize(0)
     # if not canvas.GetLogy():
