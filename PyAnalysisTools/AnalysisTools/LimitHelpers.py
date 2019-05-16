@@ -978,12 +978,16 @@ class Sample(object):
                 filter(lambda kv: abs(1. - kv[1]) > 0.001 or kv[0] in self.scale_uncerts[cut],
                        self.ctrl_reg_scale_ylds[reg].iteritems()))
 
-    def merge_child_processes(self, samples, has_syst=True):
-        def product(syst, nom):
-            return [syst[0]*nom[0], nom[1]]
+    @staticmethod
+    def yld_sum(syst):
+        return sum([s[0] for s in syst]), s[1]
 
-        def yld_sum(syst):
-            return sum([s[0] for s in syst]), s[1]
+    @staticmethod
+    def product(syst, nom):
+        return [syst[0]*nom[0], nom[1]]
+
+    def merge_child_processes(self, samples, has_syst=True):
+
 
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
         self.is_data = samples[0].is_data
@@ -998,24 +1002,24 @@ class Sample(object):
                 # continue
                 self.shape_uncerts[cut] = {}
                 for syst in samples[0].shape_uncerts[cut].keys():
-                    print 'OUTPUT: ', samples[0].shape_uncerts[cut][syst], samples[0].nominal_evt_yields[cut]
-                    for s in samples:
-                        print np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut])
-                    print 'MAP:'
-                    print map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
-                                                     samples)
-                    print 'zip:'
-                    print zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
-                                                     samples))
-                    print self.nominal_evt_yields[cut]
-                    # print sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
-                    #                                  samples)), self.nominal_evt_yields[cut])
-
-                    print 'FOO: ', yld_sum(map(lambda s: product(s.shape_uncerts[cut][syst],
-                                                                 s.nominal_evt_yields[cut]), samples)), self.nominal_evt_yields[cut]
-                    total_uncert = get_ratio(yld_sum(map(lambda s: product(s.shape_uncerts[cut][syst],
+                    # print 'OUTPUT: ', samples[0].shape_uncerts[cut][syst], samples[0].nominal_evt_yields[cut]
+                    # for s in samples:
+                    #     print np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut])
+                    # print 'MAP:'
+                    # print map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples)
+                    # print 'zip:'
+                    # print zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples))
+                    # print self.nominal_evt_yields[cut]
+                    # # print sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    # #                                  samples)), self.nominal_evt_yields[cut])
+                    #
+                    # print 'FOO: ', self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
+                    #                                              s.nominal_evt_yields[cut]), samples)), tuple(self.nominal_evt_yields[cut])
+                    total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
                                                                            s.nominal_evt_yields[cut]), samples)),
-                                             self.nominal_evt_yields[cut])
+                                             tuple(self.nominal_evt_yields[cut]))
 
                     # total_uncert = get_ratio(sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
                     #                                  samples))_, self.nominal_evt_yields[cut])
@@ -1025,26 +1029,39 @@ class Sample(object):
             for cut in samples[0].scale_uncerts.keys():
                 self.scale_uncerts[cut] = {}
                 for syst in samples[0].scale_uncerts[cut].keys():
-                    total_uncert = get_ratio(sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut],
-                                                     samples)), self.nominal_evt_yields[cut])
+                    # total_uncert = get_ratio(sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut],
+                    #                                  samples)), self.nominal_evt_yields[cut])
+                    total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.scale_uncerts[cut][syst],
+                                                                           s.nominal_evt_yields[cut]), samples)),
+                                             tuple(self.nominal_evt_yields[cut]))
                     self.scale_uncerts[cut][syst] = total_uncert
 
         for region in samples[0].ctrl_region_yields:
-            self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            #print map(lambda s: s.ctrl_region_yields[region], samples)
+            #self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            self.ctrl_region_yields[region] = self.yld_sum(map(lambda s: s.ctrl_region_yields[region], samples))
             if not has_syst:
                 continue
             self.ctrl_reg_scale_ylds[region] = {}
             self.ctrl_reg_shape_ylds[region] = {}
             for syst in samples[0].ctrl_reg_scale_ylds[region].keys():
-                total_uncert = get_ratio(sum(
-                    map(lambda s: s.ctrl_reg_scale_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
-                    self.ctrl_region_yields[region])
+                # total_uncert = get_ratio(sum(
+                #     map(lambda s: s.ctrl_reg_scale_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
+                #     self.ctrl_region_yields[region])
+
+                total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_scale_ylds[region][syst],
+                                                                           s.ctrl_region_yields[region]), samples)),
+                                             tuple(self.ctrl_region_yields[region]))
                 self.ctrl_reg_scale_ylds[region][syst] = total_uncert
 
             for syst in samples[0].ctrl_reg_shape_ylds[region].keys():
-                total_uncert = get_ratio(sum(
-                    map(lambda s: s.ctrl_reg_shape_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
-                    self.ctrl_region_yields[region])
+
+                total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_shape_ylds[region][syst],
+                                                                           s.ctrl_region_yields[region]), samples)),
+                                             tuple(self.ctrl_region_yields[region]))
+                # total_uncert = get_ratio(sum(
+                #     map(lambda s: s.ctrl_reg_shape_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
+                #     self.ctrl_region_yields[region])
                 self.ctrl_reg_shape_ylds[region][syst] = total_uncert
 
 
@@ -1345,14 +1362,13 @@ class LimitChecker(object):
         param = iter.Next()
         while param:
             cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter {:s} --workspace {:s} --modelconfig {:s} ' \
-                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01 ' \
-                  '--scale_poi 2 --scale_theta 2;'.format(self.workspace_file,
-                                                          self.poi,
-                                                          param.GetName(),
-                                                          self.workspace,
-                                                          'ModelConfig',
-                                                          'asimovData',
-                                                          tmp_output_dir)
+                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01 ;'.format(self.workspace_file,
+                                                                                         self.poi,
+                                                                                         param.GetName(),
+                                                                                         self.workspace,
+                                                                                         'ModelConfig',
+                                                                                         'asimovData',
+                                                                                         tmp_output_dir)
             os.system(cmd)
             param = iter.Next()
         output_dir = os.path.join(self.output_path, 'pulls')
@@ -1364,8 +1380,8 @@ class LimitChecker(object):
         os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
         rndm = int(100000. * random.random())
         tmp_output_dir = 'tmp_{:d}'.format(rndm)
-        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi 10 --postfit on --prefit on --rank on --label Run-2 ' \
-              '--correlation on --folder {:s} --scale_theta '.format(input_dir, self.poi, tmp_output_dir)
+        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi 2 --postfit on --prefit on --rank on --label Run-2 ' \
+              '--correlation on --folder {:s} --scale_theta 2'.format(input_dir, self.poi, tmp_output_dir)
         os.system(cmd)
         output_dir = os.path.join(self.output_path, 'pull_plots')
         make_dirs(output_dir)
@@ -1498,17 +1514,20 @@ class LimitValidationPlotter(object):
         for fit in td.GetListOfKeys():
             fr = fh.get_object_by_name('PlotsAfterGlobalFit/{:s}/fitResult'.format(fit.GetName()))
             self.make_norm_parameter_plot(fr, fit.GetName())
-        self.output_handle.write_and_close()
 
     def make_yield_plot(self):
         def get_hists(fname):
-            f = FileHandle(file_name=os.path.join(path, fname))
+            try:
+                f = FileHandle(file_name=os.path.join(path, fname))
+            except Exception as e:
+                raise e
             hists = f.get_objects_by_type('TH1F')
             roo_hists = f.get_objects_by_type('RooHist')
             map(lambda h: h.SetDirectory(0), hists)
             return hists, roo_hists
 
-        path = '/Users/morgens/tmp/limit_20190514_12-46-20/workspaces/11/results/LQAnalysis/'
+        cfg = yl.read_yaml(os.path.join(self.input_path, 'config.yml'))
+        path = os.path.dirname(cfg['workspace_file'])
         #signal_regions = ['']
         bkg_regions = ['TopCR_mu_yield', 'ZCR_mu_yield', 'ZVR_mu_yield']
         backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
@@ -1518,7 +1537,11 @@ class LimitValidationPlotter(object):
         tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
                            for fit in ratios]
         for i, region in enumerate(bkg_regions):
-            hists, roo_hists = get_hists('{:s}_afterFit.root'.format(region))
+            try:
+                hists, roo_hists = get_hists('{:s}_afterFit.root'.format(region))
+            except ValueError:
+                _logger.error('Missing after fit workspace for {:s}'.format(region))
+                continue
             hists = filter(lambda h: h.GetName() in backgrounds, hists)
             for hist in hists:
                 if i == 0:
@@ -1569,7 +1592,7 @@ class LimitValidationPlotter(object):
 
         c_r.Modified()
         c_r.Update()
-        c_r.SaveAs('test.pdf')
+        self.output_handle.register_object(c)
 
     def make_correlation_plot(self, hist, name):
         def transform_label(label):
@@ -1603,4 +1626,3 @@ class LimitValidationPlotter(object):
             canvas = fh.get_objects_by_pattern('can_CorrMatrix', 'PlotsAfterGlobalFit/{:s}'.format(fit.GetName()))[0]
             hist = get_objects_from_canvas_by_type(canvas, 'TH2D')[0]
             self.make_correlation_plot(hist, fit.GetName())
-        self.output_handle.write_and_close()
