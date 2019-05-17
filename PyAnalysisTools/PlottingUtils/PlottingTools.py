@@ -258,7 +258,7 @@ def format_hist(hist, plot_config):
             fm.set_range_z(hist, plot_config.zmin, plot_config.zmax)
 
     if plot_config.normalise:
-        ht.normalise(hist, plot_config.normalise_range)
+        ht.normalise(hist, plot_config.normalise_range, plot_config.norm_scale)
         ymax = plot_config.yscale * hist.GetMaximum()
         if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
