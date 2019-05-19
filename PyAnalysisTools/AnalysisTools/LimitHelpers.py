@@ -359,7 +359,7 @@ class LimitPlotter(object):
         graph = ROOT.TGraph(len(limits))
         graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
         graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
-        for i, limit in enumerate(limits):
+        for i, limit in sorted(enumerate(limits)):
             graph.SetPoint(i, limit.mass, limit.exp_limit)
             graph_1sigma.SetPoint(i, limit.mass, limit.exp_limit)
             graph_2sigma.SetPoint(i, limit.mass, limit.exp_limit)
@@ -369,14 +369,29 @@ class LimitPlotter(object):
             graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
         if theory_xsec is not None:
             graph_theory = []
-            print theory_xsec
+            processed_mass_points = sorted(map(lambda li: li.mass, limits))
+
             for process, xsecs in theory_xsec.iteritems():
-                graph_theory.append(ROOT.TGraph(len(limits)))
-                for j, mass in enumerate(sorted(map(lambda l: l.mass, limits))):
-                    xs = filter(lambda xs: xs[0] == mass, xsecs)[0]
-                    graph_theory[-1].SetPoint(j, mass, xs[-1])
-                limits.sort(key=lambda li: li.mass)
+                #graph_theory.append(ROOT.TGraph(len(processed_mass_points)))
+                #point = 0
+                masses = []
+                cross_sections = []
+                for mass, lam, xsec in xsecs:
+                    if mass not in processed_mass_points:
+                        continue
+                    masses.append(mass)
+                    cross_sections.append(xsec)
+                    #graph_theory[-1].SetPoint(point, mass, xsec)
+                    #point += 1
+                graph_theory.append(ROOT.TGraph(len(masses)))
+                for i in range(len(masses)):
+                    graph_theory[-1].SetPoint(i, masses[i], cross_sections[i])
+                # for j, mass in enumerate(sorted(map(lambda l: l.mass, limits))):
+                #     xs = filter(lambda xs: xs[0] == mass, xsecs)[0]
+                #     graph_theory[-1].SetPoint(j, mass, xs[-1])
+                # limits.sort(key=lambda li: li.mass)
                 graph_theory[-1].SetName('Theory_prediction_{:s}'.format(process))
+
         graph_2sigma.SetName('xsec_limit{:s}'.format(sig_reg_name))
         canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
         pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
@@ -491,11 +506,14 @@ class XsecLimitAnalyser(object):
         # self.parse_prefit_yields(scan, mass)
         # self.plot_prefit_yields()
         theory_xsec = None
+        chains = ['LQmud', 'LQmus']
+
         if self.xsec_map is not None:
             # TODO: needs proper implementation
             # self.plotter.make_limit_plot_plane(limits, self.plot_config, self.xsec_map['LQed'],
             #                                    scan.kwargs['sig_name'])
-            theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+            #theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+            theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec)
 
     def save(self):
@@ -572,14 +590,14 @@ class LimitScanAnalyser(object):
         theory_xsec = None
 
         if self.xsec_map is not None:
-            # chains = ['LQmud', 'LQmus']
-            chains = ['LQeb']
+            chains = ['LQmud', 'LQmus']
+            #chains = ['LQeb']
             theory_xsec = OrderedDict()
             # TODO: needs proper implementation
-            for mode in chains:
-                # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
-                #                                    scan.kwargs['sig_name'])
-                theory_xsec[mode] = filter(lambda l: l[1] == 1.0, self.xsec_map[mode])
+            # for mode in chains:
+            #     # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
+            #     #                                    scan.kwargs['sig_name'])
+            theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
         self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec, self.sig_reg_name)
         if theory_xsec is not None:
             self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
@@ -600,7 +618,7 @@ class LimitScanAnalyser(object):
             for process in ordering:
                 data_mass_point.append(prefit_ylds_bkg[process])
             data.append(data_mass_point)
-        headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [GeV]$', 'UL [pb]', 'Signal'] + ordering
+        headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [\\GeV{}]', 'UL [pb]', 'Signal'] + ordering
         print tabulate(data, headers=headers, tablefmt='latex_raw')
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
@@ -765,8 +783,8 @@ class LimitScanAnalyser(object):
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
 
         ROOT.gStyle.SetPalette(1)
-        ROOT.gStyle.SetPaintTextFormat(".2g")
-        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
+        #ROOT.gStyle.SetPaintTextFormat(".2g")
+        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
                         watermark='Internal', lumi=139.0)
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
@@ -799,7 +817,7 @@ def sum_ylds(ylds):
     if True in pd.isnull(ylds):
         print "found NONE"
     ylds = ylds[~pd.isnull(ylds)]
-    return np.sum(ylds), np.sum(ylds**2)
+    return np.sum(ylds) #, np.sum(ylds**2)
 
 
 def get_ratio(num, denom):
@@ -918,11 +936,11 @@ class Sample(object):
         else:
             weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds)
         for cut in self.nominal_evt_yields.keys():
-            print cut, self.nominal_evt_yields, weight
-            self.nominal_evt_yields[cut] = tuple(i * weight for i in self.nominal_evt_yields[cut])
+            #self.nominal_evt_yields[cut] = tuple(i * weight for i in self.nominal_evt_yields[cut])
+            self.nominal_evt_yields[cut] *= weight
         for region in self.ctrl_region_yields.keys():
-            self.ctrl_region_yields[region] = tuple(i * weight for i in self.ctrl_region_yields[region])
-            #self.ctrl_region_yields[region] *= weight
+            #self.ctrl_region_yields[region] = tuple(i * weight for i in self.ctrl_region_yields[region])
+            self.ctrl_region_yields[region] *= weight
 
     def __add__(self, other):
         self.generated_ylds += other.generated_ylds
@@ -987,14 +1005,12 @@ class Sample(object):
         return [syst[0]*nom[0], nom[1]]
 
     def merge_child_processes(self, samples, has_syst=True):
-
-
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
         for cut in samples[0].nominal_evt_yields.keys():
             #self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
-            self.nominal_evt_yields[cut] = map(sum, zip(*map(lambda s: s.nominal_evt_yields[cut], samples)))
+            self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
         if has_syst:
             for cut in samples[0].shape_uncerts.keys():
                 # for s in samples:
@@ -1017,51 +1033,51 @@ class Sample(object):
                     #
                     # print 'FOO: ', self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
                     #                                              s.nominal_evt_yields[cut]), samples)), tuple(self.nominal_evt_yields[cut])
-                    total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
-                                                                           s.nominal_evt_yields[cut]), samples)),
-                                             tuple(self.nominal_evt_yields[cut]))
+                    # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
+                    #                                                        s.nominal_evt_yields[cut]), samples)),
+                    #                          tuple(self.nominal_evt_yields[cut]))
 
                     # total_uncert = get_ratio(sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
                     #                                  samples))_, self.nominal_evt_yields[cut])
-                    # total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
-                    #                                  samples)), self.nominal_evt_yields[cut])
+                    total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
+                                                     samples)), self.nominal_evt_yields[cut])
                     self.shape_uncerts[cut][syst] = total_uncert
             for cut in samples[0].scale_uncerts.keys():
                 self.scale_uncerts[cut] = {}
                 for syst in samples[0].scale_uncerts[cut].keys():
-                    # total_uncert = get_ratio(sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut],
-                    #                                  samples)), self.nominal_evt_yields[cut])
-                    total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.scale_uncerts[cut][syst],
-                                                                           s.nominal_evt_yields[cut]), samples)),
-                                             tuple(self.nominal_evt_yields[cut]))
+                    total_uncert = get_ratio(sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut],
+                                                     samples)), self.nominal_evt_yields[cut])
+                    # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.scale_uncerts[cut][syst],
+                    #                                                        s.nominal_evt_yields[cut]), samples)),
+                    #                          tuple(self.nominal_evt_yields[cut]))
                     self.scale_uncerts[cut][syst] = total_uncert
 
         for region in samples[0].ctrl_region_yields:
             #print map(lambda s: s.ctrl_region_yields[region], samples)
-            #self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
-            self.ctrl_region_yields[region] = self.yld_sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            # self.ctrl_region_yields[region] = self.yld_sum(map(lambda s: s.ctrl_region_yields[region], samples))
             if not has_syst:
                 continue
             self.ctrl_reg_scale_ylds[region] = {}
             self.ctrl_reg_shape_ylds[region] = {}
             for syst in samples[0].ctrl_reg_scale_ylds[region].keys():
-                # total_uncert = get_ratio(sum(
-                #     map(lambda s: s.ctrl_reg_scale_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
-                #     self.ctrl_region_yields[region])
+                total_uncert = get_ratio(sum(
+                    map(lambda s: s.ctrl_reg_scale_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
+                    self.ctrl_region_yields[region])
 
-                total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_scale_ylds[region][syst],
-                                                                           s.ctrl_region_yields[region]), samples)),
-                                             tuple(self.ctrl_region_yields[region]))
+                # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_scale_ylds[region][syst],
+                #                                                            s.ctrl_region_yields[region]), samples)),
+                #                              tuple(self.ctrl_region_yields[region]))
                 self.ctrl_reg_scale_ylds[region][syst] = total_uncert
 
             for syst in samples[0].ctrl_reg_shape_ylds[region].keys():
 
-                total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_shape_ylds[region][syst],
-                                                                           s.ctrl_region_yields[region]), samples)),
-                                             tuple(self.ctrl_region_yields[region]))
-                # total_uncert = get_ratio(sum(
-                #     map(lambda s: s.ctrl_reg_shape_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
-                #     self.ctrl_region_yields[region])
+                # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_shape_ylds[region][syst],
+                #                                                            s.ctrl_region_yields[region]), samples)),
+                #                              tuple(self.ctrl_region_yields[region]))
+                total_uncert = get_ratio(sum(
+                    map(lambda s: s.ctrl_reg_shape_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
+                    self.ctrl_region_yields[region])
                 self.ctrl_reg_shape_ylds[region][syst] = total_uncert
 
 
@@ -1390,7 +1406,7 @@ class LimitChecker(object):
     def run_fit_cross_checks(self):
         # self.run_conditional_asimov_fits()
         # self.run_unconditional_asimov_fits()
-        self.make_pre_fit_plots()
+        #self.make_pre_fit_plots()
         self.make_post_fit_plots()
 
         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
@@ -1418,14 +1434,14 @@ class LimitChecker(object):
 
     def make_post_fit_plots(self):
         algo = 'PlotHistosAfterFitGlobal'
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
-                                 create_post_fit_asimov=1, no_sigmas=1)
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
-                                 create_post_fit_asimov=1, no_sigmas=1)
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=0,
-                                 create_post_fit_asimov=1, no_sigmas=1)
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1,
-                                 create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='obsData', conditional=1, mu=0,
+                                 create_post_fit_asimov=0, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1000,
         #                          create_post_fit_asimov=1, no_sigmas=1)
         # algo = 'PlotHistosAfterFitEachSubChannel'
@@ -1479,6 +1495,7 @@ class LimitValidationPlotter(object):
         params = ['mu_Z', 'mu_top']
         g = ROOT.TGraphAsymmErrors()
         for i, param in enumerate(params):
+            print 'param: ', param, ' result: ', result.floatParsFinal().find(param).getVal()
             g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i*2+1)
             g.SetPointEXhigh(i, result.floatParsFinal().find(param).getErrorHi())
             g.SetPointEXlow(i, abs(result.floatParsFinal().find(param).getErrorLo()))
@@ -1497,6 +1514,7 @@ class LimitValidationPlotter(object):
         g.Draw("psame")
         systs = ROOT.TLatex()
         systs.SetTextSize(systs.GetTextSize() * 0.8)
+
         for i, param in enumerate(params):
             param_result = result.floatParsFinal().find(param)
             systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\mu_{{{:s}}}'.format(param.replace('mu_', '')))
@@ -1592,7 +1610,7 @@ class LimitValidationPlotter(object):
 
         c_r.Modified()
         c_r.Update()
-        self.output_handle.register_object(c)
+        self.output_handle.register_object(c_r)
 
     def make_correlation_plot(self, hist, name):
         def transform_label(label):
@@ -1605,6 +1623,7 @@ class LimitValidationPlotter(object):
             return label
 
         pc = pt.get_default_plot_config(hist)
+        pc.name = 'corr_{:s}'.format(name)
         pc.draw_option = 'COLZ'
         pc.ytitle = ''
         canvas = pt.plot_2d_hist(hist, pc)
