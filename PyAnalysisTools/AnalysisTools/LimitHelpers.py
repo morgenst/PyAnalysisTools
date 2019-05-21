@@ -416,23 +416,30 @@ class LimitPlotter(object):
     def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sig_name):
         def find_excluded_lambda(mass, xsec, excl_limit):
             xsecs = filter(lambda xs: xs[0] == mass, xsec)
-            xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
-            return sqrt(excl_limit / xsecs[0][-1])
-            xsecs.sort(key=lambda i: i[-1])
+            #xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
             try:
-                return filter(lambda i: i[-1] > excl_limit, xsecs)[0][1]
+                return sqrt(excl_limit / xsecs[0][-1])
             except IndexError:
-                return 1.
+                return None
+            # xsecs.sort(key=lambda i: i[-1])
+            # try:
+            #     return filter(lambda i: i[-1] > excl_limit, xsecs)[0][1]
+            # except IndexError:
+            #     return 1.
 
+        if theory_xsec is None:
+            return
         graphs_contour = []
         for process, xsecs in theory_xsec.iteritems():
-            excl_lambdas = [find_excluded_lambda(limit.mass, xsecs, limit.exp_limit) for limit in limits]
+            excl_lambdas = [(limit.mass, find_excluded_lambda(limit.mass, xsecs, limit.exp_limit)) for limit in limits]
+            excl_lambdas = filter(lambda v: v[1] is not None, excl_lambdas)
+            excl_lambdas = sorted(excl_lambdas, key=lambda i: i[0])
             graphs_contour.append(ROOT.TGraph(len(excl_lambdas)))
-            for i, limit in enumerate(limits):
-                graphs_contour[-1].SetPoint(i, limit.mass, excl_lambdas[i])
+            for i, limit in enumerate(excl_lambdas):
+                graphs_contour[-1].SetPoint(i, limit[0], limit[1])
             graphs_contour[-1].SetName('Limit_contour_{:s}'.format(process))
 
-        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=1.2, ymin=0., draw='Line',
+        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=10., ymin=0., draw='Line',
                         xtitle=plot_config['xtitle'], ytitle='#lambda', logy=False,
                         lumi=plot_config['lumi'], labels=map(lambda g: g.GetName().split('_')[-1], graphs_contour),
                         color=get_default_color_scheme())
@@ -497,7 +504,7 @@ class XsecLimitAnalyser(object):
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
             mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
-            print mass, scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'], scan.kwargs['sig_yield'], limit_info.exp_limit
+            #print mass, scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'], scan.kwargs['sig_yield'], limit_info.exp_limit
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -506,14 +513,17 @@ class XsecLimitAnalyser(object):
         # self.parse_prefit_yields(scan, mass)
         # self.plot_prefit_yields()
         theory_xsec = None
-        chains = ['LQmud', 'LQmus']
-
+        #chains = ['LQmud', 'LQmus']
+        #chains = ['LQmub']
+        # chains = ['LQed', 'LQes']
+        chains = ['LQeb']
         if self.xsec_map is not None:
-            # TODO: needs proper implementation
-            # self.plotter.make_limit_plot_plane(limits, self.plot_config, self.xsec_map['LQed'],
-            #                                    scan.kwargs['sig_name'])
-            #theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
-            theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
+        #     # TODO: needs proper implementation
+        #                                        scan.kwargs['sig_name'])
+        #     #theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+             theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
+        self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.kwargs['sig_name'])
+
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec)
 
     def save(self):
@@ -879,19 +889,19 @@ class Sample(object):
             nom_yields[syst] *= nom_yields['weight']
         self.nominal_evt_yields[cut] = sum_ylds(nom_yields['weight'])
         if shape_uncerts is not None:
-            self.shape_uncerts[cut] = {syst: sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
-        self.scale_uncerts[cut] = {syst: sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
+            self.shape_uncerts[cut] = {syst.rstrip(): sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
+        self.scale_uncerts[cut] = {syst.rstrip(): sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
 
     def add_ctrl_region(self, region_name, nominal_evt_yields, shape_uncert_yields=None):
         for syst in nominal_evt_yields.keys():
             if syst == 'weight':
                 continue
-            nominal_evt_yields[syst] *= nominal_evt_yields['weight']
+            nominal_evt_yields[syst.rstrip()] *= nominal_evt_yields['weight']
 
-        self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
+        self.ctrl_reg_scale_ylds[region_name] = {syst.rstrip(): sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
                                                  not syst == 'weight'}
         if shape_uncert_yields is not None:
-            self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in
+            self.ctrl_reg_shape_ylds[region_name] = {syst.rstrip(): sum_ylds(yld) for syst, yld in
                                                      shape_uncert_yields.iteritems()}
         else:
             if self.ctrl_reg_shape_ylds is None:
@@ -1192,7 +1202,7 @@ class SampleStore(object):
                 if region not in ctrl_region_ylds:
                     ctrl_region_ylds[region] = {s.name: yld}
                     continue
-                ctrl_region_ylds[region][s.name] = yld
+                ctrl_region_ylds[region][s.name.rstrip()] = yld
         return ctrl_region_ylds
 
     def retrieve_ctrl_region_syst(self):
@@ -1244,7 +1254,7 @@ class SampleStore(object):
                 return {}
             systematics = s.shape_uncerts[cut]
             for syst_name, syst_yld in s.scale_uncerts[cut].iteritems():
-                systematics[syst_name] = syst_yld
+                systematics[syst_name.rstrip()] = syst_yld
             return systematics
 
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
@@ -1495,7 +1505,6 @@ class LimitValidationPlotter(object):
         params = ['mu_Z', 'mu_top']
         g = ROOT.TGraphAsymmErrors()
         for i, param in enumerate(params):
-            print 'param: ', param, ' result: ', result.floatParsFinal().find(param).getVal()
             g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i*2+1)
             g.SetPointEXhigh(i, result.floatParsFinal().find(param).getErrorHi())
             g.SetPointEXlow(i, abs(result.floatParsFinal().find(param).getErrorLo()))
@@ -1503,6 +1512,7 @@ class LimitValidationPlotter(object):
         h_dummy = ROOT.TH1D('h_dummy_{:s}'.format(name), '', 10, 0, 2.)
         h_dummy.SetMaximum(4.)
         canvas.cd()
+        canvas.SetLeftMargin(0.07)
         h_dummy.GetYaxis().SetLabelSize(0)
         h_dummy.Draw()
         h_dummy.GetYaxis().SetNdivisions(0)
@@ -1514,7 +1524,12 @@ class LimitValidationPlotter(object):
         g.Draw("psame")
         systs = ROOT.TLatex()
         systs.SetTextSize(systs.GetTextSize() * 0.8)
-
+        pc = pt.get_default_plot_config(h_dummy)
+        pc.lumi = 139.
+        pc.lumi_text_x = 0.1
+        pc.watermark_x = 0.1
+        fm.decorate_canvas(canvas, pc)
+        fm.add_text_to_canvas(canvas, 'Post-Fit, bkg-only', pos={'x': 0.1, 'y': 0.7}, size=0.06)
         for i, param in enumerate(params):
             param_result = result.floatParsFinal().find(param)
             systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\mu_{{{:s}}}'.format(param.replace('mu_', '')))
