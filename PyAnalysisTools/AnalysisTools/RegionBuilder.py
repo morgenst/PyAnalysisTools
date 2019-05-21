@@ -147,9 +147,9 @@ class NewRegion(object):
 
     def build_cuts(self):
         self.cut_list = self.build_cut_list(self.event_cuts, 'event_cuts')
-        if self.disable_leptons:
-            return
-        self.convert_lepton_selections()
+        if not self.disable_leptons:
+            self.convert_lepton_selections()
+        self.cut_list += self.build_cut_list(None, 'post_sel_cuts')
 
     def build_cut_list(self, cut_list, selection=None):
         tmp_cut_list = []
@@ -351,6 +351,7 @@ class NewRegionBuilder(object):
 
 class Region(NewRegion):
     def __init__(self, **kwargs):
+        print "DEPRECATED"
         super(Region, self).__init__(**kwargs)
         return
         kwargs.setdefault("n_lep", -1)
@@ -535,6 +536,7 @@ class Region(NewRegion):
 
 class RegionBuilder(NewRegionBuilder):
     def __init__(self, **kwargs):
+        print "DEPRECATED"
         super(RegionBuilder, self).__init__(**kwargs)
         return
         """

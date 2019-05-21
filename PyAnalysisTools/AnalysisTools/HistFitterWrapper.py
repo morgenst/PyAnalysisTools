@@ -462,6 +462,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         sample.setStatConfig(True)
         sample.buildHisto([yld], region, "yield", 0.5)
         sample.buildStatErrors([sqrt(yld)], region, "yield")
+        sample.setNormByTheory()
         return sample
 
     def setup_single_background(self, **kwargs):
@@ -515,13 +516,17 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         elif isinstance(nbkg_yields, dict):
             bkg_samples = self.setup_multi_background(**kwargs)
 
-        nsig = kwargs["sig_yield"]
+        if kwargs['fixed_signal'] is None:
+            nsig = kwargs["sig_yield"]
+        else:
+            nsig = kwargs["fixed_signal"]
+
         nsig_err = 0.144
-        lumi_error = 0.039
+        lumi_error = 0.017
 
         dataSample = Sample("Data", kBlack)
         dataSample.setData()
-        dataSample.buildHisto([5.], "SR", self.var_name, 0.5)
+        dataSample.buildHisto([5000.], "SR", self.var_name, 0.5)
 
         sigSample = Sample(kwargs["sig_name"], kPink)
         sigSample.setNormFactor("mu_Sig", 1., 0., 100.)
@@ -539,9 +544,9 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
         if kwargs["control_regions"] is not None:
             self.set_control_region_yields(ana=ana, samples=samples, **kwargs)
-        if kwargs["validation_regions"] is not None:
-            self.setup_validation_regions(ana=ana, samples=samples, **kwargs)
-            self.validation = True
+        # if kwargs["validation_regions"] is not None:
+        #     self.setup_validation_regions(ana=ana, samples=samples, **kwargs)
+        #     self.validation = True
         self.set_norm_factors(**kwargs)
 
         chan = ana.addChannel(self.var_name, ["SR"], 1, 0.5, 1.5)
@@ -549,17 +554,23 @@ class HistFitterCountingExperiment(HistFitterWrapper):
             chan.addSample(sample)
         ana.setSignalSample(sigSample)
         ana.addSignalChannels([chan])
-
+        import logging
+        logging.getLogger('fitConfig').setLevel(logging.DEBUG)
         for reg, yields in kwargs["control_regions"].iteritems():
+            if 'ZVR' in reg:
+                continue
             reg_config = kwargs['ctrl_config'][reg]
             cr_chan = ana.addChannel(self.var_name, [reg], 1, 0.5, 1.5)
             for sample in self.samples.values():
                 cr_chan.addSample(sample)
             if reg_config['is_norm_region']:
                 ana.addBkgConstrainChannels([cr_chan])
-            elif reg_config['is_val_region']:
-                ana.addValidationChannels([cr_chan])
+            # elif reg_config['is_val_region']:
+            #     ana.addValidationChannels([cr_chan])
 
+        # print 'Signal channels: ', ana.signalChannels
+        # print 'Background constrain channels: ', ana.bkgConstrainChannels
+        # print 'Validation channels: ', ana.validationChannels
         # Define measurement
         meas = ana.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=lumi_error)
         meas.addPOI("mu_Sig")
@@ -582,9 +593,11 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                                                           method='histoSys', type='user'))
                     except KeyError:
                         print "Could not find systematic {:s}".format(syst)
-            cr_chan = ana.getChannel(self.var_name, ['SR'])
+            #cr_chan = ana.getChannel(self.var_name, ['SR'])
 
         for cr in self.systematics.keys():
+            if 'ZVR' in cr:
+                continue
             cr_chan = ana.getChannel(self.var_name, [cr])
             for process, systematics in self.systematics[cr].iteritems():
                 for syst in systematics:
@@ -623,7 +636,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                         norm_regions[bkg] = [region]
         for bkg, norm_factors in norm_factors.iteritems():
             for norm_factor in norm_factors:
-                self.samples[bkg].setNormFactor(norm_factor, 1., 0., 5.)
+                self.samples[bkg].setNormFactor(norm_factor, 1., 0.5, 1.5)
 
         for bkg, region in norm_regions.iteritems():
             _logger.debug("Set norm region {:s} and bkg {:s}".format(region, bkg))
@@ -634,7 +647,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         for reg, yields in data.iteritems():
             self.configMgr.cutsDict[reg] = 1.
             for process, yld in yields.iteritems():
-                if process.lower() == "data":
+                if process.lower() == "data" or process == kwargs['sig_name']:
                     continue
                 sample = self.samples[process]
                 sample.setStatConfig(True)

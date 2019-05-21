@@ -1,6 +1,7 @@
 import pickle
 from copy import deepcopy
 from math import sqrt
+import json
 import random
 import numpy as np
 import pandas as pd
@@ -15,6 +16,7 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.base.ShellUtils import move, make_dirs
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
@@ -30,11 +32,19 @@ except ImportError:
 sys.modules[tabulate.__module__].LATEX_ESCAPE_RULES = {}
 
 
+def dump_input_config(cfg, output_dir):
+    if output_dir is None:
+        return
+    yd.dump_yaml(dict(filter(lambda kv: kv[0] != 'scan_info' and kv[0] != 'xsec_handle', cfg.iteritems())),
+                 os.path.join(output_dir, 'config.yml'))
+
+
 class LimitArgs(object):
     def __init__(self, output_dir, fit_mode, **kwargs):
         kwargs.setdefault("ctrl_syst", None)
         kwargs.setdefault("skip_ws_build", False)
         kwargs.setdefault("base_output_dir", output_dir)
+        kwargs.setdefault("fixed_xsec", None)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.fit_mode = fit_mode
         self.output_dir = output_dir
@@ -88,6 +98,82 @@ class LimitArgs(object):
         :rtype: str
         """
         return self.__str__() + '\n'
+
+    def to_json(self):
+        def add_signal_region(name):
+            channel = OrderedDict({'name': name})
+            sig_yield = self.kwargs['sig_yield']
+            if self.kwargs['signal_scale']:
+                sig_yield *= self.kwargs['signal_scale']
+            if self.kwargs['fixed_signal']:
+                sig_yield = self.kwargs['fixed_signal']
+            channel['samples'] = [build_sample(self.kwargs['sig_name'],
+                                               sig_yield,
+                                               'mu')]
+            for sn, sy in self.kwargs['bkg_yields'].iteritems():
+                channel['samples'].append(build_sample(sn, sy))
+            return channel
+
+        def add_channel(name, info):
+            data = None
+            channel = OrderedDict({'name': name, 'samples': []})
+            for sn, sy in info.iteritems():
+                if sn.lower() == 'data':
+                    data = [sy]
+                    continue
+                if sn == self.kwargs['sig_name']:
+                    continue
+                channel['samples'].append(build_sample(sn, sy))
+            return channel, data
+
+        def build_sample(name, yld, norm_factor=None):
+            sample = {'name': name, 'data': [yld]}
+            if norm_factor is not None:
+                sample['modifiers'] = [{'name': norm_factor, 'type': 'normfactor', 'data': None}]
+            else:
+                sample['modifiers'] = []
+            return sample
+
+        def add_systematics(channel_id, process, systematics):
+            sample = filter(lambda s: s['name'] == process, specs['channels'][channel_id]['samples'])[0]
+            syst_strings = set(map(lambda sn: sn.split('__')[0], systematics.keys()))
+            for sys in syst_strings:
+                try:
+                    down, up = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])
+                    sample['modifiers'].append({"type": "histosys", "data": {"lo_data": [down[1] * sample['data'][0]],
+                                                                             "hi_data": [up[1] * sample['data'][0]]},
+                                                'name': sys})
+                except ValueError:
+                    variation = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])[0]
+                    if variation[1] > 1.:
+                        sample['modifiers'].append({"type": "histosys",
+                                                    "data": {"lo_data": [sample['data'][0]],
+                                                             "hi_data": [variation[1] * sample['data'][0]]},
+                                                    'name': sys})
+                    else:
+                        sample['modifiers'].append({"type": "histosys",
+                                                    "data": {"lo_data": [variation[1] * sample['data'][0]],
+                                                             "hi_data": [sample['data'][0]]},
+                                                    'name': sys})
+        specs = OrderedDict()
+        specs['channels'] = [add_signal_region(self.sig_reg_name)]
+        specs['data'] = OrderedDict()
+        for region, info in self.kwargs['control_regions'].iteritems():
+            channel, data = add_channel(region, info)
+            specs['channels'].append(channel)
+            specs['data'][region] = data
+        specs['data'][self.sig_reg_name] = [0.]
+
+        specs['measurements'] = [{'config': {'poi': 'mu', 'parameters': []}, 'name': self.sig_reg_name}]
+
+        for process, systematics in self.kwargs['sr_syst'].iteritems():
+            add_systematics(0, process, systematics)
+        for region in self.kwargs['ctrl_syst'].keys():
+            channel_id = [i for i, c in enumerate(specs['channels']) if c['name'] == region][0]
+            add_systematics(channel_id, process, systematics)
+
+        with open('test_pyhf.json', 'w') as f:
+            json.dump(specs, f)
 
 
 def build_region_info(control_region_defs):
@@ -195,7 +281,18 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self):
+    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None, pmg_xsec=None):
+        """
+
+        :param signal_scale: signal scale factor applied on top of 1 pb fixed xsec in limit setting
+        :type signal_scale: float (default 1.0
+        :param fixed_signal: fixed signal yield input if used during limit setting
+        :type fixed_signal: float (default None)
+        :param sig_yield: signal yield scaled according to sigma=1pb
+        :type sig_yield: float (default None)
+        :return: limit info object containing parsed UL
+        :rtype: LimitInfo
+        """
         try:
             fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL95.root'),
                             switch_off_process_name_analysis=True)
@@ -203,9 +300,16 @@ class LimitAnalyserCL(object):
             data = self.converter.convert_to_array(tree=tree)
             fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
-            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * 1000.,
-                                     exp_limit_up=data['exp_upperlimit_plus1'] * 1000.,
-                                     exp_limit_low=data['exp_upperlimit_minus1'] * 1000.)
+            if signal_scale is None:
+                signal_scale = 1.
+            scale_factor = 1000. * signal_scale
+            if fixed_signal is not None:
+                scale_factor = scale_factor * fixed_signal / sig_yield
+            if pmg_xsec is not None:
+                scale_factor = 1000.
+            self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
+                                     exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
+                                     exp_limit_low=data['exp_upperlimit_minus1'] * scale_factor)
 
         except ValueError:
             self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
@@ -241,7 +345,7 @@ class LimitPlotter(object):
         ytitle = "95% CL U.L on #sigma [pb]"
         pc = PlotConfig(name='xsec_limit{:s}'.format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
                         draw='pLX', logy=True,
-                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-4),
+                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-6),
                         ymax=float(1.), )
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
@@ -255,7 +359,7 @@ class LimitPlotter(object):
         graph = ROOT.TGraph(len(limits))
         graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
         graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
-        for i, limit in enumerate(limits):
+        for i, limit in sorted(enumerate(limits)):
             graph.SetPoint(i, limit.mass, limit.exp_limit)
             graph_1sigma.SetPoint(i, limit.mass, limit.exp_limit)
             graph_2sigma.SetPoint(i, limit.mass, limit.exp_limit)
@@ -265,14 +369,29 @@ class LimitPlotter(object):
             graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
         if theory_xsec is not None:
             graph_theory = []
-            print theory_xsec
+            processed_mass_points = sorted(map(lambda li: li.mass, limits))
+
             for process, xsecs in theory_xsec.iteritems():
-                graph_theory.append(ROOT.TGraph(len(limits)))
-                for j, mass in enumerate(sorted(map(lambda l: l.mass, limits))):
-                    xs = filter(lambda xs: xs[0] == mass, xsecs)[0]
-                    graph_theory[-1].SetPoint(j, mass, xs[-1])
-                limits.sort(key=lambda li: li.mass)
+                #graph_theory.append(ROOT.TGraph(len(processed_mass_points)))
+                #point = 0
+                masses = []
+                cross_sections = []
+                for mass, lam, xsec in xsecs:
+                    if mass not in processed_mass_points:
+                        continue
+                    masses.append(mass)
+                    cross_sections.append(xsec)
+                    #graph_theory[-1].SetPoint(point, mass, xsec)
+                    #point += 1
+                graph_theory.append(ROOT.TGraph(len(masses)))
+                for i in range(len(masses)):
+                    graph_theory[-1].SetPoint(i, masses[i], cross_sections[i])
+                # for j, mass in enumerate(sorted(map(lambda l: l.mass, limits))):
+                #     xs = filter(lambda xs: xs[0] == mass, xsecs)[0]
+                #     graph_theory[-1].SetPoint(j, mass, xs[-1])
+                # limits.sort(key=lambda li: li.mass)
                 graph_theory[-1].SetName('Theory_prediction_{:s}'.format(process))
+
         graph_2sigma.SetName('xsec_limit{:s}'.format(sig_reg_name))
         canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
         pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
@@ -297,23 +416,30 @@ class LimitPlotter(object):
     def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sig_name):
         def find_excluded_lambda(mass, xsec, excl_limit):
             xsecs = filter(lambda xs: xs[0] == mass, xsec)
-            xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
-            return sqrt(excl_limit / xsecs[0][-1])
-            xsecs.sort(key=lambda i: i[-1])
+            #xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
             try:
-                return filter(lambda i: i[-1] > excl_limit, xsecs)[0][1]
+                return sqrt(excl_limit / xsecs[0][-1])
             except IndexError:
-                return 1.
+                return None
+            # xsecs.sort(key=lambda i: i[-1])
+            # try:
+            #     return filter(lambda i: i[-1] > excl_limit, xsecs)[0][1]
+            # except IndexError:
+            #     return 1.
 
+        if theory_xsec is None:
+            return
         graphs_contour = []
         for process, xsecs in theory_xsec.iteritems():
-            excl_lambdas = [find_excluded_lambda(limit.mass, xsecs, limit.exp_limit) for limit in limits]
+            excl_lambdas = [(limit.mass, find_excluded_lambda(limit.mass, xsecs, limit.exp_limit)) for limit in limits]
+            excl_lambdas = filter(lambda v: v[1] is not None, excl_lambdas)
+            excl_lambdas = sorted(excl_lambdas, key=lambda i: i[0])
             graphs_contour.append(ROOT.TGraph(len(excl_lambdas)))
-            for i, limit in enumerate(limits):
-                graphs_contour[-1].SetPoint(i, limit.mass, excl_lambdas[i])
+            for i, limit in enumerate(excl_lambdas):
+                graphs_contour[-1].SetPoint(i, limit[0], limit[1])
             graphs_contour[-1].SetName('Limit_contour_{:s}'.format(process))
 
-        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=1.2, ymin=0., draw='Line',
+        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=10., ymin=0., draw='Line',
                         xtitle=plot_config['xtitle'], ytitle='#lambda', logy=False,
                         lumi=plot_config['lumi'], labels=map(lambda g: g.GetName().split('_')[-1], graphs_contour),
                         color=get_default_color_scheme())
@@ -343,7 +469,7 @@ class XsecLimitAnalyser(object):
         self.input_path = kwargs['input_path']
         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         self.plotter = LimitPlotter(self.output_handle)
-        self.xsec_handle = XSHandle("config/common/dataset_info_lq_new.yml")
+        self.xsec_handle = XSHandle("config/common/dataset_info_pmg.yml")
         self.plot_config = yl.read_yaml(kwargs["plot_config"])
         self.theory_xsec = {}
         self.prefit_yields = {}
@@ -354,6 +480,7 @@ class XsecLimitAnalyser(object):
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+        dump_input_config(self.__dict__, self.output_handle.output_dir)
 
     def read_theory_cross_sections(self, file_name):
         if file_name is None:
@@ -370,12 +497,14 @@ class XsecLimitAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit()  # scan.kwargs['sig_name'])
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
+                                                    scan.kwargs['sig_yield'])  # scan.kwargs['sig_name'])
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
             mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
+            #print mass, scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'], scan.kwargs['sig_yield'], limit_info.exp_limit
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -384,12 +513,20 @@ class XsecLimitAnalyser(object):
         # self.parse_prefit_yields(scan, mass)
         # self.plot_prefit_yields()
         theory_xsec = None
+        #chains = ['LQmud', 'LQmus']
+        #chains = ['LQmub']
+        # chains = ['LQed', 'LQes']
+        chains = ['LQeb']
         if self.xsec_map is not None:
-            # TODO: needs proper implementation
-            # self.plotter.make_limit_plot_plane(limits, self.plot_config, self.xsec_map['LQed'],
-            #                                    scan.kwargs['sig_name'])
-            theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+        #     # TODO: needs proper implementation
+        #                                        scan.kwargs['sig_name'])
+        #     #theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
+             theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
+        self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.kwargs['sig_name'])
+
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec)
+
+    def save(self):
         self.output_handle.write_and_close()
 
 
@@ -413,7 +550,7 @@ class LimitScanAnalyser(object):
         self.input_path = kwargs['input_path']
         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'], sub_dir_name='plots')
         self.plotter = LimitPlotter(self.output_handle)
-        self.xsec_handle = XSHandle("config/common/dataset_info_lq_new.yml")
+        self.xsec_handle = XSHandle("config/common/dataset_info_pmg.yml")
         self.plot_config = yl.read_yaml(kwargs["plot_config"])
         self.theory_xsec = {}
         self.prefit_yields = {}
@@ -424,6 +561,7 @@ class LimitScanAnalyser(object):
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+        dump_input_config(self.__dict__, self.output_handle.output_dir)
 
     def read_theory_cross_sections(self, file_name):
         if file_name is None:
@@ -440,7 +578,11 @@ class LimitScanAnalyser(object):
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, 'limits', str(scan.kwargs['jobid'])))
             try:
-                limit_info = analyser.analyse_limit()  # scan.kwargs['sig_name'])
+                fixed_xsec = None
+                if 'fixed_xsec' in scan.kwargs:
+                    fixed_xsec = scan.kwargs['fixed_xsec']
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
+                                                    scan.kwargs['sig_yield'], fixed_xsec)
             except ReferenceError:
                 print "Could not find info for scan ", scan
                 continue
@@ -458,14 +600,14 @@ class LimitScanAnalyser(object):
         theory_xsec = None
 
         if self.xsec_map is not None:
-            # chains = ['LQmud', 'LQmus']
-            chains = ['LQeb']
+            chains = ['LQmud', 'LQmus']
+            #chains = ['LQeb']
             theory_xsec = OrderedDict()
             # TODO: needs proper implementation
-            for mode in chains:
-                # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
-                #                                    scan.kwargs['sig_name'])
-                theory_xsec[mode] = filter(lambda l: l[1] == 1.0, self.xsec_map[mode])
+            # for mode in chains:
+            #     # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
+            #     #                                    scan.kwargs['sig_name'])
+            theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
         self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec, self.sig_reg_name)
         if theory_xsec is not None:
             self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
@@ -486,8 +628,13 @@ class LimitScanAnalyser(object):
             for process in ordering:
                 data_mass_point.append(prefit_ylds_bkg[process])
             data.append(data_mass_point)
-        headers = ['m_{LQ}^{gen} [GeV]', 'm_{LQ}^{max} cut [GeV]]', 'UL [pb]', 'Signal'] + ordering
+        headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [\\GeV{}]', 'UL [pb]', 'Signal'] + ordering
         print tabulate(data, headers=headers, tablefmt='latex_raw')
+        with open(os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
+            print >> f, tabulate(data, headers=headers, tablefmt='latex_raw')
+        print 'wrote to file ', os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -633,15 +780,21 @@ class LimitScanAnalyser(object):
         hist_best = hist.Clone("best_limit")
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
+        limit_scan_table = OrderedDict()
+        mass_points = sorted(set(map(lambda i: i.mass, parsed_data)))
         for limit_info in parsed_data:
+            if limit_info.mass_cut not in limit_scan_table:
+                limit_scan_table[limit_info.mass_cut] = [-1.] * len(mass_points)
+            limit_scan_table[limit_info.mass_cut][mass_points.index(limit_info.mass)] = limit_info.exp_limit
+
             if limit_info.exp_limit > 0:
                 hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status + 1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
 
         ROOT.gStyle.SetPalette(1)
-        ROOT.gStyle.SetPaintTextFormat(".2g")
-        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
+        #ROOT.gStyle.SetPaintTextFormat(".2g")
+        pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
                         watermark='Internal', lumi=139.0)
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
@@ -654,7 +807,7 @@ class LimitScanAnalyser(object):
         if best_limits is not None:
             pc_best = PlotConfig(draw_option="BOX")
             for limit in best_limits:
-                hist_best.Fill(limit.mass, limit.mass_cut, hist.GetMaximum())#hist.GetBinContent(hist.FindBin(limit.mass, limit.mass_cut)))
+                hist_best.Fill(limit.mass, limit.mass_cut, hist.GetMaximum())
             hist_best.SetLineColor(ROOT.kRed)
             pt.add_histogram_to_canvas(canvas, hist_best, pc_best)
         fm.decorate_canvas(canvas, pc)
@@ -663,6 +816,10 @@ class LimitScanAnalyser(object):
         self.output_handle.register_object(canvas_status)
         canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
         self.output_handle.register_object(canvas_quality)
+        limit_scan_table = [['{:.0f}'.format(i[0])] + i[1] for i in limit_scan_table.items()]
+        with open(os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
+            print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
 
 
 def sum_ylds(ylds):
@@ -670,10 +827,14 @@ def sum_ylds(ylds):
     if True in pd.isnull(ylds):
         print "found NONE"
     ylds = ylds[~pd.isnull(ylds)]
-    return np.sum(ylds)
+    return np.sum(ylds) #, np.sum(ylds**2)
 
 
 def get_ratio(num, denom):
+    if isinstance(num, tuple) and isinstance(denom, tuple):
+        if denom[0] == 0.:
+            return 0., 0.
+        return num[0]/denom[0], num[1]
     if denom == 0.:
         return 0
     return num / denom
@@ -728,19 +889,19 @@ class Sample(object):
             nom_yields[syst] *= nom_yields['weight']
         self.nominal_evt_yields[cut] = sum_ylds(nom_yields['weight'])
         if shape_uncerts is not None:
-            self.shape_uncerts[cut] = {syst: sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
-        self.scale_uncerts[cut] = {syst: sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
+            self.shape_uncerts[cut] = {syst.rstrip(): sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
+        self.scale_uncerts[cut] = {syst.rstrip(): sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
 
     def add_ctrl_region(self, region_name, nominal_evt_yields, shape_uncert_yields=None):
         for syst in nominal_evt_yields.keys():
             if syst == 'weight':
                 continue
-            nominal_evt_yields[syst] *= nominal_evt_yields['weight']
+            nominal_evt_yields[syst.rstrip()] *= nominal_evt_yields['weight']
 
-        self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
+        self.ctrl_reg_scale_ylds[region_name] = {syst.rstrip(): sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
                                                  not syst == 'weight'}
         if shape_uncert_yields is not None:
-            self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in
+            self.ctrl_reg_shape_ylds[region_name] = {syst.rstrip(): sum_ylds(yld) for syst, yld in
                                                      shape_uncert_yields.iteritems()}
         else:
             if self.ctrl_reg_shape_ylds is None:
@@ -785,8 +946,10 @@ class Sample(object):
         else:
             weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds)
         for cut in self.nominal_evt_yields.keys():
+            #self.nominal_evt_yields[cut] = tuple(i * weight for i in self.nominal_evt_yields[cut])
             self.nominal_evt_yields[cut] *= weight
         for region in self.ctrl_region_yields.keys():
+            #self.ctrl_region_yields[region] = tuple(i * weight for i in self.ctrl_region_yields[region])
             self.ctrl_region_yields[region] *= weight
 
     def __add__(self, other):
@@ -843,16 +1006,49 @@ class Sample(object):
                 filter(lambda kv: abs(1. - kv[1]) > 0.001 or kv[0] in self.scale_uncerts[cut],
                        self.ctrl_reg_scale_ylds[reg].iteritems()))
 
+    @staticmethod
+    def yld_sum(syst):
+        return sum([s[0] for s in syst]), s[1]
+
+    @staticmethod
+    def product(syst, nom):
+        return [syst[0]*nom[0], nom[1]]
+
     def merge_child_processes(self, samples, has_syst=True):
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
         for cut in samples[0].nominal_evt_yields.keys():
+            #self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
             self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
         if has_syst:
             for cut in samples[0].shape_uncerts.keys():
+                # for s in samples:
+                #     print 'NOMINAL: ', cut, s.nominal_evt_yields[cut]
+                # continue
                 self.shape_uncerts[cut] = {}
                 for syst in samples[0].shape_uncerts[cut].keys():
+                    # print 'OUTPUT: ', samples[0].shape_uncerts[cut][syst], samples[0].nominal_evt_yields[cut]
+                    # for s in samples:
+                    #     print np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut])
+                    # print 'MAP:'
+                    # print map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples)
+                    # print 'zip:'
+                    # print zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples))
+                    # print self.nominal_evt_yields[cut]
+                    # # print sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    # #                                  samples)), self.nominal_evt_yields[cut])
+                    #
+                    # print 'FOO: ', self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
+                    #                                              s.nominal_evt_yields[cut]), samples)), tuple(self.nominal_evt_yields[cut])
+                    # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.shape_uncerts[cut][syst],
+                    #                                                        s.nominal_evt_yields[cut]), samples)),
+                    #                          tuple(self.nominal_evt_yields[cut]))
+
+                    # total_uncert = get_ratio(sum(zip(*map(lambda s: np.array(s.shape_uncerts[cut][syst]) * np.array(s.nominal_evt_yields[cut]),
+                    #                                  samples))_, self.nominal_evt_yields[cut])
                     total_uncert = get_ratio(sum(map(lambda s: s.shape_uncerts[cut][syst] * s.nominal_evt_yields[cut],
                                                      samples)), self.nominal_evt_yields[cut])
                     self.shape_uncerts[cut][syst] = total_uncert
@@ -861,10 +1057,15 @@ class Sample(object):
                 for syst in samples[0].scale_uncerts[cut].keys():
                     total_uncert = get_ratio(sum(map(lambda s: s.scale_uncerts[cut][syst] * s.nominal_evt_yields[cut],
                                                      samples)), self.nominal_evt_yields[cut])
+                    # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.scale_uncerts[cut][syst],
+                    #                                                        s.nominal_evt_yields[cut]), samples)),
+                    #                          tuple(self.nominal_evt_yields[cut]))
                     self.scale_uncerts[cut][syst] = total_uncert
 
         for region in samples[0].ctrl_region_yields:
+            #print map(lambda s: s.ctrl_region_yields[region], samples)
             self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            # self.ctrl_region_yields[region] = self.yld_sum(map(lambda s: s.ctrl_region_yields[region], samples))
             if not has_syst:
                 continue
             self.ctrl_reg_scale_ylds[region] = {}
@@ -873,9 +1074,17 @@ class Sample(object):
                 total_uncert = get_ratio(sum(
                     map(lambda s: s.ctrl_reg_scale_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
                     self.ctrl_region_yields[region])
+
+                # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_scale_ylds[region][syst],
+                #                                                            s.ctrl_region_yields[region]), samples)),
+                #                              tuple(self.ctrl_region_yields[region]))
                 self.ctrl_reg_scale_ylds[region][syst] = total_uncert
 
             for syst in samples[0].ctrl_reg_shape_ylds[region].keys():
+
+                # total_uncert = get_ratio(self.yld_sum(map(lambda s: self.product(s.ctrl_reg_shape_ylds[region][syst],
+                #                                                            s.ctrl_region_yields[region]), samples)),
+                #                              tuple(self.ctrl_region_yields[region]))
                 total_uncert = get_ratio(sum(
                     map(lambda s: s.ctrl_reg_shape_ylds[region][syst] * s.ctrl_region_yields[region], samples)),
                     self.ctrl_region_yields[region])
@@ -905,6 +1114,13 @@ class SampleStore(object):
                 sample.nominal_evt_yields[threshold] *= factor
             for reg in sample.ctrl_region_yields.keys():
                 sample.ctrl_region_yields[reg] *= factor
+
+    def scale_signal_by_pmg_xsec(self, factor):
+        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        for sample in signal_samples:
+            factor = self.xs_handle.cross_sections[sample.name]
+            print 'FACTOR: ', factor
+            self.scale_signal(factor)
 
     def merge_single_process(self):
         """
@@ -986,7 +1202,7 @@ class SampleStore(object):
                 if region not in ctrl_region_ylds:
                     ctrl_region_ylds[region] = {s.name: yld}
                     continue
-                ctrl_region_ylds[region][s.name] = yld
+                ctrl_region_ylds[region][s.name.rstrip()] = yld
         return ctrl_region_ylds
 
     def retrieve_ctrl_region_syst(self):
@@ -1010,6 +1226,9 @@ class SampleStore(object):
         except Exception as e:
             raise e
         return signal_sample.nominal_evt_yields[cut]
+
+    def retrieve_signal_names(self):
+        return map(lambda s: s.name, filter(lambda s: s.is_signal, self.samples))
 
     def retrieve_all_signal_ylds(self, cut):
         signal_samples = filter(lambda s: s.is_signal, self.samples)
@@ -1035,7 +1254,7 @@ class SampleStore(object):
                 return {}
             systematics = s.shape_uncerts[cut]
             for syst_name, syst_yld in s.scale_uncerts[cut].iteritems():
-                systematics[syst_name] = syst_yld
+                systematics[syst_name.rstrip()] = syst_yld
             return systematics
 
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
@@ -1126,6 +1345,7 @@ class LimitChecker(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('poi', 'mu_Sig')
         kwargs.setdefault('workspace', 'combined')
+        kwargs.setdefault('pattern', 'test')
         if 'workspace_file' not in kwargs:
             raise InvalidInputError('No workspace provided. Cannot do anything')
         for k, v in kwargs.iteritems():
@@ -1149,7 +1369,7 @@ class LimitChecker(object):
             self.workspace,
             'ModelConfig',
             dataset_name,
-            'test',
+            self.pattern,
             self.output_path,
             '.pdf')
 
@@ -1168,13 +1388,13 @@ class LimitChecker(object):
         param = iter.Next()
         while param:
             cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter {:s} --workspace {:s} --modelconfig {:s} ' \
-                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01;'.format(self.workspace_file,
-                                                                                        self.poi,
-                                                                                        param.GetName(),
-                                                                                        self.workspace,
-                                                                                        'ModelConfig',
-                                                                                        'asimovData',
-                                                                                        tmp_output_dir)
+                  '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01 ;'.format(self.workspace_file,
+                                                                                         self.poi,
+                                                                                         param.GetName(),
+                                                                                         self.workspace,
+                                                                                         'ModelConfig',
+                                                                                         'asimovData',
+                                                                                         tmp_output_dir)
             os.system(cmd)
             param = iter.Next()
         output_dir = os.path.join(self.output_path, 'pulls')
@@ -1186,18 +1406,23 @@ class LimitChecker(object):
         os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
         rndm = int(100000. * random.random())
         tmp_output_dir = 'tmp_{:d}'.format(rndm)
-        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --postfit on --prefit on --rank on --label Run-2 ' \
-              '--correlation on --folder {:s}'.format(input_dir, self.poi, tmp_output_dir)
+        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi 2 --postfit on --prefit on --rank on --label Run-2 ' \
+              '--correlation on --folder {:s} --scale_theta 2'.format(input_dir, self.poi, tmp_output_dir)
         os.system(cmd)
         output_dir = os.path.join(self.output_path, 'pull_plots')
         make_dirs(output_dir)
         move(os.path.join(tmp_output_dir, 'pdf-files/*.pdf'), output_dir)
 
     def run_fit_cross_checks(self):
-        self.run_conditional_asimov_fits()
-        self.run_unconditional_asimov_fits()
+        # self.run_conditional_asimov_fits()
+        # self.run_unconditional_asimov_fits()
+        #self.make_pre_fit_plots()
+        self.make_post_fit_plots()
+
         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
                                       os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks_*.root'))
+        print cmd
+        print os.listdir(os.path.join(self.output_path, 'fit_cross_checks'))
         os.system(cmd)
 
     def run_conditional_asimov_fits(self):
@@ -1218,11 +1443,22 @@ class LimitChecker(object):
                                  create_post_fit_asimov=1, no_sigmas=1)
 
     def make_post_fit_plots(self):
-        algo = 'PlotHistosAfterFit'
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
-                                 create_post_fit_asimov=1, no_sigmas=1)
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
-                                 create_post_fit_asimov=1, no_sigmas=1)
+        algo = 'PlotHistosAfterFitGlobal'
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='obsData', conditional=1, mu=0,
+                                 create_post_fit_asimov=0, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1000,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        # algo = 'PlotHistosAfterFitEachSubChannel'
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+        #                          create_post_fit_asimov=1, no_sigmas=1)
 
     def run_fit_cross_check(self, **kwargs):
         kwargs.setdefault('draw_response', 1)
@@ -1231,6 +1467,7 @@ class LimitChecker(object):
         kwargs.setdefault('no_sigmas', '1')
 
         output_dir = os.path.join(self.output_path, 'fit_cross_checks')
+        self.fit_cross_checker.setDebugLevel(0)
         self.fit_cross_checker.run(getattr(ROOT, kwargs['algorithm']), float(kwargs['mu']), float(kwargs['no_sigmas']),
                                    int(kwargs['conditional']), self.workspace_file, output_dir, self.workspace,
                                    'ModelConfig', kwargs['dataset_name'], kwargs['draw_response'],
@@ -1256,3 +1493,170 @@ class LimitChecker(object):
                                                                                                       )
         #root -b -q getHFtables.C\(\"$WORKSPACEFILE\",\"$WORKSPACENAME\",\"$MODELCONFIGNAME\",\"$DATASETNAME\",
         # \"$WORKSPACETAG\",\"$OUTPUTFOLDER\",\"$EVALUATIONREGIONS\",\"$FITREGIONS\",kTRUE,kTRUE,\"$SAMPLES\",3\);
+
+
+class LimitValidationPlotter(object):
+    def __init__(self, **kwargs):
+        self.input_path = kwargs['input_path']
+        self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
+
+    def make_norm_parameter_plot(self, result, name):
+        canvas = pt.retrieve_new_canvas('norm_parameters_{:s}'.format(name))
+        params = ['mu_Z', 'mu_top']
+        g = ROOT.TGraphAsymmErrors()
+        for i, param in enumerate(params):
+            g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i*2+1)
+            g.SetPointEXhigh(i, result.floatParsFinal().find(param).getErrorHi())
+            g.SetPointEXlow(i, abs(result.floatParsFinal().find(param).getErrorLo()))
+
+        h_dummy = ROOT.TH1D('h_dummy_{:s}'.format(name), '', 10, 0, 2.)
+        h_dummy.SetMaximum(4.)
+        canvas.cd()
+        canvas.SetLeftMargin(0.07)
+        h_dummy.GetYaxis().SetLabelSize(0)
+        h_dummy.Draw()
+        h_dummy.GetYaxis().SetNdivisions(0)
+        xmax = 2#len(params)*2+1
+        l0 = ROOT.TLine(1, 0, 1, 4)
+        l0.SetLineStyle(7)
+        l0.SetLineColor(ROOT.kBlack)
+        l0.Draw('same')
+        g.Draw("psame")
+        systs = ROOT.TLatex()
+        systs.SetTextSize(systs.GetTextSize() * 0.8)
+        pc = pt.get_default_plot_config(h_dummy)
+        pc.lumi = 139.
+        pc.lumi_text_x = 0.1
+        pc.watermark_x = 0.1
+        fm.decorate_canvas(canvas, pc)
+        fm.add_text_to_canvas(canvas, 'Post-Fit, bkg-only', pos={'x': 0.1, 'y': 0.7}, size=0.06)
+        for i, param in enumerate(params):
+            param_result = result.floatParsFinal().find(param)
+            systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\mu_{{{:s}}}'.format(param.replace('mu_', '')))
+            systs.DrawLatex(xmax * 0.7, 2 * i + 0.75, '{:.2f}^{{{:.2f}}}_{{{:.2f}}}'.format(param_result.getVal(),
+                                                                                        param_result.getErrorHi(),
+                                                                                        param_result.getErrorLo()))
+
+        h_dummy.GetXaxis().SetLabelSize(h_dummy.GetXaxis().GetLabelSize() * 0.9)
+        ROOT.gPad.RedrawAxis()
+        self.output_handle.register_object(canvas)
+
+    def make_norm_parameter_plots(self):
+        fh = FileHandle(file_name=os.path.join(self.input_path, 'fit_cross_checks/FitCrossChecks.root'))
+        td = fh.get_object_by_name('PlotsAfterGlobalFit')
+        for fit in td.GetListOfKeys():
+            fr = fh.get_object_by_name('PlotsAfterGlobalFit/{:s}/fitResult'.format(fit.GetName()))
+            self.make_norm_parameter_plot(fr, fit.GetName())
+
+    def make_yield_plot(self):
+        def get_hists(fname):
+            try:
+                f = FileHandle(file_name=os.path.join(path, fname))
+            except Exception as e:
+                raise e
+            hists = f.get_objects_by_type('TH1F')
+            roo_hists = f.get_objects_by_type('RooHist')
+            map(lambda h: h.SetDirectory(0), hists)
+            return hists, roo_hists
+
+        cfg = yl.read_yaml(os.path.join(self.input_path, 'config.yml'))
+        path = os.path.dirname(cfg['workspace_file'])
+        #signal_regions = ['']
+        bkg_regions = ['TopCR_mu_yield', 'ZCR_mu_yield', 'ZVR_mu_yield']
+        backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
+        ratios = ['pre-fit', 'post-fit']
+        tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
+                for bkg in backgrounds]
+        tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
+                           for fit in ratios]
+        for i, region in enumerate(bkg_regions):
+            try:
+                hists, roo_hists = get_hists('{:s}_afterFit.root'.format(region))
+            except ValueError:
+                _logger.error('Missing after fit workspace for {:s}'.format(region))
+                continue
+            hists = filter(lambda h: h.GetName() in backgrounds, hists)
+            for hist in hists:
+                if i == 0:
+                    hist.SetFillColor(i+hists.index(hist)+2)
+                process = hist.GetName()
+                tmp_hist = tmp_hists[backgrounds.index(process)]
+                tmp_hist.SetBinContent(i+1, hist.Integral())
+                tmp_hist.GetXaxis().SetBinLabel(i+1, region.split('_')[0])
+            tmp_hists[-1].SetBinContent(i+1, filter(lambda h: 'Data' in h.GetName(), roo_hists)[0].getFitRangeNEvt())
+            tmp_ratio_hists[-1].SetBinContent(i+1, filter(lambda h: 'ratio_h' in h.GetName(),
+                                                          roo_hists)[0].getFitRangeNEvt())
+            tmp_ratio_hists[-1].GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
+            _, roo_hists = get_hists('{:s}_beforeFit.root'.format(region))
+            tmp_ratio_hists[0].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
+                                                           roo_hists)[0].getFitRangeNEvt())
+
+
+
+        stack = ROOT.THStack()
+        map(lambda h: stack.Add(h, 'hist'), tmp_hists[0:-1])
+        c = pt.retrieve_new_canvas('post_fit_yields')
+        c_ratio = pt.retrieve_new_canvas('post_fit_yields_r')
+        c.cd()
+        stack.Draw()
+        for i, h in enumerate(tmp_hists[0:-1]):
+            h.SetFillColor(get_default_color_scheme()[i])
+        fm.set_minimum_y(stack, 0.1)
+        fm.set_maximum_y(stack, stack.GetMaximum()*1000.)
+        fm.set_axis_title(stack, 'Events', 'y')
+        fm.set_axis_title(stack, 'Region', 'x')
+        pt.add_data_to_stack(c, tmp_hists[-1])
+        fm.add_legend_to_canvas(c, labels=backgrounds, format=['F']*3+['p'], xl=0.7, yl=0.7, position=None,
+                                plot_objects=tmp_hists)
+        pc = pt.get_default_plot_config(stack)
+        c_ratio.cd()
+        tmp_ratio_hists[-1].Draw('p')
+        tmp_ratio_hists[0].Draw('psames')
+        tmp_ratio_hists[-1].SetMarkerColor(ROOT.kRed)
+        tmp_ratio_hists[-1].GetYaxis().SetRangeUser(0.9, 1.1)
+        fm.set_axis_title(tmp_ratio_hists[-1], 'Data/SM', 'y')
+        fm.add_legend_to_canvas(c_ratio, labels=ratios, format=['p'] * 2, xl=0.7, yl=0.7, position=None,
+                                plot_objects=tmp_ratio_hists)
+        c.SetLogy()
+        pc.lumi = 139.
+        fm.decorate_canvas(c, pc)
+        fm.add_text_to_canvas(c, 'Post-Fit', pos={'x': 0.2, 'y': 0.7}, size=0.06)
+        c_r = pt.add_ratio_to_canvas(c, c_ratio)
+
+        c_r.Modified()
+        c_r.Update()
+        self.output_handle.register_object(c_r)
+
+    def make_correlation_plot(self, hist, name):
+        def transform_label(label):
+            if 'alpha_' in label:
+                return '#alpha_{{{:s}}}'.format(label.replace('alpha_', ''))
+            if 'mu_' in label:
+                return '#mu_{{{:s}}}'.format(label.replace('mu_', ''))
+            if 'gamma_' in label:
+                return '#gamma_{{{:s}}}'.format(label.replace('gamma_', '').replace('bin_0', ''))
+            return label
+
+        pc = pt.get_default_plot_config(hist)
+        pc.name = 'corr_{:s}'.format(name)
+        pc.draw_option = 'COLZ'
+        pc.ytitle = ''
+        canvas = pt.plot_2d_hist(hist, pc)
+        for b in range(1, hist.GetNbinsX()+1):
+            x_label = transform_label(hist.GetXaxis().GetBinLabel(b))
+            y_label = transform_label(hist.GetYaxis().GetBinLabel(b))
+            hist.GetXaxis().SetBinLabel(b, x_label)
+            hist.GetYaxis().SetBinLabel(b, y_label)
+        pc.lumi = 139.
+        fm.decorate_canvas(canvas, pc)
+        fm.add_text_to_canvas(canvas, 'Post-Fit', pos={'x': 0.2, 'y': 0.7}, size=0.06)
+        canvas.Update()
+        self.output_handle.register_object(canvas)
+
+    def make_correlation_plots(self):
+        fh = FileHandle(file_name=os.path.join(self.input_path, 'fit_cross_checks/FitCrossChecks.root'))
+        td = fh.get_object_by_name('PlotsAfterGlobalFit')
+        for fit in td.GetListOfKeys():
+            canvas = fh.get_objects_by_pattern('can_CorrMatrix', 'PlotsAfterGlobalFit/{:s}'.format(fit.GetName()))[0]
+            hist = get_objects_from_canvas_by_type(canvas, 'TH2D')[0]
+            self.make_correlation_plot(hist, fit.GetName())

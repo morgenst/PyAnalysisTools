@@ -88,12 +88,14 @@ class Plotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
-        kwargs.setdefault("module_config_file", None)
+        kwargs.setdefault("module_config_files", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault('file_extension', ['.pdf'])
 
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
+            if hasattr(self, k) and v is None:
+                continue
             setattr(self, k, v)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
@@ -108,12 +110,10 @@ class Plotter(BasePlotter):
         self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if not self.read_hist:
             self.filter_empty_trees()
-        self.modules = load_modules(kwargs["module_config_file"], self)
+        self.modules = load_modules(kwargs['module_config_files'], self)
         self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
         #self.modules.append(self.fake_estimator)
-        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        self.init_modules()
         self.expand_plot_configs()
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
@@ -122,14 +122,18 @@ class Plotter(BasePlotter):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
 
+    def init_modules(self):
+        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.modules_data_modifiers = [m for m in self.modules if m.type == 'DataModifier']
+        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+
     def redraw_init(self, **kwargs):
         super(Plotter, self).__init__(cluster_mode=False, redraw=True)
         config = kwargs['config']
         self.histograms = {}
-        self.modules = load_modules(kwargs["module_config_file"], self)
-        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        self.modules = load_modules(kwargs['module_config_file'], self)
+        self.init_modules()
         self.read_hist = True
         self.xs_handle = XSHandle(config.extra_args["xs_config_file"])
         self.ncpu = 1
@@ -158,6 +162,7 @@ class Plotter(BasePlotter):
         self.plot_configs = config.plot_config
         self.modules_pc_modifiers = []
         self.modules_data_providers = []
+        self.modules_data_modifiers = []
         self.modules_hist_fetching = []
         self.read_hist = False
         self.ncpu = 1
@@ -178,16 +183,16 @@ class Plotter(BasePlotter):
             process_config = self.process_configs[process_config_name]
             if process_config.is_data:
                 continue
-            for i, campaign in enumerate(["mc16a", "mc16c", "mc16d", 'mc16e']):
+            for i, campaign in enumerate(['mc16a', 'mc16c', 'mc16d', 'mc16e']):
                 new_config = copy.copy(process_config)
                 new_config.name += campaign
-                new_config.label += " {:s}".format(campaign)
+                new_config.label += ' {:s}'.format(campaign)
                 #TODO fix proper calculation
                 if not '+' in new_config.color and not '-' in new_config.color:
-                    new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
-                if hasattr(process_config, "subprocesses"):
-                    new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
-                self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
+                    new_config.color = new_config.color + ' + {:d}'.format(3*pow(-1, i))
+                if hasattr(process_config, 'subprocesses'):
+                    new_config.subprocesses = ['{:s}.{:s}'.format(sb, campaign) for sb in process_config.subprocesses]
+                self.process_configs['{:s}.{:s}'.format(process_config_name, campaign)] = new_config
             self.process_configs.pop(process_config_name)
 
     @staticmethod
@@ -335,9 +340,11 @@ class Plotter(BasePlotter):
     def make_plot(self, plot_config, data):
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
+        for mod in self.modules_data_modifiers:
+            mod.execute(data)
         data = {k: v for k, v in data.iteritems() if v}
         if plot_config.normalise:
-            HT.normalise(data, integration_range=[0, -1])
+            HT.normalise(data, integration_range=[0, -1], norm_scale=plot_config.norm_scale)
         HT.merge_overflow_bins(data)
         HT.merge_underflow_bins(data)
         signals = None
@@ -375,7 +382,6 @@ class Plotter(BasePlotter):
             if plot_config.signal_extraction:
                 for signal in signals.iteritems():
                     pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
-
         FM.decorate_canvas(canvas, plot_config)
         if not plot_config.disable_legend:
             if plot_config.legend_options is not None:

@@ -141,7 +141,8 @@ class SystematicsAnalyser(BasePlotter):
                 #     continue
                 plot_configs = deepcopy(self.plot_configs)
                 for pc in plot_configs:
-                    pc.weight = pc.weight.replace('weight', "{:s}*{:s}".format(pc.weight, weight))
+                    new_weight = '{:s} * ({:s} != -1111.) + ({:s}==-1111.)*1.'.format(weight, weight, weight)
+                    pc.weight = pc.weight.replace('weight', '{:s}*({:s})'.format(pc.weight, new_weight))
                 if dumped_hist_path is None:
                     fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=plot_configs,
                                                               systematic="Nominal", factor_syst=weight)
@@ -218,15 +219,18 @@ class SystematicsAnalyser(BasePlotter):
             for b in range(nominal_hist.GetNbinsX() + 1):
                 nominal = nominal_hist.GetBinContent(b)
                 variation = systematic_hist.GetBinContent(b)
+
                 if nominal != 0:
                     hist.SetBinContent(b, (variation - nominal) / nominal)
+                    _logger.debug('set variation to: ', (variation - nominal) / nominal, ' with nominal: ', nominal,
+                                  ' variation: ', variation, ' for syst: ', systematic_hist.GetName())
                 else:
                     hist.SetBinContent(b, 0.)
                 if math.isnan(hist.GetBinContent(b)):
                     _logger.error('FOUND NAN om calc diff nom: {:f} and var: {:f} in hist {:s}'.format(nominal,
                                                                                                        variation,
                                                                                                        systematic_hist.GetName()))
-                    exit(0)
+                    hist.SetBinContent(b, 0.)
             return hist
 
         def find_plot_config():

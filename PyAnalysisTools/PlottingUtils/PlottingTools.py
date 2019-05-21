@@ -6,12 +6,11 @@ from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, find_process_config
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
-def retrieve_new_canvas(name, title, size_x=800, size_y=600):
+def retrieve_new_canvas(name, title='', size_x=800, size_y=600):
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
     ROOT.SetOwnership(canvas, False)
     return canvas
@@ -226,6 +225,8 @@ def format_tefficiency(obj, plot_config):
 
 
 def format_hist(hist, plot_config):
+    if plot_config is None:
+        return hist
     xtitle, ytitle = get_title_from_plot_config(plot_config)
     if xtitle:
         fm.set_title_x(hist, xtitle)
@@ -257,7 +258,7 @@ def format_hist(hist, plot_config):
             fm.set_range_z(hist, plot_config.zmin, plot_config.zmax)
 
     if plot_config.normalise:
-        ht.normalise(hist, plot_config.normalise_range)
+        ht.normalise(hist, plot_config.normalise_range, plot_config.norm_scale)
         ymax = plot_config.yscale * hist.GetMaximum()
         if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
@@ -690,7 +691,10 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         try:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TEfficiency")[0]
         except IndexError:
-            stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            try:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            except:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TGraph")[0]
     stack.GetXaxis().SetTitleSize(0)
     stack.GetXaxis().SetLabelSize(0)
     # if not canvas.GetLogy():

@@ -7,6 +7,7 @@ import numpy as np
 import pandas as pd
 import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
 import PyAnalysisTools.PlottingUtils.Formatting as Ft
+from PyAnalysisTools.base.Modules import load_modules
 from PyAnalysisTools.base.ProcessConfig import Process
 
 try:
@@ -36,27 +37,31 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 class CommonCutFlowAnalyser(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("lumi", None)
-        kwargs.setdefault("process_config", None)
+        kwargs.setdefault("process_configs", None)
         kwargs.setdefault("disable_sm_total", False)
         kwargs.setdefault('plot_config_file', None)
         kwargs.setdefault('config_file', None)
+        kwargs.setdefault('module_config_files', None)
         kwargs.setdefault('disable_interactive', False)
         kwargs.setdefault('save_table', False)
         kwargs.setdefault('batch', True)
+        kwargs.setdefault('precision', 3)
         self.event_numbers = dict()
         self.lumi = kwargs["lumi"]
         self.interactive = not kwargs['disable_interactive']
         self.disable_sm_total = kwargs["disable_sm_total"]
-        self.xs_handle = XSHandle(kwargs["dataset_config"])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["dataset_config"]) for fn in kwargs["file_list"]]
+        if 'dataset_config' in kwargs:
+            _logger.error('The property "dataset_config" is not supported anymore. Please use xs_config_file')
+            kwargs.setdefault('xs_config_file', kwargs['dataset_config'])
+        self.xs_handle = XSHandle(kwargs["xs_config_file"])
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["xs_config_file"]) for fn in kwargs["file_list"]]
         self.process_configs = None
         self.save_table = kwargs['save_table']
-        if "process_config" in kwargs and not "process_configs" in kwargs:
-            raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
-                      "hitting enter.")
-            kwargs['process_configs'] = kwargs['process_config']
-        if kwargs['process_configs'] is not None:
-            self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
+        if "process_configs" in kwargs and not "process_config_files" in kwargs:
+            raw_input("process_configs is a deprecated argument. Please use process_config_files")
+            kwargs['process_config_files'] = kwargs['process_configs']
+        if kwargs['process_config_files'] is not None:
+            self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
 
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
@@ -73,6 +78,11 @@ class CommonCutFlowAnalyser(object):
                 self.lumi = self.config['Lumi']
         if self.process_configs is not None:
             self.file_handles = pl.filter_unavailable_processes(self.file_handles, self.process_configs)
+        self.modules = []
+        if kwargs['module_config_files'] is not None:
+            modules = load_modules(kwargs['module_config_files'], self)
+            self.modules = [m for m in modules]
+
         map(self.load_dxaod_cutflows, self.file_handles)
         set_batch_mode(kwargs['batch'])
 
@@ -86,50 +96,24 @@ class CommonCutFlowAnalyser(object):
         else:
             self.event_numbers[process] += file_handle.get_number_of_total_events()
 
-    def get_cross_section_weight(self, process):
-        """
-        Get lumi weighting factor based on cross section, filter eff, k-factor and lumi.
-        :param process: process name. In general contains MC campaign information which is removed to retrieve xsec
-        :type process: string
-        :return: weighting factor
-        :rtype: float
-        """
-
-        if process is None:
-            _logger.error("Process is None")
-            raise InvalidInputError("Process is NoneType")
-        if self.lumi is None or process.is_data or self.lumi == -1:
-            return 1.
-        lumi_weight = self.xs_handle.get_lumi_scale_factor(process.split('.')[0], self.lumi,
-                                                           self.event_numbers[process])
-        _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
-                                                                                               self.lumi))
-        return lumi_weight
-
-    # def get_cross_section_weight_new(self, process):
+    # def get_cross_section_weight(self, process):
     #     """
-    #     Weight histograms according to process cross section and luminosity. If MC samples are split in several
-    #     production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
-    #     and luminosity as value each campaign will be scaled to this luminosity and processes will be added up later
-    #     :param histograms: all plottable objects
-    #     :type histograms: dict
-    #     :return: nothing
-    #     :rtype: None
+    #     Get lumi weighting factor based on cross section, filter eff, k-factor and lumi.
+    #     :param process: process name. In general contains MC campaign information which is removed to retrieve xsec
+    #     :type process: string
+    #     :return: weighting factor
+    #     :rtype: float
     #     """
-    #     provided_wrong_info = False
-    #     lumi = self.lumi
-    #     if isinstance(self.lumi, OrderedDict):
-    #         if re.search('mc16[acde]$', process) is None:
-    #             _logger.error('Could not find MC campaign information, but lumi was provided per MC '
-    #                           'campaing. Not clear what to do. It will be assumed that you meant to scale '
-    #                           'to total lumi. Please update and acknowledge once.')
-    #             raw_input('Hit enter to continue or Ctrl+c to quit...')
-    #             lumi = sum(self.lumi.values())
-    #         else:
-    #             lumi = self.lumi[process.split('.')[-1]]
-    #     cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
-    #                                                                 self.event_numbers[process])
-    #     return cross_section_weight
+    #
+    #     if process is None:
+    #         _logger.error("Process is None")
+    #         raise InvalidInputError("Process is NoneType")
+    #     if self.lumi is None or process.is_data or self.lumi == -1:
+    #         return 1.
+    #     lumi_weight = self.xs_handle.get_lumi_scale_factor(process.split('.')[0], self.lumi,
+    #                                                        self.event_numbers[process])
+    #     _logger.debug("Retrieved %.2f as cross section weight for process %s and lumi %.2f" % (lumi_weight, process,
+    #                                                                                            self.lumi))
 
     def get_cross_section_weight_new(self, process):
         """
@@ -151,14 +135,25 @@ class CommonCutFlowAnalyser(object):
                 lumi = sum(self.lumi.values())
             else:
                 lumi = self.lumi[process.mc_campaign]
+        print self.event_numbers
         cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.process_name, lumi,
                                                                     self.event_numbers[process])
         return cross_section_weight
 
+    @staticmethod
+    def format_yield(value, uncertainty=None):
+        if value > 10000.:
+            yld_string = '{:.3e}'.format(value)
+            if uncertainty is not None:
+                yld_string += ' +- {:.3e}'.format(uncertainty)
+        else:
+            yld_string = '{:.2f}'.format(value)
+        return yld_string
+
     def stringify(self, cutflow):
         def format_yield(value, uncertainty=None):
             if value > 10000.:
-                return "{:.10e}".format(value)
+                return "{:.2e}".format(value)
             else:
                 return "{:.2f} ".format(value)
 
@@ -338,7 +333,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                                     self.process_configs)) for process in self.cutflows[systematic][region].keys()]
             if len(filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)) > 3:
                 signals = filter(lambda pc: pc[0] == "SMTotal" or pc[1].type.lower() == "signal", process_configs)
-                signals.sort(key=lambda i: int(re.findall('\d{2,4}', i[0])[0]))
+                try:
+                    signals.sort(key=lambda i: int(re.findall('\d{2,4}', i[0])[0]))
+                except IndexError:
+                    _logger.error("Problem sorting signals")
                 if self.config is not None:
                     if 'ordering' in self.config:
                         for sig in signals:
@@ -458,6 +456,23 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             for region, yields in regions_data.iteritems():
                 self.cutflows[systematics][region] = self.merge(yields)
 
+    def update_top_background(self, module):
+        def calc_inclusive():
+            stitch = module.get_stitch_point(region)
+
+        for region in self.cutflows['Nominal'].keys():
+            inclusive = None
+            stitch = module.get_stitch_point(region)
+            for cut, yld in self.cutflows['Nominal'][region]['ttbar']:
+                yld = 10000.
+                if not 'mLQmax' in cut:
+                    continue
+                mass = float(re.findall('\d+', cut)[0])
+                if mass < stitch:
+                    continue
+                yld = module.get_extrapolated_bin_content(region, mass, lumi=140.)
+                
+
     def plot_signal_yields(self):
         """
         Make plots of signal yields after each cut summarised per signal sample
@@ -543,7 +558,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                         continue
                     self.cutflows[systematics][region][process.process_name] = self.cutflows[systematics][region].pop(
                         process)
-
+        if len(self.modules) > 0:
+            self.update_top_background(self.modules[0])
         if not self.disable_signal_plots:
             self.plot_signal_yields()
 
@@ -563,7 +579,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def __init__(self, **kwargs):
         kwargs.setdefault('output_file_name', None)
         kwargs.setdefault('lumi', None)
-        kwargs.setdefault('process_config', None)
+        kwargs.setdefault('process_configs', None)
         kwargs.setdefault('no_merge', False)
         kwargs.setdefault('raw', False)
         kwargs.setdefault('output_dir', None)
@@ -735,9 +751,9 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def stringify(self, cutflow):
         def format_yield(value, uncertainty):
             if value > 10000.:
-                return '{:.3e}'.format(value)
+                return '{:.{:d}e}'.format(value, self.precision)
             else:
-                return '{:.2f}'.format(value)
+                return '{:.{:d}f}'.format(value, self.precision)
             # if value > 10000.:
             #     return "{:.3e} +- {:.3e}".format(value, uncertainty)
             # else:

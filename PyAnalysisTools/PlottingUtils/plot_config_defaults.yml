@@ -26,6 +26,7 @@ draw_option: None
 ymax: None
 is_common: False
 normalise_range: None
+norm_scale: 1.
 ratio_config: None
 grid: False
 logy: False
