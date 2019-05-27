@@ -1,3 +1,4 @@
+import numbers
 import pickle
 from copy import deepcopy
 import numpy as np
@@ -50,25 +51,27 @@ class LimitArgs(object):
             obj_str += '\t{:s}\n'.format(process)
         obj_str += 'SR yield: {:.2f}\n'.format(self.kwargs['sig_yield'])
         obj_str += 'SR systematics: \n'
-        for process in self.kwargs['sr_syst'].keys():
-            obj_str += 'Process: {:s}\n'.format(process)
-            for name, unc in self.kwargs['sr_syst'][process].iteritems():
-                obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
-            obj_str += '\n'
+        if 'sr_syst' in self.kwargs:
+            for process in self.kwargs['sr_syst'].keys():
+                obj_str += 'Process: {:s}\n'.format(process)
+                for name, unc in self.kwargs['sr_syst'][process].iteritems():
+                    obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
+                obj_str += '\n'
         obj_str += 'Bkg yields: \n'
         for process, ylds in self.kwargs['bkg_yields'].iteritems():
             obj_str += '\t{:s}\t\t{:.2f}\n'.format(process, ylds)
         # for attribute, value in self.__dict__.items():
         #     obj_str += '{}={} '.format(attribute, value)
         #
-        obj_str += 'CR systematics: \n'
-        for region in self.kwargs['ctrl_syst'].keys():
-            obj_str += 'CR: {:s}\n'.format(region)
-            for process in self.kwargs['ctrl_syst'][region].keys():
-                obj_str += 'Process: {:s}\n'.format(process)
-                for name, unc in self.kwargs['ctrl_syst'][region][process].iteritems():
-                    obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
-                obj_str += '\n'
+        if self.kwargs['ctrl_syst'] is not None:
+            obj_str += 'CR systematics: \n'
+            for region in self.kwargs['ctrl_syst'].keys():
+                obj_str += 'CR: {:s}\n'.format(region)
+                for process in self.kwargs['ctrl_syst'][region].keys():
+                    obj_str += 'Process: {:s}\n'.format(process)
+                    for name, unc in self.kwargs['ctrl_syst'][region][process].iteritems():
+                        obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
+                    obj_str += '\n'
         return obj_str
 
     def __repr__(self):
@@ -183,9 +186,9 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self):
+    def analyse_limit(self, cl=95):
         try:
-            fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL95.root'),
+            fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL{:d}.root'.format(cl)),
                             switch_off_process_name_analysis=True)
             tree = fh.get_object_by_name('stats')
             data = self.converter.convert_to_array(tree=tree)
@@ -628,6 +631,7 @@ class Sample(object):
         self.name = name
         self.generated_ylds = gen_ylds
         self.nominal_evt_yields = {}
+        self.raw_nominal_evt_yields = {}
         self.shape_uncerts = {}
         self.scale_uncerts = {}
         self.ctrl_region_yields = {}
@@ -635,6 +639,7 @@ class Sample(object):
         self.ctrl_reg_shape_ylds = {}
         self.is_data = 'data' in name
         self.is_signal = False
+        self.is_data_driven_bkg = False
 
     def __str__(self):
         """
@@ -658,6 +663,11 @@ class Sample(object):
         return self.__str__() + '\n'
 
     def add_signal_region_yields(self, cut, nom_yields, shape_uncerts=None):
+        if isinstance(nom_yields, numbers.Number):
+            self.nominal_evt_yields[cut] = nom_yields
+            self.raw_nominal_evt_yields[cut] = nom_yields
+            self.scale_uncerts[cut] = {}
+            return
         for syst in nom_yields.keys():
             if syst == 'weight':
                 continue
@@ -775,11 +785,16 @@ class Sample(object):
                                                         self.ctrl_reg_scale_ylds[reg].iteritems()))
 
     def merge_child_processes(self, samples, has_syst=True):
-        self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
+        if isinstance(samples[0], dict) and len(samples[0].generated_ylds) > 0:
+            self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
+        else:
+            self.generated_ylds = {}
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
         for cut in samples[0].nominal_evt_yields.keys():
             self.nominal_evt_yields[cut] = sum(map(lambda s: s.nominal_evt_yields[cut], samples))
+        for cut in samples[0].raw_nominal_evt_yields.keys():
+            self.raw_nominal_evt_yields[cut] = sum(map(lambda s: s.raw_nominal_evt_yields[cut], samples))
         if has_syst:
             for cut in samples[0].shape_uncerts.keys():
                 self.shape_uncerts[cut] = {}
@@ -849,7 +864,7 @@ class SampleStore(object):
 
     def apply_xsec_weight(self):
         for sample in self.samples:
-            if sample.is_data:
+            if sample.is_data or sample.is_data_driven_bkg:
                 return
             lumi = self.lumi
             if isinstance(self.lumi, OrderedDict):
@@ -876,14 +891,14 @@ class SampleStore(object):
         for s in set(samples_to_remove):
             self.samples.remove(s)
 
-    def merge_processes(self):
+    def merge_processes(self, merge_signals=False):
         samples_to_remove = []
         samples_to_merge = {}
         for sample in self.samples:
             process_config = find_process_config(sample.name, self.process_configs)
             if process_config is None:
                 continue
-            if process_config.type.lower() == 'signal':
+            if process_config.type.lower() == 'signal' and not merge_signals:
                 continue
             if process_config.name not in samples_to_merge:
                 samples_to_merge[process_config.name] = [sample]
@@ -957,3 +972,7 @@ class SampleStore(object):
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
         return {s.name: get_syst_dict(s) for s in mc_samples}
 
+    def retrieve_all_raw_signal_ylds(self, cut):
+        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        print signal_samples[0].raw_nominal_evt_yields
+        return {s.name: s.raw_nominal_evt_yields[cut] for s in signal_samples}
