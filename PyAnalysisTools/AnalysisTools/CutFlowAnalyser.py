@@ -39,21 +39,24 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault('plot_config_file', None)
         kwargs.setdefault('config_file', None)
         kwargs.setdefault('batch', True)
+        kwargs.setdefault('friend_directory', None)
+        kwargs.setdefault('friend_tree_names', None)
+        kwargs.setdefault('friend_file_pattern', None)
         self.event_numbers = dict()
         self.lumi = kwargs['lumi']
         self.disable_sm_total = kwargs['disable_sm_total']
-        self.xs_handle = XSHandle(kwargs['dataset_config'])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs['dataset_config'],
+        self.xs_handle = XSHandle(kwargs['xs_config_file'])
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs['xs_config_file'],
                                 friend_directory=kwargs['friend_directory'],
                                 friend_tree_names=kwargs['friend_tree_names'],
                                 friend_pattern=kwargs['friend_file_pattern']) for fn in kwargs['file_list']]
         self.process_configs = None
-        if "process_config" in kwargs and not "process_configs" in kwargs:
+        if "process_configs" in kwargs and not "process_config_files" in kwargs:
             raw_input("Single process config deprecated. Please update to process_configs option and appreiate by "
                       "hitting enter.")
-            kwargs['process_configs'] = kwargs['process_configs']
-        if kwargs['process_configs'] is not None:
-            self.process_configs = parse_and_build_process_config(kwargs['process_configs'])
+            kwargs['process_config_files'] = kwargs['process_configs']
+        if kwargs['process_config_files'] is not None:
+            self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
 
         #self.dtype = [('cut', 'S300'), ('yield', 'f4'), ('yield_unc', 'f4'), ('eff', float), ('eff_total', float)]
         self.dtype = [('cut', 'S300'), ('yield', 'f4')]
@@ -202,6 +205,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault('enable_eff', False)
         kwargs.setdefault('percent_eff', False)
         kwargs.setdefault('disable_signal_plots', False)
+        kwargs.setdefault('friend_tree_names', None)
         super(ExtendedCutFlowAnalyser, self).__init__(**kwargs)
         self.event_yields = {}
         self.selection = NewRegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
@@ -238,7 +242,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 process_config = find_process_config(process, process_configs=self.process_configs)
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
-                cut_list = region.get_cut_list()
+                cut_list = region.get_cut_list(file_handle.is_data)
                 cut_string = ""
                 for i, cut in enumerate(cut_list):
                     if "TYPE_" in cut.selection:
@@ -521,7 +525,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         self.cutflow_hists = dict()
         self.cutflow_hists = dict()
         self.cutflow_tables = dict()
-        self.dataset_config_file = kwargs['dataset_config']
         self.lumi = kwargs['lumi']
         self.output_file_name = kwargs['output_file_name']
         self.systematics = kwargs['systematics']
