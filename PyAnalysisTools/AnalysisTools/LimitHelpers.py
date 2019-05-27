@@ -889,19 +889,19 @@ class Sample(object):
             nom_yields[syst] *= nom_yields['weight']
         self.nominal_evt_yields[cut] = sum_ylds(nom_yields['weight'])
         if shape_uncerts is not None:
-            self.shape_uncerts[cut] = {syst.rstrip(): sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
-        self.scale_uncerts[cut] = {syst.rstrip(): sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
+            self.shape_uncerts[cut] = {syst: sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
+        self.scale_uncerts[cut] = {syst: sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
 
     def add_ctrl_region(self, region_name, nominal_evt_yields, shape_uncert_yields=None):
         for syst in nominal_evt_yields.keys():
             if syst == 'weight':
                 continue
-            nominal_evt_yields[syst.rstrip()] *= nominal_evt_yields['weight']
+            nominal_evt_yields[syst] *= nominal_evt_yields['weight']
 
-        self.ctrl_reg_scale_ylds[region_name] = {syst.rstrip(): sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
+        self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
                                                  not syst == 'weight'}
         if shape_uncert_yields is not None:
-            self.ctrl_reg_shape_ylds[region_name] = {syst.rstrip(): sum_ylds(yld) for syst, yld in
+            self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in
                                                      shape_uncert_yields.iteritems()}
         else:
             if self.ctrl_reg_shape_ylds is None:
@@ -1202,7 +1202,7 @@ class SampleStore(object):
                 if region not in ctrl_region_ylds:
                     ctrl_region_ylds[region] = {s.name: yld}
                     continue
-                ctrl_region_ylds[region][s.name.rstrip()] = yld
+                ctrl_region_ylds[region][s.name] = yld
         return ctrl_region_ylds
 
     def retrieve_ctrl_region_syst(self):
@@ -1254,7 +1254,7 @@ class SampleStore(object):
                 return {}
             systematics = s.shape_uncerts[cut]
             for syst_name, syst_yld in s.scale_uncerts[cut].iteritems():
-                systematics[syst_name.rstrip()] = syst_yld
+                systematics[syst_name] = syst_yld
             return systematics
 
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
@@ -1269,7 +1269,6 @@ class LimitValidator(object):
 
         if kwargs['scan_info'] is None:
             self.scan_info = yl.read_yaml(os.path.join(self.input_path, 'scan_info.yml'), None)
-
 
     def make_yield_summary_plots(self):
         def get_hists_for_process(process):
