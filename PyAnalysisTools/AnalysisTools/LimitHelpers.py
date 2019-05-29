@@ -12,6 +12,9 @@ import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.HistTools as ht
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import parse_syst_config
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
@@ -22,8 +25,11 @@ from PyAnalysisTools.base.ShellUtils import move, make_dirs
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from collections import OrderedDict
+import pathos.multiprocessing as mp
 import dill
+from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 
 try:
     from tabulate.tabulate import tabulate
@@ -1659,3 +1665,232 @@ class LimitValidationPlotter(object):
             canvas = fh.get_objects_by_pattern('can_CorrMatrix', 'PlotsAfterGlobalFit/{:s}'.format(fit.GetName()))[0]
             hist = get_objects_from_canvas_by_type(canvas, 'TH2D')[0]
             self.make_correlation_plot(hist, fit.GetName())
+
+
+class CommonLimitOptimiser(BasePlotter):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('syst_config', None)
+        super(CommonLimitOptimiser, self).__init__(**kwargs)
+        self.signal_region_def = RegionBuilder(**yl.read_yaml(kwargs["sr_module_config"])["RegionBuilder"])
+        self.control_region_defs = None
+        if kwargs["cr_module_config"] is not None:
+            self.control_region_defs = RegionBuilder(**yl.read_yaml(kwargs["cr_module_config"])["RegionBuilder"])
+        self.data_converter = Root2NumpyConverter(["weight"])
+        self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
+        os.makedirs(self.output_dir)
+        self.output_handle = OutputFileHandle(**kwargs)
+        self.sample_store = SampleStore(xs_config_file=kwargs['xs_config_file'], process_configs=self.process_configs)
+        self.weight_branch_list = ["weight"]
+        self.run_syst = False
+        if kwargs['syst_config'] is not None:
+            self.shape_syst_config, self.scale_syst_config = parse_syst_config(kwargs['syst_config'])
+            for syst in self.scale_syst_config:
+                self.weight_branch_list.append("weight_{:s}__1{:s}".format(syst[0], "up" if syst[1] == 1 else "down"))
+            self.run_syst = True
+        self.queue = kwargs['queue']
+
+    def get_yield(self, tree, cut, is_data=False, is_shape_syst=False):
+        """
+        Read event yields from tree. Yields are calculated as sum of weights retrieved from tree. If systematics are
+        enabled, the nominal and all factor systematics are read from tree, with the later being parsed from the syst
+        config file
+
+        :param tree: input tree
+        :type tree: ROOT.TTree
+        :param cut: cut value applied to extract weights
+        :type cut: ROOT.TCut
+        :param is_data: flag indicating if tree is from data file
+        :type is_data: bool
+        :return: dictionary of event yields with key weight branch name and value sum of weights
+        :rtype: dict
+        """
+        if is_data or is_shape_syst:
+            ylds = self.data_converter.convert_to_array(tree, cut)
+            return {"weight": ylds["weight"]}
+        ylds = self.converter.convert_to_array(tree, cut)
+        import numpy as np
+        if len(np.argwhere(np.isnan(ylds['weight']))):
+            print 'FOUND EMPTY'
+            exit()
+        summary = {k: ylds[k] for k in self.weight_branch_list}
+        return summary
+
+    def read_yields_per_region(self, tree, region, is_data, additional_cuts=None, is_shape_syst=False):
+        """
+        Read event yields per region parsed from RegionBuilder
+        :param tree: input tree
+        :type tree: ROOT.TTree
+        :param region: region defintion
+        :type region: Region
+        :param is_data: flag for data input
+        :type is_data: bool
+        :param additional_cuts: additional cuts applied on top of region selection, such as e.g. mass cut
+        :type additional_cuts: string
+        :param is_shape_syst: flag for shape systematics which don't need to read scale uncertainty weights
+        :type is_shape_syst: bool
+        :return:
+        :rtype:
+        """
+        base_cut = region.convert2cut_string()
+        cut = base_cut
+        if additional_cuts:
+            cut = "({:s} && {:s})".format(base_cut, additional_cuts)
+        return self.get_yield(tree, cut, is_data, is_shape_syst=is_shape_syst)
+
+    def filter_empty_trees(self):
+        """
+        Remove empty trees from file list
+        :return: nothing
+        :rtype: None
+        """
+        def is_empty(file_handle, tree_name):
+            """
+            Retrieve entries from nominal tree
+            :param file_handle: current file handle
+            :type file_handle: FileHandle
+            :param tree_name: name of input tree
+            :type tree_name: string
+            :return: Number of entries > 0
+            :rtype: bool
+            """
+            if self.syst_tree_name is not None and file_handle.is_mc:
+                tree_name = self.syst_tree_name
+            return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
+
+        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
+
+    def init_sample(self, file_handle):
+        generated_yields = file_handle.get_number_of_total_events()
+        sample = Sample(process=file_handle.process, gen_ylds=generated_yields)
+        tree_name = self.tree_name
+        if self.syst_tree_name is not None and file_handle.process.is_mc:
+            tree_name = self.syst_tree_name
+        tree = file_handle.get_object_by_name(tree_name, 'Nominal')
+        signal_region = self.signal_region_def.regions[0]
+        return sample, tree, signal_region
+
+    def read_yields(self):
+        """
+        Read event yields for signal and control regions
+        Loops through file list and mass cuts in mass scan and adds raw yields
+        Dev notes: need temporary list to store yields for single FileHandle containing yields after mass cut and add
+        later to event yield map taking care of merging multiple files per process
+        :return: None
+        :rtype: None
+        """
+        pool = mp.ProcessPool(nodes=20)
+        samples = pool.map(self.create_sample, self.file_handles)
+        self.sample_store.register_samples(samples)
+        self.sample_store.merge_single_process()
+        if self.run_syst:
+            self.sample_store.calculate_uncertainties()
+        self.sample_store.apply_xsec_weight()
+        self.sample_store.merge_mc_campaigns()
+        self.sample_store.merge_processes()
+        self.sample_store.filter_entries()
+
+    def run(self):
+        """
+        Entry point starting execution
+        :return: nothing
+        :rtype: None
+        """
+        yield_cache_file_name = "event_yields_nominal.pkl"
+        cr_config = build_region_info(self.control_region_defs)
+        if self.read_cache is None:
+            self.read_yields()
+            if self.store_yields:
+                with open(os.path.join(self.output_dir, yield_cache_file_name), 'w') as f:
+                    dill.dump(self.sample_store, f)
+        else:
+            with open(self.read_cache, 'r') as f:
+                self.sample_store = dill.load(f)
+                self.sample_store.filter_entries()
+            copy(self.read_cache, os.path.join(self.output_dir, yield_cache_file_name))
+        if self.signal_scale is not None:
+            self.sample_store.scale_signal(self.signal_scale)
+        if self.signal_scale is not None:
+            self.sample_store.scale_signal_by_pmg_xsec()
+        self.sample_store.filter_entries()
+        self.run_limits(cr_config)
+        self.output_handle.write_and_close()
+        if self.store_yields:
+            print 'Stored yields in {:s}'.format(os.path.join(self.output_dir, yield_cache_file_name))
+
+
+__file_path__ = os.path.realpath(__file__)
+
+
+def run_fit(args, **kwargs):
+    """
+    Submit limit fit using runAsymptoticsCLs.C script from exotics CommonStatTools
+    :param args: argument list for configuration
+    :type args: arglist
+    :param kwargs: named argument list for additional information
+    :type kwargs: dict
+    :return: nothing
+    :rtype: None
+    """
+
+    kwargs.setdefault('ws_name', 'combined')
+    kwargs.setdefault('cls', 0.95)
+    make_dirs(os.path.join(args.output_dir, 'limits', str(args.job_id)))
+    base_dir = os.path.abspath(os.path.join(os.path.basename(__file_path__), '../../../'))
+    analysis_pkg_name = os.path.abspath(os.curdir).split('/')[-2]
+    os.system("""echo 'source $HOME/.bashrc && cd {:s} && echo $PWD && source setup_python_ana.sh && cd {:s} && 
+        root -b -q runAsymptoticsCLs.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",1,{:.2f}\) ' | 
+        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),
+                                                       os.path.join(base_dir, 'CommonStatTools'),
+                                                       os.path.join(args.base_output_dir, 'workspaces', str(args.job_id),
+                                                                    'results/{:s}/SPlusB_combined_NormalMeasurement_model.root'.format(kwargs['analysis_name'])),
+                                                       kwargs['ws_name'],
+                                                       args.job_id,
+                                                       'test',
+                                                       os.path.join(args.output_dir, 'limits', str(args.job_id)),
+                                                       kwargs['cls'],
+                                                       args.kwargs['queue'],
+                                                       os.path.join(args.output_dir, 'limits', str(args.job_id), 'fit'),
+                                                       os.path.join(args.output_dir, 'limits', str(args.job_id), 'fit')))
+
+
+def build_workspace(args, **kwargs):
+    """
+    Call HistFitter to build workspaces
+    :param args: argument list for configuration
+    :type args: arglist
+    :return: nothing
+    :rtype: None
+    """
+    kwargs.setdefault('draw_before', False)
+    kwargs.setdefault('draw_after', False)
+    kwargs.setdefault('validation', False)
+    kwargs.setdefault('fit', False)
+    from PyAnalysisTools.AnalysisTools.HistFitterWrapper import HistFitterCountingExperiment as hf
+    analyser = hf(fit_mode=args.fit_mode, scan=True, multi_core=True,
+                  output_dir=os.path.join(args.output_dir, 'workspaces', str(args.job_id)), **kwargs)
+    analyser.run(**args.kwargs)
+
+
+# def run_sig_fit(args, queue):
+#     """
+#     Submit limit fit using runAsymptoticsCLs.C script from exotics CommonStatTools
+#     :param args: argument list for configuration
+#     :type args: arglist
+#     :param queue: name of queue to submit to
+#     :type queue: string
+#     :return: nothing
+#     :rtype: None
+#     """
+#     make_dirs(os.path.join(args.output_dir, 'limits', str(args.job_id)))
+#     os.system("""echo 'source $HOME/.bashrc && cd /user/mmorgens/devarea/rel21/Multilepton/source/ELMultiLep/ &&
+#         source setup.sh && cd /user/mmorgens/devarea/rel21/Multilepton/source/CommonStatTools &&
+#         root -b -q runSig.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",1\) ' |
+#         qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(args.base_output_dir, 'workspaces', str(args.job_id),
+#                                                                     'results/LQAnalysis/SPlusB_combined_NormalMeasurement_model.root'),
+#                                                        'combined',
+#                                                        args.job_id,
+#                                                        'test',
+#                                                        os.path.join(args.output_dir, 'sig', str(args.job_id)),
+#                                                        queue,
+#                                                        os.path.join(args.output_dir, 'sig', str(args.job_id), 'fit'),
+#                                                        os.path.join(args.output_dir, 'sig', str(args.job_id), 'fit')))
