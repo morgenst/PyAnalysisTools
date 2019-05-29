@@ -17,3 +17,5 @@ export PATH=${CWD}/run_scripts:${PATH}
 
 #make run scripts executable
 chmod -R 755 ${CWD}/run_scripts/*.py
+
+python ${CWD}/.check_dependencies.py
