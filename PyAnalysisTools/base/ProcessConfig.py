@@ -119,6 +119,7 @@ class Process(object):
 class ProcessConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('parent_process', None)
+        kwargs.setdefault('scale_factor', None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
         self.transform_type()

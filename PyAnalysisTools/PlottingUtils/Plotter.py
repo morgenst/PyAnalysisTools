@@ -132,7 +132,7 @@ class Plotter(BasePlotter):
         super(Plotter, self).__init__(cluster_mode=False, redraw=True)
         config = kwargs['config']
         self.histograms = {}
-        self.modules = load_modules(kwargs['module_config_file'], self)
+        self.modules = load_modules(kwargs['module_config_files'], self)
         self.init_modules()
         self.read_hist = True
         self.xs_handle = XSHandle(config.extra_args["xs_config_file"])
@@ -142,7 +142,12 @@ class Plotter(BasePlotter):
         self.parse_plot_config()
         self.expand_plot_configs()
         self.xs_config_file = config.extra_args['xs_config_file']
-        self.process_configs = config.extra_args['process_configs']
+        if len(kwargs['process_config_files']) > 0:
+            self.process_config_files = kwargs['process_config_files']
+            self.process_config_file = None
+            self.process_configs = self.parse_process_config()
+        else:
+            self.process_configs = config.extra_args['process_configs']
         self.syst_analyser = config.extra_args['syst_analyser']
         if self.syst_analyser is not None:
             self.syst_analyser.file_handles = self.file_handles
@@ -337,6 +342,12 @@ class Plotter(BasePlotter):
             if hasattr(self.process_configs[process], 'signal_scale'):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
 
+    def scale_process(self, data):
+        for process, hist in data.iteritems():
+            if self.process_configs[process].scale_factor is None:
+                continue
+            HT.scale(hist, self.process_configs[process].scale_factor)
+
     def make_plot(self, plot_config, data):
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
@@ -353,6 +364,8 @@ class Plotter(BasePlotter):
         #todo: need proper fix for this
         if plot_config.signal_scale is not None and signals is not None:
             self.scale_signals(signals, plot_config)
+        self.scale_process(data)
+
         signal_only = False
         if signals is not None and len(signals) > 0 and len(data) == 0:
             signal_only = True
@@ -528,6 +541,7 @@ class Plotter(BasePlotter):
         _logger.debug("Reading {:d} files now from path".format(len(input_files)))
         self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
                                         split_mc=False) for fn in input_files]
+        self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if self.syst_analyser is not None:
             self.syst_analyser.file_handles = self.file_handles
         return self.build_fetched_histograms()
