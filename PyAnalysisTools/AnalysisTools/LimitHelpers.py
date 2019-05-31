@@ -422,7 +422,7 @@ class LimitPlotter(object):
         fm.add_legend_to_canvas(canvas, plot_objects=plot_objects, labels=labels, format=legend_format)
         self.output_handle.register_object(canvas)
 
-    def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sig_name):
+    def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sr_name):
         def find_excluded_lambda(mass, xsec, excl_limit):
             xsecs = filter(lambda xs: xs[0] == mass, xsec)
             #xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
@@ -448,8 +448,8 @@ class LimitPlotter(object):
                 graphs_contour[-1].SetPoint(i, limit[0], limit[1])
             graphs_contour[-1].SetName('Limit_contour_{:s}'.format(process))
 
-        pc = PlotConfig(name='limit_contour', watermark=plot_config['watermark'], ymax=10., ymin=0., draw='Line',
-                        xtitle=plot_config['xtitle'], ytitle='#lambda', logy=False,
+        pc = PlotConfig(name='limit_contour_{:s}'.format(sr_name), watermark=plot_config['watermark'], ymax=10.,
+                        xtitle=plot_config['xtitle'], ytitle='#lambda', logy=False, ymin=0., draw='Line',
                         lumi=plot_config['lumi'], labels=map(lambda g: g.GetName().split('_')[-1], graphs_contour),
                         color=get_default_color_scheme())
         canvas = pt.plot_graphs(graphs_contour, pc)
@@ -531,9 +531,10 @@ class XsecLimitAnalyser(object):
         #                                        scan.kwargs['sig_name'])
         #     #theory_xsec = filter(lambda l: l[1] == 1.0, self.xsec_map['LQed'])
              theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
-        self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.kwargs['sig_name'])
+        self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.sig_reg_name)
 
-        self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec)
+        self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec,
+                                                   sig_reg_name=scan.sig_reg_name)
 
     def save(self):
         self.output_handle.write_and_close()
@@ -620,7 +621,7 @@ class LimitScanAnalyser(object):
         self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec, self.sig_reg_name)
         if theory_xsec is not None:
             self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
-                                               scan.kwargs['sig_name'])
+                                               scan.sig_reg_name)
         self.output_handle.write_and_close()
 
     def tabulate_limits(self, limits):
