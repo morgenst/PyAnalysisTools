@@ -13,7 +13,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.HistTools as ht
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import parse_syst_config
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import parse_syst_config, TheoryUncertaintyProvider
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
@@ -833,7 +833,10 @@ class LimitScanAnalyser(object):
 
 
 def sum_ylds(ylds):
-    ylds.dtype = np.float64
+    try:
+        ylds.dtype = np.float64
+    except ValueError:
+        pass
     if True in pd.isnull(ylds):
         print "found NONE"
     ylds = ylds[~pd.isnull(ylds)]
@@ -870,7 +873,7 @@ class Sample(object):
         self.ctrl_reg_scale_ylds = {}
         self.ctrl_reg_shape_ylds = {}
         self.is_signal = False
-
+        self.theory_uncert_provider = TheoryUncertaintyProvider()
     def __str__(self):
         """
         Overloaded str operator. Get's called if object is printed
@@ -894,7 +897,7 @@ class Sample(object):
 
     def add_signal_region_yields(self, sr_name, cut, nom_yields, shape_uncerts=None):
         for syst in nom_yields.keys():
-            if syst == 'weight':
+            if syst == 'weight' or 'pdf_uncert' in syst:
                 continue
             nom_yields[syst] *= nom_yields['weight']
         if sr_name not in self.nominal_evt_yields:
@@ -904,16 +907,27 @@ class Sample(object):
         self.nominal_evt_yields[sr_name][cut] = sum_ylds(nom_yields['weight'])
         if shape_uncerts is not None:
             self.shape_uncerts[sr_name][cut] = {syst: sum_ylds(yld) for syst, yld in shape_uncerts.iteritems()}
+        # for syst, yld in nom_yields.iteritems():
+        #     if syst == 'weight':
+        #         continue
+        #     print syst, yld, yld.dtype
+        #     self.scale_uncerts[sr_name][cut][syst] = sum_ylds(yld)
         self.scale_uncerts[sr_name][cut] = {syst: sum_ylds(yld) for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
+        self.theory_uncert_provider.calculate_envelop_count(self.scale_uncerts[sr_name][cut])
+        self.scale_uncerts[sr_name][cut] = dict(filter(lambda kv: 'pdf_uncert' not in kv[0],
+                                                       self.scale_uncerts[sr_name][cut].iteritems()))
 
     def add_ctrl_region(self, region_name, nominal_evt_yields, shape_uncert_yields=None):
         for syst in nominal_evt_yields.keys():
-            if syst == 'weight':
+            if syst == 'weight' or 'pdf_uncert' in syst:
                 continue
             nominal_evt_yields[syst] *= nominal_evt_yields['weight']
 
         self.ctrl_reg_scale_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in nominal_evt_yields.iteritems() if
                                                  not syst == 'weight'}
+        self.theory_uncert_provider.calculate_envelop_count(self.ctrl_reg_scale_ylds[region_name])
+        self.ctrl_reg_scale_ylds[region_name] = dict(filter(lambda kv: 'pdf_uncert' not in kv[0],
+                                                            self.ctrl_reg_scale_ylds[region_name].iteritems()))
         if shape_uncert_yields is not None:
             self.ctrl_reg_shape_ylds[region_name] = {syst: sum_ylds(yld) for syst, yld in
                                                      shape_uncert_yields.iteritems()}
@@ -1050,7 +1064,6 @@ class Sample(object):
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
-        print samples[0].nominal_evt_yields
         for region in samples[0].nominal_evt_yields.keys():
             if region not in self.nominal_evt_yields:
                 self.nominal_evt_yields[region] = {}

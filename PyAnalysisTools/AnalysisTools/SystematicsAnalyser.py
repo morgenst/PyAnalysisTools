@@ -1,5 +1,6 @@
 import imp
 import math
+import numpy as np
 from itertools import product
 from math import sqrt
 from copy import deepcopy
@@ -367,6 +368,19 @@ class TheoryUncertaintyProvider(object):
         :rtype: bool
         """
         tree = file_handle.get_object_by_name(tree_name, tdirectory='Nominal')
+        return TheoryUncertaintyProvider.check_is_affected(tree)
+
+    @staticmethod
+    def check_is_affected(tree):
+        """
+        Check if file is affected by Sherpa uncertainties
+        :param file_handle: input file
+        :type file_handle: FileHandle
+        :param tree_name: name of nominal tree
+        :type tree_name: str
+        :return: yes/no decision
+        :rtype: bool
+        """
         return hasattr(tree, "weight_pdf_uncert_MUR0.5_MUF0.5_PDF261000")
 
     def get_envelop(self, analyser, dump_hist_path=None):
@@ -406,3 +420,7 @@ class TheoryUncertaintyProvider(object):
                 analyser.systematic_hists['theory_envelop'][plot_config] = {process: deepcopy(envelop)}
         for sys in self.sherpa_pdf_uncert:
             analyser.systematic_hists.pop(sys.replace('weight_', ''))
+
+    def calculate_envelop_count(self, yields):
+        a = np.maximum.reduce([yields[syst] for syst in self.sherpa_pdf_uncert])
+        yields['theory_envelop'] = a
