@@ -874,6 +874,7 @@ class Sample(object):
         self.ctrl_reg_shape_ylds = {}
         self.is_signal = False
         self.theory_uncert_provider = TheoryUncertaintyProvider()
+
     def __str__(self):
         """
         Overloaded str operator. Get's called if object is printed
@@ -977,7 +978,6 @@ class Sample(object):
         for region in self.nominal_evt_yields.keys():
             for cut in self.nominal_evt_yields[region].keys():
                 #self.nominal_evt_yields[cut] = tuple(i * weight for i in self.nominal_evt_yields[cut])
-                print 'weights ', self.nominal_evt_yields[region]
                 self.nominal_evt_yields[region][cut] *= weight
         for region in self.ctrl_region_yields.keys():
             #self.ctrl_region_yields[region] = tuple(i * weight for i in self.ctrl_region_yields[region])
@@ -1327,6 +1327,12 @@ class SampleStore(object):
 
         mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
         return {s.name: get_syst_dict(s) for s in mc_samples}
+
+    def get_sample(self, sample_name):
+        sample = filter(lambda s: s.name == sample_name, self.samples)
+        if len(sample) == 1:
+            return sample[0]
+        return None
 
 
 class LimitValidator(object):

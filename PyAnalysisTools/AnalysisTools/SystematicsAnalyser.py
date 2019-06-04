@@ -422,5 +422,8 @@ class TheoryUncertaintyProvider(object):
             analyser.systematic_hists.pop(sys.replace('weight_', ''))
 
     def calculate_envelop_count(self, yields):
-        a = np.maximum.reduce([yields[syst] for syst in self.sherpa_pdf_uncert])
-        yields['theory_envelop'] = a
+        try:
+            a = np.maximum.reduce([yields[syst] for syst in self.sherpa_pdf_uncert])
+            yields['theory_envelop'] = a
+        except KeyError:
+            pass
