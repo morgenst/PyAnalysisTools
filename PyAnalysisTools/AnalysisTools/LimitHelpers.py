@@ -51,12 +51,14 @@ class LimitArgs(object):
         kwargs.setdefault("skip_ws_build", False)
         kwargs.setdefault("base_output_dir", output_dir)
         kwargs.setdefault("fixed_xsec", None)
+        kwargs.setdefault("run_pyhf", False)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.fit_mode = fit_mode
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
         self.job_id = kwargs["jobid"]
         self.sig_reg_name = kwargs["sig_reg_name"]
+        self.run_pyhf = kwargs['run_pyhf']
         self.kwargs = kwargs
 
     def __str__(self):
@@ -72,20 +74,24 @@ class LimitArgs(object):
         obj_str += 'registered processes: \n'
         for process in self.kwargs['process_configs'].keys():
             obj_str += '\t{:s}\n'.format(process)
-        obj_str += 'SR yield: {:.2f}\n'.format(self.kwargs['sig_yield'])
-        obj_str += 'SR systematics: \n'
+        for sig_reg, yld in self.kwargs['sig_yield'].iteritems():
+            obj_str += 'SR {:s} yield: {:.2f}\n'.format(sig_reg, yld)
+
         if 'sr_syst' in self.kwargs:
-            for process in self.kwargs['sr_syst'].keys():
-                obj_str += 'Process: {:s}\n'.format(process)
-                for name, unc in self.kwargs['sr_syst'][process].iteritems():
-                    obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
-                obj_str += '\n'
-        obj_str += 'Bkg yields: \n'
-        for process, ylds in self.kwargs['bkg_yields'].iteritems():
-            obj_str += '\t{:s}\t\t{:.2f}\n'.format(process, ylds)
-        # for attribute, value in self.__dict__.items():
-        #     obj_str += '{}={} '.format(attribute, value)
-        #
+            for sig_reg in self.kwargs['sr_syst'].keys():
+                obj_str += 'SR systematics for {:s}: \n'.format(sig_reg)
+                for process in self.kwargs['sr_syst'][sig_reg].keys():
+                    obj_str += 'Process: {:s}\n'.format(process)
+                    for name, unc in self.kwargs['sr_syst'][sig_reg][process].iteritems():
+                        obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
+                    obj_str += '\n'
+        for sig_reg in self.kwargs['bkg_yields'].keys():
+            obj_str += 'Bkg yields in {:s}: \n'.format(sig_reg)
+            for process, ylds in self.kwargs['bkg_yields'][sig_reg].iteritems():
+                obj_str += '\t{:s}\t\t{:.2f}\n'.format(process, ylds)
+            # for attribute, value in self.__dict__.items():
+            #     obj_str += '{}={} '.format(attribute, value)
+            #
         if self.kwargs['ctrl_syst'] is not None:
             obj_str += 'CR systematics: \n'
             for region in self.kwargs['ctrl_syst'].keys():
@@ -105,10 +111,10 @@ class LimitArgs(object):
         """
         return self.__str__() + '\n'
 
-    def to_json(self):
+    def to_json(self, file_name=None):
         def add_signal_region(name):
             channel = OrderedDict({'name': name})
-            sig_yield = self.kwargs['sig_yield']
+            sig_yield = self.kwargs['sig_yield'][name]
             if self.kwargs['signal_scale']:
                 sig_yield *= self.kwargs['signal_scale']
             if self.kwargs['fixed_signal']:
@@ -116,7 +122,7 @@ class LimitArgs(object):
             channel['samples'] = [build_sample(self.kwargs['sig_name'],
                                                sig_yield,
                                                'mu')]
-            for sn, sy in self.kwargs['bkg_yields'].iteritems():
+            for sn, sy in self.kwargs['bkg_yields'][name].iteritems():
                 channel['samples'].append(build_sample(sn, sy))
             return channel
 
@@ -162,23 +168,30 @@ class LimitArgs(object):
                                                              "hi_data": [sample['data'][0]]},
                                                     'name': sys})
         specs = OrderedDict()
-        specs['channels'] = [add_signal_region(self.sig_reg_name)]
+        specs['channels'] = [add_signal_region(sig_reg) for sig_reg in self.kwargs['sig_yield']]
         specs['data'] = OrderedDict()
         for region, info in self.kwargs['control_regions'].iteritems():
             channel, data = add_channel(region, info)
             specs['channels'].append(channel)
+            if data is None:
+                data = [0.]
             specs['data'][region] = data
-        specs['data'][self.sig_reg_name] = [0.]
+        for sig_reg in self.kwargs['sig_yield'].keys():
+            specs['data'][sig_reg] = [0.]
 
         specs['measurements'] = [{'config': {'poi': 'mu', 'parameters': []}, 'name': self.sig_reg_name}]
 
-        for process, systematics in self.kwargs['sr_syst'].iteritems():
-            add_systematics(0, process, systematics)
+        for sig_reg in self.kwargs['sr_syst'].keys():
+            for process, systematics in self.kwargs['sr_syst'][sig_reg].iteritems():
+                channel_id = [i for i, c in enumerate(specs['channels']) if c['name'] == sig_reg][0]
+                add_systematics(channel_id, process, systematics)
         for region in self.kwargs['ctrl_syst'].keys():
             channel_id = [i for i, c in enumerate(specs['channels']) if c['name'] == region][0]
             add_systematics(channel_id, process, systematics)
 
-        with open('test_pyhf.json', 'w') as f:
+        if file_name is None:
+            return specs
+        with open(file_name, 'w') as f:
             json.dump(specs, f)
 
 
@@ -1887,6 +1900,14 @@ class CommonLimitOptimiser(BasePlotter):
 
 
 __file_path__ = os.path.realpath(__file__)
+
+
+def run_fit_pyhf(args):
+    job_dir = os.path.join(args.output_dir, 'limits', str(args.job_id))
+    make_dirs(job_dir)
+    ws = os.path.join(job_dir, 'workspace.json')
+    args.to_json(ws)
+    os.system('pyhf cls {:s} --output-file {:s}'.format(ws, ws.replace('workspace', 'limit')))
 
 
 def run_fit(args, **kwargs):
