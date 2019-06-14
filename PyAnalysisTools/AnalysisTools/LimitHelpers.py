@@ -312,13 +312,7 @@ class LimitAnalyserCL(object):
         :return: limit info object containing parsed UL
         :rtype: LimitInfo
         """
-        try:
-            fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL95.root'),
-                            switch_off_process_name_analysis=True)
-            tree = fh.get_object_by_name('stats')
-            data = self.converter.convert_to_array(tree=tree)
-            fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
-            self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
+        def get_scale_factor(signal_scale):
             if signal_scale is None:
                 signal_scale = 1.
             scale_factor = 1000. * signal_scale
@@ -329,13 +323,33 @@ class LimitAnalyserCL(object):
                     scale_factor = scale_factor * fixed_signal / sig_yield
             if pmg_xsec is not None:
                 scale_factor = 1000.
+            return scale_factor
+
+        try:
+            fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL95.root'),
+                            switch_off_process_name_analysis=True)
+            tree = fh.get_object_by_name('stats')
+            data = self.converter.convert_to_array(tree=tree)
+            fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
+            scale_factor = get_scale_factor(signal_scale)
+            self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
             self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
                                      exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
                                      exp_limit_low=data['exp_upperlimit_minus1'] * scale_factor)
 
         except ValueError:
-            self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
-                                     exp_limit_low=-1)
+            try:
+                print os.path.join(self.input_path, 'limit.json')
+                with open(os.path.join(self.input_path, 'limit.json'), 'r') as f:
+                    data = json.load(f)
+                scale_factor = get_scale_factor(signal_scale)
+                self.limit_info.add_info(fit_status=1, fit_cov_quality=1, exp_limit=data['CLs_exp'][2] * scale_factor,
+                                         exp_limit_up=data['CLs_exp'][3] * scale_factor,
+                                         exp_limit_low=data['CLs_exp'][1] * scale_factor)
+            except ZeroDivisionError:
+
+                self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
+                                         exp_limit_low=-1)
         return self.limit_info
 
 
@@ -645,8 +659,9 @@ class LimitScanAnalyser(object):
         ordering = self.plot_config['ordering']
         for limit in limits:
             data_mass_point = [limit.mass, limit.mass_cut, limit.exp_limit]
-            prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut)
-            prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut) / 1000.
+            prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut, event_yields.get_signal_region_names()[0])
+            prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut,
+                                                                event_yields.get_signal_region_names()[0]) / 1000.
             data_mass_point.append(prefit_ylds_sig * limit.exp_limit)
             for process in ordering:
                 data_mass_point.append(prefit_ylds_bkg[process])
@@ -1287,6 +1302,9 @@ class SampleStore(object):
                     systematics[region][s.name][syst_name] = syst_yld
         return systematics
 
+    def get_signal_region_names(self):
+        return self.samples[0].nominal_evt_yields.keys()
+
     def retrieve_signal_ylds(self, sig_name, cut, region):
         """
         Get signal event yields in specific region for given cut
@@ -1312,8 +1330,8 @@ class SampleStore(object):
 
     def retrieve_all_signal_ylds(self, cut):
         signal_samples = filter(lambda s: s.is_signal, self.samples)
-        return {reg: {s.name: s.nominal_evt_yields[reg][cut]}
-                for s in signal_samples for reg in s.nominal_evt_yields.keys()}
+        return {reg: {s.name: s.nominal_evt_yields[reg][cut]
+                for s in signal_samples} for reg in self.get_signal_region_names()}
 
     def retrieve_bkg_ylds(self, cut, region):
         bkg_samples = filter(lambda s: not s.is_data and not s.is_signal, self.samples)
