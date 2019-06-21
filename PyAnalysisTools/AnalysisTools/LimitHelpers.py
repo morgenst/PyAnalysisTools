@@ -1,3 +1,4 @@
+import numbers
 import pickle
 from copy import deepcopy
 from math import sqrt
@@ -318,7 +319,10 @@ class LimitAnalyserCL(object):
             scale_factor = 1000. * signal_scale
             if fixed_signal is not None:
                 if isinstance(sig_yield, OrderedDict):
-                    scale_factor = scale_factor * sum([fixed_signal / yld for yld in sig_yield.values()])
+                    if isinstance(sig_yield.values()[0], numbers.Number):
+                        scale_factor = scale_factor * sum([fixed_signal / yld for yld in sig_yield.values()])
+                    else:
+                        scale_factor = scale_factor * sum([fixed_signal / yld[0] for yld in sig_yield.values()])
                 else:
                     scale_factor = scale_factor * fixed_signal / sig_yield
             if pmg_xsec is not None:
@@ -339,14 +343,13 @@ class LimitAnalyserCL(object):
 
         except ValueError:
             try:
-                print os.path.join(self.input_path, 'limit.json')
                 with open(os.path.join(self.input_path, 'limit.json'), 'r') as f:
                     data = json.load(f)
                 scale_factor = get_scale_factor(signal_scale)
                 self.limit_info.add_info(fit_status=1, fit_cov_quality=1, exp_limit=data['CLs_exp'][2] * scale_factor,
                                          exp_limit_up=data['CLs_exp'][3] * scale_factor,
                                          exp_limit_low=data['CLs_exp'][1] * scale_factor)
-            except ZeroDivisionError:
+            except (ZeroDivisionError, IOError):
 
                 self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
                                          exp_limit_low=-1)
@@ -1278,20 +1281,24 @@ class SampleStore(object):
         for s in set(samples_to_remove):
             self.samples.remove(s)
 
-    def retrieve_ctrl_region_yields(self):
+    def retrieve_ctrl_region_yields(self, regions=None):
         ctrl_region_ylds = {}
         for s in self.samples:
             for region, yld in s.ctrl_region_yields.iteritems():
+                if regions is not None and region not in regions:
+                    continue
                 if region not in ctrl_region_ylds:
                     ctrl_region_ylds[region] = {s.name: yld}
                     continue
                 ctrl_region_ylds[region][s.name] = yld
         return ctrl_region_ylds
 
-    def retrieve_ctrl_region_syst(self):
+    def retrieve_ctrl_region_syst(self, regions=None):
         systematics = {}
         for s in self.samples:
             for region in s.ctrl_reg_scale_ylds.keys():
+                if regions is not None and region not in regions:
+                    continue
                 if region not in systematics:
                     systematics[region] = {s.name: s.ctrl_reg_scale_ylds[region]}
                 else:
@@ -1302,8 +1309,18 @@ class SampleStore(object):
                     systematics[region][s.name][syst_name] = syst_yld
         return systematics
 
-    def get_signal_region_names(self):
-        return self.samples[0].nominal_evt_yields.keys()
+    def get_signal_region_names(self, regions=None):
+        """
+        Get list of signal region names
+        :param regions: optional filter argument to select subset of available regions in store
+        :type regions: list
+        :return: stored signal regions * filter
+        :rtype: list
+        """
+        available_regions = self.samples[0].nominal_evt_yields.keys()
+        if regions is not None:
+            available_regions = filter(lambda r: r in regions, available_regions)
+        return available_regions
 
     def retrieve_signal_ylds(self, sig_name, cut, region):
         """
@@ -1328,10 +1345,10 @@ class SampleStore(object):
     def retrieve_signal_names(self):
         return map(lambda s: s.name, filter(lambda s: s.is_signal, self.samples))
 
-    def retrieve_all_signal_ylds(self, cut):
+    def retrieve_all_signal_ylds(self, cut, regions = None):
         signal_samples = filter(lambda s: s.is_signal, self.samples)
         return {reg: {s.name: s.nominal_evt_yields[reg][cut]
-                for s in signal_samples} for reg in self.get_signal_region_names()}
+                for s in signal_samples} for reg in self.get_signal_region_names(regions)}
 
     def retrieve_bkg_ylds(self, cut, region):
         bkg_samples = filter(lambda s: not s.is_data and not s.is_signal, self.samples)
@@ -1365,84 +1382,84 @@ class SampleStore(object):
             return sample[0]
         return None
 
-
-class LimitValidator(object):
-    def __init__(self, **kwargs):
-        kwargs.setdefault('scan_info', None)
-        for k, v in kwargs.iteritems():
-            setattr(self, k, v)
-
-        if kwargs['scan_info'] is None:
-            self.scan_info = yl.read_yaml(os.path.join(self.input_path, 'scan_info.yml'), None)
-
-    def make_yield_summary_plots(self):
-        def get_hists_for_process(process):
-            if not process.lower() == 'data':
-                return filter(lambda h: process in h.GetName() and 'Nom' in h.GetName(), hists)
-            return filter(lambda h: process in h.GetName(), hists)
-
-        def fill_hists(hist, input_hists):
-            for ibin, reg in enumerate(regions):
-                if 'SR' in reg:
-                    reg = 'SR'
-                try:
-                    htmp = filter(lambda h: reg in h.GetName(), input_hists)[0]
-                except IndexError:
-                    hist.SetBinContent(ibin + 1, 0.)
-                    continue
-                hist.SetBinContent(ibin + 1, htmp.GetBinContent(1))
-
-        hist_fn = os.path.join(self.input_path, 'validation/5/hists.root')
-        if not os.path.exists(hist_fn):
-            _logger.error('Could not find file {:s}. Thus cannot make yield summary plot.'.format(hist_fn))
-        fh = FileHandle(file_name=hist_fn)
-        hists = fh.get_objects_by_type('TH1')
-        scan_info = self.scan_info[5]
-
-        print self.scan_info[5].__dict__.keys()
-        print self.scan_info[5].kwargs.keys()
-        print self.scan_info[5].kwargs['process_configs'].keys()
-        print self.scan_info[5].kwargs['ctrl_config'].keys()
-        bkg_processes = dict(filter(lambda p: p[1].type.lower() != 'signal' and p[1].type.lower() != 'data',
-                                    scan_info.kwargs['process_configs'].iteritems()))
-        bkg_hists = {p: get_hists_for_process(p.name) for p in bkg_processes.values()}
-        sig_hists = get_hists_for_process(scan_info.kwargs['sig_name'])
-        data_hists = get_hists_for_process('Data')
-        regions = [scan_info.sig_reg_name] + sorted(self.scan_info[5].kwargs['ctrl_config'].keys())
-        pc = PlotConfig(name="yld_summary_{:s}".format(scan_info.kwargs['sig_name']), ytitle='Events',
-                        logy=True, lumi=139.0, draw_option='Hist', watermark='Internal', axis_labels=regions,
-                        decor_text='Pre-Fit')
-        # pc = PlotConfig(name="xsec_limit_{:s}".format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
-        #                 draw='ap',
-        #                 logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
-
-        labels = []
-        hist = ROOT.TH1F('region_summary', '', len(regions), 0., len(regions))
-        ht.set_axis_labels(hist, pc)
-        summary_hists = {}
-        # print bkg_processes
-        # exit()
-        for bkg, hists in bkg_hists.iteritems():
-            new_hist = hist.Clone('region_summary_{:s}'.format(bkg.name))
-            fill_hists(new_hist, hists)
-            summary_hists[bkg.name] = new_hist
-            labels.append(bkg.label)
-
-        canvas = pt.plot_stack(summary_hists, pc, process_configs=bkg_processes)
-        data_hist = hist.Clone('region_summary_{:s}'.format('Data'))
-        fill_hists(data_hist, data_hists)
-        pt.add_data_to_stack(canvas, data_hist, pc)
-        labels.append('Data')
-        signal_hist = hist.Clone('region_summary_{:s}'.format('signal'))
-        fill_hists(signal_hist, sig_hists)
-        labels.append(scan_info.kwargs['sig_name'])
-        pt.add_signal_to_canvas((scan_info.kwargs['sig_name'], signal_hist), canvas, pc,
-                                scan_info.kwargs['process_configs'])
-        canvas.Update()
-        ROOT.gROOT.SetBatch(False)
-        fm.decorate_canvas(canvas, pc)
-        fm.add_legend_to_canvas(canvas, labels=labels)
-        raw_input()
+#likely can be removed
+# class LimitValidator(object):
+#     def __init__(self, **kwargs):
+#         kwargs.setdefault('scan_info', None)
+#         for k, v in kwargs.iteritems():
+#             setattr(self, k, v)
+#
+#         if kwargs['scan_info'] is None:
+#             self.scan_info = yl.read_yaml(os.path.join(self.input_path, 'scan_info.yml'), None)
+#
+#     def make_yield_summary_plots(self):
+#         def get_hists_for_process(process):
+#             if not process.lower() == 'data':
+#                 return filter(lambda h: process in h.GetName() and 'Nom' in h.GetName(), hists)
+#             return filter(lambda h: process in h.GetName(), hists)
+#
+#         def fill_hists(hist, input_hists):
+#             for ibin, reg in enumerate(regions):
+#                 if 'SR' in reg:
+#                     reg = 'SR'
+#                 try:
+#                     htmp = filter(lambda h: reg in h.GetName(), input_hists)[0]
+#                 except IndexError:
+#                     hist.SetBinContent(ibin + 1, 0.)
+#                     continue
+#                 hist.SetBinContent(ibin + 1, htmp.GetBinContent(1))
+#
+#         hist_fn = os.path.join(self.input_path, 'validation/5/hists.root')
+#         if not os.path.exists(hist_fn):
+#             _logger.error('Could not find file {:s}. Thus cannot make yield summary plot.'.format(hist_fn))
+#         fh = FileHandle(file_name=hist_fn)
+#         hists = fh.get_objects_by_type('TH1')
+#         scan_info = self.scan_info[5]
+#
+#         print self.scan_info[5].__dict__.keys()
+#         print self.scan_info[5].kwargs.keys()
+#         print self.scan_info[5].kwargs['process_configs'].keys()
+#         print self.scan_info[5].kwargs['ctrl_config'].keys()
+#         bkg_processes = dict(filter(lambda p: p[1].type.lower() != 'signal' and p[1].type.lower() != 'data',
+#                                     scan_info.kwargs['process_configs'].iteritems()))
+#         bkg_hists = {p: get_hists_for_process(p.name) for p in bkg_processes.values()}
+#         sig_hists = get_hists_for_process(scan_info.kwargs['sig_name'])
+#         data_hists = get_hists_for_process('Data')
+#         regions = [scan_info.sig_reg_name] + sorted(self.scan_info[5].kwargs['ctrl_config'].keys())
+#         pc = PlotConfig(name="yld_summary_{:s}".format(scan_info.kwargs['sig_name']), ytitle='Events',
+#                         logy=True, lumi=139.0, draw_option='Hist', watermark='Internal', axis_labels=regions,
+#                         decor_text='Pre-Fit')
+#         # pc = PlotConfig(name="xsec_limit_{:s}".format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
+#         #                 draw='ap',
+#         #                 logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
+#
+#         labels = []
+#         hist = ROOT.TH1F('region_summary', '', len(regions), 0., len(regions))
+#         ht.set_axis_labels(hist, pc)
+#         summary_hists = {}
+#         # print bkg_processes
+#         # exit()
+#         for bkg, hists in bkg_hists.iteritems():
+#             new_hist = hist.Clone('region_summary_{:s}'.format(bkg.name))
+#             fill_hists(new_hist, hists)
+#             summary_hists[bkg.name] = new_hist
+#             labels.append(bkg.label)
+#
+#         canvas = pt.plot_stack(summary_hists, pc, process_configs=bkg_processes)
+#         data_hist = hist.Clone('region_summary_{:s}'.format('Data'))
+#         fill_hists(data_hist, data_hists)
+#         pt.add_data_to_stack(canvas, data_hist, pc)
+#         labels.append('Data')
+#         signal_hist = hist.Clone('region_summary_{:s}'.format('signal'))
+#         fill_hists(signal_hist, sig_hists)
+#         labels.append(scan_info.kwargs['sig_name'])
+#         pt.add_signal_to_canvas((scan_info.kwargs['sig_name'], signal_hist), canvas, pc,
+#                                 scan_info.kwargs['process_configs'])
+#         canvas.Update()
+#         ROOT.gROOT.SetBatch(False)
+#         fm.decorate_canvas(canvas, pc)
+#         fm.add_legend_to_canvas(canvas, labels=labels)
+#         raw_input()
 
 
 class LimitChecker(object):
@@ -1665,8 +1682,10 @@ class LimitValidationPlotter(object):
 
         cfg = yl.read_yaml(os.path.join(self.input_path, 'config.yml'))
         path = os.path.dirname(cfg['workspace_file'])
-        #signal_regions = ['']
-        bkg_regions = ['TopCR_mu_yield', 'ZCR_mu_yield', 'ZVR_mu_yield']
+        scan_info_fn = os.path.join(*(['/'] + path.split('/')[:-4] + ['scan_info.yml']))
+        scan_info = yl.read_yaml(scan_info_fn)
+        bkg_regions = sorted(scan_info[0].kwargs['ctrl_config'].keys())
+        bkg_regions = map(lambda rn: rn+'_yield', bkg_regions)
         backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
         ratios = ['pre-fit', 'post-fit']
         tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
@@ -1690,6 +1709,8 @@ class LimitValidationPlotter(object):
             tmp_hists[-1].SetBinContent(i+1, filter(lambda h: 'Data' in h.GetName(), roo_hists)[0].getFitRangeNEvt())
             tmp_ratio_hists[-1].SetBinContent(i+1, filter(lambda h: 'ratio_h' in h.GetName(),
                                                           roo_hists)[0].getFitRangeNEvt())
+            tmp_ratio_hists[-1].SetBinError(i+1, filter(lambda h: 'ratio_h' in h.GetName(),
+                                                        roo_hists)[0].GetErrorY(0))
             tmp_ratio_hists[-1].GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
             _, roo_hists = get_hists('{:s}_beforeFit.root'.format(region))
             tmp_ratio_hists[0].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
@@ -1894,7 +1915,7 @@ class CommonLimitOptimiser(BasePlotter):
         :return: nothing
         :rtype: None
         """
-        yield_cache_file_name = "event_yields_nominal.pkl"
+        yield_cache_file_name = "event_yields_nom.pkl"
         cr_config = build_region_info(self.control_region_defs)
         if self.read_cache is None:
             self.read_yields()
