@@ -74,22 +74,30 @@ class Process(object):
         if 'period' in file_name:
             self.year, _, self.period = file_name.split("_")[0:3]
             self.process_name = ".".join([self.year, self.period])
+        elif 'allyear' in file_name.lower():
+            self.year = re.search('[0-9]{2}', re.search(r'data[0-9]{2}', file_name).group()).group()
+            self.process_name = 'data{:s}_allYear'.format(self.year)
 
     def set_mc_name(self, file_name):
         self.is_mc = True
+        try:
+            self.dsid = re.match('\d{6}', file_name).group(0)
+        except AttributeError:
+
+            pass
         if re.match('\d{6}', file_name):
-            self.parse_from_dsid(re.match('\d{6}', file_name).group(0))
+            self.parse_from_dsid()
         else:
             self.process_name = file_name
         self.parse_mc_campaign(file_name)
 
-    def parse_from_dsid(self, dsid):
+    def parse_from_dsid(self):
         if self.dataset_info is None:
             return
         try:
-            tmp = filter(lambda l: l.dsid == int(dsid), self.dataset_info.values())
+            tmp = filter(lambda l: l.dsid == int(self.dsid), self.dataset_info.values())
         except ValueError:
-            print 'Could not find ', dsid
+            print 'Could not find ', self.dsid
         if len(tmp) == 1:
             self.process_name = tmp[0].process_name
 
