@@ -72,6 +72,7 @@ class Writer:
 
 def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, postfix=None, ncpu=10):
     make_dirs(output_path)
+    make_dirs(merge_dir)
     if len(os.listdir(merge_dir)) > 0:
         do_delete = raw_input("Merge directory contains already files. Shall I delete those?: [y|n]")
         if do_delete.lower() == "y" or do_delete.lower() == "yes":
