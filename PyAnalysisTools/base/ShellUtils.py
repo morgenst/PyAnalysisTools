@@ -82,6 +82,8 @@ def copy(src, dest):
     """
     try:
         shutil.copy(src, dest)
+    except IOError:
+        shutil.copytree(src, dest)
     except:
         raise
 
