@@ -94,7 +94,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("use_XML", True)
         kwargs.setdefault("num_toys", 1000)
         kwargs.setdefault("seed", 0)
-        kwargs.setdefault("use_asimov", False)
+        kwargs.setdefault("use_asimov", True)
         kwargs.setdefault("run_toys", False)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("base_output_dir", None)
@@ -215,7 +215,7 @@ class HistFitterWrapper(object):
         #     doFixParameters = True
         #     fixedPars = self.constant
 
-        gROOT.SetBatch(not self.interactive)
+        ROOT.gROOT.SetBatch(not self.interactive)
 
         """
         mandatory user-defined configuration file
@@ -225,7 +225,7 @@ class HistFitterWrapper(object):
         """
 
         self.configMgr.initialize()
-        RooRandom.randomGenerator().SetSeed(self.configMgr.toySeed)
+        ROOT.RooRandom.randomGenerator().SetSeed(self.configMgr.toySeed)
         ReduceCorrMatrix = self.configMgr.ReduceCorrMatrix
 
         """
@@ -453,12 +453,21 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         if not isinstance(yld, numbers.Number) and not isinstance(yld, tuple):
             return
         if sample is None:
-            sample = Sample(name, transform_color(process_configs[name].color))
-        sample.setStatConfig(True)
-        sample.buildHisto([yld[0]], region, "yield", 0.5)
-        #sample.buildStatErrors([yld[1]], region, "yield")
-        sample.buildStatErrors([sqrt(yld[0])], region, "yield")
-        sample.setNormByTheory()
+            if name == 'QCD':
+                sample = Sample(name, transform_color(ROOT.kGray))
+                sample.setStatConfig(False)
+                sample.buildHisto([yld[0]], region, "yield", 0.5)
+                sample.buildStatErrors([sqrt(yld[0])], region, "yield")
+            else:
+                sample = Sample(name, transform_color(process_configs[name].color))
+                sample.setStatConfig(True)
+                sample.setNormByTheory()
+                sample.buildHisto([yld[0]], region, "yield", 0.5)
+                if name == 'ttbar':
+                    sample.buildHisto([sqrt(yld[0])], region, "yield", 0.5)
+                else:
+                    sample.buildHisto([yld[0]], region, "yield", 0.5)
+                #sample.buildStatErrors([yld[1]], region, "yield")
         return sample
 
     def setup_single_background(self, **kwargs):
@@ -573,14 +582,6 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         meas = ana.addMeasurement(name="NormalMeasurement", lumi=1.0, lumiErr=lumi_error)
         meas.addPOI("mu_Sig")
 
-        for cr in self.systematics.keys():
-            cr_chan = ana.getChannel(self.var_name, [cr])
-            for process, systematics in self.systematics[cr].iteritems():
-                for syst in systematics:
-                    _logger.debug('SYSTEMATICS for CR reg ', cr, ' and process: ', process, ' add systematics ',
-                                  syst, ' here')
-                    cr_chan.getSample(process).addSystematic(syst)
-
         if kwargs['sr_syst'] is not None:
             for sig_reg in kwargs['sr_syst'].keys():
                 systematics = kwargs['sr_syst'][sig_reg]
@@ -594,13 +595,81 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                         self.systematics[sig_reg][process] = []
                     for syst in systs:
                         try:
-                            self.systematics[sig_reg][process].append(Systematic(name=syst.replace("weight", "alpha"),
+                            down_var = uncert[syst + '__1down']
+                            if 'JER' in syst:
+                                down_var = uncert[syst + '__1down']
+                                self.systematics[sig_reg][process].append(
+                                    Systematic(name=syst.replace('weight_', ''),
+                                               nominal=0., high=2. - down_var,
+                                               low=down_var if down_var > 0. else 0.,
+                                               method='histoSys', type='user'))
+                                continue
+                            if uncert[syst+'__1up'] >1. and uncert[syst+'__1down'] > 1.:
+                                unc = max(uncert[syst+'__1up'], uncert[syst+'__1down'])
+                                self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
+                                                                                 nominal=0.,
+                                                                                 high=unc,
+                                                                                 low=2. - unc,
+                                                                                 method='histoSys',
+                                                                                 type='user'))
+                                continue
+                            if uncert[syst+'__1up'] <1. and uncert[syst+'__1down'] < 1.:
+                                unc = min(uncert[syst + '__1up'], uncert[syst + '__1down'])
+                                self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
+                                                                                 nominal=0.,
+                                                                                 high=2. - unc,
+                                                                                 low=unc,
+                                                                                 method='histoSys',
+                                                                                 type='user'))
+                                continue
+                            self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
                                                                                  nominal=0., high=uncert[syst + '__1up'],
-                                                                                 low=uncert[syst + '__1down'],
+                                                                                 low=down_var if down_var > 0. else 0.,
                                                                                  method='histoSys', type='user'))
                         except KeyError:
+                            if syst in uncert:
+                                # temporary fix
+                                # if syst == 'qcd_extrapol_down':
+                                #     print 'NOW ADD QCD FOR', reg, process
+                                #     low = uncert['qcd_extrapol_down']
+                                #     self.systematics[sig_reg][process].append(
+                                #         Systematic(name=syst.replace('weight_', ''),
+                                #                    nominal=0.,
+                                #                    high=uncert['qcd_extrapol_up'],
+                                #                    low=low if low > 0. else 0.1,
+                                #                    method='histoSys',
+                                #                    type='user'))
+                                #     continue
+                                # elif 'qcd' in syst:
+                                #     continue
+                                tmp = uncert[syst]
+                                if tmp > 1.:
+                                    high = tmp
+                                    low = 2. - tmp
+                                else:
+                                    low = tmp
+                                    high = 2. - tmp
+                                if low < 0.:
+                                    low = 0.0001
+                                print 'NOW ADD ', reg, process, syst
+                                self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
+                                                                                 nominal=0.,
+                                                                                 high=high,
+                                                                                 low=low,
+                                                                                 method='histoSys',
+                                                                                 type='user'))
+
+                        except:
                             print "Could not find systematic {:s} in signal region".format(syst)
-                ana.getChannel(self.var_name, [sig_reg])
+
+        for cr in self.systematics.keys():
+            cr_chan = ana.getChannel(self.var_name, [cr])
+            for process, systematics in self.systematics[cr].iteritems():
+                for syst in systematics:
+                    _logger.debug('SYSTEMATICS for CR reg ', cr, ' and process: ', process, ' add systematics ',
+                                  syst, ' here')
+                    print "ADDDD: ", cr, process, syst.name
+                    cr_chan.getSample(process).addSystematic(syst)
 
         self.configMgr.cutsDict.keys()
         self.initialise()
@@ -646,7 +715,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                         norm_regions[bkg] = [region]
         for bkg, norm_factors in norm_factors.iteritems():
             for norm_factor in norm_factors:
-                self.samples[bkg].setNormFactor(norm_factor, 1., 0.5, 1.5)
+                self.samples[bkg].setNormFactor(norm_factor, 1., 0.5, 2.5)
 
         for bkg, region in norm_regions.iteritems():
             _logger.debug("Set norm region {:s} and bkg {:s}".format(region, bkg))
@@ -664,9 +733,14 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                 if process.lower() == "data" or process == kwargs['sig_name']:
                     continue
                 sample = self.samples[process]
-                sample.setStatConfig(True)
-                sample.buildHisto([yld[0]], reg, "yield", 0.5)
-                sample.buildStatErrors([yld[1]], reg, "yield")
+                if sample.name == 'QCD':
+                    sample.setStatConfig(True)
+                    sample.buildHisto([yld[0]], reg, "yield", 0.5)
+                    sample.buildStatErrors([sqrt(yld[0])], reg, "yield")
+                else:
+                    sample.setStatConfig(True)
+                    sample.buildHisto([yld[0]], reg, "yield", 0.5)
+                    sample.buildStatErrors([yld[1]], reg, "yield")
             try:
                 data_yld = filter(lambda kv: kv[0].lower() == "data", yields.iteritems())[0][1]
                 data_sample = self.samples['Data']
@@ -691,15 +765,57 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                         self.systematics[reg][process] = []
                     for syst in systs:
                         try:
-                            print 'add for CR ', reg, ' prcoess: ', process, ' syst: ', syst
-                            self.systematics[reg][process].append(Systematic(name=syst.replace("weight", "alpha"),
+                            if 'JER' in syst:
+                                down_var = uncert[syst + '__1down']
+                                self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
+                                                                                 nominal=0.,
+                                                                                 high=2. - down_var,
+                                                                                 low=down_var,
+                                                                                 method='histoSys',
+                                                                                 type='user'))
+                                continue
+                            if uncert[syst+'__1up'] >1. and uncert[syst+'__1down'] > 1.:
+                                unc = max(uncert[syst+'__1up'], uncert[syst+'__1down'])
+                                self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
+                                                                                 nominal=0.,
+                                                                                 high=unc,
+                                                                                 low=2. - unc,
+                                                                                 method='histoSys',
+                                                                                 type='user'))
+                                continue
+                            if uncert[syst+'__1up'] <1. and uncert[syst+'__1down'] < 1.:
+                                unc = min(uncert[syst + '__1up'], uncert[syst + '__1down'])
+                                self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
+                                                                                 nominal=0.,
+                                                                                 high=2. - unc,
+                                                                                 low=unc,
+                                                                                 method='histoSys',
+                                                                                 type='user'))
+                                continue
+
+                            self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
                                                                              nominal=0.,
                                                                              high=uncert[syst+'__1up'],
                                                                              low=uncert[syst+'__1down'],
                                                                              method='histoSys',
                                                                              type='user'))
+
                         except KeyError:
                             if syst in uncert:
+                                # temporary fix
+                                if syst == 'qcd_extrapol_down':
+                                    print "APPEND QCD for ", reg
+                                    low = uncert['qcd_extrapol_down']
+                                    self.systematics[reg][process].append(
+                                        Systematic(name=syst.replace('weight_', ''),
+                                                   nominal=0.,
+                                                   high=uncert['qcd_extrapol_up'],
+                                                   low=low if low > 0. else 0.,
+                                                   method='histoSys',
+                                                   type='user'))
+                                    continue
+                                elif 'qcd' in syst:
+                                    continue
                                 tmp = uncert[syst]
                                 if tmp > 1.:
                                     high = tmp
@@ -707,7 +823,9 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                 else:
                                     low = tmp
                                     high = 2. - tmp
-                                self.systematics[reg][process].append(Systematic(name=syst.replace("weight", "alpha"),
+                                if low < 0.:
+                                    low = 0.0001
+                                self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
                                                                                  nominal=0.,
                                                                                  high=high,
                                                                                  low=low,
