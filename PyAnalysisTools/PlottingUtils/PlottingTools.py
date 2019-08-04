@@ -480,6 +480,7 @@ def plot_graph(graph, plot_config=None, **kwargs):
     :return: canvas containing plotted and formatted TGraph
     :rtype: TCanvas
     """
+    kwargs.setdefault('index', 0)
     if plot_config is not None:
         kwargs.setdefault("canvas_name", plot_config.name)
     else:
@@ -495,7 +496,7 @@ def plot_graph(graph, plot_config=None, **kwargs):
     #graph.Draw(draw_option)
     # if not "same" in draw_option:
     #     draw_option += "same"
-    apply_style(graph, *get_style_setters_and_values(plot_config, index=0))
+    apply_style(graph, *get_style_setters_and_values(plot_config, index=kwargs['index']))
     ROOT.SetOwnership(graph, False)
     # if plot_config:
     #     graph = format_obj(graph, plot_config)
@@ -537,7 +538,6 @@ def plot_stack(hists, plot_config, **kwargs):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.Clear()
     canvas.cd()
-    is_first = True
     if isinstance(hists, dict) or isinstance(hists, defaultdict):
         hist_defs = hists.items()
     elif isinstance(hists, list):
