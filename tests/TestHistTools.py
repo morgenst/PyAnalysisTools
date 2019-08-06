@@ -1,41 +1,134 @@
-import inspect
-
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
 import unittest
 import ROOT
 import os
 from PyAnalysisTools.PlottingUtils import HistTools as ht
-from mock import MagicMock
+from PyAnalysisTools.base import InvalidInputError
 
 cwd = os.path.dirname(__file__)
+ROOT.gROOT.SetBatch(True)
+
+
+class PlotConfig(): pass
+
 
 class TestHistTools(unittest.TestCase):
     def setUp(self):
-        pass
-        root_file = ROOT.TFile.Open(os.path.join(cwd, "test.root"), "READ")
-        self.unformatted_hist_1d = root_file.Get("test_hist_1")
-        self.unformatted_hist_1d.SetDirectory(0)
-        ROOT.SetOwnership(self.unformatted_hist_1d, False)
+        self.hist = ROOT.TH1F('h', '', 10, -1., 1.)
+        self.hist.FillRandom('gaus', 10000)
+        self.plot_config = PlotConfig()
+        self.plot_config.axis_labels = None
+
+    def tearDown(self):
+        del self.hist
 
     def test_normalise(self):
-        h = self.unformatted_hist_1d.Clone(inspect.currentframe().f_code.co_name)
-        ht.normalise(h)
-        self.assertEqual(h.Integral(), 1.)
+        ht.normalise(self.hist)
+        self.assertEqual(self.hist.Integral(), 1.)
 
     def test_normalise_list(self):
-        h_clone = self.unformatted_hist_1d.Clone("cloned_unformatted_hist")
-        ht.normalise([self.unformatted_hist_1d, h_clone])
-        self.assertEqual(self.unformatted_hist_1d.Integral(), 1.)
-        self.assertEqual(h_clone.Integral(), 1.)
+        ht.normalise([self.hist])
+        self.assertAlmostEqual(self.hist.Integral(), 1., delta=1.e-5)
 
-    unittest.skip("Not implemented")
-    def test_normalise_dict(self):
-        pass
-    
     def test_scale_hist(self):
-        h = self.unformatted_hist_1d.Clone("test_scale_hist")
-        integral = h.Integral()
-        ht.scale(h, 101.)
-        self.assertEqual(h.Integral(), integral * 101.)
+        ht.scale(self.hist, 10.)
+        self.assertEqual(self.hist.Integral(), 100000.)
+
+    def test_get_color(self):
+        self.hist.Draw('hist')
+        self.assertEqual(ht.get_colors([self.hist]), [ROOT.kBlack])
+
+    def test_read_bin_from_label(self):
+        self.hist.GetXaxis().SetBinLabel(2, 'label')
+        self.assertEqual(ht.read_bin_from_label(self.hist, 'label'), 2)
+
+    def test_read_bin_from_label_non_existing(self):
+        self.assertEqual(ht.read_bin_from_label(self.hist, 'label'), None)
+
+    def test_read_bin_from_multi_label(self):
+        self.hist.GetXaxis().SetBinLabel(2, 'label')
+        self.hist.GetXaxis().SetBinLabel(3, 'label')
+        self.assertEqual(ht.read_bin_from_label(self.hist, 'label'), 2)
+
+    def test_set_axis_labels_no_labels(self):
+        self.assertEqual(ht.set_axis_labels(self.hist, self.plot_config), None)
+
+    def test_set_axis_labels(self):
+        self.plot_config.axis_labels = map(str, range(self.hist.GetNbinsX()))
+        self.assertEqual(ht.set_axis_labels(self.hist, self.plot_config), None)
+        self.assertEqual(self.hist.GetXaxis().GetBinLabel(5), '4')
+
+    def test_rebin_const(self):
+        h = ht.rebin(self.hist, 5)
+        self.assertEqual(h.GetNbinsX(), 2)
+
+    def test_rebin_list(self):
+        h = ht.rebin(self.hist, [-1, 0.4, 1.])
+        self.assertEqual(h.GetNbinsX(), 2)
+        self.assertEqual(h.GetXaxis().GetBinLowEdge(2), 0.4)
+
+    def test_rebin_const_list(self):
+        h = ht.rebin([self.hist], 5)
+        self.assertIsInstance(h, list)
+        self.assertEqual(h[0].GetNbinsX(), 2)
+
+    def test_rebin_list_list(self):
+        h = ht.rebin([self.hist], [-1, 0.4, 1.])
+        self.assertIsInstance(h, list)
+        self.assertEqual(h[0].GetNbinsX(), 2)
+        self.assertEqual(h[0].GetXaxis().GetBinLowEdge(2), 0.4)
+
+    def test_rebin_const_dict(self):
+        h = ht.rebin({'foo': self.hist}, 5)
+        self.assertIsInstance(h, dict)
+        self.assertEqual(h['foo'].GetNbinsX(), 2)
+
+    def test_rebin_list_dict(self):
+        h = ht.rebin({'foo': self.hist}, [-1, 0.4, 1.])
+        self.assertIsInstance(h, dict)
+        self.assertEqual(h['foo'].GetNbinsX(), 2)
+        self.assertEqual(h['foo'].GetXaxis().GetBinLowEdge(2), 0.4)
+
+    def test_rebin_const_dict_list(self):
+        h = ht.rebin({'foo': [self.hist]}, 5)
+        self.assertIsInstance(h, dict)
+        self.assertEqual(h['foo'][0].GetNbinsX(), 2)
+
+    def test_rebin_list_dict_list(self):
+        h = ht.rebin({'foo': [self.hist]}, [-1, 0.4, 1.])
+        self.assertIsInstance(h, dict)
+        self.assertEqual(h['foo'][0].GetNbinsX(), 2)
+        self.assertEqual(h['foo'][0].GetXaxis().GetBinLowEdge(2), 0.4)
+
+    def test_rebin_invalid_dict(self):
+        self.assertRaises(InvalidInputError, ht.rebin, {'foo': tuple(self.hist)}, [-1, 0.4, 1.])
+
+    def test_rebin_invalid_factor(self):
+        self.assertRaises(InvalidInputError, ht.rebin, self.hist, (-1, 0.4, 1.))
+
+    def test_rebin_entity(self):
+        self.assertEqual(ht.rebin(self.hist, None), self.hist)
+        self.assertEqual(ht.rebin(self.hist, 1.), self.hist)
+
+    def test_overflow_merge(self):
+        self.hist.Fill(100)
+        expected = self.hist.GetBinContent(10) + self.hist.GetBinContent(11)
+        ht.merge_overflow_bins(self.hist)
+        self.assertEqual(self.hist.GetBinContent(10), expected)
+
+    def test_overflow_merge_dict(self):
+        self.hist.Fill(100)
+        expected = self.hist.GetBinContent(10) + self.hist.GetBinContent(11)
+        ht.merge_overflow_bins({'foo': self.hist})
+        self.assertEqual(self.hist.GetBinContent(10), expected)
+
+    def test_underflow_merge(self):
+        self.hist.Fill(-1100)
+        expected = self.hist.GetBinContent(0) + self.hist.GetBinContent(1)
+        ht.merge_underflow_bins(self.hist)
+        self.assertEqual(self.hist.GetBinContent(1), expected)
+
+    def test_underflow_merge_list(self):
+        self.hist.Fill(-1100)
+        expected = self.hist.GetBinContent(0) + self.hist.GetBinContent(1)
+        ht.merge_underflow_bins({'foo': self.hist})
+        self.assertEqual(self.hist.GetBinContent(1), expected)
