@@ -7,8 +7,8 @@ variables:
 stages:
   #- docker
   #- trigger
-  #- test
-  - docs
+  - test
+  - build
   - deploy
 #   - coverage
   
@@ -21,7 +21,7 @@ stages:
 
 build_docs:
   image: atlas/analysisbase:latest
-  stage: docs
+  stage: build
   before_script:
     - source /home/atlas/release_setup.sh
     - which python
@@ -58,20 +58,20 @@ deploy_production:
     url: https://cern.ch/PyAnalysisToolsDocs
 
     
-# test:
-#  image: atlas/analysisbase:latest
-#   stage: test
-#   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
-#   before_script:
-#     - source /home/atlas/release_setup.sh
-#     - which python
-#     - which pip
-#     - pip install nose --user
-#     - pip install oyaml --user
-#     - pip install coverage --user
-#     - export PATH=$PATH:/home/atlas/.local/bin
-#   script:
-#     - nosetests tests.TestLogger --with-coverage
+unittest:
+ image: atlas/analysisbase:latest
+  stage: test
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - which python
+    - which pip
+    - pip install nose --user
+    - pip install oyaml --user
+    - pip install coverage --user
+    - export PATH=$PATH:/home/atlas/.local/bin
+  script:
+    - nosetests tests.TestLogger --with-coverage
 
 # coverage:
 #     stage: coverage
