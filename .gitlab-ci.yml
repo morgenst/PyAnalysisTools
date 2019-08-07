@@ -24,6 +24,7 @@ build_docs:
     - which python
     - which pip
     - pip install sphinx --user
+    - export PATH=/home/atlas/.local/bin:$PATH
   script:
     - ls
     - sphinx-build docs/source/ docs/build/
