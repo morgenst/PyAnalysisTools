@@ -31,9 +31,10 @@ build_docs:
   script:
     - ls
     - sphinx-build docs/source/ docs/build/
+    - ls docs/build
   artifacts:
     paths:
-    - $CI_WEBSITE_DIR
+      - docs/build
     
 .deploy_template: &deploy_definition
   stage: deploy
@@ -44,7 +45,7 @@ build_docs:
     - DFS_WEBSITE_NAME="$WEBSITE_NAME"
     - DFS_WEBSITE_DIR="${DFS_WEBSITE_NAME}"
     - SMB_PROTOCOL=smb3
-    - deploy-dfs "$CI_WEBSITE_DIR" "$DFS_WEBSITE_DIR"
+    - deploy-dfs docs/build "$DFS_WEBSITE_DIR"
 
 deploy_production:
   variables:
