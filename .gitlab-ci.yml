@@ -1,12 +1,15 @@
 variables:
   GIT_STRATEGY: fetch
   PACKAGE_NAME: PyAnalysisTools
+  CI_WEBSITE_DIR: "$CI_PROJECT_DIR/build/_site"
+  WEBSITE_NAME: "pyanalysistoolsdocs"
 
 stages:
   #- docker
   #- trigger
   #- test
   - docs
+  - deploy
 #   - coverage
   
 
@@ -28,7 +31,30 @@ build_docs:
   script:
     - ls
     - sphinx-build docs/source/ docs/build/
+  artifacts:
+    paths:
+    - $CI_WEBSITE_DIR
     
+.deploy_template: &deploy_definition
+  stage: deploy
+  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
+  tags:
+    - docker
+  script:
+    - DFS_WEBSITE_NAME="$WEBSITE_NAME"
+    - DFS_WEBSITE_DIR="${DFS_WEBSITE_NAME}"
+    - SMB_PROTOCOL=smb3
+    - ci_scripts/deploy-dfs-website.sh "$CI_WEBSITE_DIR" "$DFS_WEBSITE_DIR"
+
+deploy_production:
+  variables:
+  <<: *deploy_definition
+#   only:
+#     - master
+  environment:
+    name: production
+    url: https://cern.ch/PyAnalysisToolsDocs
+
     
 # test:
 #  image: atlas/analysisbase:latest
