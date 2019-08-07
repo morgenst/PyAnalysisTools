@@ -44,7 +44,7 @@ build_docs:
     - DFS_WEBSITE_NAME="$WEBSITE_NAME"
     - DFS_WEBSITE_DIR="${DFS_WEBSITE_NAME}"
     - SMB_PROTOCOL=smb3
-    - ci_scripts/deploy-dfs-website.sh "$CI_WEBSITE_DIR" "$DFS_WEBSITE_DIR"
+    - deploy-dfs "$CI_WEBSITE_DIR" "$DFS_WEBSITE_DIR"
 
 deploy_production:
   variables:
