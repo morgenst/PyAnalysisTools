@@ -2,7 +2,7 @@ variables:
   GIT_STRATEGY: fetch
   PACKAGE_NAME: PyAnalysisTools
   CI_WEBSITE_DIR: "docs/build"
-  DFS_WEBSITE_PATH: "pyanalysistoolsdocs"
+  DFS_WEBSITE_NAME: "pyanalysistoolsdocs"
 
 stages:
   #- docker
