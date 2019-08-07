@@ -59,7 +59,7 @@ deploy_production:
 
     
 unittest:
- image: atlas/analysisbase:latest
+  image: atlas/analysisbase:latest
   stage: test
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
   before_script:
