@@ -2,7 +2,7 @@ variables:
   GIT_STRATEGY: fetch
   PACKAGE_NAME: PyAnalysisTools
   CI_WEBSITE_DIR: "docs/build"
-  WEBSITE_NAME: "pyanalysistoolsdocs"
+  DFS_WEBSITE_PATH: "pyanalysistoolsdocs"
 
 stages:
   #- docker
@@ -42,8 +42,9 @@ build_docs:
   tags:
     - docker
   script:
-    - DFS_WEBSITE_NAME="$WEBSITE_NAME"
-    - DFS_WEBSITE_DIR="${DFS_WEBSITE_NAME}"
+    # - DFS_WEBSITE_NAME="$WEBSITE_NAME"
+    # - DFS_WEBSITE_DIR="${DFS_WEBSITE_NAME}"
+    #- DFS_WEBSITE_PATH
     - SMB_PROTOCOL=smb3
     - deploy-dfs #docs/build "$DFS_WEBSITE_DIR"
 
