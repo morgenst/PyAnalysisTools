@@ -1,0 +1,6 @@
+muon_pt:
+ dist : muon_pt / 1000.
+ xtitle : "p_{T}^{#mu} [GeV]"
+ bins : 100
+ xmin : 0.
+ xmax : 1000.

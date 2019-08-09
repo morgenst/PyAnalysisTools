@@ -1,0 +1,9 @@
+plot_cfg:
+  simple: 'simple_plot_cfg.yml'
+selection_cfg:
+  simple: 'simple_selection_cfg.yml'
+merge_cfg:
+  simple: 'simple_process_merge_cfg.yml'
+ds_cfg: 'dataset_info_pmg.yml'
+input_files:
+  -
