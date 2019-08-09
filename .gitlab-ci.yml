@@ -68,7 +68,7 @@ style_check:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
-    - pip install --user flake8
+    - pip install --user flake8==3.5.0
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - flake8 .
