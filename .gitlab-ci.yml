@@ -72,3 +72,4 @@ style_check:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - flake8 .
+  allow_failure: true
