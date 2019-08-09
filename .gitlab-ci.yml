@@ -69,5 +69,6 @@ style_check:
     - which python
     - which pip
     - pip install --user flake8
+    - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - flake8 .
