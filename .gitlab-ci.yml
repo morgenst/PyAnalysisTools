@@ -60,3 +60,14 @@ unittest:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.TestLogger --with-coverage
+
+style_check:
+  image: atlas/analysisbase:latest
+  stage: test
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - which python
+    - which pip
+    - pip install flake8
+  script:
+    - flake8 .
