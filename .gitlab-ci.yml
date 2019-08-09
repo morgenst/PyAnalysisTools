@@ -59,7 +59,7 @@ unittest:
     - pip install coverage --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.TestLogger --with-coverage
+    - nosetests tests.unit.TestLogger --with-coverage
 
 style_check:
   image: atlas/analysisbase:latest
