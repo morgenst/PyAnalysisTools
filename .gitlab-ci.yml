@@ -1,21 +1,52 @@
 variables:
   GIT_STRATEGY: fetch
   PACKAGE_NAME: PyAnalysisTools
+  CI_WEBSITE_DIR: "docs/build"
+  DFS_WEBSITE_NAME: "pyanalysistoolsdocs"
 
 stages:
-  #- docker
-  #- trigger
   - test
-#   - coverage
+  - build
+  - deploy
   
 
-# trigger_LQ:
-#   stage: trigger
-#   image: appropriate/curl
-#   script:
-#     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
+build_docs:
+  image: atlas/analysisbase:latest
+  stage: build
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - which python
+    - which pip
+    - pip install sphinx --user
+    - export PATH=/home/atlas/.local/bin:$PATH
+  script:
+    - ls
+    - sphinx-build docs/source/ docs/build/
+    - ls docs/build
+  artifacts:
+    paths:
+      - docs/build
+    
+.deploy_template: &deploy_definition
+  stage: deploy
+  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
+  tags:
+    - docker
+  script:
+    - SMB_PROTOCOL=smb3
+    - deploy-dfs
 
-test:
+deploy_production:
+  variables:
+  <<: *deploy_definition
+  only:
+    - master
+  environment:
+    name: production
+    url: https://cern.ch/PyAnalysisToolsDocs
+
+    
+unittest:
   image: atlas/analysisbase:latest
   stage: test
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
@@ -29,34 +60,3 @@ test:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.TestLogger --with-coverage
-
-# coverage:
-#     stage: coverage
-#     script:
-#         - nosetests -c .noserc -q --cover-html-dir=build --cover-html
-#         - coverage report -m
-#     coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
-#     artifacts:
-#         paths:
-#             - build
-#         expire_in: 1 day    
-# build_image:
-#   stage: docker
-#   except:
-#     - tags
-#   tags:
-#     - docker-image-build
-#   script:
-#     - ignore
-
-# build_tagged_image:
-#   stage: docker
-#   variables:
-#     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
-#   only:
-#     - tags
-#   tags:
-#     - docker-image-build
-#   script:
-#     - ignore
-    
