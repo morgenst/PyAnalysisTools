@@ -10,5 +10,5 @@ Collection of analysis tools for ROOT based data analysis with primary focus on 
 
 # Documentation
 
-The documentation is evolving here: https://pyanalysistoolsdocs.web.cern.ch/index.html
+The documentation is evolving here: https://pyanalysistoolsdocs.web.cern.ch
 
