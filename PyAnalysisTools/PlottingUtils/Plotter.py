@@ -97,6 +97,7 @@ class Plotter(BasePlotter):
             if hasattr(self, k) and v is None:
                 continue
             setattr(self, k, v)
+
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
@@ -208,10 +209,12 @@ class Plotter(BasePlotter):
                                   filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
-            _logger.debug("Unable to find merge process config for {:s}".format(str(process)))
+            _logger.info("Unable to find merge process config for {:s}".format(str(process)))
         failed_file_handles = filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                      file_handles)
-        _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name, failed_file_handles))))
+        if len(failed_file_handles) > 0:
+            _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name,
+                                                                           failed_file_handles))))
         map(lambda fh: fh.close(), failed_file_handles)
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
@@ -352,7 +355,10 @@ class Plotter(BasePlotter):
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
         for mod in self.modules_data_modifiers:
-            mod.execute(data)
+            try:
+                mod.execute(data, self.output_handle)
+            except TypeError:
+                mod.execute(data)
         data = {k: v for k, v in data.iteritems() if v}
         if plot_config.normalise:
             HT.normalise(data, integration_range=[0, -1], norm_scale=plot_config.norm_scale)
@@ -505,15 +511,26 @@ class Plotter(BasePlotter):
             self.output_handle.register_object(canvas_combined)
 
     def build_fetched_histograms(self):
-        l = []
+        """
+        Wrapper function to read all histograms from provided file handles and plot configs
+        :return: list of fetched histograms objects
+        :rtype: list
+        """
+        hists = []
         for arg in product(self.file_handles, self.plot_configs):
-            l.append(self.get_fetched_hist(arg))
-
-        #"[(<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x12545f2d0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_data17.periodK") at 0x7f8ec2568400>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979fd0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_data17.periodK") at 0x7f8ec2567850>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485650>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_data17.periodK") at 0x7f8ec2ab4da0>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979d90>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_data17.periodK") at 0x7f8ec2567080>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485690>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec216cd30>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485910>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178970>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979c10>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ebe6f5580>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124d7be90>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178e60>)]"
-        return l
+            hists.append(self.get_fetched_hist(arg))
+        return hists
 
     @staticmethod
     def get_fetched_hist(args):
+        """
+        Read histogram from canvas stored in root file
+        :param args: input arguments containing pair of file handle and plot config
+        :type args: tuple (size 2)
+        :return: plot config, file handle process and histograms from canvas
+        :rtype: list
+        """
+
         fh = args[0]
         pc = args[1]
         c = fh.get_object_by_name(pc.name)
@@ -546,7 +563,33 @@ class Plotter(BasePlotter):
             self.syst_analyser.file_handles = self.file_handles
         return self.build_fetched_histograms()
 
+    def consistency_check(self):
+        """
+        Run consistency checks on plot configs and provided inputs prior to executing plotting
+        :return: decision if all checks are passed
+        :rtype: bool
+        """
+        if all([lambda pc: pc.outline == 'stack', self.plot_config_files]):
+            if len(filter(lambda fh: fh.process.is_mc, self.file_handles)) == 0:
+                _logger.error("Requested only stack plots but only data inputs provided. Giving up")
+                return False
+        if len([lambda pc: pc.outline == 'stack', self.plot_config_files]) > 0:
+            if len(filter(lambda fh: fh.process.is_mc, self.file_handles)) == 0:
+                _logger.error("Requested at least stack plot but only data inputs provided. "
+                              "Removing corresponding plot configs")
+                self.plot_configs = filter(lambda pc: pc.outline != 'stack', self.plot_configs)
+                return True
+
     def make_plots(self, dumped_hist_path=None):
+        """
+        Entry point to make plots. Reads all histograms either from provided path or projects them out of trees
+        :param dumped_hist_path: path to previously dumped histograms - enables hist reading mode (optional)
+        :type dumped_hist_path: str
+        :return: nothing
+        :rtype: None
+        """
+        if not self.consistency_check():
+            exit()
         if dumped_hist_path is None:
             fetched_histograms = self.project_hists()
         else:
@@ -558,15 +601,29 @@ class Plotter(BasePlotter):
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
+
         if self.process_configs is not None:
             self.merge_histograms()
+            if not self.cluster_mode:
+                for pc, hists in self.histograms.iteritems():
+                    for h in hists.values():
+                        self.output_handle.register_object(h)
         if self.syst_analyser is not None:
+
             self.syst_analyser.retrieve_sys_hists(dumped_hist_path)
             self.syst_analyser.calculate_variations(self.histograms)
+            if not self.cluster_mode:
+                for syst_name in self.syst_analyser.systematic_variations.keys():
+                    for pc, data in self.syst_analyser.systematic_variations[syst_name].iteritems():
+                        for h in data.values():
+                            h.SetName(h.GetName() + '_' + syst_name)
+                            self.output_handle.register_object(h)
             self.syst_analyser.calculate_total_systematics()
             #For some reason need to transfer histograms
-            for tdir, obj in self.syst_analyser.output_handle.objects.iteritems():
-                self.output_handle.register_object(obj, tdir=tdir[0])
+
+            if self.cluster_mode:
+                for tdir, obj in self.syst_analyser.output_handle.objects.iteritems():
+                    self.output_handle.register_object(obj, tdir=tdir[0])
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()
