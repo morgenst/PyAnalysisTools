@@ -3,6 +3,7 @@ from collections import OrderedDict
 
 import pathos.multiprocessing as mp
 import traceback
+from copy import deepcopy
 from functools import partial
 from itertools import product
 from PyAnalysisTools.base import _logger
@@ -31,6 +32,8 @@ class BasePlotter(object):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault('syst_tree_name', None)
         kwargs.setdefault('cluster_config', None)
+        kwargs.setdefault('redraw', False)
+        kwargs.setdefault('skip_fh_reading', False)
 
         self.event_yields = {}
         set_batch_mode(kwargs["batch"])
@@ -38,6 +41,10 @@ class BasePlotter(object):
         if kwargs['cluster_config'] is not None:
             self.cluster_setup(kwargs['cluster_config'])
             return
+        if kwargs['redraw']:
+            self.file_handles = []
+            return
+
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
@@ -50,13 +57,18 @@ class BasePlotter(object):
             self.add_mc_campaigns()
 
         self.event_yields = {}
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
-                                        split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
-                                        switch_off_process_name_analysis=False,
-                                        friend_tree_names=kwargs["friend_tree_names"],
-                                        friend_pattern=kwargs["friend_file_pattern"])
-                             for input_file in self.input_files]
-        self.filter_missing_friends()
+        if hasattr(self, 'input_files'):
+            input_files = self.input_files
+        elif hasattr(self, 'input_file_list'):
+            input_files = self.input_file_list
+        if not kwargs['skip_fh_reading']:
+            self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
+                                            split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                            switch_off_process_name_analysis=False,
+                                            friend_tree_names=kwargs["friend_tree_names"],
+                                            friend_pattern=kwargs["friend_file_pattern"])
+                                 for input_file in input_files]
+            self.filter_missing_friends()
 
     def cluster_setup(self, config):
         self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
@@ -118,7 +130,7 @@ class BasePlotter(object):
         """
         fm.load_atlas_style()
 
-    def apply_lumi_weights_new(self, histograms):
+    def apply_lumi_weights(self, histograms):
         """
         Weight histograms according to process cross section and luminosity. If MC samples are split in several
         production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
@@ -134,11 +146,12 @@ class BasePlotter(object):
                 if hist is None:
                     _logger.error("Histogram for process {:s} is None".format(process))
                     continue
-                if "data" in process.lower():
+                if process.is_data:
                     continue
+
                 lumi = self.lumi
                 if isinstance(self.lumi, OrderedDict):
-                    if re.search('mc16[acde]$', process) is None:
+                    if re.search('mc16[acde]$', process.mc_campaign) is None:
                         if provided_wrong_info is False:
                             _logger.error('Could not find MC campaign information, but lumi was provided per MC '
                                           'campaing. Not clear what to do. It will be assumed that you meant to scale '
@@ -148,9 +161,9 @@ class BasePlotter(object):
                             plot_config.used_mc_campaigns = self.lumi.keys()
                         lumi = sum(self.lumi.values())
                     else:
-                        lumi = self.lumi[process.split('.')[-1]]
-                        plot_config.used_mc_campaigns.append(process.split('.')[-1])
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.split(".")[0], lumi,
+                        lumi = self.lumi[process.mc_campaign]
+                        plot_config.used_mc_campaigns.append(process.mc_campaign)
+                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.process_name, lumi,
                                                                             self.event_yields[process])
                 ht.scale(hist, cross_section_weight)
 
@@ -176,13 +189,14 @@ class BasePlotter(object):
         if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
+        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
         if not plot_config.merge_mc_campaigns:
             return plot_config, file_handle.process, tmp
         return plot_config, file_handle.process, tmp
 
     def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
         file_handle, plot_config = data
-        if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
+        if file_handle.process is None or file_handle.process.is_data and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
         tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
@@ -240,6 +254,7 @@ class BasePlotter(object):
                     else:
                         weight = process_weight
             if plot_config.cuts:
+                plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
@@ -250,27 +265,24 @@ class BasePlotter(object):
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 for data_cut in data_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
-                    if "data" in file_handle.process:
+                    if self.process_configs[file_handle.process].type == "Data": #"data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
-
             if plot_config.blind and find_process_config(file_handle.process, self.process_configs).type == "Data":
                 if selection_cuts == "":
                     selection_cuts = "!({:s})".format(" && ".join(plot_config.blind))
                 else:
                     selection_cuts = "({:s}) && !({:s})".format(selection_cuts, " && ".join(plot_config.blind))
             try:
-                if plot_config.merge_mc_campaigns:
-                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
-                else:
-                    hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
+                hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process.process_name))
                 selection_cuts = selection_cuts.rstrip().rstrip("&&")
                 tn = self.tree_name
                 if self.syst_tree_name is not None and file_handle.is_mc:
                     tn = self.syst_tree_name
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
+
             except TypeError: #RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
@@ -356,7 +368,7 @@ class BasePlotter(object):
         for process in histograms.keys():
             parent_process = find_process_config(process, process_configs).name
             if parent_process not in histograms.keys():
-                new_hist_name = histograms[process].GetName().replace(process, parent_process)
+                new_hist_name = histograms[process].GetName().replace(process.process_name, parent_process)
                 histograms[parent_process] = histograms[process].Clone(new_hist_name)
             else:
                 histograms[parent_process].Add(histograms[process])

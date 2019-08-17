@@ -75,6 +75,7 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
     kwargs.setdefault('lumi_text', plot_config.lumi_text)
     kwargs.setdefault('lumi_precision', plot_config.lumi_precision)
+    kwargs.setdefault('add_text', plot_config.add_text)
 
     if plot_config.watermark is not None:
         add_atlas_label(canvas, plot_config.watermark, {"x": kwargs['watermark_x'],
@@ -90,6 +91,9 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     if plot_config.decor_text is not None:
         add_text_to_canvas(canvas, plot_config.decor_text, {"x": kwargs['decor_text_x'], "y": kwargs['decor_text_y']},
                            size=kwargs['decor_text_size'])
+
+    if plot_config.add_text is not None:
+        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]}, size=kwargs['add_text'][3])
 
 
 def check_valid_axis(axis):
@@ -223,23 +227,6 @@ def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=Tr
     return t
 
 
-def set_axis_labels(obj, plot_config):
-    """
-    Set bin labels for x axis
-
-    :param obj: plot object
-    :type obj: TH1, TGraph
-    :param plot_config: plot configuration
-    :type plot_config: PlotConfig
-    :return: nothing
-    :rtype: None
-    """
-    if plot_config.axis_labels is None:
-        return
-    for b, label in enumerate(plot_config.axis_labels):
-        obj.GetXaxis().SetBinLabel(b + 1, label)
-
-
 def add_lumi_text(canvas, lumi, pos={'x': 0.6, 'y': 0.87}, size=0.04, split_lumi_text=False, energy=13, precision=2,
                   lumi_text=None):
     canvas.cd()
@@ -371,7 +358,8 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
     elif isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.TGraph):
-        graph_obj.SetMaximum(maximum)
+        if not isinstance(graph_obj, ROOT.TH2):
+            graph_obj.SetMaximum(maximum)
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
@@ -400,6 +388,8 @@ def get_min_y(graph_obj):
 
 def get_max_y(graph_obj):
     if isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.THStack):
+        if isinstance(graph_obj, ROOT.TH2):
+            return graph_obj.GetYaxis().GetXmax()
         return graph_obj.GetMaximum()
     if isinstance(graph_obj, ROOT.TEfficiency):
         return graph_obj.GetPaintedGraph().GetMaximum()
@@ -419,6 +409,30 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
         set_range_x(graph_obj, minimum, maximum)
     else:
         _logger.error("Invalid axis choice: {:s}".format(axis))
+
+
+def get_min_max_y(canvas, plot_config):
+    y_scale_offset = plot_config.yscale
+    if plot_config.logy:
+        y_scale_offset = plot_config.yscale_log
+    plotted_obj = get_objects_from_canvas_by_type(canvas, ['TH1', 'TH2', 'THStack', 'TGraph'])
+    max_y = max(map(lambda o: get_max_y(o), plotted_obj))
+    if plot_config.ymax is not None:
+        tmp_max = max_y
+        if isinstance(plot_config.ymax, str):
+            tmp_max = eval(plot_config.ymax)
+        max_y = max(max_y, tmp_max)
+    min_y = max(map(lambda o: get_min_y(o), plotted_obj))
+    if plot_config.ymin is not None:
+        min_y = plot_config.ymin
+    if plot_config.logy:
+        if plot_config.ymin is not None and plot_config.ymin > 0.:
+            min_y = plot_config.ymin
+        elif plot_config.ymin_log > 0.:
+            min_y = plot_config.ymin_log
+        else:
+            min_y = 0.1
+    return min_y, y_scale_offset * max_y
 
 
 def auto_scale_y_axis(canvas, offset=1.1):
@@ -601,6 +615,8 @@ def add_legend_to_canvas(canvas, **kwargs):
                 is_stacked = True
             try:
                 process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
+                if process_config is None:
+                    process_config = filter(lambda pn: pn[0] in plot_obj.GetName(), kwargs['process_configs'].iteritems())[0][1]
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
@@ -620,7 +636,6 @@ def add_legend_to_canvas(canvas, **kwargs):
         legend = get_legend(len(plot_objects), labels, **kwargs)
 
     plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
-
     canvas.cd()
     legend.SetFillStyle(kwargs["fill_style"])
     for plot_obj, label in zip(plot_objects, labels):

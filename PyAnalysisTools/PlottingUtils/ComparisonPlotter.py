@@ -68,13 +68,13 @@ class ComparisonReader(object):
             cut_string = '&&'.join(filter(lambda ct: 'DATA' not in ct, cut_string.split("&&")))
 
         hist = get_histogram_definition(plot_config)
-        hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
+        hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
         try:
             file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string, tdirectory='Nominal')
-            hist.SetName(hist.GetName() + '_' + file_handle.process)
-            _logger.debug("try to access config for process %s" % file_handle.process)
+            hist.SetName(hist.GetName() + '_' + file_handle.process.process_name)
+            _logger.debug("try to access config for process %s" % file_handle.process.process_name)
         except Exception as e:
             raise e
         return hist

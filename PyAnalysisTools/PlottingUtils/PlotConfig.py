@@ -6,6 +6,7 @@ from math import log10
 from array import array
 from copy import copy, deepcopy
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig, Process
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from collections import OrderedDict
 from PyAnalysisTools.base.ShellUtils import find_file
@@ -17,6 +18,7 @@ class PlotConfig(object):
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
+        # kwargs.setdefault("cuts_l1", None)
         if not "draw" in kwargs:
             kwargs.setdefault("Draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
@@ -39,6 +41,8 @@ class PlotConfig(object):
                 kwargs.setdefault(key, attr)
 
         for k, v in kwargs.iteritems():
+            if v == "None":
+                v = None
             if k == "ratio_config" and v is not None:
                 v["logx"] = kwargs["logx"]
                 self.set_additional_config("ratio_config", **v)
@@ -48,7 +52,7 @@ class PlotConfig(object):
                 continue
             if "xmin" in k or "xmax" in k:
                 v = eval(str(v))
-            if (k == "ymax" or k == "ymin") and v is not None and re.match("[1-9].*[e][1-9]*", str(v)):
+            if (k == "ymax" or k == "ymin") and v is not None:
                 if isinstance(v, float):
                     setattr(self, k.lower(), v)
                     continue
@@ -193,6 +197,7 @@ def get_default_plot_config(hist):
 def get_default_color_scheme():
     # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
     #         ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+
     return [ROOT.kGray+3,
             ROOT.kRed+2,
             ROOT.kAzure+4,
@@ -204,56 +209,19 @@ def get_default_color_scheme():
             ROOT.kMagenta-5,
             ROOT.kOrange,
             ROOT.kCyan+3,
+            ROOT.kPink+4,
+            ROOT.kGray+3,
+            ROOT.kRed+2,
+            ROOT.kAzure+4,
+            ROOT.kSpring-6,
+            ROOT.kOrange-3,
+            ROOT.kCyan-3,
+            ROOT.kPink-2,
+            ROOT.kSpring-9,
+            ROOT.kMagenta-5,
+            ROOT.kOrange,
+            ROOT.kCyan+3,
             ROOT.kPink+4]
-
-
-class ProcessConfig(object):
-    def __init__(self, **kwargs):
-        kwargs.setdefault('parent_process', None)
-        for k, v in kwargs.iteritems():
-            setattr(self, k.lower(), v)
-        self.transform_type()
-
-    def __str__(self):
-        """
-        Overloaded str operator. Get's called if object is printed
-        :return: formatted string with name and attributes
-        :rtype: str
-        """
-        obj_str = "Process config: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
-            obj_str += '{}={} \n'.format(attribute, value)
-        return obj_str
-
-    def __repr__(self):
-        """
-        Overloads representation operator. Get's called e.g. if list of objects are printed
-        :return: formatted string with name and attributes
-        :rtype: str
-        """
-        return self.__str__() + '\n'
-
-    def transform_type(self):
-        if "data" in self.type.lower():
-            self.is_data = True
-            self.is_mc = False
-        else:
-            self.is_data = False
-            self.is_mc = True
-
-    def retrieve_subprocess_config(self):
-        tmp = {}
-        if not hasattr(self, "subprocesses"):
-            return tmp
-        for sub_process in self.subprocesses:
-            tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
-        return tmp
-
-    def add_subprocess(self, subprocess_name):
-        self.subprocesses.append(subprocess_name)
-        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
-        pc.parent_process = self.name
-        return pc
 
 
 def parse_mc_campaign(process_name):
@@ -433,6 +401,17 @@ def transform_color(color, index=None):
 
 
 def get_style_setters_and_values(plot_config, process_config=None, index=None):
+    """
+    Parse style setter and values from draw option and config files
+    :param plot_config: current plot configuration
+    :type plot_config: PlotConfig
+    :param process_config: process configuration
+    :type process_config: ProcessConfig
+    :param index: index of current object in multi-object plotting
+    :type index: int
+    :return: style setters (Marker, Line etc), attribute (color, size etc) and color
+    :rtype: list
+    """
     style_setter = None
     style_attr, color = None, None
     draw_option = _parse_draw_option(plot_config, process_config)
@@ -459,12 +438,12 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
             #style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
-        style_setter = "Marker"
+        style_setter = ["Marker", 'Line']
     elif draw_option.lower() == "line":
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
         style_setter = plot_config.style_setter
-    if plot_config.color is not None:
+    if plot_config.color is not None and index is not None:
         if isinstance(plot_config.color, list) and index > len(plot_config.color):
             index = index % len(plot_config.color)
             style_attr = 10
@@ -473,6 +452,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     #     style_attr = None
     if not isinstance(style_setter, list):
         style_setter = [style_setter]
+    _logger.debug("Parsed style setter {:s} from draw option {:s}".format(style_setter, draw_option))
     return style_setter, style_attr, color
 
 
@@ -525,99 +505,64 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     return hist
 
 
-def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
-    new_config = deepcopy(process_config)
-    for index, sub_process in enumerate(process_config.subprocesses):
-        if 're.' not in sub_process:
-            print 'Problem, this is not covered yet - process:', process_config.name
-            #raw_input('Hit enter to acknowledge and complain on jira.')
-            continue
-        if 'mc' not in sub_process:
-            process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
-        elif campaign_tag not in sub_process:
-            split_info = sub_process.split(')]$')
-            process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
-
-    new_config.name += '.{:s}'.format(campaign_tag)
-    for index, sub_process in enumerate(new_config.subprocesses):
-        new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
-    new_config.parent_process = process_config
-    process_configs[new_config.name] = new_config
-
-
-# def find_process_config(process_name, process_configs):
-#     """
-#     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
-#     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
-#     MC campaign info exists it will be created adding
-#     :param process_name:
-#     :type process_name:
-#     :param process_configs:
-#     :type process_configs:
-#     :return:
-#     :rtype:
-#     """
-#     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
-#     raise TypeError
-#     if process_configs is None or process_name is None:
-#         return None
-#     if process_name in process_configs:
-#         return process_configs[process_name]
-#     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-#                                            any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-#                                 process_configs.iteritems()))
-#     for process_config in regex_configs.values():
-#         for sub_process in process_config.subprocesses:
-#             if not sub_process.startswith("re."):
-#                 continue
-#             match = re.match(sub_process.replace("re.", ""), process_name)
-#             if not match:
-#                 continue
-#             new_process = match.group()
-#             process_configs[new_process] = process_config.add_subprocess(new_process)
-#             return process_configs[match.group()]
-#     return None
-
-
-# def find_process_config_new(process_name, process_configs, ignore_mc_campaign=False):
-#     """
-#     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
-#     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
-#     MC campaign info exists it will be created adding
-#     :param process_name:
-#     :type process_name:
-#     :param process_configs:
-#     :type process_configs:
-#     :return:
-#     :rtype:
-#     """
-#     _logger.error('DEPRECATED. Do not use this anymore, but file bug report with execution cmd')
+#todo: remove if not needed anymore
+# def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
+#     new_config = deepcopy(process_config)
+#     for index, sub_process in enumerate(process_config.subprocesses):
+#         if 're.' not in sub_process:
+#             print 'Problem, this is not covered yet - process:', process_config.name
+#             #raw_input('Hit enter to acknowledge and complain on jira.')
+#             continue
+#         if 'mc' not in sub_process:
+#             process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
+#         elif campaign_tag not in sub_process:
+#             split_info = sub_process.split(')]$')
+#             process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
 #
-#     if process_configs is None or process_name is None:
-#         return None
-#     if process_name in process_configs:
-#         return process_configs[process_name]
-#     regex_configs = dict(filter(lambda kv: hasattr(kv[1], "subprocesses") and
-#                                            any(map(lambda i: i.startswith("re."), kv[1].subprocesses)),
-#                                 process_configs.iteritems()))
-#     mc_campaign = parse_mc_campaign(process_name)
-#     for process_config in regex_configs.values():
-#         for sub_process in process_config.subprocesses:
-#             if not sub_process.startswith("re."):
-#                 continue
-#             match = re.match(sub_process.replace("re.", ""), process_name)
-#             if not match:
-#                 continue
-#             new_process = match.group()
-#             if mc_campaign is not None and not ignore_mc_campaign:
-#                 if '{:s}.{:s}'.format(process_config.name, mc_campaign) not in process_configs:
-#                     add_campaign_specific_merge_process(process_config, process_configs, mc_campaign)
-#             process_configs[new_process] = process_config.add_subprocess(new_process)
-#             return process_configs[match.group()]
-#     return None
+#     new_config.name += '.{:s}'.format(campaign_tag)
+#     for index, sub_process in enumerate(new_config.subprocesses):
+#         new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
+#     new_config.parent_process = process_config
+#     process_configs[new_config.name] = new_config
 
 
-def find_process_config(process_name, process_configs, ignore_mc_campaign=False):
+def find_process_config(process, process_configs):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
+    def is_sub_process(config):
+        if process.match(config.name):
+            return True
+        if not hasattr(config, 'subprocesses'):
+            return False
+        if process.matches_any(config.subprocesses) is not None:
+            return True
+        return False
+
+    if not isinstance(process, Process):
+        return find_process_config_str(process, process_configs)
+    if process_configs is None or process is None:
+        return None
+    match = process.matches_any(process_configs.keys())
+    if match is not None:
+        return process_configs[match]
+    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    if len(matched_process_cfg) != 1:
+        if len(matched_process_cfg) > 0:
+            print 'SOMEHOW matched to multiple configs'
+        return None
+    return matched_process_cfg[0]
+
+
+def find_process_config_str(process_name, process_configs):
     """
     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with

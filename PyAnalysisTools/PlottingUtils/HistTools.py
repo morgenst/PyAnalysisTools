@@ -123,37 +123,38 @@ def scale(hist, weight):
     hist.Scale(weight)
 
 
-def normalise(histograms, integration_range=None):
+def normalise(histograms, integration_range=None, norm_scale=1.):
     if integration_range is None:
         integration_range = [-1, -1]
     if type(histograms) == dict:
         for h in histograms.keys():
-            histograms[h] = normalise_hist(histograms[h], integration_range)
+            histograms[h] = normalise_hist(histograms[h], integration_range, norm_scale)
     elif type(histograms) == list:
         for h in histograms:
-            h = normalise_hist(h, integration_range)
+            h = normalise_hist(h, integration_range, norm_scale)
     else:
-        histograms = normalise_hist(histograms, integration_range)
+        histograms = normalise_hist(histograms, integration_range, norm_scale)
 
 
-def normalise_hist(hist, integration_range=[-1, -1]):
+def normalise_hist(hist, integration_range=[-1, -1], norm_scale=1.):
     if isinstance(hist, ROOT.TH2):
-        return _normalise_2d_hist(hist, integration_range)
+        return _normalise_2d_hist(hist, integration_range, norm_scale)
     if isinstance(hist, ROOT.TH1):
-        return _normalise_1d_hist(hist, integration_range)
+        return _normalise_1d_hist(hist, integration_range, norm_scale)
 
 
-def _normalise_1d_hist(hist, integration_range=[-1, -1]):
+def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
+    print norm_scale, hist.GetName()
     if isinstance(hist, ROOT.THStack):
         return hist
     integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
-    hist.Scale(1. / integral)
+    hist.Scale(norm_scale / integral)
     return hist
 
 
-def _normalise_2d_hist(hist, integration_range=[-1,-1]):
+def _normalise_2d_hist(hist, integration_range=[-1,-1], norm_scale=1.):
     return hist
 
 
@@ -176,3 +177,20 @@ def get_colors(hists):
         if "hist" in draw_option.lower():
             return hist.GetLineColor()
     return [get_color() for hist in hists]
+
+
+def set_axis_labels(obj, plot_config):
+    """
+    Set bin labels for x axis
+
+    :param obj: plot object
+    :type obj: TH1, TGraph
+    :param plot_config: plot configuration
+    :type plot_config: PlotConfig
+    :return: nothing
+    :rtype: None
+    """
+    if plot_config.axis_labels is None:
+        return
+    for b, label in enumerate(plot_config.axis_labels):
+        obj.GetXaxis().SetBinLabel(b + 1, label)

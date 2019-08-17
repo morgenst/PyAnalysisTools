@@ -7,7 +7,8 @@ import copy
 import os
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -32,18 +33,44 @@ class PlotArgs(object):
         for attr, val in kwargs.iteritems():
             setattr(self, attr, val)
 
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Plot arguments \n"
+        for attribute, value in self.__dict__.items():
+            obj_str += '{}={} \n'.format(attribute, value)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
+
 
 class Plotter(BasePlotter):
     def __init__(self, **kwargs):
         kwargs.setdefault('cluster_config', None)
-        kwargs.setdefault("ncpu", 1)
+        kwargs.setdefault('ncpu', 1)
+        kwargs.setdefault('cluster_mode', False)
+        kwargs.setdefault('redraw_hists', None)
+
         if kwargs['cluster_config'] is not None:
             self.cluster_init(kwargs['cluster_config'])
             self.cluster_mode = True
             self.ncpu = kwargs['ncpu']
             return
-        self.cluster_mode = False
-        if "input_files" not in kwargs:
+        self.cluster_mode = kwargs['cluster_mode']
+        if kwargs['redraw_hists'] is not None:
+            self.redraw_init(**kwargs)
+            return
+
+        if "input_files" not in kwargs and not 'input_file_list' in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("No input files")
         if "plot_config_files" not in kwargs:
@@ -61,12 +88,14 @@ class Plotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
-        kwargs.setdefault("module_config_file", None)
+        kwargs.setdefault("module_config_files", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault('file_extension', ['.pdf'])
 
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
+            if hasattr(self, k) and v is None:
+                continue
             setattr(self, k, v)
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
@@ -78,15 +107,13 @@ class Plotter(BasePlotter):
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
 
         self.file_handles = filter(lambda fh: fh.process is not None, self.file_handles)
-        self.file_handles = self.filter_processes_new(self.file_handles, self.process_configs)
+        self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if not self.read_hist:
             self.filter_empty_trees()
-        self.modules = load_modules(kwargs["module_config_file"], self)
+        self.modules = load_modules(kwargs['module_config_files'], self)
         self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
         #self.modules.append(self.fake_estimator)
-        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        self.init_modules()
         self.expand_plot_configs()
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
@@ -94,6 +121,38 @@ class Plotter(BasePlotter):
     def expand_plot_configs(self):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
+
+    def init_modules(self):
+        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.modules_data_modifiers = [m for m in self.modules if m.type == 'DataModifier']
+        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+
+    def redraw_init(self, **kwargs):
+        super(Plotter, self).__init__(cluster_mode=False, redraw=True)
+        config = kwargs['config']
+        self.histograms = {}
+        self.modules = load_modules(kwargs['module_config_file'], self)
+        self.init_modules()
+        self.read_hist = True
+        self.xs_handle = XSHandle(config.extra_args["xs_config_file"])
+        self.ncpu = 1
+        self.nfile_handles = 1
+        self.plot_config_files = kwargs['plot_config_files']
+        self.parse_plot_config()
+        self.expand_plot_configs()
+        self.xs_config_file = config.extra_args['xs_config_file']
+        self.process_configs = config.extra_args['process_configs']
+        self.syst_analyser = config.extra_args['syst_analyser']
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+            self.syst_analyser.event_yields = self.event_yields
+            self.syst_analyser.dump_hists = False
+            self.syst_analyser.plot_configs = self.plot_configs
+        #config.output_dir = "/Users/morgens/tmp/test"
+        self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
+                                              extension=['.pdf'], output_dir=kwargs['output_dir'])
+        self.output_handle.reinitialise_output_dir()
 
     def cluster_init(self, config):
         super(Plotter, self).__init__(cluster_config=config)
@@ -103,16 +162,18 @@ class Plotter(BasePlotter):
         self.plot_configs = config.plot_config
         self.modules_pc_modifiers = []
         self.modules_data_providers = []
+        self.modules_data_modifiers = []
         self.modules_hist_fetching = []
         self.read_hist = False
         self.ncpu = 1
         self.nfile_handles = 1
-        self.syst_analyser.file_handles = self.file_handles
-        self.syst_analyser.event_yields = self.event_yields
-        self.syst_analyser.dump_hists = True
-        self.syst_analyser.plot_configs = self.plot_configs
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+            self.syst_analyser.event_yields = self.event_yields
+            self.syst_analyser.dump_hists = True
+            self.syst_analyser.plot_configs = self.plot_configs
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
-                                              extension=None, output_dir=config.output_dir,
+                                              extension=None, output_dir=config.output_dir, sub_dir_name='hists',
                                               output_file='hist-{:s}'.format(config.file_name.split('-')[1]))
 
     def add_mc_campaigns(self):
@@ -122,29 +183,38 @@ class Plotter(BasePlotter):
             process_config = self.process_configs[process_config_name]
             if process_config.is_data:
                 continue
-            for i, campaign in enumerate(["mc16a", "mc16c", "mc16d", 'mc16e']):
+            for i, campaign in enumerate(['mc16a', 'mc16c', 'mc16d', 'mc16e']):
                 new_config = copy.copy(process_config)
                 new_config.name += campaign
-                new_config.label += " {:s}".format(campaign)
+                new_config.label += ' {:s}'.format(campaign)
                 #TODO fix proper calculation
                 if not '+' in new_config.color and not '-' in new_config.color:
-                    new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
-                if hasattr(process_config, "subprocesses"):
-                    new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
-                self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
+                    new_config.color = new_config.color + ' + {:d}'.format(3*pow(-1, i))
+                if hasattr(process_config, 'subprocesses'):
+                    new_config.subprocesses = ['{:s}.{:s}'.format(sb, campaign) for sb in process_config.subprocesses]
+                self.process_configs['{:s}.{:s}'.format(process_config_name, campaign)] = new_config
             self.process_configs.pop(process_config_name)
 
     @staticmethod
-    def filter_processes_new(file_handles, process_configs):
+    def filter_unavailable_processes(file_handles, process_configs):
         if process_configs is None:
             return file_handles
         unavailable_process = map(lambda fh: fh.process,
                                   filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
-            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
+            _logger.debug("Unable to find merge process config for {:s}".format(str(process)))
+        failed_file_handles = filter(lambda fh: find_process_config(fh.process, process_configs) is None,
+                                     file_handles)
+        _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name, failed_file_handles))))
+        map(lambda fh: fh.close(), failed_file_handles)
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
+
+    @staticmethod
+    def filter_processes_new(file_handles, process_configs):
+        _logger.error("This function is deprecated. Switch to filter_unavailable_processes.")
+        return Plotter.filter_unavailable_processes(file_handles, process_configs)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -155,7 +225,10 @@ class Plotter(BasePlotter):
             if syst_tree_name is not None and file_handle.is_mc:
                 tn = syst_tree_name
             return file_handle.get_object_by_name(tn, "Nominal").GetEntries() > 0
+
+        empty_files = filter(lambda fh: not is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
         self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
+        map(lambda fh: fh.close(), empty_files)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -208,7 +281,7 @@ class Plotter(BasePlotter):
         event_yields = {}
         for file_handle in self.file_handles:
             cutflow = file_handle.get_object_by_name("Nominal/cutflow_BaseSelection")
-            process_config = find_process_config_new(file_handle.process, self.process_configs)
+            process_config = find_process_config(file_handle.process, self.process_configs)
             if process_config is None:
                 continue
             if process_config.is_data:
@@ -267,9 +340,11 @@ class Plotter(BasePlotter):
     def make_plot(self, plot_config, data):
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
+        for mod in self.modules_data_modifiers:
+            mod.execute(data)
         data = {k: v for k, v in data.iteritems() if v}
         if plot_config.normalise:
-            HT.normalise(data, integration_range=[0, -1])
+            HT.normalise(data, integration_range=[0, -1], norm_scale=plot_config.norm_scale)
         HT.merge_overflow_bins(data)
         HT.merge_underflow_bins(data)
         signals = None
@@ -304,6 +379,9 @@ class Plotter(BasePlotter):
             canvas = pt.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
             canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
+            if plot_config.signal_extraction:
+                for signal in signals.iteritems():
+                    pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
         if not plot_config.disable_legend:
             if plot_config.legend_options is not None:
@@ -316,20 +394,22 @@ class Plotter(BasePlotter):
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
                                                  self.process_configs.iteritems()))
             #signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
+            signal_hist = signals.values()[0]
             background_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Background")
             if hasattr(plot_config, "significance_config"):
                 sig_plot_config = plot_config.significance_config
             else:
                 sig_plot_config = copy.copy(plot_config)
                 sig_plot_config.name = "sig_" + plot_config.name
-                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+                sig_plot_config.ytitle = "S/#sqrt{S + B}"
+                sig_plot_config.normalise = False
             significance_canvas = None
             for process, signal_hist in signals.iteritems():
                 sig_plot_config.color = self.process_configs[process].color
                 sig_plot_config.name = "significance_{:s}".format(process)
                 sig_plot_config.ymin = 0.00001
-                sig_plot_config.ymax = 1e5
-                sig_plot_config.ytitle = "S/#sqrt(S + B)"
+                sig_plot_config.ymax = 10.
+                sig_plot_config.ytitle = "S/#sqrt{B}"
 
                 significance_canvas = ST.get_significance(signal_hist, background_hist, sig_plot_config,
                                                           significance_canvas)
@@ -408,6 +488,7 @@ class Plotter(BasePlotter):
 
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = pt.add_ratio_to_canvas(canvas, canvas_ratio)
+            _logger.debug('register canvas {:s}'.format(canvas_combined.GetName()))
             self.output_handle.register_object(canvas_combined)
 
     def build_fetched_histograms(self):
@@ -418,37 +499,48 @@ class Plotter(BasePlotter):
         #"[(<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x12545f2d0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_data17.periodK") at 0x7f8ec2568400>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979fd0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_data17.periodK") at 0x7f8ec2567850>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485650>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_data17.periodK") at 0x7f8ec2ab4da0>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979d90>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_data17.periodK") at 0x7f8ec2567080>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485690>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec216cd30>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485910>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178970>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979c10>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ebe6f5580>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124d7be90>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178e60>)]"
         return l
 
-    def get_fetched_hist(self, args):
+    @staticmethod
+    def get_fetched_hist(args):
         fh = args[0]
         pc = args[1]
         c = fh.get_object_by_name(pc.name)
         return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
 
+    def project_hists(self):
+        self.read_cutflows()
+        if self.syst_analyser is not None:
+            self.syst_analyser.plot_configs = self.plot_configs
+
+        if not self.read_hist:
+            if len(self.modules_hist_fetching) == 0:
+                fetched_histograms = self.read_histograms(file_handles=self.file_handles,
+                                                          plot_configs=self.plot_configs)
+            else:
+                fetched_histograms = self.modules_hist_fetching[0].fetch()
+        else:
+            fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
+                                                            plot_configs=self.plot_configs)
+
+        return filter(lambda hist_set: all(hist_set), fetched_histograms)
+
+    def read_hists(self, path):
+        input_files = glob.glob(os.path.join(path, '*.root'))
+        _logger.debug("Reading {:d} files now from path".format(len(input_files)))
+        self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
+                                        split_mc=False) for fn in input_files]
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+        return self.build_fetched_histograms()
+
     def make_plots(self, dumped_hist_path=None):
         if dumped_hist_path is None:
-            self.read_cutflows()
-            # for mod in self.modules_pc_modifiers:
-            #     self.plot_configs = mod.execute(self.plot_configs)
-            if self.syst_analyser is not None:
-                self.syst_analyser.plot_configs = self.plot_configs
-            if not self.read_hist:
-                if len(self.modules_hist_fetching) == 0:
-                    fetched_histograms = self.read_histograms(file_handles=self.file_handles, plot_configs=self.plot_configs)
-                else:
-                    fetched_histograms = self.modules_hist_fetching[0].fetch()
-            else:
-                fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
-                                                                plot_configs=self.plot_configs)
-            fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+            fetched_histograms = self.project_hists()
         else:
-            self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
-                                            split_mc=self.split_mc_campaigns) for fn in glob.glob(os.path.join(dumped_hist_path, '*.root'))]
-            self.syst_analyser.file_handles = self.file_handles
-            fetched_histograms = self.build_fetched_histograms()
+            fetched_histograms = self.read_hists(dumped_hist_path)
         self.categorise_histograms(fetched_histograms)
         if not self.cluster_mode:
             if not self.lumi < 0:
-                self.apply_lumi_weights_new(self.histograms)
+                self.apply_lumi_weights(self.histograms)
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
