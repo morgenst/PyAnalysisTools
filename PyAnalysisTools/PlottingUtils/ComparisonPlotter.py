@@ -1,5 +1,5 @@
 import collections
-from copy import copy
+from copy import copy, deepcopy
 import ROOT
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
@@ -20,6 +20,8 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 
+import psutil
+proc = psutil.Process()
 
 class ComparisonReader(object):
     def __init__(self, **kwargs):
@@ -66,11 +68,13 @@ class ComparisonReader(object):
             cut_string = cut_string.replace('DATA:', '')
         else:
             cut_string = '&&'.join(filter(lambda ct: 'DATA' not in ct, cut_string.split("&&")))
-
+        file_handle.open()
         hist = get_histogram_definition(plot_config)
         hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
+        print file_handle.tfile.IsOpen()
+        print hist
         try:
             file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string, tdirectory='Nominal')
             hist.SetName(hist.GetName() + '_' + file_handle.process)
@@ -78,15 +82,20 @@ class ComparisonReader(object):
         except Exception as e:
             raise e
         return hist
-
+        
     def make_hists(self, file_handles, plot_config, cut_name, cut_string, tree_name=None):
         result = None
+        hists = []
         for fh in file_handles:
             hist = self.make_hist(fh, plot_config, cut_name, cut_string, tree_name)
+            hists.append(hist)
             if result is None:
-                result = hist
+                result = hist.Clone()
+                ROOT.SetOwnership(result, False)
                 continue
             result.Add(hist)
+        result.SetDirectory(0)
+        map(lambda fh: fh.close(), file_handles)
         return result
 
     @staticmethod
@@ -294,10 +303,11 @@ class SingleFileMultiRefReader(ComparisonReader):
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label,
                                       cuts=v_cuts, process=k_ref))
+
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                compare[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
                 label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
@@ -312,6 +322,7 @@ class SingleFileMultiRefReader(ComparisonReader):
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts,
                                       process=k_comp))
+                
         return plotable_objects
 
 

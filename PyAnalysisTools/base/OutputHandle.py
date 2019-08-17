@@ -197,6 +197,7 @@ class OutputFileHandle(SysOutputHandle):
         if tdir is not None and not tdir.endswith("/"):
             tdir += "/"
         if isinstance(obj, ROOT.TTree):
+            ROOT.gROOT.cd()
             self.objects[(tdir, obj.GetName())] = obj.CloneTree()
         else:
             self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")

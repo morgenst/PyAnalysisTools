@@ -10,6 +10,10 @@ color_palette = [
     # ROOT.kPink-7,
     # ROOT.kSpring-7,
     # ROOT.kPink-1
+
+    # ROOT.kBlue+3,
+    # ROOT.kBlue+3,
+    
     ROOT.kGray+3,
     ROOT.kRed+2,
     ROOT.kAzure+4,
@@ -21,7 +25,7 @@ color_palette = [
     ROOT.kMagenta-5
 ]
 
-marker_style_palette_filled = [21,
+marker_style_palette_filled = [#21,
                                20,
                                22,
                                23,
@@ -30,7 +34,7 @@ marker_style_palette_filled = [21,
                                29,
                                2
 ]
-marker_style_palette_empty = [25,
+marker_style_palette_empty = [#25,
                               24,
                               26,
                               32,

@@ -6,8 +6,8 @@ from itertools import product
 class Cut(object):
     def __init__(self, selection):
         #TODO: need implementation for data/MC
-        if '::' in selection:
-            self.selection, self.name = selection.split('::')
+        if ':::' in selection:
+            self.selection, self.name = selection.split(':::')
         else:
             self.name = selection
             self.selection = selection

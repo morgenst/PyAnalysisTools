@@ -108,6 +108,7 @@ def set_axis_title(obj, title, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
+        print "Set titl to: ", title
         getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
