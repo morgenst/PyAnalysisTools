@@ -34,6 +34,8 @@ def main(argv):
 
     parser.add_argument('--disable_signal_plots', '-dsp', action='store_true', default=False, help='Disable plots for '
                                                                                                    'signal efficiency')
+    parser.add_argument('-disable_interactive', '-di', action='store_true', default=False, help="Disable interactive"
+                                                                                                "mode")
 
     args = default_init(parser)
     args.file_list = [os.path.abspath(f) for f in args.input_file_list]
