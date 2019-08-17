@@ -134,6 +134,7 @@ class Process(object):
         :rtype: None
         """
         if self.dataset_info is None:
+            self.process_name = dsid
             return
         try:
             tmp = filter(lambda l: l.dsid == int(self.dsid), self.dataset_info.values())

@@ -391,7 +391,7 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None, pmg_xsec=None):
+    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None, pmg_xsec=None, cl=95):
         """
 
         :param signal_scale: signal scale factor applied on top of 1 pb fixed xsec in limit setting
@@ -420,7 +420,7 @@ class LimitAnalyserCL(object):
             return scale_factor
 
         try:
-            fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_CL95.root'),
+            fh = FileHandle(file_name=os.path.join(self.input_path, 'asymptotics/test_BLIND_CL{:d}.root'.format(cl)),
                             switch_off_process_name_analysis=True)
             tree = fh.get_object_by_name('stats')
             data = self.converter.convert_to_array(tree=tree)
@@ -941,7 +941,7 @@ class LimitScanAnalyser(object):
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
-            
+
 
 class Sample(object):
     def __init__(self, process, gen_ylds):
@@ -957,6 +957,7 @@ class Sample(object):
             self.is_data = process.is_data
         self.generated_ylds = gen_ylds
         self.nominal_evt_yields = {}
+        self.raw_nominal_evt_yields = {}
         self.shape_uncerts = {}
         self.scale_uncerts = {}
         self.ctrl_region_yields = {}
@@ -964,6 +965,7 @@ class Sample(object):
         self.ctrl_reg_shape_ylds = {}
         self.is_signal = False
         self.theory_uncert_provider = TheoryUncertaintyProvider()
+        self.is_data_driven_bkg = False
 
     def __str__(self):
         """
@@ -998,6 +1000,11 @@ class Sample(object):
             self.ctrl_reg_scale_ylds[cr] = {}
 
     def add_signal_region_yields(self, sr_name, cut, nom_yields, shape_uncerts=None):
+        if isinstance(nom_yields, numbers.Number):
+            self.nominal_evt_yields[cut] = nom_yields
+            self.raw_nominal_evt_yields[cut] = nom_yields
+            self.scale_uncerts[cut] = {}
+            return
         for syst in nom_yields.keys():
             if syst == 'weight' or 'pdf_uncert' in syst:
                 continue
@@ -1212,7 +1219,10 @@ class Sample(object):
         return [syst[0]*nom[0], nom[1]]
 
     def merge_child_processes(self, samples, has_syst=True):
-        self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
+        if isinstance(samples[0], dict) and len(samples[0].generated_ylds) > 0:
+            self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
+        else:
+            self.generated_ylds = {}
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
         for region in samples[0].nominal_evt_yields.keys():
@@ -1220,6 +1230,8 @@ class Sample(object):
                 self.nominal_evt_yields[region] = {}
             for cut in samples[0].nominal_evt_yields[region].keys():
                 self.nominal_evt_yields[region][cut] = sum(map(lambda s: s.nominal_evt_yields[region][cut], samples))
+        for cut in samples[0].raw_nominal_evt_yields.keys():
+            self.raw_nominal_evt_yields[cut] = sum(map(lambda s: s.raw_nominal_evt_yields[cut], samples))
         if has_syst:
             for region in samples[0].shape_uncerts.keys():
                 for cut in samples[0].shape_uncerts[region].keys():
@@ -1302,7 +1314,7 @@ class SampleStore(object):
 
     def apply_xsec_weight(self, signal_xsec=1.):
         for sample in self.samples:
-            if sample.is_data:
+            if sample.is_data or sample.is_data_driven_bkg:
                 continue
             lumi = self.lumi
             if isinstance(self.lumi, OrderedDict):
@@ -1331,14 +1343,14 @@ class SampleStore(object):
         for s in set(samples_to_remove):
             self.samples.remove(s)
 
-    def merge_processes(self):
+    def merge_processes(self, merge_signals=False):
         samples_to_remove = []
         samples_to_merge = {}
         for sample in self.samples:
             process_config = find_process_config(sample.name, self.process_configs)
             if process_config is None:
                 continue
-            if process_config.type.lower() == 'signal':
+            if process_config.type.lower() == 'signal' and not merge_signals:
                 continue
             if process_config.name not in samples_to_merge:
                 samples_to_merge[process_config.name] = [sample]
@@ -1461,6 +1473,10 @@ class SampleStore(object):
             return sample[0]
         return None
 
+    def retrieve_all_raw_signal_ylds(self, cut):
+        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        print signal_samples[0].raw_nominal_evt_yields
+        return {s.name: s.raw_nominal_evt_yields[cut] for s in signal_samples}
 
 class LimitValidator(object):
     def __init__(self, **kwargs):

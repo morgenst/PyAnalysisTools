@@ -15,10 +15,10 @@ class Cut(object):
             self.name = selection
             self.selection = selection
         if 'DATA:' in self.selection:
-            self.selection.replace('DATA:', '')
+            self.selection = self.selection.replace('DATA:', '')
             self.is_data = True
-        elif 'MC:' in self.selection:
-            self.selection.replace('MC:', '')
+        if 'MC:' in self.selection:
+            self.selection = self.selection.replace('MC:', '')
             self.is_mc = True
         elif re.match(r'TYPE_[A-Z]*:', self.selection):
             process_type = re.match(r'TYPE_[A-Z]*:', self.selection).group(0)

@@ -501,7 +501,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("var_name", "yield")
         kwargs.setdefault("sr_syst", None)
         kwargs.setdefault("disable_vr", False)
-
+        kwargs.setdefault("fixed_signal", None)
         nbkg_yields = kwargs["bkg_yields"]
         self.var_name = kwargs["var_name"]
 

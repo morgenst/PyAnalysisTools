@@ -444,7 +444,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
         style_setter = plot_config.style_setter
-    if plot_config.color is not None:
+    if plot_config.color is not None and index is not None:
         if isinstance(plot_config.color, list) and index > len(plot_config.color):
             index = index % len(plot_config.color)
             style_attr = 10

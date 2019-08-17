@@ -165,7 +165,12 @@ def plot_2d_hist(hist, plot_config, **kwargs):
     canvas.cd()
     hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
-    hist.Draw(plot_config.draw_option)
+    draw_option = plot_config.draw_option
+    if draw_option is None:
+        _logger.warning("No draw option provided for TH2 for pc: {:s}. "
+                        "Fall back to default: COLZ".format(plot_config.name))
+        draw_option = 'COLZ'
+    hist.Draw(draw_option)
     if plot_config.logx:
         canvas.SetLogx()
     if plot_config.logy:
@@ -270,6 +275,15 @@ def format_hist(hist, plot_config):
 
     ROOT.SetOwnership(hist, False)
     return hist
+
+
+def make_graph(name, x_vals, y_vals):
+    g = ROOT.TGraph(len(x_vals))
+    g.SetName(name)
+    for i, x in enumerate(x_vals):
+        g.SetPoint(i, x, y_vals[i])
+    ROOT.SetOwnership(g, False)
+    return g
 
 
 def plot_graphs(graphs, plot_config):

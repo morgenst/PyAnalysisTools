@@ -1,6 +1,8 @@
 import operator
 import re
 import os
+from copy import deepcopy
+from operator import add
 import numpy as np
 import pandas as pd
 import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
@@ -12,11 +14,12 @@ try:
     from tabulate.tabulate import tabulate
 except ImportError:
     from tabulate import tabulate
-tabulate.LATEX_ESCAPE_RULES = {}
+tabulate.LATEX_ESCAPE_RULES={}
 
 from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
+from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig, \
@@ -42,6 +45,9 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault('disable_interactive', False)
         kwargs.setdefault('save_table', False)
         kwargs.setdefault('batch', True)
+        kwargs.setdefault('friend_directory', None)
+        kwargs.setdefault('friend_tree_names', None)
+        kwargs.setdefault('friend_file_pattern', None)
         kwargs.setdefault('precision', 3)
         self.event_numbers = dict()
         self.lumi = kwargs["lumi"]
@@ -51,7 +57,10 @@ class CommonCutFlowAnalyser(object):
             _logger.error('The property "dataset_config" is not supported anymore. Please use xs_config_file')
             kwargs.setdefault('xs_config_file', kwargs['dataset_config'])
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
-        self.file_handles = [FH(file_name=fn, dataset_info=kwargs["xs_config_file"]) for fn in kwargs["file_list"]]
+        self.file_handles = [FH(file_name=fn, dataset_info=kwargs['xs_config_file'],
+                                friend_directory=kwargs['friend_directory'],
+                                friend_tree_names=kwargs['friend_tree_names'],
+                                friend_pattern=kwargs['friend_file_pattern']) for fn in kwargs['file_list']]
         self.process_configs = None
         self.save_table = kwargs['save_table']
         if "process_configs" in kwargs and not "process_config_files" in kwargs:
@@ -212,6 +221,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault('enable_eff', False)
         kwargs.setdefault('percent_eff', False)
         kwargs.setdefault('disable_signal_plots', False)
+        kwargs.setdefault('friend_tree_names', None)
         super(ExtendedCutFlowAnalyser, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
             if not hasattr(self, k):
@@ -225,6 +235,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         self.cutflow_tables = {}
         self.cutflows = {}
 
+        if kwargs["output_dir"] is not None:
+            self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
+        for k, v in kwargs.iteritems():
+            if not hasattr(self, k):
+                setattr(self, k, v)
+        if kwargs['friend_tree_names'] is not None:
+            map(lambda fh: fh.reset_friends(), self.file_handles)
+            map(lambda fh: fh.link_friend_trees(self.tree_name, 'Nominal'), self.file_handles)
 
         self.region_selections = {}
         if self.plot_config is None:
@@ -257,7 +275,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 process_config = find_process_config(process, process_configs=self.process_configs)
                 tree = file_handle.get_object_by_name(self.tree_name, systematic)
                 yields = []
-                cut_list = region.get_cut_list()
+                cut_list = region.get_cut_list(file_handle.process.is_data)
                 cut_string = ""
                 for i, cut in enumerate(cut_list):
                     if cut.process_type is not None:
@@ -739,7 +757,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def stringify(self, cutflow):
         def format_yield(value, uncertainty):
             if value > 10000.:
-                return '{:.{:d}e}'.format(value, 2)#self.precision)
+                return '{:.{:d}e}'.format(value, self.precision)
             else:
                 return '{:.{:d}f}'.format(value, self.precision)
             # if value > 10000.:

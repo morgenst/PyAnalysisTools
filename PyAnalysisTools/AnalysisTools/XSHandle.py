@@ -1,5 +1,4 @@
 import threading
-
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import _logger, InvalidInputError
 

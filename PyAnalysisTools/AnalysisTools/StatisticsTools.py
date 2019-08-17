@@ -19,8 +19,6 @@ def consistency_check_bins(obj1, obj2):
 
 def calculate_significance(signal, background):
     try:
-        print float(signal)/sqrt(float(background))
-
         return float(signal)/sqrt(float(background))
     except ZeroDivisionError:
         return 0.

@@ -3,6 +3,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import ROOT
+import os
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
@@ -14,10 +15,98 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
 
 
+class MLConfig(object):
+    """
+    Class containing configration of ML classifier
+    """
+    def __init__(self, **kwargs):
+        kwargs.setdefault('scaler', None)
+        self.score_name = kwargs['branch_name']
+        self.varset = kwargs['variable_list']
+        self.scaler = kwargs['scaler']
+        self.selection = kwargs['selection']
+
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Attached ML branch {:s} was created with the following configuration \n".format(self.score_name)
+        obj_str += 'variables: \n'
+        for var in self.varset:
+            obj_str += '\t {:s}\n'.format(var)
+        if self.selection is not None:
+            obj_str += 'selection: \n'
+            for sel in self.selection:
+                obj_str += '\t {:s}\n'.format(sel)
+        else:
+            obj_str += 'selection: None\n'
+        obj_str += 'scaler: {:s}'.format(self.scaler)
+        return obj_str
+
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: ML config object to compare to
+        :type other: MLConfig
+        :return: True/False
+        :rtype: boolean
+        """
+        if isinstance(self, other.__class__):
+            for k, v in self.__dict__.iteritems():
+                if k not in other.__dict__:
+                    return False
+                if k == 'scaler':
+                    if self.__dict__[k].scale_algo != other.__dict__[k].scale_algo:
+                        return False
+                    continue
+                if self.__dict__[k] != other.__dict__[k]:
+                    return False
+            return True
+        return False
+
+    def __ne__(self, other):
+        """
+        Comparison operator (negative)
+        :param other: ML config object to compare to
+        :type other: MLConfig
+        :return: True/False
+        :rtype: boolean
+        """
+        return not self.__eq__(other)
+
+
+class MLConfigHandle(object):
+    """
+    Handle to create and add ML configuration to summary file in friend directory
+    """
+    def __init__(self, **kwargs):
+        self.config = MLConfig(**kwargs)
+        self.output_path = kwargs['output_path']
+        self.file_name = os.path.join(self.output_path, 'ml_config_summary.pkl')
+
+    def dump_config(self):
+        data = {}
+        if os.path.exists(self.file_name):
+            with open(self.file_name, 'r') as f:
+                data = pickle.load(f)
+        if self.config.score_name in data:
+            if self.config == data[self.config.score_name]:
+                return
+            _logger.error('Score with name {:s} does already exist, but has different config. '
+                          'Will give up adding it'.format(self.config.score_name))
+            exit()
+        data[self.config.score_name] = self.config
+        with open(self.file_name, 'w') as f:
+            pickle.dump(data, f)
+
+
 class DataScaler(object):
     def __init__(self, algo="default"):
         self.scale_algo = algo
         self.scaler = None
+
     @staticmethod
     def get_algos():
         return ["default", "standard", "min_max"]
@@ -112,13 +201,18 @@ class TrainingReader(object):
         return signal_train_tree_names, background_train_tree_names, signal_eval_tree_names, background_eval_tree_names
 
     def expand_tree_names(self, tree_names):
+        expanded_tree_names = []
+        tree_names_to_remove = []
         for tree_name in tree_names:
             if not tree_name.startswith("re."):
                 continue
             pattern = "train_" + tree_name.replace("re.", "").replace("*", ".*")
-            tree_names += list(set(map(lambda name: str.replace(name, "train_", ""),
+            expanded_tree_names += list(set(map(lambda name: str.replace(name, "train_", ""),
                                        map(lambda obj: obj.GetName(), self.input_file.get_objects_by_pattern(pattern)))))
+            tree_names_to_remove.append(tree_name)
+        for tree_name in tree_names_to_remove:
             tree_names.remove(tree_name)
+        tree_names += expanded_tree_names
 
 
 class MLAnalyser(object):
