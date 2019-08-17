@@ -1,21 +1,36 @@
 import re
+from PyAnalysisTools.base import _logger
 
 data_streams = ['physics_Late', 'physics_Main']
 
 
 class Process(object):
-    def __init__(self, file_name, dataset_info):
+    """
+    Class defining a physics process
+    """
+    def __init__(self, file_name, dataset_info, process_name=None):
+        """
+        Constructor
+        :param file_name: name of input file
+        :type file_name: str
+        :param dataset_info: config containing information on all defined datasets
+        :type dataset_info: dict
+        """
         self.dataset_info = dataset_info
         self.stream = None
         self.is_mc = False
         self.is_data = False
         self.dsid = None
         self.mc_campaign = None
-        self.base_name = file_name.replace('hist-', '').replace('ntuple-', '').replace('.root', '')
+        if file_name is not None:
+            self.base_name = file_name.replace('hist-', '').replace('ntuple-', '').replace('.root', '')
+        else:
+            self.base_name = None
         self.year = None
         self.period = None
-        self.process_name = None
-        self.parse_file_name(self.base_name.split('/')[-1])
+        self.process_name = process_name
+        if file_name is not None:
+            self.parse_file_name(self.base_name.split('/')[-1])
 
     def __str__(self):
         """
@@ -61,15 +76,29 @@ class Process(object):
         return hash(self.process_name)
 
     def parse_file_name(self, file_name):
+        """
+        Reads process information from given file name
+        :param file_name: file name
+        :type file_name: str
+        :return: nothing
+        :rtype: None
+        """
         if 'data' in file_name:
             self.set_data_name(file_name)
         elif re.match(r'\d{6}', file_name):
             self.set_mc_name(file_name)
         else:
-            print "No dedicated parsing found. Assume MC and run simplified "
+            _logger.warning("No dedicated parsing found. Assume MC and run simplified")
             self.set_mc_name(file_name)
 
     def set_data_name(self, file_name):
+        """
+        Parser for data file analysing year and potential period
+        :param file_name: file name
+        :type file_name: str
+        :return: nothing
+        :rtype: None
+        """
         self.is_data = True
         if 'period' in file_name:
             self.year, _, self.period = file_name.split("_")[0:3]
@@ -79,6 +108,13 @@ class Process(object):
             self.process_name = 'data{:s}_allYear'.format(self.year)
 
     def set_mc_name(self, file_name):
+        """
+        Parser for MonteCarlo processes
+        :param file_name: file name
+        :type file_name: str
+        :return: nothing
+        :rtype: None
+        """
         self.is_mc = True
         try:
             self.dsid = re.match('\d{6}', file_name).group(0)
@@ -92,16 +128,28 @@ class Process(object):
         self.parse_mc_campaign(file_name)
 
     def parse_from_dsid(self):
+        """
+        Read information from dataset info 'DB' given the dataset id (dsid) - for MC only
+        :return: nothing
+        :rtype: None
+        """
         if self.dataset_info is None:
             return
         try:
             tmp = filter(lambda l: l.dsid == int(self.dsid), self.dataset_info.values())
         except ValueError:
-            print 'Could not find ', self.dsid
+            _logger.error("Could not find {:d}".format(self.dsid))
         if len(tmp) == 1:
             self.process_name = tmp[0].process_name
 
     def parse_mc_campaign(self, file_name):
+        """
+        Parse the MC production campaign from file name
+        :param file_name: file name
+        :type file_name:str
+        :return: nothing
+        :rtype: None
+        """
         if 'mc16a' in file_name.lower():
             self.mc_campaign = 'mc16a'
         if 'mc16c' in file_name.lower():
@@ -112,6 +160,13 @@ class Process(object):
             self.mc_campaign = 'mc16e'
 
     def matches_any(self, process_names):
+        """
+        Check if this process matches any name provided in process_names
+        :param process_names: list of process names to be checked against
+        :type process_names: list<str>
+        :return: matched process name if succeeded; otherwise None
+        :rtype: str or None
+        """
         for process_name in process_names:
             if self.match(process_name):
                 return process_name

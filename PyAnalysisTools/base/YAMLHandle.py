@@ -20,7 +20,7 @@ class YAMLLoader(object):
             return None
         try:
             with open(file_name, 'r') as config_file:
-                config = yaml.load(config_file)
+                config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
                 return config
         except IOError as e:
             _logger.error("Could not find or open yaml file %s" % file_name)
