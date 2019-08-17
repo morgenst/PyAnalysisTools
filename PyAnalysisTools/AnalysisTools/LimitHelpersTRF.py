@@ -1,3 +1,4 @@
+from __future__ import division
 import numbers
 import pickle
 from copy import deepcopy
@@ -119,15 +120,15 @@ class Yield(object):
 
     def stat_unc(self):
         stat_unc = 0.
-        try: #temporary fix while attribute not available in already processed yields
+        try:  # temporary fix while attribute not available in already processed yields
             if self.extrapolated:
                 return np.sqrt(np.sum(self.weights))
         except AttributeError:
             pass
         if len(self.original_weights) == 0:
-            return np.sqrt(np.sum(self.weights*self.weights))
+            return np.sqrt(np.sum(self.weights * self.weights))
         for i in range(len(self.original_weights)):
-            stat_unc += self.scale_factor[i]*self.scale_factor[i] * \
+            stat_unc += self.scale_factor[i] * self.scale_factor[i] * \
                         np.sum(self.original_weights[i] * self.original_weights[i])
         return np.sqrt(stat_unc)
 
@@ -160,12 +161,12 @@ class LimitArgs(object):
         obj_str = "Limit args for: {:s} \n".format(self.job_id)
         obj_str += 'signal: {:s}\n'.format(self.kwargs['sig_name'])
         obj_str += 'signal region: {:s}\n'.format(self.sig_reg_name)
-        obj_str += 'mass cut: {:f}\n'.format(self.kwargs['mass_cut'])
+        obj_str += 'mass cut: {:.1f}\n'.format(self.kwargs['mass_cut'])
         obj_str += 'registered processes: \n'
         for process in self.kwargs['process_configs'].keys():
             obj_str += '\t{:s}\n'.format(process)
         for sig_reg, yld in self.kwargs['sig_yield'].iteritems():
-            obj_str += 'SR {:s} yield: {:.2f}\n'.format(sig_reg, yld)
+            obj_str += 'SR {:s} yield: {:.2f} +- {:.2f}\n'.format(sig_reg, *yld)
 
         if 'sr_syst' in self.kwargs:
             for sig_reg in self.kwargs['sr_syst'].keys():
@@ -178,10 +179,7 @@ class LimitArgs(object):
         for sig_reg in self.kwargs['bkg_yields'].keys():
             obj_str += 'Bkg yields in {:s}: \n'.format(sig_reg)
             for process, ylds in self.kwargs['bkg_yields'][sig_reg].iteritems():
-                obj_str += '\t{:s}\t\t{:.2f}\n'.format(process, ylds)
-            # for attribute, value in self.__dict__.items():
-            #     obj_str += '{}={} '.format(attribute, value)
-            #
+                obj_str += '\t{:s}\t\t{:.2f} +- {:.2f}\n'.format(process, *ylds)
         if self.kwargs['ctrl_syst'] is not None:
             obj_str += 'CR systematics: \n'
             for region in self.kwargs['ctrl_syst'].keys():
@@ -257,6 +255,7 @@ class LimitArgs(object):
                                                     "data": {"lo_data": [variation[1] * sample['data'][0]],
                                                              "hi_data": [sample['data'][0]]},
                                                     'name': sys})
+
         specs = OrderedDict()
         specs['channels'] = [add_signal_region(sig_reg) for sig_reg in self.kwargs['sig_yield']]
         specs['data'] = OrderedDict()
@@ -402,6 +401,7 @@ class LimitAnalyserCL(object):
         :return: limit info object containing parsed UL
         :rtype: LimitInfo
         """
+
         def get_scale_factor(signal_scale):
             if signal_scale is None:
                 signal_scale = 1.
@@ -635,8 +635,7 @@ class XsecLimitAnalyser(object):
         else:
             chains = []
         if self.xsec_map is not None:
-
-             theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
+            theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
         self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.sig_reg_name)
 
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec,
@@ -718,7 +717,7 @@ class LimitScanAnalyser(object):
 
         if self.xsec_map is not None:
             chains = ['LQmud', 'LQmus']
-            #chains = ['LQeb']
+            # chains = ['LQeb']
             theory_xsec = OrderedDict()
             # TODO: needs proper implementation
             # for mode in chains:
@@ -752,7 +751,7 @@ class LimitScanAnalyser(object):
                                'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print >> f, tabulate(data, headers=headers, tablefmt='latex_raw')
         print 'wrote to file ', os.path.join(self.output_handle.output_dir,
-                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name))
+                                             'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -768,6 +767,8 @@ class LimitScanAnalyser(object):
         masses = set(map(lambda li: li.mass, limits))
         best_limits = []
         for mass in masses:
+            if mass == 500:
+                limits = filter(lambda li: li.mass_cut < 1000., limits)
             mass_limits = filter(lambda li: li.mass == mass, limits)
             best_limits.append(min(mass_limits, key=lambda li: li.exp_limit))
             print "FOUND ", mass, best_limits[-1]
@@ -912,7 +913,7 @@ class LimitScanAnalyser(object):
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
 
         ROOT.gStyle.SetPalette(1)
-        #ROOT.gStyle.SetPaintTextFormat(".2g")
+        # ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
                         watermark='Internal', lumi=139.0)
@@ -939,7 +940,7 @@ class LimitScanAnalyser(object):
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
-            
+
 
 class Sample(object):
     def __init__(self, process, gen_ylds):
@@ -1118,7 +1119,8 @@ class Sample(object):
                     except KeyError as ke:
                         _logger.error('Could not find control region systematic {:s} for region {:s}'.format(syst,
                                                                                                              region))
-                        _logger.error('Available systematics {:s}'.format(', '.join(self.ctrl_reg_shape_ylds[region].keys())))
+                        _logger.error(
+                            'Available systematics {:s}'.format(', '.join(self.ctrl_reg_shape_ylds[region].keys())))
 
                         raise ke
             except KeyError as ke:
@@ -1149,6 +1151,7 @@ class Sample(object):
         :return: nothing
         :rtype: None
         """
+
         def affects_signal_reg(syst_name, syst_yields):
             for ylds in syst_yields.values():
                 if syst_name in ylds[cut]:
@@ -1168,9 +1171,9 @@ class Sample(object):
                                self.shape_uncerts[region][cut].iteritems()))
                 if scale_uncert is not None:
                     self.scale_uncerts[region][cut] = dict(
-                            filter(lambda kv: convert_name(kv[0]) in map(lambda i: i[0] if not isinstance(i, str) else i,
-                                                                         scale_uncert),
-                                   self.scale_uncerts[region][cut].iteritems()))
+                        filter(lambda kv: convert_name(kv[0]) in map(lambda i: i[0] if not isinstance(i, str) else i,
+                                                                     scale_uncert),
+                               self.scale_uncerts[region][cut].iteritems()))
                 # self.shape_uncerts[region][cut] = dict(filter(lambda kv: abs(1. - kv[1]) > threshold,
                 #                                               self.shape_uncerts[region][cut].iteritems()))
                 # self.scale_uncerts[region][cut] = dict(filter(lambda kv: abs(1. - kv[1]) > threshold,
@@ -1206,7 +1209,7 @@ class Sample(object):
 
     @staticmethod
     def product(syst, nom):
-        return [syst[0]*nom[0], nom[1]]
+        return [syst[0] * nom[0], nom[1]]
 
     def merge_child_processes(self, samples, has_syst=True):
         self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
@@ -1224,13 +1227,15 @@ class Sample(object):
                         self.shape_uncerts[region] = {}
                     self.shape_uncerts[region][cut] = {}
                     for syst in samples[0].shape_uncerts[region][cut].keys():
-                        self.shape_uncerts[region][cut][syst] = sum(map(lambda s: s.shape_uncerts[region][cut][syst], samples))
+                        self.shape_uncerts[region][cut][syst] = sum(
+                            map(lambda s: s.shape_uncerts[region][cut][syst], samples))
                 for cut in samples[0].scale_uncerts[region].keys():
                     if region not in self.scale_uncerts:
                         self.scale_uncerts[region] = {}
                     self.scale_uncerts[region][cut] = {}
                     for syst in samples[0].scale_uncerts[region][cut].keys():
-                        self.scale_uncerts[region][cut][syst] = sum(map(lambda s: s.scale_uncerts[region][cut][syst], samples))
+                        self.scale_uncerts[region][cut][syst] = sum(
+                            map(lambda s: s.scale_uncerts[region][cut][syst], samples))
 
         for region in samples[0].ctrl_region_yields:
             self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
@@ -1239,10 +1244,12 @@ class Sample(object):
             self.ctrl_reg_scale_ylds[region] = {}
             self.ctrl_reg_shape_ylds[region] = {}
             for syst in samples[0].ctrl_reg_scale_ylds[region].keys():
-                self.ctrl_reg_scale_ylds[region][syst] = sum(map(lambda s: s.ctrl_reg_scale_ylds[region][syst], samples))
+                self.ctrl_reg_scale_ylds[region][syst] = sum(
+                    map(lambda s: s.ctrl_reg_scale_ylds[region][syst], samples))
 
             for syst in samples[0].ctrl_reg_shape_ylds[region].keys():
-                self.ctrl_reg_shape_ylds[region][syst] = sum(map(lambda s: s.ctrl_reg_shape_ylds[region][syst], samples))
+                self.ctrl_reg_shape_ylds[region][syst] = sum(
+                    map(lambda s: s.ctrl_reg_shape_ylds[region][syst], samples))
 
 
 class SampleStore(object):
@@ -1417,10 +1424,10 @@ class SampleStore(object):
     def retrieve_signal_names(self):
         return map(lambda s: s.name, filter(lambda s: s.is_signal, self.samples))
 
-    def retrieve_all_signal_ylds(self, cut, regions = None):
+    def retrieve_all_signal_ylds(self, cut, regions=None):
         signal_samples = filter(lambda s: s.is_signal, self.samples)
         return {reg: {s.name: s.nominal_evt_yields[reg][cut]
-                for s in signal_samples} for reg in self.get_signal_region_names(regions)}
+                      for s in signal_samples} for reg in self.get_signal_region_names(regions)}
 
     def retrieve_bkg_ylds(self, cut, region):
         bkg_samples = filter(lambda s: not s.is_data and not s.is_signal, self.samples)
@@ -1459,405 +1466,6 @@ class SampleStore(object):
         return None
 
 
-# class LimitValidator(object):
-#     def __init__(self, **kwargs):
-#         kwargs.setdefault('scan_info', None)
-#         for k, v in kwargs.iteritems():
-#             setattr(self, k, v)
-#
-#         if kwargs['scan_info'] is None:
-#             self.scan_info = yl.read_yaml(os.path.join(self.input_path, 'scan_info.yml'), None)
-#
-#     def make_yield_summary_plots(self):
-#         def get_hists_for_process(process):
-#             if not process.lower() == 'data':
-#                 return filter(lambda h: process in h.GetName() and 'Nom' in h.GetName(), hists)
-#             return filter(lambda h: process in h.GetName(), hists)
-#
-#         def fill_hists(hist, input_hists):
-#             for ibin, reg in enumerate(regions):
-#                 if 'SR' in reg:
-#                     reg = 'SR'
-#                 try:
-#                     htmp = filter(lambda h: reg in h.GetName(), input_hists)[0]
-#                 except IndexError:
-#                     hist.SetBinContent(ibin + 1, 0.)
-#                     continue
-#                 hist.SetBinContent(ibin + 1, htmp.GetBinContent(1))
-#
-#         hist_fn = os.path.join(self.input_path, 'validation/5/hists.root')
-#         if not os.path.exists(hist_fn):
-#             _logger.error('Could not find file {:s}. Thus cannot make yield summary plot.'.format(hist_fn))
-#         fh = FileHandle(file_name=hist_fn)
-#         hists = fh.get_objects_by_type('TH1')
-#         scan_info = self.scan_info[5]
-#
-#         bkg_processes = dict(filter(lambda p: p[1].type.lower() != 'signal' and p[1].type.lower() != 'data',
-#                                     scan_info.kwargs['process_configs'].iteritems()))
-#         bkg_hists = {p: get_hists_for_process(p.name) for p in bkg_processes.values()}
-#         sig_hists = get_hists_for_process(scan_info.kwargs['sig_name'])
-#         data_hists = get_hists_for_process('Data')
-#         regions = [scan_info.sig_reg_name] + sorted(self.scan_info[5].kwargs['ctrl_config'].keys())
-#         pc = PlotConfig(name="yld_summary_{:s}".format(scan_info.kwargs['sig_name']), ytitle='Events',
-#                         logy=True, lumi=139.0, draw_option='Hist', watermark='Internal', axis_labels=regions,
-#                         decor_text='Pre-Fit')
-#
-#         labels = []
-#         hist = ROOT.TH1F('region_summary', '', len(regions), 0., len(regions))
-#         ht.set_axis_labels(hist, pc)
-#         summary_hists = {}
-#         # print bkg_processes
-#         # exit()
-#         for bkg, hists in bkg_hists.iteritems():
-#             new_hist = hist.Clone('region_summary_{:s}'.format(bkg.name))
-#             fill_hists(new_hist, hists)
-#             summary_hists[bkg.name] = new_hist
-#             labels.append(bkg.label)
-#
-#         canvas = pt.plot_stack(summary_hists, pc, process_configs=bkg_processes)
-#         data_hist = hist.Clone('region_summary_{:s}'.format('Data'))
-#         fill_hists(data_hist, data_hists)
-#         pt.add_data_to_stack(canvas, data_hist, pc)
-#         labels.append('Data')
-#         signal_hist = hist.Clone('region_summary_{:s}'.format('signal'))
-#         fill_hists(signal_hist, sig_hists)
-#         labels.append(scan_info.kwargs['sig_name'])
-#         pt.add_signal_to_canvas((scan_info.kwargs['sig_name'], signal_hist), canvas, pc,
-#                                 scan_info.kwargs['process_configs'])
-#         canvas.Update()
-#         ROOT.gROOT.SetBatch(False)
-#         fm.decorate_canvas(canvas, pc)
-#         fm.add_legend_to_canvas(canvas, labels=labels)
-#         raw_input()
-
-
-# class LimitChecker(object):
-#     def __init__(self, **kwargs):
-#         kwargs.setdefault('poi', 'mu_Sig')
-#         kwargs.setdefault('workspace', 'combined')
-#         kwargs.setdefault('pattern', 'test')
-#         if 'workspace_file' not in kwargs:
-#             raise InvalidInputError('No workspace provided. Cannot do anything')
-#         for k, v in kwargs.iteritems():
-#             setattr(self, k, v)
-#         self.stat_tools_path = '/user/mmorgens/workarea/devarea/rel21/Multilepton/source/CommonStatTools/'
-#         self.setup()
-#         self.output_path = OutputFileHandle(output_dir=kwargs['output_dir']).output_dir
-#         self.counter = 0
-#
-#     def setup(self):
-#         os.chdir(self.stat_tools_path)
-#         ROOT.gROOT.LoadMacro("Minimization.C+")
-#         ROOT.gROOT.LoadMacro("AsimovDataMaking.C+")
-#         ROOT.gROOT.LoadMacro("FitCrossCheckForLimits.C+")
-#         self.fit_cross_checker = ROOT.LimitCrossChecker()
-#         self.fit_cross_checker.drawPlots = True
-#
-#     def make_correlation_plots(self, dataset_name):
-#         args = '"\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\""'.format(
-#             self.workspace_file,
-#             self.workspace,
-#             'ModelConfig',
-#             dataset_name,
-#             self.pattern,
-#             self.output_path,
-#             '.pdf')
-#
-#         cmd = 'root -b -q getCorrMatrix.C\({:s}\)'.format(args)
-#         os.system(cmd)
-#
-#     def make_pull_plots(self):
-#         """
-#         Wrapper to submit pull plot production using exotics CommonStatTools
-#         :return: nothing
-#         :rtype: None
-#         """
-#         rndm = int(100000. * random.random())
-#         tmp_output_dir = 'tmp_{:d}'.format(rndm)
-#         os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
-#         f = ROOT.TFile.Open(self.workspace_file, 'READ')
-#         w = f.Get(self.workspace)
-#         mc = w.obj('ModelConfig')
-#         nuis = mc.GetNuisanceParameters()
-#         iter = nuis.createIterator()
-#         param = iter.Next()
-#         while param:
-#             cmd = './bin/pulls.exe --input {:s} --poi {:s} --parameter {:s} --workspace {:s} --modelconfig {:s} ' \
-#                   '--data {:s} --folder {:s} --loglevel INFO  --precision 0.01 ;'.format(self.workspace_file,
-#                                                                                          self.poi,
-#                                                                                          param.GetName(),
-#                                                                                          self.workspace,
-#                                                                                          'ModelConfig',
-#                                                                                          'asimovData',
-#                                                                                          tmp_output_dir)
-#             os.system(cmd)
-#             param = iter.Next()
-#         output_dir = os.path.join(self.output_path, 'pulls')
-#         make_dirs(output_dir)
-#         move(os.path.join('root-files', tmp_output_dir, 'pulls/*.root'), output_dir)
-#         self.plot_pulls(output_dir)
-#
-#     def plot_pulls(self, input_dir, scale_poi=1., scale_theta=1.):
-#         os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
-#         rndm = int(100000. * random.random())
-#         tmp_output_dir = 'tmp_{:d}'.format(rndm)
-#         cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi {:f} --postfit on --prefit on --rank on --label Run-2 ' \
-#               '--correlation on --folder {:s} --scale_theta {:f}'.format(input_dir, self.poi, scale_poi,
-#                                                                          tmp_output_dir, scale_theta)
-#         os.system(cmd)
-#         output_dir = os.path.join(self.output_path, 'pull_plots')
-#         make_dirs(output_dir)
-#         move(os.path.join(tmp_output_dir, 'pdf-files/*.pdf'), output_dir)
-#
-#     def run_fit_cross_checks(self):
-#         # self.run_conditional_asimov_fits()
-#         # self.run_unconditional_asimov_fits()
-#         #self.make_pre_fit_plots()
-#         self.make_post_fit_plots()
-#
-#         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
-#                                       os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks_*.root'))
-#         os.system(cmd)
-#
-#     def run_conditional_asimov_fits(self):
-#         algo = 'FitToAsimov'
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=0)
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1)
-#
-#     def run_unconditional_asimov_fits(self):
-#         algo = 'FitToAsimov'
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0, create_post_fit_asimov=1)
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1, create_post_fit_asimov=1)
-#
-#     def make_pre_fit_plots(self):
-#         algo = 'PlotHistosBeforeFit'
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
-#                                  create_post_fit_asimov=1, no_sigmas=1)
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
-#                                  create_post_fit_asimov=1, no_sigmas=1)
-#
-#     def make_post_fit_plots(self):
-#         algo = 'PlotHistosAfterFitGlobal'
-#         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
-#         #                          create_post_fit_asimov=1, no_sigmas=1)
-#         #self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
-#         #                          create_post_fit_asimov=1, no_sigmas=1)
-#         # self.run_fit_cross_check(algorithm=algo, dataset_name='obsData', conditional=1, mu=0,
-#         #                          create_post_fit_asimov=0, no_sigmas=1)
-#         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=1,
-#         #                          create_post_fit_asimov=1, no_sigmas=1)
-#         self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=1, mu=0,
-#                                  create_post_fit_asimov=1, no_sigmas=1)
-#         # algo = 'PlotHistosAfterFitEachSubChannel'
-#         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
-#         #                          create_post_fit_asimov=1, no_sigmas=1)
-#         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
-#         #                          create_post_fit_asimov=1, no_sigmas=1)
-#
-#     def run_fit_cross_check(self, **kwargs):
-#         kwargs.setdefault('draw_response', 1)
-#         kwargs.setdefault('create_post_fit_asimov', 0)
-#         kwargs.setdefault('dataset_name', 'asimovData')
-#         kwargs.setdefault('no_sigmas', '1')
-#
-#         output_dir = os.path.join(self.output_path, 'fit_cross_checks')
-#         self.fit_cross_checker.setDebugLevel(0)
-#         self.fit_cross_checker.run(getattr(ROOT, kwargs['algorithm']), float(kwargs['mu']), float(kwargs['no_sigmas']),
-#                                    int(kwargs['conditional']), self.workspace_file, output_dir, self.workspace,
-#                                    'ModelConfig', kwargs['dataset_name'], kwargs['draw_response'],
-#                                    kwargs['create_post_fit_asimov'])
-#         move(os.path.join(output_dir, 'FitCrossChecks.root'),
-#              os.path.join(output_dir, 'FitCrossChecks_{:d}.root'.format(self.counter)))
-#         self.counter += 1
-#
-#     def get_hf_tables(self, **kwargs):
-#         tag=''
-#         evalreg=''
-#         fitreg=''
-#         samples=''
-#         args = '"\\"{:s}\\"","\\"{:s}\\"","\\{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"",kTrue,kTrue,{:s}'.format(self.workspace_file,
-#                                                                                                       self.workspace,
-#                                                                                                       'ModelConfig',
-#                                                                                                       kwargs['dataset_name'],
-#                                                                                                   tag,
-#                                                                                                       outdir,
-#                                                                                                               evalreg,
-#                                                                                                               fitreg,
-#                                                                                                                                                 samples
-#                                                                                                       )
-#         #root -b -q getHFtables.C\(\"$WORKSPACEFILE\",\"$WORKSPACENAME\",\"$MODELCONFIGNAME\",\"$DATASETNAME\",
-#         # \"$WORKSPACETAG\",\"$OUTPUTFOLDER\",\"$EVALUATIONREGIONS\",\"$FITREGIONS\",kTRUE,kTRUE,\"$SAMPLES\",3\);
-
-
-# class LimitValidationPlotter(object):
-#     def __init__(self, **kwargs):
-#         self.input_path = kwargs['input_path']
-#         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
-#
-#     def make_norm_parameter_plot(self, result, name):
-#         canvas = pt.retrieve_new_canvas('norm_parameters_{:s}'.format(name))
-#         params = ['mu_Z', 'mu_top']
-#         g = ROOT.TGraphAsymmErrors()
-#         for i, param in enumerate(params):
-#             g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i*2+1)
-#             g.SetPointEXhigh(i, result.floatParsFinal().find(param).getErrorHi())
-#             g.SetPointEXlow(i, abs(result.floatParsFinal().find(param).getErrorLo()))
-#
-#         h_dummy = ROOT.TH1D('h_dummy_{:s}'.format(name), '', 10, 0, 2.)
-#         h_dummy.SetMaximum(4.)
-#         canvas.cd()
-#         canvas.SetLeftMargin(0.07)
-#         h_dummy.GetYaxis().SetLabelSize(0)
-#         h_dummy.Draw()
-#         h_dummy.GetYaxis().SetNdivisions(0)
-#         xmax = 2#len(params)*2+1
-#         l0 = ROOT.TLine(1, 0, 1, 4)
-#         l0.SetLineStyle(7)
-#         l0.SetLineColor(ROOT.kBlack)
-#         l0.Draw('same')
-#         g.Draw("psame")
-#         systs = ROOT.TLatex()
-#         systs.SetTextSize(systs.GetTextSize() * 0.8)
-#         pc = pt.get_default_plot_config(h_dummy)
-#         pc.lumi = 139.
-#         pc.lumi_text_x = 0.1
-#         pc.watermark_x = 0.1
-#         fm.decorate_canvas(canvas, pc)
-#         fm.add_text_to_canvas(canvas, 'Post-Fit, bkg-only', pos={'x': 0.1, 'y': 0.7}, size=0.06)
-#         for i, param in enumerate(params):
-#             param_result = result.floatParsFinal().find(param)
-#             systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\mu_{{{:s}}}'.format(param.replace('mu_', '')))
-#             systs.DrawLatex(xmax * 0.7, 2 * i + 0.75, '{:.2f}^{{{:.2f}}}_{{{:.2f}}}'.format(param_result.getVal(),
-#                                                                                         param_result.getErrorHi(),
-#                                                                                         param_result.getErrorLo()))
-#
-#         h_dummy.GetXaxis().SetLabelSize(h_dummy.GetXaxis().GetLabelSize() * 0.9)
-#         ROOT.gPad.RedrawAxis()
-#         self.output_handle.register_object(canvas)
-#
-#     def make_norm_parameter_plots(self):
-#         fh = FileHandle(file_name=os.path.join(self.input_path, 'fit_cross_checks/FitCrossChecks.root'))
-#         td = fh.get_object_by_name('PlotsAfterGlobalFit')
-#         for fit in td.GetListOfKeys():
-#             fr = fh.get_object_by_name('PlotsAfterGlobalFit/{:s}/fitResult'.format(fit.GetName()))
-#             self.make_norm_parameter_plot(fr, fit.GetName())
-#
-#     def make_yield_plot(self):
-#         def get_hists(fname):
-#             try:
-#                 f = FileHandle(file_name=os.path.join(path, fname))
-#             except Exception as e:
-#                 raise e
-#             hists = f.get_objects_by_type('TH1F')
-#             roo_hists = f.get_objects_by_type('RooHist')
-#             map(lambda h: h.SetDirectory(0), hists)
-#             return hists, roo_hists
-#
-#         cfg = yl.read_yaml(os.path.join(self.input_path, 'config.yml'))
-#         path = os.path.dirname(cfg['workspace_file'])
-#         index = int(path.split('/')[-3])
-#         info_file = yl.read_yaml(os.path.join(path, '../../../../scan_info.yml'))
-#         ws_cfg = info_file[index]
-#         bkg_regions = map(lambda rn: rn + '_yield', ws_cfg.kwargs['ctrl_config'].keys())
-#         backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
-#         ratios = ['pre-fit', 'post-fit']
-#         tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
-#                 for bkg in backgrounds]
-#         tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
-#                            for fit in ratios]
-#         for i, region in enumerate(bkg_regions):
-#             try:
-#                 hists, roo_hists = get_hists('{:s}_afterFit.root'.format(region))
-#             except ValueError:
-#                 _logger.error('Missing after fit workspace for {:s}'.format(region))
-#                 continue
-#             hists = filter(lambda h: h.GetName() in backgrounds, hists)
-#             for hist in hists:
-#                 if i == 0:
-#                     hist.SetFillColor(i+hists.index(hist)+2)
-#                 process = hist.GetName()
-#                 tmp_hist = tmp_hists[backgrounds.index(process)]
-#                 tmp_hist.SetBinContent(i+1, hist.Integral())
-#                 tmp_hist.GetXaxis().SetBinLabel(i+1, region.split('_')[0])
-#             tmp_hists[-1].SetBinContent(i+1, filter(lambda h: 'Data' in h.GetName(), roo_hists)[0].getFitRangeNEvt())
-#             tmp_ratio_hists[-1].SetBinContent(i+1, filter(lambda h: 'ratio_h' in h.GetName(),
-#                                                           roo_hists)[0].getFitRangeNEvt())
-#             tmp_ratio_hists[-1].GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
-#             _, roo_hists = get_hists('{:s}_beforeFit.root'.format(region))
-#             tmp_ratio_hists[0].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
-#                                                            roo_hists)[0].getFitRangeNEvt())
-#
-#
-#
-#         stack = ROOT.THStack()
-#         map(lambda h: stack.Add(h, 'hist'), tmp_hists[0:-1])
-#         c = pt.retrieve_new_canvas('post_fit_yields')
-#         c_ratio = pt.retrieve_new_canvas('post_fit_yields_r')
-#         c.cd()
-#         stack.Draw()
-#         for i, h in enumerate(tmp_hists[0:-1]):
-#             h.SetFillColor(get_default_color_scheme()[i])
-#         fm.set_minimum_y(stack, 0.1)
-#         fm.set_maximum_y(stack, stack.GetMaximum()*1000.)
-#         fm.set_axis_title(stack, 'Events', 'y')
-#         fm.set_axis_title(stack, 'Region', 'x')
-#         pt.add_data_to_stack(c, tmp_hists[-1])
-#         fm.add_legend_to_canvas(c, labels=backgrounds, format=['F']*3+['p'], xl=0.7, yl=0.7, position=None,
-#                                 plot_objects=tmp_hists)
-#         pc = pt.get_default_plot_config(stack)
-#         c_ratio.cd()
-#         tmp_ratio_hists[-1].Draw('p')
-#         tmp_ratio_hists[0].Draw('psames')
-#         tmp_ratio_hists[-1].SetMarkerColor(ROOT.kRed)
-#         tmp_ratio_hists[-1].GetYaxis().SetRangeUser(0.9, 1.1)
-#         fm.set_axis_title(tmp_ratio_hists[-1], 'Data/SM', 'y')
-#         fm.add_legend_to_canvas(c_ratio, labels=ratios, format=['p'] * 2, xl=0.7, yl=0.7, position=None,
-#                                 plot_objects=tmp_ratio_hists)
-#         c.SetLogy()
-#         pc.lumi = 139.
-#         fm.decorate_canvas(c, pc)
-#         fm.add_text_to_canvas(c, 'Post-Fit', pos={'x': 0.2, 'y': 0.7}, size=0.06)
-#         c_r = pt.add_ratio_to_canvas(c, c_ratio)
-#
-#         c_r.Modified()
-#         c_r.Update()
-#         self.output_handle.register_object(c_r)
-#
-#     def make_correlation_plot(self, hist, name):
-#         def transform_label(label):
-#             if 'alpha_' in label:
-#                 return '#alpha_{{{:s}}}'.format(label.replace('alpha_', ''))
-#             if 'mu_' in label:
-#                 return '#mu_{{{:s}}}'.format(label.replace('mu_', ''))
-#             if 'gamma_' in label:
-#                 return '#gamma_{{{:s}}}'.format(label.replace('gamma_', '').replace('bin_0', ''))
-#             return label
-#
-#         pc = pt.get_default_plot_config(hist)
-#         pc.name = 'corr_{:s}'.format(name)
-#         pc.draw_option = 'COLZ'
-#         pc.ytitle = ''
-#         canvas = pt.plot_2d_hist(hist, pc)
-#         for b in range(1, hist.GetNbinsX()+1):
-#             x_label = transform_label(hist.GetXaxis().GetBinLabel(b))
-#             y_label = transform_label(hist.GetYaxis().GetBinLabel(b))
-#             hist.GetXaxis().SetBinLabel(b, x_label)
-#             hist.GetYaxis().SetBinLabel(b, y_label)
-#         pc.lumi = 139.
-#         fm.decorate_canvas(canvas, pc)
-#         fm.add_text_to_canvas(canvas, 'Post-Fit', pos={'x': 0.2, 'y': 0.7}, size=0.06)
-#         canvas.Update()
-#         self.output_handle.register_object(canvas)
-#
-#     def make_correlation_plots(self):
-#         fh = FileHandle(file_name=os.path.join(self.input_path, 'fit_cross_checks/FitCrossChecks.root'))
-#         td = fh.get_object_by_name('PlotsAfterGlobalFit')
-#         for fit in td.GetListOfKeys():
-#             canvas = fh.get_objects_by_pattern('can_CorrMatrix', 'PlotsAfterGlobalFit/{:s}'.format(fit.GetName()))[0]
-#             hist = get_objects_from_canvas_by_type(canvas, 'TH2D')[0]
-#             self.make_correlation_plot(hist, fit.GetName())
-
-
 class CommonLimitOptimiser(BasePlotter):
     def __init__(self, **kwargs):
         kwargs.setdefault('syst_config', None)
@@ -1888,6 +1496,7 @@ class CommonLimitOptimiser(BasePlotter):
         :return: nothing
         :rtype: None
         """
+
         def is_empty(file_handle, tree_name):
             """
             Retrieve entries from nominal tree
@@ -1903,36 +1512,6 @@ class CommonLimitOptimiser(BasePlotter):
             return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
 
         self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
-
-    # def init_sample(self, file_handle):
-    #     generated_yields = file_handle.get_number_of_total_events()
-    #     sample = Sample(process=file_handle.process, gen_ylds=generated_yields)
-    #     tree_name = self.tree_name
-    #     if self.syst_tree_name is not None and file_handle.process.is_mc:
-    #         tree_name = self.syst_tree_name
-    #     tree = file_handle.get_object_by_name(tree_name, 'Nominal')
-    #     signal_region = self.signal_region_def.regions[0]
-    #     return sample, tree, signal_region
-    #
-    # def read_yields(self):
-    #     """
-    #     Read event yields for signal and control regions
-    #     Loops through file list and mass cuts in mass scan and adds raw yields
-    #     Dev notes: need temporary list to store yields for single FileHandle containing yields after mass cut and add
-    #     later to event yield map taking care of merging multiple files per process
-    #     :return: None
-    #     :rtype: None
-    #     """
-    #     pool = mp.ProcessPool(nodes=20)
-    #     samples = pool.map(self.create_sample, self.file_handles)
-    #     self.sample_store.register_samples(samples)
-    #     self.sample_store.merge_single_process()
-    #     if self.run_syst:
-    #         self.sample_store.calculate_uncertainties()
-    #     self.sample_store.apply_xsec_weight()
-    #     self.sample_store.merge_mc_campaigns()
-    #     self.sample_store.merge_processes()
-    #     self.sample_store.filter_entries()
 
     def run(self):
         """
@@ -1986,13 +1565,9 @@ def run_fit_pyhf(args):
     os.system('pyhf cls {:s} --output-file {:s}'.format(ws, ws.replace('workspace', 'limit')))
 
 
-def convert():
-    pass
-
-
 def write_config(args):
-    nice_labels = {'SR_mu_btag' : 'SR \mu b-tag',
-                   'SR_mu_bveto' : 'SR \mu b-veto',
+    nice_labels = {'SR_mu_btag': 'SR \mu b-tag',
+                   'SR_mu_bveto': 'SR \mu b-veto',
                    'SR_el_btag': 'SR el b-tag',
                    'SR_el_bveto': 'SR el b-veto',
                    'ZCR_el_bveto': 'ZCR el b-veto',
@@ -2003,10 +1578,10 @@ def write_config(args):
 
     kwargs = args.kwargs
     kwargs.setdefault('disable_plots', False)
-
+    make_dirs(os.path.join(args.output_dir, str(args.job_id)))
     make_plots = "FALSE" if kwargs['disable_plots'] else "TRUE"
     config_name = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-    hist_path = os.path.join(args.output_dir, str(args.job_id), 'hists')
+    hist_path = os.path.join(args.output_dir, 'hists')
     make_dirs(hist_path)
     with open(config_name, 'w') as f:
         print >> f, '% --------------- %'
@@ -2038,10 +1613,12 @@ def write_config(args):
         print >> f, '\tDoSignalRegionsPlot: {:s}'.format(make_plots)
         print >> f, '\tDoPieChartPlot: {:s}'.format(make_plots)
         print >> f, '\tMergeUnderOverFlow: {:s}'.format(make_plots)
-        #print >> f, '\tSystPruningShape: 0.005'
-        #print >> f, '\tSystPruningNorm: 0.005'
+        # print >> f, '\tSystPruningShape: 0.005'
+        # print >> f, '\tSystPruningNorm: 0.005'
         print >> f, '\tUseATLASRounding: TRUE'
         print >> f, '\tTableOptions: !STANDALONE'
+        if kwargs['stat_only']:
+            print >> f, '\tStatOnly: TRUE'
         print >> f, '\tOutputDir: {:s}'.format(os.path.join(args.output_dir, str(args.job_id)))
         print >> f, '\n'
         print >> f, '% --------------- %'
@@ -2074,16 +1651,13 @@ def write_config(args):
             print >> f, '\tVariableTitle: "m_{LQ} [GeV]"'
             print >> f, '\tLabel: "{:s}"'.format(reg)
             print >> f, '\tShortLabel: "{:s}"'.format(reg)
-            print >> f, '\tHistoName: h_{:s}'.format(reg)
+            print >> f, '\tHistoName: h_{:s}_{:.0f}'.format(reg, kwargs['mass_cut'])
             print >> f, '\tDataType: ASIMOV'
             print >> f, '\n'
             # print >> f,'Binning: 1000, 14000'
 
         norm_factors = []
         for reg, ctrl_reg_cfg in kwargs["ctrl_config"].iteritems():
-            reg_config = kwargs['ctrl_config'][reg]
-            if reg_config['is_val_region'] and kwargs['disable_vr']:
-                continue
             print >> f, 'Region: "{:s}"'.format(reg)
             if ctrl_reg_cfg['is_norm_region']:
                 print >> f, '\tType: CONTROL'
@@ -2223,98 +1797,188 @@ def get_hist(name, yld, unc):
 
 def dump2rootfile(hist_path, directory, name, hists):
     make_dirs(os.path.join(hist_path, directory))
-    f = ROOT.TFile.Open(os.path.join(hist_path, directory, name+'.root'), 'RECREATE')
+    f = ROOT.TFile.Open(os.path.join(hist_path, directory, name + '.root'), 'RECREATE')
     f.cd()
     map(lambda h: h.Write(), hists)
     f.Close()
 
 
-def dump_yld2hist(args):
-    kwargs = args.kwargs
-    hist_path = os.path.join(args.output_dir, str(args.job_id), 'hists')
+# def dump_yld2hist(args):
+#     kwargs = args.kwargs
+#     hist_path = os.path.join(args.output_dir, str(args.job_id), 'hists')
+#
+#     hists = []
+#     for sr, sig_yld in kwargs['sig_yield'].iteritems():
+#         yld, unc = sig_yld
+#         fixed_signal_sf = 1.
+#         if kwargs['fixed_signal'] is not None:
+#             yld = kwargs['fixed_signal']
+#             unc = kwargs['fixed_signal'] * kwargs['sig_yield'][sr][1] / kwargs['sig_yield'][sr][0]
+#             fixed_signal_sf = kwargs['fixed_signal'] / kwargs['sig_yield'][sr][0]
+#         hists.append(get_hist(sr, yld, unc))
+#         for cr, yields in kwargs['control_regions'].iteritems():
+#             hists.append(get_hist(cr, yields[kwargs['sig_name']][0] * fixed_signal_sf,
+#                                   yields[kwargs['sig_name']][1] * fixed_signal_sf))
+#     dump2rootfile(hist_path, 'Nominal', kwargs['sig_name'], hists)
+#     for sr, bkgs in kwargs['bkg_yields'].iteritems():
+#         for bkg, yields in bkgs.iteritems():
+#             hists = []
+#             hists.append(get_hist(sr, yields[0], yields[1]))
+#             for cr, data in kwargs['control_regions'].iteritems():
+#                 hists.append(get_hist(cr, data[bkg][0], data[bkg][1]))
+#             dump2rootfile(hist_path, 'Nominal', bkg, hists)
+#         data_hists = [get_hist(sr, 5., 0.)]
+#         for cr, yields in kwargs['control_regions'].iteritems():
+#             data_hists.append(get_hist(cr, yields['Data'][0], yields['Data'][1]))
+#         dump2rootfile(hist_path, 'Nominal', 'data', data_hists)
+#
+#     for sr in kwargs['sr_syst'].keys():
+#         for process in kwargs['sr_syst'][sr].keys():
+#             if 'data' in process.lower():
+#                 continue
+#             try:
+#                 nom = kwargs['bkg_yields'][sr][process]
+#             except KeyError:
+#                 if kwargs['fixed_signal'] is None:
+#                     nom = sig_yld
+#                 else:
+#                     nom = (kwargs['fixed_signal'], kwargs['fixed_signal'])
+#             extra_unc = {}
+#             for unc, scale in kwargs['sr_syst'][sr][process].iteritems():
+#                 hists = []
+#                 if scale == 0. and process == 'ttbar':
+#                     scale = 1.
+#                 if 'JER' in unc:
+#                     if '__1up' in unc and scale < 1.:
+#                         scale = 2. - scale
+#                     if '__1down' in unc and scale > 1.:
+#                         scale = 2. - scale
+#                 if unc != 'theory_envelop':
+#                     hists.append(get_hist(sr, nom[0] * scale, nom[1] * scale))
+#                 else:
+#                     extra_unc[unc] = {sr: (nom, scale)}
+#                 for cr in kwargs['ctrl_syst'].keys():
+#                     fixed_signal_sf = 1.
+#                     nom_cr = kwargs['control_regions'][cr][process]
+#                     if process == kwargs['sig_name']:
+#                         if kwargs['fixed_signal']:
+#                             fixed_signal_sf = kwargs['fixed_signal'] / kwargs['sig_yield'][sr][0]
+#                     nom_cr = kwargs['control_regions'][cr][process]
+#                     if 'JER' in unc:
+#                         if '__1up' in unc and scale < 1.:
+#                             scale = 2. - scale
+#                         if '__1down' in unc and scale > 1.:
+#                             scale = 2. - scale
+#                     cr_scale = kwargs['ctrl_syst'][cr][process][unc]
+#                     if unc != 'theory_envelop':
+#                         hists.append(get_hist(cr, nom_cr[0] * cr_scale * fixed_signal_sf,
+#                                               nom_cr[1] * cr_scale * fixed_signal_sf))
+#                     else:
+#                         extra_unc[unc][cr] = (nom_cr, scale)
+#                 dump2rootfile(hist_path, unc, process, hists)
+#             for unc in extra_unc.keys():
+#                 hists_up = []
+#                 hists_down = []
+#                 for reg, val in extra_unc[unc].iteritems():
+#                     hists_up.append(get_hist(reg, val[0][0] * val[1], val[0][1] * val[1]))
+#                     hists_down.append(get_hist(reg, val[0][0] * (2. - val[1]), val[0][1] * (2. - val[1])))
+#                 dump2rootfile(hist_path, unc + '__1up', process, hists_up)
+#                 dump2rootfile(hist_path, unc + '__1down', process, hists_down)
 
-    hists = []
-    for sr, sig_yld in kwargs['sig_yield'].iteritems():
-        yld, unc = sig_yld
+
+def dump_yld2hist(nominal_yields, systematics_yields, sig_names, fixed_signal, ctrl_reg_yields, ctrl_reg_syst,
+                      output_dir):
+    def symmetrise(syst_name, scale):
+        if '__1up' in syst_name and scale < 1.:
+            scale = 2. - scale
+        if '__1down' in syst_name and scale > 1.:
+            scale = 2. - scale
+        return scale
+
+    hist_path = os.path.join(output_dir, 'hists')
+    sig_regions = []
+    for process in nominal_yields.keys():
+        hists = []
         fixed_signal_sf = 1.
-        if kwargs['fixed_signal'] is not None:
-            yld = kwargs['fixed_signal']
-            unc = kwargs['fixed_signal'] * kwargs['sig_yield'][sr][1] / kwargs['sig_yield'][sr][0]
-            fixed_signal_sf = kwargs['fixed_signal'] / kwargs['sig_yield'][sr][0]
-        hists.append(get_hist(sr, yld, unc))
-        for cr, yields in kwargs['control_regions'].iteritems():
-            hists.append(get_hist(cr, yields[kwargs['sig_name']][0] * fixed_signal_sf,
-                                  yields[kwargs['sig_name']][1] * fixed_signal_sf))
-    dump2rootfile(hist_path, 'Nominal', kwargs['sig_name'], hists)
-    for sr, bkgs in kwargs['bkg_yields'].iteritems():
-        for bkg, yields in bkgs.iteritems():
-            hists = []
-            hists.append(get_hist(sr, yields[0], yields[1]))
-            for cr, data in kwargs['control_regions'].iteritems():
-                hists.append(get_hist(cr, data[bkg][0], data[bkg][1]))
-            dump2rootfile(hist_path, 'Nominal', bkg, hists)
-        data_hists = [get_hist(sr, 5., 0.)]
-        for cr, yields in kwargs['control_regions'].iteritems():
-            data_hists.append(get_hist(cr, yields['Data'][0], yields['Data'][1]))
-        dump2rootfile(hist_path, 'Nominal', 'data', data_hists)
-
-    #systematics
-    for sr in kwargs['sr_syst'].keys():
-        for process in kwargs['sr_syst'][sr].keys():
-            if 'data' in process.lower():
-                continue
-            try:
-                nom = kwargs['bkg_yields'][sr][process]
-            except KeyError:
-                if kwargs['fixed_signal'] is None:
-                    nom = sig_yld
+        for k, yld in nominal_yields[process].iteritems():
+            # usage of yld[0] for signal scaling is not really ideal
+            yields = yld[0], yld[1]
+            if process in sig_names and fixed_signal is not None:
+                if yld[0] == 0:
+                    _logger.warning('Found zero signal for {:s}'.format('_'.join(map(str, k))))
+                    yields = 0., 0.
+                    fixed_signal_sf = 0.
                 else:
-                    nom = (kwargs['fixed_signal'], kwargs['fixed_signal'])
+                    yields = fixed_signal, fixed_signal * yld[1] / yld[0]
+                    fixed_signal_sf = fixed_signal / yld[0]
+            sr_name = '{:s}_{:.0f}'.format(*k)
+            sig_regions.append(sr_name)
+            hists.append(get_hist(sr_name, *yields))
+        for reg, yields in ctrl_reg_yields.iteritems():
+            hists.append(get_hist(reg, yields[process][0] * fixed_signal_sf, yields[process][1] * fixed_signal_sf))
+        dump2rootfile(hist_path, 'Nominal', process, hists)
+    data_hists = []
+    sig_regions = set(sig_regions)
+    for sr in sig_regions:
+        data_hists.append(get_hist(sr, 5., 0.))
+    for cr, yields in ctrl_reg_yields.iteritems():
+        data_hists.append(get_hist(cr, yields['Data'][0], yields['Data'][1]))
+    dump2rootfile(hist_path, 'Nominal', 'data', data_hists)
+
+    for syst_name in systematics_yields.keys():
+        for process in systematics_yields[syst_name].keys():
             extra_unc = {}
-            for unc, scale in kwargs['sr_syst'][sr][process].iteritems():
-                hists = []
+            hists = []
+            for k, scale in systematics_yields[syst_name][process].iteritems():
+                fixed_signal_sf = 1.
+                nom = nominal_yields[process][k]
+                if process in sig_names and fixed_signal is not None:
+                    if nom[0] == 0:
+                        _logger.warning('Found zero signal for {:s}'.format('_'.join(map(str, k))))
+                        fixed_signal_sf = 0.
+                    else:
+                        fixed_signal_sf = fixed_signal / nom[0]
+                if 'JER' in syst_name:
+                    if scale != 0. or process != 'ttbar':
+                        scale = symmetrise(syst_name, scale)
                 if scale == 0. and process == 'ttbar':
                     scale = 1.
-                if 'JER' in unc:
-                    if '__1up' in unc and scale < 1.:
-                        scale = 2. - scale
-                    if '__1down' in unc and scale > 1.:
-                        scale = 2. - scale
-                if unc != 'theory_envelop':
-                    hists.append(get_hist(sr, nom[0]*scale, nom[1]*scale))
+                scale *= fixed_signal_sf
+                yields = scale * nom[0], scale * nom[1]
+                if syst_name != 'theory_envelop':
+                    hists.append(get_hist("{:s}_{:.0f}".format(*k), *yields))
                 else:
-                    extra_unc[unc] = {sr: (nom, scale)}
-                for cr in kwargs['ctrl_syst'].keys():
-                    fixed_signal_sf = 1.
-                    nom_cr = kwargs['control_regions'][cr][process]
-                    if process == kwargs['sig_name']:
-                        if kwargs['fixed_signal']:
-                            fixed_signal_sf = kwargs['fixed_signal'] / kwargs['sig_yield'][sr][0]
-                    nom_cr = kwargs['control_regions'][cr][process]
-                    if 'JER' in unc:
-                        if '__1up' in unc and scale < 1.:
-                            scale = 2. - scale
-                        if '__1down' in unc and scale > 1.:
-                            scale = 2. - scale
-                    cr_scale = kwargs['ctrl_syst'][cr][process][unc]
-                    if unc != 'theory_envelop':
-                        hists.append(get_hist(cr, nom_cr[0] * cr_scale * fixed_signal_sf,
-                                              nom_cr[1] * cr_scale * fixed_signal_sf))
-                    else:
-                        extra_unc[unc][cr] = (nom_cr, scale)
-                dump2rootfile(hist_path, unc, process, hists)
+                    try:
+                        extra_unc[syst_name]['{:s}_{:.0f}'.format(*k)] = (nom, scale)
+                    except KeyError:
+                        extra_unc[syst_name] = {'{:s}_{:.0f}'.format(*k): (nom, scale)}
+
+            for reg in ctrl_reg_syst.keys():
+                fixed_signal_sf = 1.
+                if process in sig_names and fixed_signal is not None:
+                    fixed_signal_sf = fixed_signal / yld[0]
+                nom = ctrl_reg_yields[reg][process]
+                scale = ctrl_reg_syst[reg][process][syst_name]
+                if 'JER' in syst_name:
+                    if scale != 0. or process != 'ttbar':
+                        scale = symmetrise(syst_name, scale)
+                if scale == 0. and process == 'ttbar':
+                    scale = 1.
+                scale *= fixed_signal_sf
+                yields = scale * nom[0], scale * nom[1]
+                if syst_name != 'theory_envelop':
+                    hists.append(get_hist(reg, *yields))
+                else:
+                    extra_unc[syst_name][reg] = (nom, scale)
+            dump2rootfile(hist_path, syst_name, process, hists)
             for unc in extra_unc.keys():
                 hists_up = []
                 hists_down = []
                 for reg, val in extra_unc[unc].iteritems():
                     hists_up.append(get_hist(reg, val[0][0] * val[1], val[0][1] * val[1]))
-                    hists_down.append(get_hist(reg, val[0][0] * (2. - val[1]), val[0][1] * (2. -val[1])))
+                    hists_down.append(get_hist(reg, val[0][0] * (2. - val[1]), val[0][1] * (2. - val[1])))
                 dump2rootfile(hist_path, unc + '__1up', process, hists_up)
                 dump2rootfile(hist_path, unc + '__1down', process, hists_down)
-
-
-def dump_hists(args):
-    dump_yld2hist(args)
 
 
 def run_fit(args, **kwargs):
@@ -2329,12 +1993,7 @@ def run_fit(args, **kwargs):
     """
 
     write_config(args)
-    dump_hists(args)
-
-    kwargs.setdefault('ws_name', 'combined')
-    kwargs.setdefault('cls', 0.95)
     kwargs.setdefault('options', 'hwdflp')
-    #make_dirs(os.path.join(args.output_dir, 'limits', str(args.job_id)))
     base_dir = os.path.abspath(os.path.join(os.path.basename(__file_path__), '../../../'))
     analysis_pkg_name = os.path.abspath(os.curdir).split('/')[-2]
 
@@ -2348,46 +2007,3 @@ def run_fit(args, **kwargs):
                                                        args.kwargs['queue'],
                                                        os.path.join(args.output_dir, str(args.job_id), 'fit'),
                                                        os.path.join(args.output_dir, str(args.job_id), 'fit')))
-
-
-# def build_workspace(args, **kwargs):
-#     """
-#     Call HistFitter to build workspaces
-#     :param args: argument list for configuration
-#     :type args: arglist
-#     :return: nothing
-#     :rtype: None
-#     """
-#     kwargs.setdefault('draw_before', False)
-#     kwargs.setdefault('draw_after', False)
-#     kwargs.setdefault('validation', False)
-#     kwargs.setdefault('fit', False)
-#     from PyAnalysisTools.AnalysisTools.HistFitterWrapper import HistFitterCountingExperiment as hf
-#     analyser = hf(fit_mode=args.fit_mode, scan=True, multi_core=True,
-#                   output_dir=os.path.join(args.output_dir, 'workspaces', str(args.job_id)), **kwargs)
-#     analyser.run(**args.kwargs)
-
-
-# def run_sig_fit(args, queue):
-#     """
-#     Submit limit fit using runAsymptoticsCLs.C script from exotics CommonStatTools
-#     :param args: argument list for configuration
-#     :type args: arglist
-#     :param queue: name of queue to submit to
-#     :type queue: string
-#     :return: nothing
-#     :rtype: None
-#     """
-#     make_dirs(os.path.join(args.output_dir, 'limits', str(args.job_id)))
-#     os.system("""echo 'source $HOME/.bashrc && cd /user/mmorgens/devarea/rel21/Multilepton/source/ELMultiLep/ &&
-#         source setup.sh && cd /user/mmorgens/devarea/rel21/Multilepton/source/CommonStatTools &&
-#         root -b -q runSig.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",1\) ' |
-#         qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(args.base_output_dir, 'workspaces', str(args.job_id),
-#                                                                     'results/LQAnalysis/SPlusB_combined_NormalMeasurement_model.root'),
-#                                                        'combined',
-#                                                        args.job_id,
-#                                                        'test',
-#                                                        os.path.join(args.output_dir, 'sig', str(args.job_id)),
-#                                                        queue,
-#                                                        os.path.join(args.output_dir, 'sig', str(args.job_id), 'fit'),
-#                                                        os.path.join(args.output_dir, 'sig', str(args.job_id), 'fit')))
