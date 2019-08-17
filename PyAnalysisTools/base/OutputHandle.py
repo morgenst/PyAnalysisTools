@@ -35,8 +35,10 @@ class SysOutputHandle(object):
             return output_dir
         return os.path.join(output_dir, "{}_{}".format(kwargs["sub_dir_name"], time_stamp))
 
-    def reinitialise_output_dir(self):
-        self.output_dir = self.resolve_output_dir(output_dir=self.base_output_dir, sub_dir_name=self.sub_dir_name)
+    def reinitialise_output_dir(self, sub_dir_name=None):
+        if sub_dir_name is None:
+            sub_dir_name = self.sub_dir_name
+        self.output_dir = self.resolve_output_dir(output_dir=self.base_output_dir, sub_dir_name=sub_dir_name)
         ShellUtils.make_dirs(self.output_dir)
 
     def _set_latest_link(self, link):
@@ -197,8 +199,6 @@ class OutputFileHandle(SysOutputHandle):
         self.output_file.Write()
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
-        print ("Written file %s" % self.output_file.GetName())
-
         self.output_root_file_path = self.output_file.GetName()
 
     def register_object(self, obj, tdir=None):

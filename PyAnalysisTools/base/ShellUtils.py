@@ -1,3 +1,4 @@
+import glob
 import shutil
 import os
 import subprocess
@@ -32,10 +33,14 @@ def resolve_path_from_symbolic_links(symbolic_link, relative_path):
 
 
 def move(src, dest):
-    try:
-        shutil.move(src, dest)
-    except IOError as e:
-        raise e
+    if '*' in src:
+        for fn in glob.glob(src):
+            move(fn, dest)
+    else:
+        try:
+            shutil.move(src, dest)
+        except IOError as e:
+            raise e
 
 
 def copy(src, dest):
