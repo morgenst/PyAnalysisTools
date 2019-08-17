@@ -61,6 +61,13 @@ def get_statistical_uncertainty_hist(hists):
 
 
 def get_statistical_uncertainty_from_stack(stack):
+    """
+    Retrieve total statistical uncertainty histogram from THStack
+    :param stack: stack plots
+    :type stack:  ROOT.THStack
+    :return: stat. uncertainty histogram
+    :rtype: TH1F
+    """
     return get_statistical_uncertainty_hist([h for h in stack.GetHists()])
 
 

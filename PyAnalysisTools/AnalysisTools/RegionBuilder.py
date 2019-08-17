@@ -61,7 +61,7 @@ class NewRegion(object):
         # limit specific settings to help HistFactory setup
         kwargs.setdefault("norm_region", False)
         kwargs.setdefault("val_region", False)
-        kwargs.setdefault("norm_backgrounds", [])
+        kwargs.setdefault("norm_backgrounds", {})
 
         self.name = kwargs["name"]
         self.n_lep = kwargs["n_lep"]
