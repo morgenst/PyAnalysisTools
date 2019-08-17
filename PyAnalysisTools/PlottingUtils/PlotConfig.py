@@ -15,6 +15,7 @@ from PyAnalysisTools.base.ShellUtils import find_file
 class PlotConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('process_weight', None)
+        kwargs.setdefault('name', 'default_plot_config')
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
@@ -437,7 +438,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         else:
             #style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
-    elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
+    elif draw_option.lower() == "marker" or draw_option.lower() == "markererror" or draw_option.lower() == 'pLX':
         style_setter = ["Marker", 'Line']
     elif draw_option.lower() == "line":
         style_setter = "Line"

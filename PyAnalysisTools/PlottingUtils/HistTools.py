@@ -8,13 +8,13 @@ def rebin(histograms, factor=None):
     if factor is None or factor == 1:
         return histograms
     if type(histograms) == dict:
-        for key, hist in histograms.items():
-            try:
-                histograms[key].append(_rebin_hist(hist, factor))
-            except KeyError:
-                histograms[key] = [_rebin_hist(hist, factor)]
-        else:
-            raise InvalidInputError('Invalid binning: ' + str(factor))
+        for key, hist in histograms.iteritems():
+            if issubclass(hist.__class__, ROOT.TH1):
+                histograms[key] = _rebin_hist(hist, factor)
+            elif isinstance(hist, list):
+                histograms[key] = [_rebin_hist(h, factor) for h in hist]
+            else:
+                raise InvalidInputError('Invalid binning: ' + str(factor))
     elif isinstance(histograms, list):
         histograms = [_rebin_hist(h, factor) for h in histograms]
     else:
@@ -144,7 +144,6 @@ def normalise_hist(hist, integration_range=[-1, -1], norm_scale=1.):
 
 
 def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
-    print norm_scale, hist.GetName()
     if isinstance(hist, ROOT.THStack):
         return hist
     integral = hist.Integral(*integration_range)

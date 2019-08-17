@@ -87,6 +87,7 @@ class ComparisonReader(object):
                 result = hist
                 continue
             result.Add(hist)
+            fh.close()
         return result
 
     @staticmethod
@@ -115,8 +116,9 @@ class SingleFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files']
-        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+        #self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
+        self.file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
@@ -172,12 +174,13 @@ class SingleFileSingleRefReader(ComparisonReader):
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts) + 1]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
+            print label, self.plot_config.labels, cuts_comp.keys().index(k_cuts)
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
                 plotable_objects.append(
@@ -439,13 +442,13 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('output_tag', None)
         kwargs.setdefault('process_config_files', None)
         kwargs.setdefault('systematics', 'Nominal')
-        kwargs.setdefault('ref_mod_modules', None)
+        kwargs.setdefault('ref_mod_modules', [])
         kwargs.setdefault('inp_mod_modules', None)
         kwargs.setdefault('read_hist', False)
         kwargs.setdefault('n_files_handles', 1)
         kwargs.setdefault('nfile_handles', 1)
         kwargs.setdefault('ref_module_config_file', None)
-        kwargs.setdefault('module_config_file', None)
+        kwargs.setdefault('module_config_file', [])
         kwargs.setdefault('json', False)
         kwargs.setdefault('file_extension', ['.pdf'])
         if kwargs['json']:
@@ -532,7 +535,6 @@ class ComparisonPlotter(BasePlotter):
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
 
-
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
             self.color_palette = [getattr(ROOT, 'k' + color.capitalize()) for color in self.common_config.colors]
@@ -566,6 +568,7 @@ class ComparisonPlotter(BasePlotter):
                 setattr(ref, 'line_color',
                         PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
+                print 'here'
                 setattr(ref, 'line_color',
                         PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
                 setattr(ref, 'line_style', PO.line_style_palette_homogen[

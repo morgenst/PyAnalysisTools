@@ -41,12 +41,23 @@ marker_style_palette_empty = [25,
 ]
 
 line_style_palette_homogen = [1,
-                              9,
-                              7,
-                              2,
-                              3]
-line_style_palette_heterogen = [10,
-                                5,
+                              1,
+                              1,
+                              1,
+                              1]
+
+# line_style_palette_homogen = [1,
+#                               9,
+#                               7,
+#                               2,
+#                              3]
+# line_style_palette_heterogen = [10,
+#                                 5,
+#                                 4,
+#                                 8,
+#                                 6]
+line_style_palette_heterogen = [1,
+                                1,
                                 4,
                                 8,
                                 6]
