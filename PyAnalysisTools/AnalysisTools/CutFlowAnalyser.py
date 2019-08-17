@@ -93,6 +93,7 @@ class CommonCutFlowAnalyser(object):
         set_batch_mode(kwargs['batch'])
 
     def load_dxaod_cutflows(self, file_handle):
+        #return
         process = file_handle.process
         if process is None:
             _logger.error("Parsed NoneType process from {:s}".format(file_handle.file_name))
@@ -154,13 +155,10 @@ class CommonCutFlowAnalyser(object):
                                dtype=[("cut", "S100"), ("yield", "S100")])
         else:
             cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield"])) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield", "S100")])
-            # cutflow = np.array([(cutflow[i]["cut"],
-            #                      format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-            #                      # cutflow[i]["eff"],
-            #                      #cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-            #                    dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
+                                 format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
+                                 # cutflow[i]["eff"],
+                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
         return cutflow
 
     def print_cutflow_table(self):
@@ -374,7 +372,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     except ValueError:
                         pass
                 if choices is not None:
-                    #choices.sort(key=lambda i: int(re.findall('\d{2,4}', i[0].process_name)[0]))
                     signals = [process[1] for process in signals if signals.index(process) in choices]
                     self.cutflows[systematic][region] = OrderedDict(filter(lambda kv: keep_process(kv[0], signals),
                                                                     self.cutflows[systematic][region].iteritems()))
@@ -554,7 +551,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         return cutflow.assign(**{tag: cut_efficiencies})
 
     def execute(self):
-        self.read_event_yields()
+        for systematic in self.systematics:
+            self.read_event_yields(systematic)
+        #self.plot_signal_yields()
+
         if not self.raw:
             for systematic in self.cutflows.keys():
                 for region in self.cutflows[systematic].keys():

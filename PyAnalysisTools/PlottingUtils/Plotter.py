@@ -402,7 +402,7 @@ class Plotter(BasePlotter):
                 for signal in signals.iteritems():
                     pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
-        if not plot_config.disable_legend:
+        if not plot_config.disable_legend or plot_config.enable_legend:
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
                                         **plot_config.legend_options)
@@ -436,6 +436,7 @@ class Plotter(BasePlotter):
                                                                    name=canvas.GetName() + "_significance")
             if significance_canvas is not None:
                 self.output_handle.register_object(canvas_significance_ratio)
+
         self.output_handle.register_object(canvas)
         if plot_config.ratio:
             if plot_config.no_data or plot_config.is_multidimensional:
@@ -537,7 +538,7 @@ class Plotter(BasePlotter):
         return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
 
     def project_hists(self):
-        self.read_cutflows()
+        self.read_cutflows() #disabled in susy
         if self.syst_analyser is not None:
             self.syst_analyser.plot_configs = self.plot_configs
 

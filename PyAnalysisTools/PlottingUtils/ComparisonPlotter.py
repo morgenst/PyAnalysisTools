@@ -1,5 +1,5 @@
 import collections
-from copy import copy
+from copy import copy, deepcopy
 import ROOT
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
@@ -66,7 +66,7 @@ class ComparisonReader(object):
             cut_string = cut_string.replace('DATA:', '')
         else:
             cut_string = '&&'.join(filter(lambda ct: 'DATA' not in ct, cut_string.split("&&")))
-
+        file_handle.open() #?
         hist = get_histogram_definition(plot_config)
         hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
         if tree_name is None:
@@ -81,13 +81,17 @@ class ComparisonReader(object):
 
     def make_hists(self, file_handles, plot_config, cut_name, cut_string, tree_name=None):
         result = None
+        hists = []
         for fh in file_handles:
             hist = self.make_hist(fh, plot_config, cut_name, cut_string, tree_name)
+            hists.append(hist)
             if result is None:
-                result = hist
+                result = hist.Clone()
+                ROOT.SetOwnership(result, False)
                 continue
             result.Add(hist)
-            fh.close()
+        result.SetDirectory(0)
+        map(lambda fh: fh.close(), file_handles)
         return result
 
     @staticmethod
@@ -180,7 +184,6 @@ class SingleFileSingleRefReader(ComparisonReader):
                     label = ""
                 else:
                     label = k_cuts
-            print label, self.plot_config.labels, cuts_comp.keys().index(k_cuts)
             for k_comp, v_comp in compare.iteritems():
                 v_comp.SetDirectory(0)
                 plotable_objects.append(
@@ -262,7 +265,7 @@ class SingleFileMultiRefReader(ComparisonReader):
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                compare[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
                 label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
@@ -568,7 +571,6 @@ class ComparisonPlotter(BasePlotter):
                 setattr(ref, 'line_color',
                         PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
-                print 'here'
                 setattr(ref, 'line_color',
                         PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
                 setattr(ref, 'line_style', PO.line_style_palette_homogen[

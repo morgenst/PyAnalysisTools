@@ -9,8 +9,8 @@ class Cut(object):
         self.is_data = False
         self.is_mc = False
         self.process_type = None
-        if '::' in selection:
-            self.selection, self.name = selection.split('::')
+        if ':::' in selection:
+            self.selection, self.name = selection.split(':::')
         else:
             self.name = selection
             self.selection = selection

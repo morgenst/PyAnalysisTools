@@ -13,6 +13,7 @@ import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 def retrieve_new_canvas(name, title='', size_x=800, size_y=600):
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
+    canvas.SetRightMargin(0.07)
     ROOT.SetOwnership(canvas, False)
     return canvas
 
@@ -269,7 +270,7 @@ def format_hist(hist, plot_config):
         hist = ht.rebin(hist, plot_config.rebin)
         ymax = plot_config.yscale*hist.GetMaximum()
         if plot_config.ymax is not None:
-            plot_config.ymax = max(plot_config.ymax, ymax)
+            plot_config.ymax = min(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
 
@@ -398,6 +399,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
+
         #todo: might break something upstream
         # if common_config is None or common_config.ignore_style:
         #     style_setter = "Line"

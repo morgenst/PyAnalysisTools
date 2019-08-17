@@ -15,8 +15,11 @@ def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, postf
             map(lambda d: remove_directory(os.path.join(merge_dir, d)), os.listdir(merge_dir))
 
     pool = Pool(processes=min(ncpu, len(data)))
-    pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
-                     merge_dir=merge_dir, force=force, postfix=postfix), data.items())
+    for item in data.items():
+        parallel_merge_wrapper(item, output_path=output_path, prefix=prefix,
+                               merge_dir=merge_dir, force=force, postfix=postfix), data.items()
+    # pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
+    #                  merge_dir=merge_dir, force=force, postfix=postfix), data.items())
 
 
 def parallel_merge_wrapper(dict_element, output_path, prefix, merge_dir=None, force=False, postfix=None):
@@ -45,6 +48,9 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
         return bucket_list
 
     def merge(file_lists):
+        print os.path.abspath(os.curdir)
+        import time
+        time.sleep(2)
         if len([f for chunk in file_lists for f in chunk]) == 0:
             return
         for file_list in file_lists:
@@ -56,11 +62,13 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
             else:
                 output_file_name = '{:s}_{:d}.root'.format(prefix, file_lists.index(file_list))
             merge_cmd += '%s %s' % (output_file_name, ' '.join(file_list))
+            #print merge_cmd
             if not force and os.path.exists(os.path.join(output_path, output_file_name)):
                 continue
-            check_call(merge_cmd.split())
+            #check_call(merge_cmd.split())
+            os.system(merge_cmd)
             if not merge_dir == output_path:
-                move(os.path.join(merge_dir, output_file_name), os.path.join(output_path, output_file_name))
+                move(output_file_name, os.path.join(output_path, output_file_name))
 
     def setup_paths(merge_dir):
         if not os.path.exists(output_path):
