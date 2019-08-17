@@ -19,17 +19,21 @@ def main(argv):
     add_output_args(parser)
     add_process_args(parser)
     add_selection_args(parser)
-    parser.add_argument("--format", "-f", type=str, choices=map(str, tabulate_formats),
-                        help="format of printed table")
-    parser.add_argument("--systematics", "-s", nargs="+", default=["Nominal"], help="systematics")
-    parser.add_argument("--no_merge", "-n", action='store_true', default=False, help="switch off merging")
-    parser.add_argument("--raw", "-r", action="store_true", default=False, help="print raw cutflow")
-    parser.add_argument('--disable_sm_total', '-dsm', default=False, action='store_true',
-                        help="disable summing sm total")
-    parser.add_argument('--disable_signal_plots', '-dsp', action='store_true', default=False, help='Disable plots for '
-                                                                                                   'signal efficiency')
+    parser.add_argument('--config_file', '-cf', default=None, help='config file')
     parser.add_argument('-disable_interactive', '-di', action='store_true', default=False, help="Disable interactive"
                                                                                                 "mode")
+    parser.add_argument('--disable_signal_plots', '-dsp', action='store_true', default=False, help='Disable plots for '
+                                                                                                   'signal efficiency')
+    parser.add_argument('--disable_sm_total', '-dsm', default=False, action='store_true',
+                        help="disable summing sm total")
+    parser.add_argument('--format', '-f', type=str, choices=map(str, tabulate_formats),
+                        help="format of printed table")
+    parser.add_argument('--no_merge', '-n', action='store_true', default=False, help="switch off merging")
+    parser.add_argument('--precision', '-p', type=int, default=3, help="precision of printed numbers")
+    parser.add_argument('--raw', '-r', action='store_true', default=False, help="print raw cutflow")
+    parser.add_argument('--systematics', '-s', nargs='+', default=['Nominal'], help="systematics")
+    parser.add_argument('--module_config_files', '-mcf', nargs='+', default=None,
+                        help='config of additional modules to apply')
 
     args = default_init(parser)
     args.file_list = [os.path.abspath(f) for f in args.input_file_list]
