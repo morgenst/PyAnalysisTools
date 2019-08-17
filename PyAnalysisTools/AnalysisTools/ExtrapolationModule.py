@@ -90,10 +90,9 @@ class ExtrapolationModule(object):
 
     def execute_top(self, histograms, output_handle):
         top_hist = histograms['ttbar']
-        top_uncert = top_hist.Clone('top_extrapol_unc')
         #top_uncert_hist_down = top_hist.Clone('top_extrapol_unc__1down')
-        print self.stich_points.keys(), top_hist
         region = [r for r in self.stich_points.keys() if r in top_hist.GetName()][0]
+        top_uncert = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc'.format(region))
         _logger.debug('Running top extrapolation in region {:s}'.format(region))
         for i in range(top_hist.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
@@ -103,19 +102,21 @@ class ExtrapolationModule(object):
             _logger.debug("old yield: {:.2f} new yield: {:.2f}".format(top_hist.GetBinContent(i), bin_content[0]))
             top_hist.SetBinContent(i, bin_content[0])
             top_uncert.SetBinContent(i, bin_content[1])
-        output_handle.register(top_uncert)
+        output_handle.register_object(top_uncert)
 
     def execute_qcd(self, histograms, output_handle):
         region = [r for r in self.stich_points.keys() if r in histograms.values()[0].GetName()][0]
-        h_qcd = histograms.values()[0].Clone(region + "lq_mass_max_QCD")
+        h_qcd = histograms.values()[0].Clone(region + "_lq_mass_max_QCD")
         for i in range(h_qcd.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, h_qcd.GetXaxis().GetBinLowEdge(i),
                                                             h_qcd.GetXaxis().GetBinUpEdge(i), 1.)
             if bin_content is None:
                 continue
             h_qcd.SetBinContent(i, bin_content[0])
-        huncert = filter(lambda h: h.GetName() == region + '_uncert', self.histograms)[0].Clone()
-        output_handle.register(h_qcd)
+        h_unc = filter(lambda h: h.GetName() == region + '_uncert', self.histograms)[0].Clone()
+        h_unc.SetName('{:s}_lq_mass_max_QCD_qcd_uncert'.format(region))
+        output_handle.register_object(h_qcd)
+        output_handle.register_object(h_unc)
 
     def execute(self, histograms, output_handle):
         if not self.qcd_mode:
