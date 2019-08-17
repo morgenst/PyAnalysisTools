@@ -6,9 +6,16 @@ Zjets:
   Style: 1001
   SubProcesses: [re.Zmumu.*, re.Zee.*, re.Ztautau.*, re.Znunu.*]
 
-bLQee1500l1:
+TBsLQmumu500l1:
   Type: Signal
   Label: LQ (1.5 TeV b)
   Color: kRed
   Draw: Line
-  SubProcesses: [bLQee1500l1]
+  SubProcesses: [re.TBsLQmumu500l1]
+
+Data:
+  Type: Data
+  Label: Data
+  Color: kBlack
+  Draw: Marker
+  SubProcesses: [re.data1.*.period.*]
