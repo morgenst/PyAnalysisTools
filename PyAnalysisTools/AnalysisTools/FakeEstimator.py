@@ -286,7 +286,7 @@ class ElectronFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
-        self.file_handles = filter(lambda fh: "data" in fh.process.lower(), kwargs["file_handles"])
+        self.file_handles = filter(lambda fh: fh.process.is_data, kwargs["file_handles"])
         self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
@@ -322,7 +322,7 @@ class ElectronFakeEstimator(object):
             fake_histograms[key] = self.plotter.read_histograms(self.file_handles, [plot_config], systematic="Nominal")
         rebuild_dict_structure()
         for key, data in fake_histograms.iteritems():
-            self.plotter.apply_lumi_weights_new(data)
+            self.plotter.apply_lumi_weights(data)
             #print self.plotter.process_configs
             #print hists
             #self.plotter.merge(hists, self.plotter.process_configs)

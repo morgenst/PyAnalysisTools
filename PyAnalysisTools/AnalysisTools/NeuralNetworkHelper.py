@@ -220,20 +220,22 @@ class NNTrainer(object):
                                                         len(self.label_train[self.label_train == 0]))
         print "eval signal: {:d} data: {:d}".format(len(self.label_eval[self.label_eval == 1]),
                                                     len(self.label_eval[self.label_eval == 0]))
+        class_weight_train = class_weight.compute_class_weight('balanced'
+                                                               , np.unique(self.label_train)
+                                                               , self.label_train)
+        class_weight_eval = class_weight.compute_class_weight('balanced'
+                                                              , np.unique(self.label_eval)
+                                                              , self.label_eval)
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
                                          epochs=self.epochs, verbose=self.verbosity,
                                          batch_size=self.limit_config.batch_size, shuffle=True,
-                                         validation_data=(self.npa_data_eval, self.label_eval))#,
-                                         # class_weight=class_weight.compute_class_weight('balanced'
-                                         #                                                , np.unique(self.label_train)
-                                         #                                                , self.label_train)) #sample_weight=self.weight_train,
+                                         validation_data=(self.npa_data_eval, self.label_eval),
+                                         class_weight=dict(enumerate(class_weight_train))) #sample_weight=self.weight_train,
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
                                         epochs=self.epochs, verbose=self.verbosity,
                                         batch_size=self.limit_config.batch_size, shuffle=True,
-                                        validation_data=(self.npa_data_train, self.label_train))#,
-                                        # class_weight=class_weight.compute_class_weight('balanced'
-                                        #                                                , np.unique(self.label_eval)
-                                        #                                                , self.label_eval)) #sample_weight=self.weight_eval,
+                                        validation_data=(self.npa_data_train, self.label_train),
+                                        class_weight=dict(enumerate(class_weight_eval)))
         print 'class weights train: ', class_weight.compute_class_weight('balanced'
                                                                    , np.unique(self.label_train)
                                                                    , self.label_train)
@@ -466,11 +468,11 @@ class NNReader(object):
         file_handle_friend, friend_tree = self.get_friend_tree(file_handle)
         selection = ""
         if self.selection is not None:
-            selection = self.selection[0] if file_handle.is_mc else self.selection[1]
+            selection = self.selection[0] if file_handle.process.is_mc else self.selection[1]
         if selection == '':
             selection = 'object_n == 1 && HT>=0.'
         data_selected = self.converter.convert_to_array(tree, selection)
-        if file_handle.is_data:
+        if file_handle.process.is_data:
             selected_event_numbers = pd.DataFrame(self.converter_selection_data.convert_to_array(tree, selection)).values
         else:
             selected_event_numbers = pd.DataFrame(self.converter_selection_mc.convert_to_array(tree, selection)).values
@@ -495,7 +497,7 @@ class NNReader(object):
         for entry in range(total_entries):
             tree.GetEntry(entry)
             is_train = tree.train_flag == 0
-            event_number = get_event_numbers(tree, file_handle.is_mc)
+            event_number = get_event_numbers(tree, file_handle.process.is_mc)
             if not len(tree.object_pt) > 1 and (np.array(event_number) == selected_event_numbers).all(1).any():
                 processed_events += 1
                 if (tree.event_number, tree.run_number) in already_processed_events:

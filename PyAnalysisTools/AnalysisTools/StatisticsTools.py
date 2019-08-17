@@ -10,6 +10,7 @@ from PyAnalysisTools.base import _logger, InvalidInputError
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme
+import pandas as pd
 
 
 def consistency_check_bins(obj1, obj2):
@@ -18,27 +19,35 @@ def consistency_check_bins(obj1, obj2):
 
 def calculate_significance(signal, background):
     try:
-        return float(signal)/sqrt(float(signal) + float(background))
+        return float(signal)/sqrt(float(background))
     except ZeroDivisionError:
         return 0.
 
 
 def get_significance(signal, background, plot_config, canvas=None):
-    significance_hist = signal.Clone("significance")
+    #significance_hist_up = signal.Clone("significance_up")
+    significance_hist_down = signal.Clone("significance_down")
+
     if not consistency_check_bins(signal, background):
         _logger.error("Signal and background have different binnings.")
         raise InvalidInputError("Inconsistent binning")
     for ibin in range(signal.GetNbinsX() + 1):
         try:
-            significance_hist.SetBinContent(ibin, calculate_significance(signal.Integral(-1, ibin),
+            significance_hist_down.SetBinContent(ibin, calculate_significance(signal.Integral(-1, ibin),
                                                                          background.Integral(-1, ibin)))
         except ValueError:
             pass
-    fm.set_title_y(significance_hist, "S/#sqrt(S + B)")
+        # try:
+        #     significance_hist_up.SetBinContent(ibin, calculate_significance(signal.Integral(ibin, -1),
+        #                                                                  background.Integral(ibin, -1)))
+        # except ValueError:
+        #     pass
+    fm.set_title_y(significance_hist_down, "S/#sqrt{B}")
     if canvas is None:
-        canvas = pt.plot_obj(significance_hist, plot_config)
+
+        canvas = pt.plot_obj(significance_hist_down, plot_config)
     else:
-        pt.add_object_to_canvas(canvas, significance_hist, plot_config)
+        pt.add_object_to_canvas(canvas, significance_hist_down, plot_config)
     return canvas
 
 
@@ -125,23 +134,31 @@ def get_signal_acceptance(signal_yields, generated_events, plot_config, process_
         return graph
 
     #TODO: refactoring required
-    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
-                    labels=[data[0] for data in acceptance_hists],
-                    xtitle="Gluino mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal", watermark_size=0.02, watermark_offset = 1,
-                    ymin=0., ymax=100.)
     acceptance = [(float(re.findall("\d{3,4}", process)[0]), process,
                    yields) for process, yields in signal_yields.iteritems()]
     if isinstance(acceptance[0][2], (np.ndarray, np.generic)):
         acceptance = [[(mass, cut_yield["cut"],
-                        cut_yield["yield"] / generated_events[process] * 100.) for cut_yield in yields]
+                        cut_yield["yield"] / generated_events[process] * 100., process) for cut_yield in yields]
                       for mass, process, yields in acceptance]
+    masses = map(lambda i: i[0][0], acceptance)
+    duplicated_masses = pd.Series(masses)[pd.Series(masses).duplicated()].values
+
     acceptance_hists = []
     if isinstance(acceptance[0], list):
         for icut in range(len(acceptance[0])):
             cut_name = acceptance[0][icut][1]
             acceptance_hists.append((cut_name, make_acceptance_graph([(signal[icut][0],
-                                                                      signal[icut][2]) for signal in acceptance])))
+                                                                       signal[icut][2]) for signal in acceptance])))
             acceptance_hists[-1][-1].SetName(cut_name)
+    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
+                             labels=[data[0] for data in acceptance_hists],
+                             xtitle="LQ mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1,
+                             watermark="Internal", watermark_size=0.02, watermark_offset=1, ymin=0., ymax=100.)
+    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
+                    labels=[data[0] for data in acceptance_hists],
+                    xtitle="Gluino mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal", watermark_size=0.02, watermark_offset = 1,
+                    ymin=0., ymax=100.)
+
     pc_log = deepcopy(plot_config)
     pc_log.name += "_log"
     pc_log.logy = True
