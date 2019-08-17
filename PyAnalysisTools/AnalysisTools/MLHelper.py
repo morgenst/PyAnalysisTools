@@ -65,7 +65,7 @@ class Root2NumpyConverter(object):
 
     def convert_to_array(self, tree, selection="", max_events=None):
         data = root_numpy.tree2array(tree, branches=self.branches,
-                                     selection=selection, start=0, stop=max_events)
+                                     selection=selection, start=0)
         return data
 
     def merge(self, signals, bkgs):
@@ -159,7 +159,7 @@ class MLAnalyser(object):
                 elif process_config.type.lower() == "background" or process_config.type.lower() == "data":
                     backgrounds.append(arrays[sub_process])
                 else:
-                    print "Could not classify {:s}".format(sub_process)
+                    _logger.warn("Could not classify {:s}".format(sub_process))
 
         signal = np.concatenate(signals)
         background = np.concatenate(backgrounds)
@@ -169,7 +169,9 @@ class MLAnalyser(object):
         signal, background = self.read_score(selection)
         efficiencies = [100. - i * 10. for i in range(10)]
         for eff in efficiencies:
-            print eff, np.percentile(signal, eff), np.percentile(signal, 100. - eff) 
+            _logger.debug("eff: {:.2f} bkg eff: {:.2f} rej: {:.2f}".format(eff,
+                                                                           np.percentile(signal, eff),
+                                                                           np.percentile(signal, 100. - eff)))
         cuts = [np.percentile(signal, 100. - eff) for eff in efficiencies]
         signal_total = sum(signal)
         signal_eff = [np.sum(signal[signal < cut] / signal_total) for cut in cuts]
