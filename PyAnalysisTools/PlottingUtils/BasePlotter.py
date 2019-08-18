@@ -1,3 +1,4 @@
+import pickle
 import re
 from collections import OrderedDict
 
@@ -21,7 +22,7 @@ class BasePlotter(object):
         self.plot_configs = None
         self.lumi = None
         kwargs.setdefault("batch", True)
-        kwargs.setdefault("process_config_file", None) #deprecated, for now kept for backwards compatibility
+        #kwargs.setdefault("process_config_file", None) #deprecated, for now kept for backwards compatibility
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
@@ -33,6 +34,7 @@ class BasePlotter(object):
         kwargs.setdefault('syst_tree_name', None)
         kwargs.setdefault('cluster_config', None)
         kwargs.setdefault('redraw', False)
+        kwargs.setdefault('skip_fh_reading', False)
 
         self.event_yields = {}
         set_batch_mode(kwargs["batch"])
@@ -46,6 +48,8 @@ class BasePlotter(object):
 
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
+        if not isinstance(self.plot_config_files, list):
+            self.plot_config_files = [self.plot_config_files]
         set_batch_mode(kwargs["batch"])
         self.process_configs = self.parse_process_config()
         self.parse_plot_config()
@@ -60,13 +64,14 @@ class BasePlotter(object):
             input_files = self.input_files
         elif hasattr(self, 'input_file_list'):
             input_files = self.input_file_list
-        self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
-                                        split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
-                                        switch_off_process_name_analysis=False,
-                                        friend_tree_names=kwargs["friend_tree_names"],
-                                        friend_pattern=kwargs["friend_file_pattern"])
-                             for input_file in input_files]
-        self.filter_missing_friends()
+        if not kwargs['skip_fh_reading']:
+            self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
+                                            split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                            switch_off_process_name_analysis=False,
+                                            friend_tree_names=kwargs["friend_tree_names"],
+                                            friend_pattern=kwargs["friend_file_pattern"])
+                                 for input_file in input_files]
+            self.filter_missing_friends()
 
     def cluster_setup(self, config):
         self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
@@ -77,15 +82,15 @@ class BasePlotter(object):
         :return: list of build process configs from config file
         :rtype: list
         """
-        if self.process_config_files is None and self.process_config_file is None:
+        if self.process_config_files is None: # and self.process_config_file is None:
             return None
-        if self.process_config_file is not None:
-            _logger.error("Single Process configs are deprecated. Please update you argument parser to "
-                          "process_config_files (NOTE the additional s).")
-        if self.process_config_files is None:
-            process_config = parse_and_build_process_config(self.process_config_file)
-        else:
-            process_config = parse_and_build_process_config(self.process_config_files)
+        # if self.process_config_file is not None:
+        #     _logger.error("Single Process configs are deprecated. Please update you argument parser to "
+        #                   "process_config_files (NOTE the additional s).")
+        # if self.process_config_files is None:
+        #     process_config = parse_and_build_process_config(self.process_config_file)
+        # else:
+        process_config = parse_and_build_process_config(self.process_config_files)
         return process_config
 
     def parse_plot_config(self):
@@ -181,6 +186,14 @@ class BasePlotter(object):
                 self.event_yields[process] += file_handle.get_number_of_total_events()
             else:
                 self.event_yields[process] = file_handle.get_number_of_total_events()
+        #temporary patch due to missing
+        # with open('/user/mmorgens/workarea/devarea/rel21/Multilepton/source/ELMultiLep/macros/LQ_v25.pkl', 'r') as f:
+        #     old_yields = pickle.load(f)
+        # for k, v in old_yields.iteritems():
+        #     if k not in self.event_yields:
+        #         continue
+        #     if self.event_yields[k] < v:
+        #         self.event_yields[k] = v
 
     def fetch_histograms(self, data, systematic="Nominal"):
         file_handle, plot_config = data
@@ -345,21 +358,6 @@ class BasePlotter(object):
                     self.histograms[plot_config][process].Add(hist)
             except KeyError:
                 self.histograms[plot_config] = {process: hist}
-
-    @staticmethod
-    def merge_old(histograms, process_configs):
-        for process, process_config in process_configs.iteritems():
-            if not hasattr(process_config, "subprocesses"):
-                continue
-            for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
-                    continue
-                if process not in histograms.keys():
-                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
-                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
-                else:
-                    histograms[process].Add(histograms[sub_process])
-                histograms.pop(sub_process)
 
     @staticmethod
     def merge(histograms, process_configs):

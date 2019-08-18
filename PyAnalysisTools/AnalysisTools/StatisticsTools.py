@@ -19,8 +19,6 @@ def consistency_check_bins(obj1, obj2):
 
 def calculate_significance(signal, background):
     try:
-        print float(signal)/sqrt(float(background))
-
         return float(signal)/sqrt(float(background))
     except ZeroDivisionError:
         return 0.
@@ -61,6 +59,13 @@ def get_statistical_uncertainty_hist(hists):
 
 
 def get_statistical_uncertainty_from_stack(stack):
+    """
+    Retrieve total statistical uncertainty histogram from THStack
+    :param stack: stack plots
+    :type stack:  ROOT.THStack
+    :return: stat. uncertainty histogram
+    :rtype: TH1F
+    """
     return get_statistical_uncertainty_hist([h for h in stack.GetHists()])
 
 

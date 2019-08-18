@@ -15,6 +15,7 @@ from PyAnalysisTools.base.ShellUtils import find_file
 class PlotConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('process_weight', None)
+        kwargs.setdefault('name', 'default_plot_config')
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
@@ -437,13 +438,13 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         else:
             #style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
-    elif draw_option.lower() == "marker" or draw_option.lower() == "markererror":
+    elif draw_option.lower() == "marker" or draw_option.lower() == "markererror" or draw_option.lower() == 'pLX':
         style_setter = ["Marker", 'Line']
     elif draw_option.lower() == "line":
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
         style_setter = plot_config.style_setter
-    if plot_config.color is not None:
+    if plot_config.color is not None and index is not None:
         if isinstance(plot_config.color, list) and index > len(plot_config.color):
             index = index % len(plot_config.color)
             style_attr = 10
@@ -453,7 +454,6 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     if not isinstance(style_setter, list):
         style_setter = [style_setter]
     _logger.debug("Parsed style setter {:s} from draw option {:s}".format(style_setter, draw_option))
-
     return style_setter, style_attr, color
 
 
@@ -506,24 +506,25 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     return hist
 
 
-def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
-    new_config = deepcopy(process_config)
-    for index, sub_process in enumerate(process_config.subprocesses):
-        if 're.' not in sub_process:
-            print 'Problem, this is not covered yet - process:', process_config.name
-            #raw_input('Hit enter to acknowledge and complain on jira.')
-            continue
-        if 'mc' not in sub_process:
-            process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
-        elif campaign_tag not in sub_process:
-            split_info = sub_process.split(')]$')
-            process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
-
-    new_config.name += '.{:s}'.format(campaign_tag)
-    for index, sub_process in enumerate(new_config.subprocesses):
-        new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
-    new_config.parent_process = process_config
-    process_configs[new_config.name] = new_config
+#todo: remove if not needed anymore
+# def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
+#     new_config = deepcopy(process_config)
+#     for index, sub_process in enumerate(process_config.subprocesses):
+#         if 're.' not in sub_process:
+#             print 'Problem, this is not covered yet - process:', process_config.name
+#             #raw_input('Hit enter to acknowledge and complain on jira.')
+#             continue
+#         if 'mc' not in sub_process:
+#             process_config.subprocesses[index] = sub_process + '([^(({:s})]$)'.format(campaign_tag)
+#         elif campaign_tag not in sub_process:
+#             split_info = sub_process.split(')]$')
+#             process_config.subprocesses[index] = split_info[0] + '|| ' + campaign_tag + split_info[1] + ')]$)'
+#
+#     new_config.name += '.{:s}'.format(campaign_tag)
+#     for index, sub_process in enumerate(new_config.subprocesses):
+#         new_config.subprocesses[index] = sub_process + '({:s})$'.format(campaign_tag)
+#     new_config.parent_process = process_config
+#     process_configs[new_config.name] = new_config
 
 
 def find_process_config(process, process_configs):

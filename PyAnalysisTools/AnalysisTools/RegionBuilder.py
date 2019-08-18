@@ -9,16 +9,16 @@ class Cut(object):
         self.is_data = False
         self.is_mc = False
         self.process_type = None
-        if '::' in selection:
-            self.selection, self.name = selection.split('::')
+        if ':::' in selection:
+            self.selection, self.name = selection.split(':::')
         else:
             self.name = selection
             self.selection = selection
         if 'DATA:' in self.selection:
-            self.selection.replace('DATA:', '')
+            self.selection = self.selection.replace('DATA:', '')
             self.is_data = True
-        elif 'MC:' in self.selection:
-            self.selection.replace('MC:', '')
+        if 'MC:' in self.selection:
+            self.selection = self.selection.replace('MC:', '')
             self.is_mc = True
         elif re.match(r'TYPE_[A-Z]*:', self.selection):
             process_type = re.match(r'TYPE_[A-Z]*:', self.selection).group(0)
@@ -61,7 +61,7 @@ class NewRegion(object):
         # limit specific settings to help HistFactory setup
         kwargs.setdefault("norm_region", False)
         kwargs.setdefault("val_region", False)
-        kwargs.setdefault("norm_backgrounds", [])
+        kwargs.setdefault("norm_backgrounds", {})
 
         self.name = kwargs["name"]
         self.n_lep = kwargs["n_lep"]
@@ -147,9 +147,9 @@ class NewRegion(object):
 
     def build_cuts(self):
         self.cut_list = self.build_cut_list(self.event_cuts, 'event_cuts')
-        if self.disable_leptons:
-            return
-        self.convert_lepton_selections()
+        if not self.disable_leptons:
+            self.convert_lepton_selections()
+        self.cut_list += self.build_cut_list(None, 'post_sel_cuts')
 
     def build_cut_list(self, cut_list, selection=None):
         tmp_cut_list = []
@@ -351,6 +351,7 @@ class NewRegionBuilder(object):
 
 class Region(NewRegion):
     def __init__(self, **kwargs):
+        print "DEPRECATED"
         super(Region, self).__init__(**kwargs)
         return
         kwargs.setdefault("n_lep", -1)
@@ -535,6 +536,7 @@ class Region(NewRegion):
 
 class RegionBuilder(NewRegionBuilder):
     def __init__(self, **kwargs):
+        print "DEPRECATED"
         super(RegionBuilder, self).__init__(**kwargs)
         return
         """

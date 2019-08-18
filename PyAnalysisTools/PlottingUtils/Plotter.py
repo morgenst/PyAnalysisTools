@@ -88,13 +88,16 @@ class Plotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
-        kwargs.setdefault("module_config_file", None)
+        kwargs.setdefault("module_config_files", None)
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault('file_extension', ['.pdf'])
 
         super(Plotter, self).__init__(**kwargs)
         for k, v in kwargs.iteritems():
+            if hasattr(self, k) and v is None:
+                continue
             setattr(self, k, v)
+
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
@@ -108,12 +111,10 @@ class Plotter(BasePlotter):
         self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if not self.read_hist:
             self.filter_empty_trees()
-        self.modules = load_modules(kwargs["module_config_file"], self)
+        self.modules = load_modules(kwargs['module_config_files'], self)
         self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
         #self.modules.append(self.fake_estimator)
-        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        self.init_modules()
         self.expand_plot_configs()
         if kwargs["enable_systematics"]:
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
@@ -122,14 +123,18 @@ class Plotter(BasePlotter):
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
 
+    def init_modules(self):
+        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
+        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
+        self.modules_data_modifiers = [m for m in self.modules if m.type == 'DataModifier']
+        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+
     def redraw_init(self, **kwargs):
         super(Plotter, self).__init__(cluster_mode=False, redraw=True)
         config = kwargs['config']
         self.histograms = {}
-        self.modules = load_modules(kwargs["module_config_file"], self)
-        self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
-        self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
-        self.modules_hist_fetching = [m for m in self.modules if m.type == "HistFetching"]
+        self.modules = load_modules(kwargs['module_config_files'], self)
+        self.init_modules()
         self.read_hist = True
         self.xs_handle = XSHandle(config.extra_args["xs_config_file"])
         self.ncpu = 1
@@ -138,12 +143,18 @@ class Plotter(BasePlotter):
         self.parse_plot_config()
         self.expand_plot_configs()
         self.xs_config_file = config.extra_args['xs_config_file']
-        self.process_configs = config.extra_args['process_configs']
+        if len(kwargs['process_config_files']) > 0:
+            self.process_config_files = kwargs['process_config_files']
+            self.process_config_file = None
+            self.process_configs = self.parse_process_config()
+        else:
+            self.process_configs = config.extra_args['process_configs']
         self.syst_analyser = config.extra_args['syst_analyser']
-        self.syst_analyser.file_handles = self.file_handles
-        self.syst_analyser.event_yields = self.event_yields
-        self.syst_analyser.dump_hists = False
-        self.syst_analyser.plot_configs = self.plot_configs
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+            self.syst_analyser.event_yields = self.event_yields
+            self.syst_analyser.dump_hists = False
+            self.syst_analyser.plot_configs = self.plot_configs
         #config.output_dir = "/Users/morgens/tmp/test"
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=['.pdf'], output_dir=kwargs['output_dir'])
@@ -157,14 +168,16 @@ class Plotter(BasePlotter):
         self.plot_configs = config.plot_config
         self.modules_pc_modifiers = []
         self.modules_data_providers = []
+        self.modules_data_modifiers = []
         self.modules_hist_fetching = []
         self.read_hist = False
         self.ncpu = 1
         self.nfile_handles = 1
-        self.syst_analyser.file_handles = self.file_handles
-        self.syst_analyser.event_yields = self.event_yields
-        self.syst_analyser.dump_hists = True
-        self.syst_analyser.plot_configs = self.plot_configs
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
+            self.syst_analyser.event_yields = self.event_yields
+            self.syst_analyser.dump_hists = True
+            self.syst_analyser.plot_configs = self.plot_configs
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=None, output_dir=config.output_dir, sub_dir_name='hists',
                                               output_file='hist-{:s}'.format(config.file_name.split('-')[1]))
@@ -176,16 +189,16 @@ class Plotter(BasePlotter):
             process_config = self.process_configs[process_config_name]
             if process_config.is_data:
                 continue
-            for i, campaign in enumerate(["mc16a", "mc16c", "mc16d", 'mc16e']):
+            for i, campaign in enumerate(['mc16a', 'mc16c', 'mc16d', 'mc16e']):
                 new_config = copy.copy(process_config)
                 new_config.name += campaign
-                new_config.label += " {:s}".format(campaign)
+                new_config.label += ' {:s}'.format(campaign)
                 #TODO fix proper calculation
                 if not '+' in new_config.color and not '-' in new_config.color:
-                    new_config.color = new_config.color + " + {:d}".format(3*pow(-1, i))
-                if hasattr(process_config, "subprocesses"):
-                    new_config.subprocesses = ["{:s}.{:s}".format(sb, campaign) for sb in process_config.subprocesses]
-                self.process_configs["{:s}.{:s}".format(process_config_name, campaign)] = new_config
+                    new_config.color = new_config.color + ' + {:d}'.format(3*pow(-1, i))
+                if hasattr(process_config, 'subprocesses'):
+                    new_config.subprocesses = ['{:s}.{:s}'.format(sb, campaign) for sb in process_config.subprocesses]
+                self.process_configs['{:s}.{:s}'.format(process_config_name, campaign)] = new_config
             self.process_configs.pop(process_config_name)
 
     @staticmethod
@@ -196,10 +209,12 @@ class Plotter(BasePlotter):
                                   filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                          file_handles))
         for process in unavailable_process:
-            _logger.error("Unable to find merge process config for {:s}".format(str(process)))
+            _logger.info("Unable to find merge process config for {:s}".format(str(process)))
         failed_file_handles = filter(lambda fh: find_process_config(fh.process, process_configs) is None,
                                      file_handles)
-        _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name, failed_file_handles))))
+        if len(failed_file_handles) > 0:
+            _logger.debug("failed file handles {:s}.".format(', '.join(map(lambda fh: fh.file_name,
+                                                                           failed_file_handles))))
         map(lambda fh: fh.close(), failed_file_handles)
         return filter(lambda fh: find_process_config(fh.process, process_configs) is not None,
                       file_handles)
@@ -330,12 +345,23 @@ class Plotter(BasePlotter):
             if hasattr(self.process_configs[process], 'signal_scale'):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
 
+    def scale_process(self, data):
+        for process, hist in data.iteritems():
+            if self.process_configs[process].scale_factor is None:
+                continue
+            HT.scale(hist, self.process_configs[process].scale_factor)
+
     def make_plot(self, plot_config, data):
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
+        for mod in self.modules_data_modifiers:
+            try:
+                mod.execute(data, self.output_handle)
+            except TypeError:
+                mod.execute(data)
         data = {k: v for k, v in data.iteritems() if v}
         if plot_config.normalise:
-            HT.normalise(data, integration_range=[0, -1])
+            HT.normalise(data, integration_range=[0, -1], norm_scale=plot_config.norm_scale)
         HT.merge_overflow_bins(data)
         HT.merge_underflow_bins(data)
         signals = None
@@ -344,6 +370,8 @@ class Plotter(BasePlotter):
         #todo: need proper fix for this
         if plot_config.signal_scale is not None and signals is not None:
             self.scale_signals(signals, plot_config)
+        self.scale_process(data)
+
         signal_only = False
         if signals is not None and len(signals) > 0 and len(data) == 0:
             signal_only = True
@@ -373,9 +401,8 @@ class Plotter(BasePlotter):
             if plot_config.signal_extraction:
                 for signal in signals.iteritems():
                     pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
-
         FM.decorate_canvas(canvas, plot_config)
-        if not plot_config.disable_legend:
+        if not plot_config.disable_legend or plot_config.enable_legend:
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
                                         **plot_config.legend_options)
@@ -409,6 +436,7 @@ class Plotter(BasePlotter):
                                                                    name=canvas.GetName() + "_significance")
             if significance_canvas is not None:
                 self.output_handle.register_object(canvas_significance_ratio)
+
         self.output_handle.register_object(canvas)
         if plot_config.ratio:
             if plot_config.no_data or plot_config.is_multidimensional:
@@ -484,22 +512,33 @@ class Plotter(BasePlotter):
             self.output_handle.register_object(canvas_combined)
 
     def build_fetched_histograms(self):
-        l = []
+        """
+        Wrapper function to read all histograms from provided file handles and plot configs
+        :return: list of fetched histograms objects
+        :rtype: list
+        """
+        hists = []
         for arg in product(self.file_handles, self.plot_configs):
-            l.append(self.get_fetched_hist(arg))
-
-        #"[(<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x12545f2d0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_data17.periodK") at 0x7f8ec2568400>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979fd0>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_data17.periodK") at 0x7f8ec2567850>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485650>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_data17.periodK") at 0x7f8ec2ab4da0>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979d90>, 'data17.periodK', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_data17.periodK") at 0x7f8ec2567080>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485690>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec216cd30>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x125485910>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_one_btag_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178970>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124979c10>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_jet_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ebe6f5580>), (<PyAnalysisTools.PlottingUtils.PlotConfig.PlotConfig object at 0x124d7be90>, 'SingleAntiTopSChanPythia8.mc16d', <ROOT.TH1F object ("SR_mu_bveto_lead_muon_pt_SingleAntiTopSChanPythia8.mc16d") at 0x7f8ec2178e60>)]"
-        return l
+            hists.append(self.get_fetched_hist(arg))
+        return hists
 
     @staticmethod
     def get_fetched_hist(args):
+        """
+        Read histogram from canvas stored in root file
+        :param args: input arguments containing pair of file handle and plot config
+        :type args: tuple (size 2)
+        :return: plot config, file handle process and histograms from canvas
+        :rtype: list
+        """
+
         fh = args[0]
         pc = args[1]
         c = fh.get_object_by_name(pc.name)
         return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
 
     def project_hists(self):
-        self.read_cutflows()
+        self.read_cutflows() #disabled in susy
         if self.syst_analyser is not None:
             self.syst_analyser.plot_configs = self.plot_configs
 
@@ -520,10 +559,38 @@ class Plotter(BasePlotter):
         _logger.debug("Reading {:d} files now from path".format(len(input_files)))
         self.file_handles = [FileHandle(file_name=fn, dataset_info=self.xs_config_file,
                                         split_mc=False) for fn in input_files]
-        self.syst_analyser.file_handles = self.file_handles
+        self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
+        if self.syst_analyser is not None:
+            self.syst_analyser.file_handles = self.file_handles
         return self.build_fetched_histograms()
 
+    def consistency_check(self):
+        """
+        Run consistency checks on plot configs and provided inputs prior to executing plotting
+        :return: decision if all checks are passed
+        :rtype: bool
+        """
+        if all([lambda pc: pc.outline == 'stack', self.plot_config_files]):
+            if len(filter(lambda fh: fh.process.is_mc, self.file_handles)) == 0:
+                _logger.error("Requested only stack plots but only data inputs provided. Giving up")
+                return False
+        if len([lambda pc: pc.outline == 'stack', self.plot_config_files]) > 0:
+            if len(filter(lambda fh: fh.process.is_mc, self.file_handles)) == 0:
+                _logger.error("Requested at least stack plot but only data inputs provided. "
+                              "Removing corresponding plot configs")
+                self.plot_configs = filter(lambda pc: pc.outline != 'stack', self.plot_configs)
+                return True
+
     def make_plots(self, dumped_hist_path=None):
+        """
+        Entry point to make plots. Reads all histograms either from provided path or projects them out of trees
+        :param dumped_hist_path: path to previously dumped histograms - enables hist reading mode (optional)
+        :type dumped_hist_path: str
+        :return: nothing
+        :rtype: None
+        """
+        if not self.consistency_check():
+            exit()
         if dumped_hist_path is None:
             fetched_histograms = self.project_hists()
         else:
@@ -535,15 +602,29 @@ class Plotter(BasePlotter):
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         #workaround due to missing worker node communication of regex process parsing
+
         if self.process_configs is not None:
             self.merge_histograms()
+            if not self.cluster_mode:
+                for pc, hists in self.histograms.iteritems():
+                    for h in hists.values():
+                        self.output_handle.register_object(h)
         if self.syst_analyser is not None:
+
             self.syst_analyser.retrieve_sys_hists(dumped_hist_path)
             self.syst_analyser.calculate_variations(self.histograms)
+            if not self.cluster_mode:
+                for syst_name in self.syst_analyser.systematic_variations.keys():
+                    for pc, data in self.syst_analyser.systematic_variations[syst_name].iteritems():
+                        for h in data.values():
+                            h.SetName(h.GetName() + '_' + syst_name)
+                            self.output_handle.register_object(h)
             self.syst_analyser.calculate_total_systematics()
             #For some reason need to transfer histograms
-            for tdir, obj in self.syst_analyser.output_handle.objects.iteritems():
-                self.output_handle.register_object(obj, tdir=tdir[0])
+
+            if self.cluster_mode:
+                for tdir, obj in self.syst_analyser.output_handle.objects.iteritems():
+                    self.output_handle.register_object(obj, tdir=tdir[0])
         for plot_config, data in self.histograms.iteritems():
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()

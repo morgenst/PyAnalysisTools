@@ -57,6 +57,22 @@ unittest:
     - pip install nose --user
     - pip install oyaml --user
     - pip install coverage --user
+    - pip install nosedep --user
+    - pip install mock --user
+    - pip install pathos --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.TestLogger --with-coverage
+    - nosetests tests.unit --with-coverage
+
+style_check:
+  image: atlas/analysisbase:latest
+  stage: test
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - which python
+    - which pip
+    - pip install --user flake8==3.5.0
+    - export PATH=$PATH:/home/atlas/.local/bin
+  script:
+    - flake8 .
+  allow_failure: true

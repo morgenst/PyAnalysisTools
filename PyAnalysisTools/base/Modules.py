@@ -1,20 +1,28 @@
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 from PyAnalysisTools.AnalysisTools.RegionSummaryModule import RegionSummaryModule
+from PyAnalysisTools.AnalysisTools.ExtrapolationModule import ExtrapolationModule, TopExtrapolationModule, QCDExtrapolationModule
 
 
 class Module(object):
     pass
 
 
-def load_modules(config_file, callee):
-    if config_file is None:
-        return []
-    config = YAMLLoader.read_yaml(config_file)
-    return build_module_instances(config, callee)
+def load_modules(config_files, callee):
+    modules = []
+    try:
+        for cfg_file in config_files:
+            if cfg_file is None:
+                continue
+            config = YAMLLoader.read_yaml(cfg_file)
+            modules += build_module_instances(config, callee)
+    except TypeError:
+        _logger.warning("Config files not iterable")
+    return modules
 
 
 def build_module_instances(config, callee):

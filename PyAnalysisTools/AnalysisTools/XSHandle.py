@@ -1,5 +1,4 @@
 import threading
-
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import _logger, InvalidInputError
 
@@ -66,8 +65,9 @@ class XSHandle(object):
         xs_scale_factor = float(xs_info.xsec)
         if hasattr(xs_info, "filtereff"):
             xs_scale_factor *= xs_info.filtereff
-        if hasattr(xs_info, "kfactor"):
-            xs_scale_factor *= xs_info.kfactor
+        #TODO: temporary fix
+        # if hasattr(xs_info, "kfactor"):
+        #     xs_scale_factor *= xs_info.kfactor
         return xs_scale_factor
 
     def retrieve_xs_info(self, process):

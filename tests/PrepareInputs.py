@@ -20,12 +20,19 @@ class TestFileCreator(object):
 
 def prepare_cutflow_input():
     f = ROOT.TFile.Open("CutflowTestInput.root", "RECREATE")
+    cutflow_dxaod = ROOT.TH1I("cutflow_DxAOD", "", 10, 0, 10)
     cutflow_raw = ROOT.TH1I("cutflow_raw", "cutflow_raw", 10, 0, 10)
     for i in range(10):
         cutflow_raw.SetBinContent(i, pow(10 - i, 2))
         cutflow_raw.GetXaxis().SetBinLabel(i + 1, "cut_%i" % i)
+        cutflow_dxaod.SetBinContent(i, pow(10 - i, 2))
+        cutflow_dxaod.GetXaxis().SetBinLabel(i + 1, "cut_%i" % i)
+
     f.cd()
     cutflow_raw.Write()
+    tdir = f.mkdir('Nominal')
+    tdir.cd()
+    cutflow_dxaod.Write()
     f.Close()
 
 

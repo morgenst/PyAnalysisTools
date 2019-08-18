@@ -5,14 +5,15 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values, \
+    PlotConfig
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, find_process_config
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
-def retrieve_new_canvas(name, title, size_x=800, size_y=600):
+def retrieve_new_canvas(name, title='', size_x=800, size_y=600):
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
+    canvas.SetRightMargin(0.07)
     ROOT.SetOwnership(canvas, False)
     return canvas
 
@@ -26,34 +27,34 @@ def plot_obj(hist, plot_config, **kwargs):
         return plot_graph(hist, plot_config, **kwargs)
 
 
-def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False):
+def project_hist(tree, hist, var_name, cut_string='', weight=None, is_data=False):
     if cut_string is None:
-        cut_string = ""
+        cut_string = ''
     if weight:
-        if "MC:" in weight:
-            weight = weight.split("*")
-            mc_weights = filter(lambda w: "MC:" in w, weight)
+        if 'MC:' in weight:
+            weight = weight.split('*')
+            mc_weights = filter(lambda w: 'MC:' in w, weight)
             for mc_w in mc_weights:
                 weight.remove(mc_w)
-            weight = "*".join(weight)
+            weight = '*'.join(weight)
             if not is_data:
-                mc_weights = map(lambda mc_w: mc_w.replace("MC:", ""), mc_weights)
+                mc_weights = map(lambda mc_w: mc_w.replace('MC:', ''), mc_weights)
                 for mc_w in mc_weights:
-                    weight += "* {:s}".format(mc_w)
-        if "DATA:" in weight:
-            weight = weight.split("*")
-            data_weights = filter(lambda w: "DATA:" in w, weight)
+                    weight += '* {:s}'.format(mc_w)
+        if 'DATA:' in weight:
+            weight = weight.split('*')
+            data_weights = filter(lambda w: 'DATA:' in w, weight)
             for data_w in data_weights:
                 weight.remove(data_w)
-            weight = "*".join(weight)
+            weight = '*'.join(weight)
             if is_data:
-                data_weights = map(lambda data_w: data_w.replace("DATA:", ""), data_weights)
+                data_weights = map(lambda data_w: data_w.replace('DATA:', ''), data_weights)
                 for data_w in data_weights:
-                    weight += "* {:s}".format(data_w)
-        if cut_string == "":
+                    weight += '* {:s}'.format(data_w)
+        if cut_string == '':
             cut_string = weight
         else:
-            cut_string = "%s * (%s)" % (weight, cut_string)
+            cut_string = '%s * (%s)' % (weight, cut_string)
     n_selected_events = tree.Project(hist.GetName(), var_name, cut_string)
     _logger.debug("Selected %i events from tree %s for distribution %s and cut %s." % (n_selected_events,
                                                                                        tree.GetName(),
@@ -64,7 +65,7 @@ def project_hist(tree, hist, var_name, cut_string="", weight=None, is_data=False
                       "initialised after histogram definition has been received")
         raise RuntimeError("Inconsistency in TTree::Project")
     if n_selected_events == -1:
-        _logger.error("Unable to project %s from tree %s with cut %s" % (var_name, tree_name, cut_string))
+        _logger.error("Unable to project {:s} from tree {:s} with cut {:s}".format(var_name, tree.GetName(), cut_string))
         raise RuntimeError("TTree::Project failed")
     return hist
 
@@ -120,7 +121,7 @@ def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=No
     """
     if isinstance(obj, ROOT.TH1):
         add_histogram_to_canvas(canvas, obj, plot_config, process_config, index)
-    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency):
+    if isinstance(obj, ROOT.TGraphAsymmErrors) or isinstance(obj, ROOT.TEfficiency) or isinstance(obj, ROOT.TGraph):
         add_graph_to_canvas(canvas, obj, plot_config)
 
 
@@ -165,7 +166,12 @@ def plot_2d_hist(hist, plot_config, **kwargs):
     canvas.cd()
     hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
-    hist.Draw(plot_config.draw_option)
+    draw_option = plot_config.draw_option
+    if draw_option is None:
+        _logger.warning("No draw option provided for TH2 for pc: {:s}. "
+                        "Fall back to default: COLZ".format(plot_config.name))
+        draw_option = 'COLZ'
+    hist.Draw(draw_option)
     if plot_config.logx:
         canvas.SetLogx()
     if plot_config.logy:
@@ -181,13 +187,13 @@ def plot_2d_hist(hist, plot_config, **kwargs):
 
 
 # todo: remove
-def fetch_process_config_old(process, process_config):
-    if process is None or process_config is None:
-        return None
-    if process not in process_config:
-        _logger.warning("Could not find process %s in process config" % process)
-        return None
-    return process_config[process]
+# def fetch_process_config_old(process, process_config):
+#     if process is None or process_config is None:
+#         return None
+#     if process not in process_config:
+#         _logger.warning("Could not find process %s in process config" % process)
+#         return None
+#     return process_config[process]
 
 
 def format_obj(obj, plot_config):
@@ -226,6 +232,8 @@ def format_tefficiency(obj, plot_config):
 
 
 def format_hist(hist, plot_config):
+    if plot_config is None:
+        return hist
     xtitle, ytitle = get_title_from_plot_config(plot_config)
     if xtitle:
         fm.set_title_x(hist, xtitle)
@@ -240,10 +248,6 @@ def format_hist(hist, plot_config):
         fm.set_title_y_offset(hist, plot_config.ytitle_offset)
     if plot_config.ytitle_size is not None:
         fm.set_title_y_size(hist, plot_config.ytitle_size)
-    yscale = 1.1
-    if plot_config.logy:
-        yscale = 100.
-        yscale = 10.
     if isinstance(hist, ROOT.TH2):
         if plot_config.ztitle is not None:
             hist.GetZaxis().SetTitle(plot_config.ztitle)
@@ -255,9 +259,8 @@ def format_hist(hist, plot_config):
             hist = ht.rebin2D(hist, plot_config.rebinX, plot_config.rebinY)
         if hasattr(plot_config, "zmin") and hasattr(plot_config, "zmax"):
             fm.set_range_z(hist, plot_config.zmin, plot_config.zmax)
-
     if plot_config.normalise:
-        ht.normalise(hist, plot_config.normalise_range)
+        ht.normalise(hist, plot_config.normalise_range, plot_config.norm_scale)
         ymax = plot_config.yscale * hist.GetMaximum()
         if plot_config.ymax is not None:
             plot_config.ymax = max(plot_config.ymax, ymax)
@@ -267,11 +270,21 @@ def format_hist(hist, plot_config):
         hist = ht.rebin(hist, plot_config.rebin)
         ymax = plot_config.yscale*hist.GetMaximum()
         if plot_config.ymax is not None:
-            plot_config.ymax = max(plot_config.ymax, ymax)
+            plot_config.ymax = min(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
+
     ROOT.SetOwnership(hist, False)
     return hist
+
+
+def make_graph(name, x_vals, y_vals):
+    g = ROOT.TGraph(len(x_vals))
+    g.SetName(name)
+    for i, x in enumerate(x_vals):
+        g.SetPoint(i, x, y_vals[i])
+    ROOT.SetOwnership(g, False)
+    return g
 
 
 def plot_graphs(graphs, plot_config):
@@ -373,6 +386,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     for process, hist in hist_defs:
         index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)
+
         try:
             process_config = find_process_config(process, process_configs)
         except AttributeError:
@@ -385,6 +399,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
+
         #todo: might break something upstream
         # if common_config is None or common_config.ignore_style:
         #     style_setter = "Line"
@@ -395,20 +410,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
-            # fm.set_minimum_y(hist, plot_config.ymin)
-            # if plot_config.xmin and not plot_config.xmax:
-            #     fm.set_minimum(hist, plot_config.xmin, "x")
-            # elif plot_config.xmin and plot_config.xmax:
-            #     fm.set_range(hist, plot_config.xmin, plot_config.xmax, "x")
-            # if plot_config.logy:
-            #     hist.SetMaximum(hist.GetMaximum() * 10.)
-            #     if hasattr(plot_config, "ymin"):
-            #         hist.SetMinimum(max(0.1, plot_config.ymin))
-            #     else:
-            #         hist.SetMinimum(0.0001)
-            #     canvas.SetLogy()
-            # if plot_config.logx:
-            #     canvas.SetLogx()
             format_hist(hist, plot_config)
             if plot_config.ymax:
                  hist.SetMaximum(plot_config.ymax)
@@ -427,7 +428,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         is_first = False
     if plot_config.normalise:
         hist_defs[0][1].SetMaximum(plot_config.ymax)
-
     canvas.Update()
     return canvas
 
@@ -484,7 +484,7 @@ def add_histogram_to_canvas(canvas, hist, plot_config, process_config=None, inde
     canvas.Update()
 
 
-def plot_graph(graph, plot_config=None, **kwargs):
+def plot_graph(graph, plot_config, **kwargs):
     """
     Plot a TGraph object
 
@@ -497,25 +497,18 @@ def plot_graph(graph, plot_config=None, **kwargs):
     :return: canvas containing plotted and formatted TGraph
     :rtype: TCanvas
     """
-    if plot_config is not None:
-        kwargs.setdefault("canvas_name", plot_config.name)
-    else:
-        kwargs.setdefault("canvas_name", graph.GetName())
-    kwargs.setdefault("canvas_title", "")
-    canvas = retrieve_new_canvas(kwargs["canvas_name"], kwargs["canvas_title"])
+    kwargs.setdefault('index', 0)
+    kwargs.setdefault('canvas_name', plot_config.name)
+    kwargs.setdefault('canvas_title', '')
+    canvas = retrieve_new_canvas(kwargs['canvas_name'], kwargs['canvas_title'])
     canvas.cd()
-    draw_option = "a" + get_draw_option_as_root_str(plot_config)
+    draw_option = 'a' + get_draw_option_as_root_str(plot_config)
     if plot_config.ymax is not None:
         fm.set_range_y(graph, plot_config.ymin, plot_config.ymax)
     graph.Draw(draw_option)
     graph = format_obj(graph, plot_config)
-    #graph.Draw(draw_option)
-    # if not "same" in draw_option:
-    #     draw_option += "same"
-    apply_style(graph, *get_style_setters_and_values(plot_config, index=0))
+    apply_style(graph, *get_style_setters_and_values(plot_config, index=kwargs['index']))
     ROOT.SetOwnership(graph, False)
-    # if plot_config:
-    #     graph = format_obj(graph, plot_config)
     if plot_config.logy:
         canvas.SetLogy()
 
@@ -524,10 +517,24 @@ def plot_graph(graph, plot_config=None, **kwargs):
 
 
 def add_graph_to_canvas(canvas, graph, plot_config, index=None):
+    """
+    Add a TGraph or associated object to existing canvas
+    :param canvas: canvas containing at least on graph
+    :type canvas: ROOT.TCanvas
+    :param graph: graph object to be added
+    :type graph: TGraph (or in Inheritance scheme)
+    :param plot_config: plot style configuration
+    :type plot_config: PlotConfig
+    :param index: index identifier for ith graph object in canvas for style choice (optional)
+    :type index: int
+    :return: nothing
+    :rtype: None
+    """
     canvas.cd()
     draw_option = get_draw_option_as_root_str(plot_config)
-    if not "same" in draw_option:
+    if "same" not in draw_option:
         draw_option += "same"
+    draw_option = draw_option.lstrip('a')
     apply_style(graph, *get_style_setters_and_values(plot_config, index=index))
     graph.Draw(draw_option)
     ROOT.SetOwnership(graph, False)
@@ -554,11 +561,13 @@ def plot_stack(hists, plot_config, **kwargs):
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.Clear()
     canvas.cd()
-    is_first = True
     if isinstance(hists, dict) or isinstance(hists, defaultdict):
         hist_defs = hists.items()
     elif isinstance(hists, list):
         hist_defs = zip([None] * len(hists), hists)
+    else:
+        _logger.error('Cannot deal with provided input {:s}'.format(hists.__str__()))
+        raise InvalidInputError()
     stack = ROOT.THStack('hs', '')
 
     ROOT.SetOwnership(stack, False)
@@ -589,7 +598,11 @@ def plot_stack(hists, plot_config, **kwargs):
     if plot_config.logy:
         canvas.SetLogy()
     if plot_config.logx:
-        fm.set_range_x(stack, plot_config.xmin, plot_config.xmax)
+        try:
+            xmin, xmax = plot_config.xmin, plot_config.xmax
+        except AttributeError:
+            xmin, xmax = max(0.0001, stack.GetXaxis().GetXmin()), stack.GetXaxis().GetXmax()
+        fm.set_range_x(stack, xmin, xmax)
         canvas.SetLogx()
 
     return canvas
@@ -605,6 +618,15 @@ def add_data_to_stack(canvas, data, plot_config=None, blind=None):
 
 
 def blind_data(data, blind):
+    """
+    Apply blinding to a given distribution above blind cut value
+    :param data: histogram
+    :type data: TH1X
+    :param blind: cut value above which distribution should be blinded
+    :type blind: float
+    :return: nothing
+    :rtype: None
+    """
     for b in range(data.GetNbinsX() + 1):
         if data.GetBinCenter(b) < blind:
             continue
@@ -668,9 +690,10 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
             hratio = object_handle.get_objects_from_canvas_by_type(ratio, supported_types)[0]
         except:
             _logger.error("Could not find any supported hist type in canvas {:s}".format(ratio.GetName()))
-            return
+            return canvas
     else:
         hratio = ratio
+        ratio = plot_obj(ratio, PlotConfig())
 
     if name is None:
         name = canvas.GetName() + "_ratio"
@@ -690,7 +713,10 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
         try:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "TEfficiency")[0]
         except IndexError:
-            stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            try:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            except:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TGraph")[0]
     stack.GetXaxis().SetTitleSize(0)
     stack.GetXaxis().SetLabelSize(0)
     # if not canvas.GetLogy():

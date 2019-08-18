@@ -1,5 +1,3 @@
-#####!/usr/bin/env bash
-
 if [[ $(hostname -s) = *lxplus* ]] || [[ $(hostname -s) == *romanescu* ]] || [[ $(hostname -s) = *pc-tbed-pub-* ]]; then
     export PYTHONPATH=~/pythonmodules/lib/python2.7/site-packages/:$PYTHONPATH
 fi
@@ -14,3 +12,10 @@ fi
 
 export PYTHONPATH=${CWD}:${PYTHONPATH}
 export PATH=${CWD}/run_scripts:${PATH}
+
+#make run scripts executable
+chmod -R 755 ${CWD}/run_scripts/*.py
+
+if [[ "$1" != "disable_dep_check" ]]; then
+    python ${CWD}/.check_dependencies.py
+fi

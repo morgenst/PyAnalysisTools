@@ -1,5 +1,5 @@
 import collections
-from copy import copy
+from copy import copy, deepcopy
 import ROOT
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
@@ -66,7 +66,7 @@ class ComparisonReader(object):
             cut_string = cut_string.replace('DATA:', '')
         else:
             cut_string = '&&'.join(filter(lambda ct: 'DATA' not in ct, cut_string.split("&&")))
-
+        file_handle.open() #?
         hist = get_histogram_definition(plot_config)
         hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
         if tree_name is None:
@@ -81,12 +81,17 @@ class ComparisonReader(object):
 
     def make_hists(self, file_handles, plot_config, cut_name, cut_string, tree_name=None):
         result = None
+        hists = []
         for fh in file_handles:
             hist = self.make_hist(fh, plot_config, cut_name, cut_string, tree_name)
+            hists.append(hist)
             if result is None:
-                result = hist
+                result = hist.Clone()
+                ROOT.SetOwnership(result, False)
                 continue
             result.Add(hist)
+        result.SetDirectory(0)
+        map(lambda fh: fh.close(), file_handles)
         return result
 
     @staticmethod
@@ -115,8 +120,9 @@ class SingleFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files']
-        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+        #self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
+        self.file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
@@ -172,7 +178,7 @@ class SingleFileSingleRefReader(ComparisonReader):
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts) + 1]
             else:
                 if k_cuts == 'cut':
                     label = ""
@@ -259,7 +265,7 @@ class SingleFileMultiRefReader(ComparisonReader):
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                compare[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
                 label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
@@ -439,13 +445,13 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('output_tag', None)
         kwargs.setdefault('process_config_files', None)
         kwargs.setdefault('systematics', 'Nominal')
-        kwargs.setdefault('ref_mod_modules', None)
+        kwargs.setdefault('ref_mod_modules', [])
         kwargs.setdefault('inp_mod_modules', None)
         kwargs.setdefault('read_hist', False)
         kwargs.setdefault('n_files_handles', 1)
         kwargs.setdefault('nfile_handles', 1)
         kwargs.setdefault('ref_module_config_file', None)
-        kwargs.setdefault('module_config_file', None)
+        kwargs.setdefault('module_config_file', [])
         kwargs.setdefault('json', False)
         kwargs.setdefault('file_extension', ['.pdf'])
         if kwargs['json']:
@@ -531,7 +537,6 @@ class ComparisonPlotter(BasePlotter):
             new_pc = copy(pc)
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
-
 
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):

@@ -3,7 +3,7 @@ import re
 import time
 import ROOT
 import math
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base import ShellUtils
 from PyAnalysisTools.PlottingUtils.PlottingTools import retrieve_new_canvas
 
@@ -21,14 +21,16 @@ class SysOutputHandle(object):
         self.output_tag = kwargs['output_tag']
         if kwargs['output_tag'] is not None:
             self.output_dir += '_' + kwargs['output_tag']
-        ShellUtils.make_dirs(self.output_dir)
+        if self.output_dir is not None:
+            ShellUtils.make_dirs(self.output_dir)
 
     @staticmethod
     def resolve_output_dir(**kwargs):
+        kwargs.setdefault('sub_dir_name', 'output')
         time_stamp = time.strftime("%Y%m%d_%H-%M-%S")
         output_dir = kwargs["output_dir"]
         if output_dir is None:
-            output_dir = "./"
+            return None
         if os.path.islink(output_dir):
             output_dir = os.readlink(output_dir)
         if re.search(r"([0-9]{8}_[0-9]{2}-[0-9]{2}-[0-9]{2})$", output_dir):
@@ -111,6 +113,7 @@ class OutputFileHandle(SysOutputHandle):
                                                    "RECREATE")
             self.output_file.cd()
             self.attached = True
+        self.output_file.ls()
 
     def dump_canvas(self, canvas, name=None, tdir=None):
         if self.extension is None:
@@ -196,19 +199,23 @@ class OutputFileHandle(SysOutputHandle):
             if isinstance(obj, ROOT.TCanvas) and not self.enable_make_plot_book:
                 self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
-        self.output_file.Write()
+        self.output_file.Write("0", ROOT.TObject.kOverwrite)
         self.output_file.Close()
         _logger.info("Written file %s" % self.output_file.GetName())
         self.output_root_file_path = self.output_file.GetName()
 
-    def register_object(self, obj, tdir=None):
+    def register_object(self, obj, tdir=None, disable_clone=False):
         _logger.debug("Adding object %s" % obj.GetName())
         if tdir is not None and not tdir.endswith("/"):
             tdir += "/"
         if isinstance(obj, ROOT.TTree):
+            ROOT.gROOT.cd()
             self.objects[(tdir, obj.GetName())] = obj.CloneTree()
         else:
-            self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")
+            if not disable_clone:
+                self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")
+            else:
+                self.objects[(tdir, obj.GetName())] = obj
             ROOT.SetOwnership(self.objects[(tdir, obj.GetName())], False)
 
     def clear_objects(self):
