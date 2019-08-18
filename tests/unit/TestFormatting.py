@@ -98,9 +98,13 @@ class TestFormatting(unittest.TestCase):
         fm.set_minimum_x(self.hist, 1.)
         self.assertEqual(1., self.hist.GetXaxis().GetXmin())
 
-    def test_set_maximum_x(self):
+    def test_set_maximum_x_above_range(self):
         fm.set_maximum_x(self.hist, 2.)
         self.assertEqual(2., self.hist.GetXaxis().GetXmax())
+
+    def test_set_maximum_x(self):
+        fm.set_maximum_x(self.hist, 0.5)
+        self.assertEqual(0.5, self.hist.GetXaxis().GetXmax())
 
     def test_set_maximum_y(self):
         fm.set_maximum_y(self.hist, 2.)

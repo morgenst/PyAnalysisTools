@@ -23,7 +23,7 @@ class TestHistTools(unittest.TestCase):
 
     def test_normalise(self):
         ht.normalise(self.hist)
-        self.assertEqual(self.hist.Integral(), 1.)
+        self.assertAlmostEqual(self.hist.Integral(), 1., delta=1e-5)
 
     def test_normalise_list(self):
         ht.normalise([self.hist])
