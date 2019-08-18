@@ -116,7 +116,6 @@ def set_axis_title(obj, title, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
-        print "Set titl to: ", title
         getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
@@ -393,7 +392,18 @@ def set_maximum_y(graph_obj, maximum):
 
 
 def set_maximum_x(graph_obj, maximum):
-    graph_obj.GetXaxis().SetRangeUser(0, maximum)
+    """
+    Set x-axis maximum
+    :param graph_obj: graphics object (hist, graph)
+    :type graph_obj: TH1X, TGraph
+    :param maximum: maximum x-value to display
+    :type maximum: float
+    :return: nothing
+    :rtype: None
+    """
+    minimum = graph_obj.GetXaxis().GetXmin()
+    graph_obj.GetXaxis().SetLimits(minimum, maximum)
+    graph_obj.GetXaxis().SetRangeUser(minimum, maximum)
 
 
 def set_minimum(graph_obj, minimum, axis='y'):
@@ -401,7 +411,9 @@ def set_minimum(graph_obj, minimum, axis='y'):
     if axis == 'y':
         set_minimum_y(graph_obj, minimum)
     elif axis == 'x':
-        graph_obj.GetXaxis().SetRangeUser(minimum, graph_obj.GetXaxis().GetXmax())
+        maximum = graph_obj.GetXaxis().GetXmax()
+        graph_obj.GetXaxis().SetLimits(minimum, maximum)
+        graph_obj.GetXaxis().SetRangeUser(minimum, maximum)
 
 
 def set_minimum_y(graph_obj, minimum):
