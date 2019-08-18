@@ -58,6 +58,8 @@ unittest:
     - pip install oyaml --user
     - pip install coverage --user
     - pip install nosedep --user
+    - pip install mock --user
+    - pip install pathos --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.unit --with-coverage
