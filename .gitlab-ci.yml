@@ -57,9 +57,10 @@ unittest:
     - pip install nose --user
     - pip install oyaml --user
     - pip install coverage --user
+    - pip install nosedep --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.unit.TestLogger --with-coverage
+    - nosetests tests.unit --with-coverage
 
 style_check:
   image: atlas/analysisbase:latest
