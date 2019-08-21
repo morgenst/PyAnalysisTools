@@ -107,9 +107,14 @@ class Plotter(BasePlotter):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
 
     def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name):
-            return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
-        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
+        def is_empty(file_handle, tree_name, syst_tree_name):
+            try:
+                return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
+            except ValueError:
+                if syst_tree_name is not None:
+                    return file_handle.get_object_by_name(syst_tree_name, "Nominal").GetEntries() > 0
+                raise ValueError("Can not read tree from root file.")
+        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -261,6 +266,7 @@ class Plotter(BasePlotter):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
 
     def make_plot(self, plot_config, data):
+
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
         data = {k: v for k, v in data.iteritems() if v}
@@ -299,8 +305,7 @@ class Plotter(BasePlotter):
         elif signal_only:
             canvas = pt.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
-            print data.values()[0].GetEntries()
-            c = ROOT.TCanvas("c","", 800, 600)
+            c = ROOT.TCanvas("c", "", 800, 600)
             c.cd()
             data.values()[0].Draw()
             c.SaveAs("test.pdf")

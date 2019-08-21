@@ -28,6 +28,7 @@ class BasePlotter(object):
         kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
         kwargs.setdefault("nfile_handles", 1)
+        kwargs.setdefault('syst_tree_name', None)
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
         set_batch_mode(kwargs["batch"])
@@ -194,6 +195,7 @@ class BasePlotter(object):
                     plot_config.cuts = plot_config.split("&&")
                 mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
                 data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
+                process_cuts = filter(lambda cut: ':::' in cut, plot_config.cuts)
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
                     if not "data" in file_handle.process:
@@ -202,6 +204,12 @@ class BasePlotter(object):
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
                     if self.process_configs[file_handle.process].type == "Data": #"data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
+                for process_cut in process_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(process_cut))
+                    if file_handle.process not in process_cut:
+                        continue
+                    print "add to cut: ", process_cut.split(":::")[-1]
+                    selection_cuts += "{:s} && ".format(process_cut.split(":::")[-1])
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
 
@@ -216,8 +224,13 @@ class BasePlotter(object):
                 else:
                     hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
                 selection_cuts = selection_cuts.rstrip().rstrip("&&")
-                file_handle.fetch_and_link_hist_to_tree(self.tree_name, hist, plot_config.dist, selection_cuts,
+
+                tn = self.tree_name
+                if self.syst_tree_name is not None and not file_handle.has_object(tn, systematic):
+                    tn = self.syst_tree_name
+                file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
+
             except RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
