@@ -73,6 +73,7 @@ integrationtest:
     - pip install nosedep --user
     - pip install mock --user
     - pip install pathos --user
+    - pip install pandas --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - ls
