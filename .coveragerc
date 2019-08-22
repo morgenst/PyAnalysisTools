@@ -1,10 +1,2 @@
 [report]
-omit =  *numpy/*
-        *yaml/*
-        *pp/*
-        *pathos/*
-        *dill/*
-        *multiprocess/*
-        *mock/*
-        ROOT.py
-        -.*
+include = *PyAnalysisTools/*
