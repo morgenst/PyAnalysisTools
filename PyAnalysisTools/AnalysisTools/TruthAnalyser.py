@@ -43,11 +43,39 @@ particle_map["B_c+"] = [541, "B_{c}^{+}"]
 particle_map["JPsi"] = [443, "J/#Psi"]
 
 
+particle_map["B_s0"] = [531, "B_{s}^{0}"]
+particle_map["B0"] = [511, "B^{0}"]
+particle_map["B+"] = [521, "B^{+}"]
+particle_map["anti-Lambda_b0"] = [-5122, "#Lambda_{b}^{0}"]
+
+particle_map["anti-D*0"] = [-10421, "#bar{D}^{*,0}"]
+particle_map["anti-D0"] = [-421, "#bar{D}^{0}"]
+particle_map["anti-D_10"] = [-10423, "D_{1}^{*}"]
+particle_map["anti-D_0*0"] = [-10421, "D_{0}^{*,0}(2400)"]
+particle_map["anti-D'_10"] = [-20423, "D_{1}^{',0}(2400)"]
+particle_map["anti-D_2*0"] = [-425, "D_{2}^{*,0}"]
+#particle_map["anti-D*0"] = [-10411, "D_{0}^{*,-}"] #?
+particle_map["D*-"] = [-413, "D^{*,-}(2010)"]
+particle_map["D_1-"] = [-10413, "D_{1}^{-}"]
+particle_map["D_0*-"] = [10411, "D_{0}^{*,-}"]
+particle_map["D'_1-"] = [20413, "D\'_{1}^{-}"]
+particle_map["D_2*-"] = [-415, "D_{2}^{*,-}"]
+particle_map["anti-Lambda_c-"] = [-4122, "#Lambda_{c}^{-}"]
+particle_map["anti-Lambda_c(2593)-"] = [-14122, "#Lambda_{c}^{-}(2593)"]
+particle_map["anti-Lambda_c(2625)-"] = [-4124, "#Lambda_{c}^{-}(2625)"]
+particle_map["D_s-"] = [-431, "D_{s}^{-}"]
+particle_map["D_s*-"] = [-433, "D_{s}^{*}"]
+particle_map["D_s1-"] = [-10433, "D_{s1}^{-} (2536)"]
+particle_map["D_s0*-"] = [-10431, "D_{s0}^{*} (2317)"]
+particle_map["D'_s1-"] = [-20433, "D_{s1}^{-} (2460)"]
+particle_map["D_s2*-"] = [-435, "D_{s2}^{*} (2573)"]
+
+
 class Process(object):
     def __init__(self, config):
         self.decay1_str = config["decay1"]
         self.decay2 = config["decay2"]
-        self.decay1_pdgid = map(lambda name: particle_map[name][0], self.decay1_str)
+        self.decay1_pdgid = map(lambda name: particle_map[name][0] if isinstance(name, str) else name, self.decay1_str)
         self.decay2_pdgid = [map(lambda name: particle_map[name][0] if isinstance(name, str) else name, sub)
                              for sub in self.decay2]
         self.decay_2_initial_resonance = [decay[0] for decay in self.decay2_pdgid]
@@ -334,12 +362,14 @@ class TruthAnalyer(object):
 
 class LQTruthAnalyser(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('max_events', None)
         self.input_files = kwargs["input_files"]
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         self.histograms = dict()
         self.plot_configs = dict()
         self.references = dict()
         self.tree_name = "CollectionTree"
+        self.max_events = kwargs['max_events']
         process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
         self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
         self.current_process_config = None
@@ -682,10 +712,12 @@ class LQTruthAnalyser(object):
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
-        for entry in xrange(tree.GetEntries()):
-        #for entry in xrange(1):
+        max_entries = tree.GetEntries()
+        if self.max_events is not None:
+            max_entries = self.max_events
+
+        for entry in xrange(max_entries):
             tree.GetEntry(entry)
-            #tree.GetEntry(2)
             process_id = tree.EventInfo.runNumber()
             if process_id not in self.histograms:
                 self.book_histograms(process_id)
@@ -1020,6 +1052,7 @@ class TruthAnalyerT3M(object):
         self.setup()
         self.book_plot_configs()
         self.build_references()
+        self.decay_chains = {}
         if kwargs["selection"] == "None":
             self.pattern = ""
         elif kwargs["selection"] == "low_pt":
@@ -1054,6 +1087,8 @@ class TruthAnalyerT3M(object):
         book_histogram("tau_e", 50, 0., 100.)
         book_histogram("tau_phi", 50, -3.2, 3.2)
         book_histogram("tau_eta", 50, -4.0, 4.0)
+        book_histogram("tau_parent_pdgid", 4000, -2000, 2000)
+        book_histogram("tau_lifetime", 100, 0., 10.)
         book_histogram("muon_e", 20, 0., 20.)
         book_histogram("muon_eta", 50, -4.0, 4.0)
         book_histogram("muon_phi", 50, -3.2, 3.2)
@@ -1083,6 +1118,8 @@ class TruthAnalyerT3M(object):
         book_plot_config("tau_e", "#tau E [GeV]")
         book_plot_config("tau_eta", "#tau #eta")
         book_plot_config("tau_phi", "#tau #phi")
+        book_plot_config('tau_parent_pdgid', "PDG ID #tau parent")
+        book_plot_config('tau_lifetime', "#tau lifetime [10^{-13}s]")
         book_plot_config("muon_e", "#mu E [GeV]")
         book_plot_config("muon_eta", "#mu #eta")
         book_plot_config("muon_phi", "#mu #phi")
@@ -1115,8 +1152,19 @@ class TruthAnalyerT3M(object):
                 print traceback.print_exc()
                 print "Could not analyse {:s}".format(input_file)
                 continue
+        self.print_decay_chains()
         self.plot_histograms()
         self.output_handle.write_and_close()
+
+    def print_decay_chains(self):
+        def convert_pdgid(pdgid):
+            try:
+                return filter(lambda d: d[0] == pdgid, particle_map.values())[0][1]
+            except IndexError:
+                return str(pdgid)
+
+        for chain, count in self.decay_chains.iteritems():
+            print map(lambda part: convert_pdgid(part), chain), " \t & \t", count
 
     def build_references(self):
         def find_br(process, mode):
@@ -1147,6 +1195,18 @@ class TruthAnalyerT3M(object):
                 self.output_handle.register_object(canvas, str(process_id))
 
     def analyse_file(self, input_file):
+        def get_parent(tau):
+            for part in tau.prodVtxLink().incomingParticleLinks():
+                if abs(part.pdgId()) != 15:
+                    return part
+            return get_parent(part)
+
+        def get_decay_chain(tau):
+            parent = get_parent(tau)
+            parent_childs = [part.pdgId() for part in parent.decayVtxLink().outgoingParticleLinks()]
+            parent_childs = [pdgid for pdgid in parent_childs if pdgid != particle_map['gamma'][0]]
+            return tuple([parent.pdgId()] + parent_childs)
+
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
@@ -1158,12 +1218,30 @@ class TruthAnalyerT3M(object):
             if self.current_process_config is None:
                 self.current_process_config = self.processes[process_id]
             truth_particles = tree.TruthParticles
-            tau_decay = filter(lambda p: p.pdgId() == 15, truth_particles)
+            tau_decay = filter(lambda p: abs(p.pdgId()) == 15, truth_particles)
             if len(tau_decay) == 0:
                 print "Suspicious event. Could not find tau for process ", process_id
                 continue
             muon_kinematics = list()
             tau_decay_vertex = tau_decay[0].decayVtxLink().outgoingParticleLinks()
+            for dec in tau_decay:
+                if len(filter(lambda particle: abs(particle.pdgId()) == 13, dec.decayVtxLink().outgoingParticleLinks())) != 3:
+                    continue
+                tau_decay_vertex = dec.decayVtxLink().outgoingParticleLinks()
+                lfv_decay = dec
+            decay_chain = get_decay_chain(lfv_decay)
+            if decay_chain not in self.decay_chains:
+                self.decay_chains[decay_chain] = 1
+            else:
+                self.decay_chains[decay_chain] += 1
+
+            self.histograms[process_id]['tau_parent_pdgid'].Fill(get_parent(lfv_decay).pdgId())
+            vec_prod = ROOT.TVector3(lfv_decay.prodVtxLink().x(), lfv_decay.prodVtxLink().y(),
+                                     lfv_decay.prodVtxLink().z())
+            vec_decay = ROOT.TVector3(lfv_decay.decayVtxLink().x(), lfv_decay.decayVtxLink().y(),
+                                     lfv_decay.decayVtxLink().z())
+            decay_length = (vec_decay - vec_prod).Mag()
+            self.histograms[process_id]['tau_lifetime'].Fill(decay_length)
             try:
                 muons = filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)
                 for i in range(3):
@@ -1187,10 +1265,10 @@ class TruthAnalyerT3M(object):
                     continue
                 if abs(muon_kinematics[1][1]) < 2.7 and muon_kinematics[1][3] < 4.:
                     continue
-            self.histograms[process_id]["tau_e"].Fill(tau_decay[0].e() / 1000.)
-            self.histograms[process_id]["tau_eta"].Fill(tau_decay[0].eta())
-            self.histograms[process_id]["tau_phi"].Fill(tau_decay[0].phi())
-            self.histograms[process_id]["tau_e_eta"].Fill(tau_decay[0].e() / 1000., tau_decay[0].eta())
+            self.histograms[process_id]["tau_e"].Fill(lfv_decay.e() / 1000.)
+            self.histograms[process_id]["tau_eta"].Fill(lfv_decay.eta())
+            self.histograms[process_id]["tau_phi"].Fill(lfv_decay.phi())
+            self.histograms[process_id]["tau_e_eta"].Fill(lfv_decay.e() / 1000., lfv_decay.eta())
 
             for i in range(3):
                 self.histograms[process_id]["muon_e"].Fill(muon_kinematics[i][0])
@@ -1210,3 +1288,4 @@ class TruthAnalyerT3M(object):
             self.histograms[process_id]["third_lead_muon_phi"].Fill(muon_kinematics[2][2])
             self.histograms[process_id]["third_lead_muon_e_eta"].Fill(muon_kinematics[2][0], muon_kinematics[2][1])
         f.Close()
+

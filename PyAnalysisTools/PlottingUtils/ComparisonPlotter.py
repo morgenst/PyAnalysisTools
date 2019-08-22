@@ -1,5 +1,5 @@
 import collections
-from copy import copy
+from copy import copy, deepcopy
 import ROOT
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
@@ -15,8 +15,8 @@ from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, \
     get_objects_from_canvas
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
-    expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, parse_and_build_process_config, \
+    find_process_config
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 
@@ -66,95 +66,63 @@ class ComparisonReader(object):
             cut_string = cut_string.replace('DATA:', '')
         else:
             cut_string = '&&'.join(filter(lambda ct: 'DATA' not in ct, cut_string.split("&&")))
-
+        file_handle.open() #?
         hist = get_histogram_definition(plot_config)
-        hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
+        hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
         try:
             file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string, tdirectory='Nominal')
-            hist.SetName(hist.GetName() + '_' + file_handle.process)
-            _logger.debug("try to access config for process %s" % file_handle.process)
+            hist.SetName(hist.GetName() + '_' + file_handle.process.process_name)
+            _logger.debug("try to access config for process %s" % file_handle.process.process_name)
         except Exception as e:
             raise e
         return hist
 
     def make_hists(self, file_handles, plot_config, cut_name, cut_string, tree_name=None):
         result = None
+        hists = []
         for fh in file_handles:
             hist = self.make_hist(fh, plot_config, cut_name, cut_string, tree_name)
+            hists.append(hist)
             if result is None:
-                result = hist
+                result = hist.Clone()
+                ROOT.SetOwnership(result, False)
                 continue
             result.Add(hist)
+        result.SetDirectory(0)
+        map(lambda fh: fh.close(), file_handles)
         return result
 
     @staticmethod
     def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses,
-                                    process_configs.iteritems())
-            try:
-                return parent_process[0][0]
-            except IndexError:
-                _logger.error("Could not find parent process for process {:s}".format(process))
-                print "Available process configs:", process_configs
-                exit(-1)
+        # def find_parent_process(process):
+        #     parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses,
+        #                             process_configs.iteritems())
+        #     try:
+        #         return parent_process[0][0]
+        #     except IndexError:
+        #         _logger.error("Could not find parent process for process {:s}".format(process))
+        #         print "Available process configs:", process_configs
+        #         exit(-1)
 
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
-
-        expand()
         tmp_file_handles = collections.OrderedDict()
         for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
+            parent_process = find_process_config(fh.process, process_configs)#find_parent_process(fh.process)
             if parent_process not in tmp_file_handles:
                 tmp_file_handles[parent_process] = [fh]
                 continue
             tmp_file_handles[parent_process].append(fh)
         return tmp_file_handles
 
-    @staticmethod
-    def merge_histograms(histograms, process_configs):
-        def expand():
-            if process_configs is not None:
-                for process_name in histograms.keys():
-                    _ = find_process_config(process_name, process_configs)
-
-        expand()
-        for process, process_config in process_configs.iteritems():
-            if not hasattr(process_config, 'subprocesses'):
-                continue
-            for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
-                    continue
-                if process not in histograms.keys():
-                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
-                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
-                else:
-                    histograms[process].Add(histograms[sub_process])
-                histograms.pop(sub_process)
-
-        for process in histograms.keys():
-            histograms[find_process_config(process, process_configs)] = histograms.pop(process)
-
-    # TODO: seems not to be needed
-    # @staticmethod
-    # def parse_process_config(process_config_file):
-    #     if process_config_file is None:
-    #         return None
-    #     process_config = parse_and_build_process_config(process_config_file)
-    #     return process_config
-
 
 class SingleFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files']
-        self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+        #self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
+        self.file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in input_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
@@ -210,7 +178,7 @@ class SingleFileSingleRefReader(ComparisonReader):
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts) + 1]
             else:
                 if k_cuts == 'cut':
                     label = ""
@@ -297,7 +265,7 @@ class SingleFileMultiRefReader(ComparisonReader):
         for k_cuts, v_cuts in cuts_comp.iteritems():
             compare = collections.OrderedDict()
             for process, compare_file_handles in self.compare_file_handles.iteritems():
-                compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
+                compare[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
                 label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
@@ -477,13 +445,13 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('output_tag', None)
         kwargs.setdefault('process_config_files', None)
         kwargs.setdefault('systematics', 'Nominal')
-        kwargs.setdefault('ref_mod_modules', None)
+        kwargs.setdefault('ref_mod_modules', [])
         kwargs.setdefault('inp_mod_modules', None)
         kwargs.setdefault('read_hist', False)
         kwargs.setdefault('n_files_handles', 1)
         kwargs.setdefault('nfile_handles', 1)
         kwargs.setdefault('ref_module_config_file', None)
-        kwargs.setdefault('module_config_file', None)
+        kwargs.setdefault('module_config_file', [])
         kwargs.setdefault('json', False)
         kwargs.setdefault('file_extension', ['.pdf'])
         if kwargs['json']:
@@ -540,7 +508,6 @@ class ComparisonPlotter(BasePlotter):
 
         if 'process_config_files' in kwargs:
             self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
-            self.expand_process_configs()
 
         self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
         self.modules = load_modules(kwargs['module_config_file'], self)
@@ -570,11 +537,6 @@ class ComparisonPlotter(BasePlotter):
             new_pc = copy(pc)
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
-
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                _ = find_process_config(fh.process, self.process_configs)
 
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
@@ -661,13 +623,13 @@ class ComparisonPlotter(BasePlotter):
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     ref.label = '{:s}'.format(ref.label)
                 else:
-                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label,
+                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process.name, self.process_configs).label,
                                                    ref.label)
             for comp in compare_hists:
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     comp.label = '{:s}'.format(comp.label)
                 else:
-                    comp.label = '{:s} {:s}'.format(find_process_config(comp.process, self.process_configs).label,
+                    comp.label = '{:s} {:s}'.format(find_process_config(comp.process.name, self.process_configs).label,
                                                     comp.label)
 
         ROOT.SetOwnership(canvas, False)

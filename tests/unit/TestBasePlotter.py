@@ -11,7 +11,7 @@ class TestBasePlotter(unittest.TestCase):
         pass
 
     def test_ctor_plot_config_file_pass(self):
-        plotter = BP(plot_config_file="foo")
+        plotter = BP(input_files=[], plot_config_file="foo")
         self.assertEqual(plotter.plot_config_file, "foo")
 
     @unittest.skip("Check why this test is raising exception itself")

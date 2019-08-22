@@ -7,5 +7,5 @@ setup(name='PyAnalysisTools',
       author='Flying Circus',
       author_email='flyingcircus@example.com',
       license='MIT',
-      packages=find_packages(),#packages=['PyAnalysisTools'],
-      zip_safe=False)
+      packages=find_packages(),  #packages=['PyAnalysisTools'],
+      zip_safe=False, install_requires=['scikit-learn', 'pandas'])

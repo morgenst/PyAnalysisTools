@@ -47,6 +47,7 @@ class XSHandle(object):
             self.invalid = True
             return
         self.invalid = False
+        _logger.debug("XSHandle read cross section file {:s}".format(cross_section_file))
         if not read_dsid:
             self.cross_sections = {value.process_name: XSInfo(value)
                                    for value in YAMLLoader.read_yaml(cross_section_file).values() if value.is_mc}
@@ -64,8 +65,9 @@ class XSHandle(object):
         xs_scale_factor = float(xs_info.xsec)
         if hasattr(xs_info, "filtereff"):
             xs_scale_factor *= xs_info.filtereff
-        if hasattr(xs_info, "kfactor"):
-            xs_scale_factor *= xs_info.kfactor
+        #TODO: temporary fix
+        # if hasattr(xs_info, "kfactor"):
+        #     xs_scale_factor *= xs_info.kfactor
         return xs_scale_factor
 
     def retrieve_xs_info(self, process):

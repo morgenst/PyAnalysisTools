@@ -1,4 +1,3 @@
-import sys
 try:
     import oyaml as yaml
 except ImportError:
@@ -20,12 +19,9 @@ class YAMLLoader(object):
         if accept_none and file_name is None:
             return None
         try:
-            _logger.debug("Try to open yaml file %s" % file_name)
-            config_file = open(file_name)
-            _logger.debug("Try to load content of %s" % file_name)
-            config = yaml.load(config_file)
-            config_file.close()
-            return config
+            with open(file_name, 'r') as config_file:
+                config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
+                return config
         except IOError as e:
             _logger.error("Could not find or open yaml file %s" % file_name)
             _logger.error(e.strerror)

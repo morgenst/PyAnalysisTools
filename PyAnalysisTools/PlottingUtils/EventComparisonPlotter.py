@@ -61,9 +61,16 @@ class EventComparisonReader(object):
         t2 = compare_file_handle.Get('Nominal/BaseSelection_tree_finalSelection')
         # t1 = file_handle.Get(tree_name)
         # t2 = compare_file_handle.Get(tree_name)
+
         
-        var = plot_config.dist
-        
+        if isinstance(hist, ROOT.TH1F):
+            var = plot_config.dist
+        else:
+            var = plot_config.dist.split(":")[0]
+            print var
+            print plot_config.dist
+            print plot_config
+            
         branch_list = ['eventNumber', var]
 
         # cut_string = 'jet_n > 0 && jet_pt[0] > 60000. && MET_calo > 80000.'
@@ -93,35 +100,84 @@ class EventComparisonReader(object):
         #     hist = ROOT.TH1D(var, '', 200, -200, 200.)
         # else:
         #     hist = ROOT.TH1D(var, '', 100, -100, 100.)
-            
-        for _, i in data1.iterrows():
-            e2 = data2[data2['eventNumber'] == i['eventNumber']]
-            if len(e2) == 0:
-                hist.Fill(-99999)
-                continue
-            hist.Fill((i[var] - e2[var]))
-            # if var.startswith('MET' or 'muon'):
-            #     hist.Fill((i[var] - e2[var])/1000.)
-            # elif var.startswith('muon'):
-            #     hist.Fill((i[var] - e2[var]))
-            # else:
-            #     li_jet = list(i[var])
-            #     le2_jet = list(e2[var])[0]
-            #     if len(li_jet) != len(le2_jet):
-            #         hist.Fill(-88888)
-            #         continue
-            #     for j in range(len(li_jet)):
-            #         if var.endswith('Pt') or var.endswith('pt'):
-            #             hist.Fill((li_jet[j] - le2_jet[j])/1000.)
-            #         else:
-            #             hist.Fill(li_jet[j] - le2_jet[j])
 
-        hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
-        # _logger.debug("try to access config for process %s" % file_handle.process)
-        # except Exception as e:
-        #     raise e
-        return hist
+        print type(hist)
+        if isinstance(hist, ROOT.TH1F):
+            for _, i in data1.iterrows():
+                e2 = data2[data2['eventNumber'] == i['eventNumber']]
+                if len(e2) == 0:
+                    hist.Fill(-99999)
+                    continue
+                hist.Fill((i[var] - e2[var]))
+                # if var.startswith('MET' or 'muon'):
+                #     hist.Fill((i[var] - e2[var])/1000.)
+                # elif var.startswith('muon'):
+                #     hist.Fill((i[var] - e2[var]))
+                # else:
+                #     li_jet = list(i[var])
+                #     le2_jet = list(e2[var])[0]
+                #     if len(li_jet) != len(le2_jet):
+                #         hist.Fill(-88888)
+                #         continue
+                #     for j in range(len(li_jet)):
+                #         if var.endswith('Pt') or var.endswith('pt'):
+                #             hist.Fill((li_jet[j] - le2_jet[j])/1000.)
+                #         else:
+                #             hist.Fill(li_jet[j] - le2_jet[j])
 
+            hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
+            # _logger.debug("try to access config for process %s" % file_handle.process)
+            # except Exception as e:
+            #     raise e
+            return hist
+
+        if isinstance(hist, ROOT.TH2F):
+            print 'starting 2D'
+            for _, i in data1.iterrows():
+                e_cos = data2[data2['eventNumber'] == i['eventNumber']]
+                # print 'Start new'
+                # print e_cos, "\n"
+                # print e_cos[var], "\n"
+                # print i, "\n"
+                # print i[var], "\n"
+                # print len(e_cos[var])
+                # print len(i[var])
+                value_data1=i[var]
+                value_data2=e_cos[var]
+                try:
+                    if len(value_data1) == 0 or len(value_data2) == 0:
+                        hist.Fill(-99999., -99999.)
+                        continue
+                    # print type(value_data2), type(value_data1)
+                    # if len(value_data2[var]) == 0:
+                    #     hist.Fill(-99999., -99999.)
+                    #     continue
+                    hist.Fill(value_data1, value_data2)
+                except TypeError:
+                    #print 'Filling: ', value_data1, len(value_data1)
+                    if len(value_data2) == 0:
+                        hist.Fill(-99999., -99999.)
+                        continue
+                    # print 'val 1: ', value_data1
+                    # print 'val 2: ', value_data2
+                    hist.Fill(value_data1, value_data2)
+                    #pass
+                # print 'FOO'
+                # print type(value_data1), value_data1
+                # exit()
+                # if len(e_cos[var]) == 0 or len(i[var]) == 0:
+                #     hist.Fill(-99999., -99999.)
+                #     continue
+                # li_col = list(i[var])
+                # le_cos = list(e_cos[var])
+                # if len(le_cos[0]) == 0 or len(li_col) == 0:
+                #     hist.Fill(-99999., -99999.)
+                #     continue
+                # print (li_col[0]/1000.), (le_cos[0][0]/1000.), (li_col[0] - le_cos[0][0])
+                #hist.Fill(li_col[0], le_cos[0][0])
+            hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
+            return hist
+        
     def make_hists(self, file_handles, compare_file_handles, plot_config, cut_name, cut_string, tree_name=None):
         result = None
         for fh in file_handles:
@@ -203,12 +259,13 @@ class Reader(EventComparisonReader):
         
         reference = collections.OrderedDict()
         for process, file_handles in self.file_handles.iteritems():
-            print process, file_handles
-            print file_handles[0].process
-            print self.compare_file_handles.keys()
-            compare_file_handle = self.compare_file_handles['cosmicRun_cosmicsReco_standardOFCs'][0]
+            # compare_file_handle = self.compare_file_handles['collisionRun_cosmicsReco_standardOFCs'][0]
+            # compare_file_handle = self.compare_file_handles['cosmicRun_cosmicsReco_standardOFCs'][0]
+            # compare_file_handle = self.compare_file_handles['collisionRun_cosmicsReco_iterativeOFCs'][0]
+            # print self.compare_file_handles['cosmicRun_cosmicsReco_iterativeOFCs'][0]
+            compare_file_handle = self.compare_file_handles.items()[0][1][0]
             reference[process] = self.make_hists(file_handles, compare_file_handle, self.plot_config, '', cut_string, self.tree_name)
-
+            
         for k_ref, v_ref in reference.iteritems():
             v_ref.SetDirectory(0)
             plotable_objects.append(PO.PlotableObject(plot_object=v_ref, label='', process=k_ref))
@@ -332,7 +389,6 @@ class EventComparisonPlotter(BasePlotter):
                 setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
                 
         # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config, plotable_objects=reference_hists+compare_hists)
-
         canvas = PT.plot_objects(data, plot_config)
         canvas.SetName(plot_config.name.replace(' ', '_'))
 

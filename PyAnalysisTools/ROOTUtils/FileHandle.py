@@ -3,6 +3,7 @@ import re
 import time
 from ROOT import TFile
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
 from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
@@ -80,7 +81,8 @@ class FileHandle(object):
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
             self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
-            self.process = self.parse_process()
+            #self.process = self.parse_process()
+            self.process = Process(self.file_name, self.dataset_info)
             if self.process is not None:
                 if self.mc16a:
                     self.process += ".mc16a"
@@ -111,20 +113,24 @@ class FileHandle(object):
             self.absFName = os.path.join(self.path, self.file_name)
             while not os.path.exists(self.file_name):
                 time.sleep(1)
+        _logger.debug("Opening file {:s}".format(self.file_name))
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
     def __del__(self):
+        #_logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
     def close(self):
         if self.tfile is None or not self.tfile.IsOpen():
             return
+        _logger.debug("Closing file {:s}".format(self.tfile.GetName()))
         self.tfile.Close()
         if self.initial_file_name is not None:
             move(self.file_name, self.initial_file_name)
 
     def parse_process(self):
         def analyse_process_name():
+            print 'NOW ANALYSIS PROCESS NAME'
             if "user.shanisch" in process_name:
                 self.year = process_name.split(".")[2]
                 self.period = "periodB"
@@ -135,6 +141,8 @@ class FileHandle(object):
                     self.is_data = True
                     return ".".join([self.year, self.period])
                 except ValueError:
+                    tmp_name = process_name
+                    tmp_name.replace('ntuple-', '').replace('hist-', '')
                     _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
                     return "Data"
             if self.dataset_info is not None:
@@ -152,6 +160,9 @@ class FileHandle(object):
                 # self.is_data = True
                 # return "Data"
 
+        def simple_process_analysis(file_name):
+            return file_name.replace('hist-', '').replace('ntuple-', '').replace('.root')
+
         if "mc16a" in self.file_name.lower():
             self.mc16a = True
             self.mc_campaign = 'mc16a'
@@ -168,10 +179,19 @@ class FileHandle(object):
         if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
             file_name = self.file_name.split("/")[-1]
             self.is_data = True
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Late')
+        if 'physics_CosmicCalo' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_CosmicCalo')
+        if 'physics_Background' in self.file_name and 'TeV.' in self.file_name:
+            file_name = self.file_name.split("/")[-1]
+            self.is_data = True
+            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Background')
         if "physics_Main" in self.file_name and '_cos.' in self.file_name:
             file_name = self.file_name.split("/")[-1]
             self.is_cosmics = True
+            return simple_process_analysis(file_name)
             return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
         if self.switch_off_process_name_analysis:
             return process_name
@@ -273,6 +293,8 @@ class FileHandle(object):
         return project_hist(tree, hist, var_name, cut_string, weight, self.is_data)
 
     def link_friend_trees(self, nominal_tree, tdirectory):
+        if isinstance(nominal_tree, str):
+            nominal_tree = self.get_object_by_name(nominal_tree, tdirectory)
         if self.friend_tree_names is None:
             _logger.error("No friend tree names provided, but requested to link them.")
             return
@@ -311,6 +333,7 @@ class FileHandle(object):
                 self.friends.append(os.path.join(directory, friend_fn))
             except IndexError:
                 _logger.error("Could not find friend for ", base_file_name)
+
     @staticmethod
     def release_object_from_file(obj):
         obj.SetDirectory(0)

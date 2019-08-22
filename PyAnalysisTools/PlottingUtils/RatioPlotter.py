@@ -119,7 +119,7 @@ class RatioPlotter(object):
         if len(hist) > 1:
             for i, unc_hist in enumerate(hist[1:]):
                 pc = plot_config[i/n_systematics]
-                pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i - i/n_systematics * n_systematics)
+                pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i+1)#index=i - i/n_systematics * n_systematics)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
         return canvas
 

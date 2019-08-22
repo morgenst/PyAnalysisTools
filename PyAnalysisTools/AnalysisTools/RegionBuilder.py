@@ -1,16 +1,39 @@
 from collections import OrderedDict
+import re
 from copy import deepcopy
 from itertools import product
 
 
 class Cut(object):
     def __init__(self, selection):
-        #TODO: need implementation for data/MC
-        if '::' in selection:
-            self.selection, self.name = selection.split('::')
+        self.is_data = False
+        self.is_mc = False
+        self.process_type = None
+        if ':::' in selection:
+            self.selection, self.name = selection.split(':::')
         else:
             self.name = selection
             self.selection = selection
+        if 'DATA:' in self.selection:
+            self.selection = self.selection.replace('DATA:', '')
+            self.is_data = True
+        if 'MC:' in self.selection:
+            self.selection = self.selection.replace('MC:', '')
+            self.is_mc = True
+        elif re.match(r'TYPE_[A-Z]*:', self.selection):
+            process_type = re.match(r'TYPE_[A-Z]*:', self.selection).group(0)
+            self.selection = self.selection.replace(process_type, '')
+            self.process_type = process_type.rstrip(':').lower()
+
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: Cut object to compare to
+        :type other: Cut
+        :return: True/False
+        :rtype: boolean
+        """
+        return self.__dict__ == other.__dict__
 
     def __str__(self):
         """
@@ -38,7 +61,7 @@ class NewRegion(object):
         # limit specific settings to help HistFactory setup
         kwargs.setdefault("norm_region", False)
         kwargs.setdefault("val_region", False)
-        kwargs.setdefault("norm_backgrounds", [])
+        kwargs.setdefault("norm_backgrounds", {})
 
         self.name = kwargs["name"]
         self.n_lep = kwargs["n_lep"]
@@ -56,6 +79,7 @@ class NewRegion(object):
         kwargs.setdefault("operator", "eq")
         kwargs.setdefault("muon_operator", "eq")
         kwargs.setdefault("label", None)
+        kwargs.setdefault('label_position', None)
         kwargs.setdefault("good_muon", None)
         kwargs.setdefault("fake_muon", None)
         kwargs.setdefault("inverted_muon", None)
@@ -83,6 +107,13 @@ class NewRegion(object):
         self.build_cuts()
 
     def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: Region object to compare to
+        :type other: Region
+        :return: True/False
+        :rtype: boolean
+        """
         if isinstance(self, other.__class__):
             return self.__dict__ == other.__dict__
         return False
@@ -93,11 +124,32 @@ class NewRegion(object):
     def __hash__(self):
         return hash(self.name)
 
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = "Region: {:s} \n".format(self.name)
+        for attribute, value in self.__dict__.items():
+            if attribute == 'name':
+                continue
+            obj_str += '{}={} '.format(attribute, value)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
+
     def build_cuts(self):
         self.cut_list = self.build_cut_list(self.event_cuts, 'event_cuts')
-        if self.disable_leptons:
-            return
-        self.convert_lepton_selections()
+        if not self.disable_leptons:
+            self.convert_lepton_selections()
+        self.cut_list += self.build_cut_list(None, 'post_sel_cuts')
 
     def build_cut_list(self, cut_list, selection=None):
         tmp_cut_list = []
@@ -118,8 +170,23 @@ class NewRegion(object):
         return Cut('Sum$({:s}) == {:s} && {:s} {:s} {:d}'.format('&& '.join(cut_list), particle,
                                                                  particle, operator, count))
 
-    def get_cut_list(self):
-        return self.cut_list
+    def get_cut_list(self, is_data=False):
+        """
+        Retrieve cut list for region. Replace data/MC-only selections according to is_data flag
+        :param is_data: flag if cut list should be retrieved for data or MC
+        :type is_data: boolean
+        :return: cut list
+        :rtype: list
+        """
+        def validate_cut(cut):
+            if cut.is_data and not is_data:
+                cut = deepcopy(cut)
+                cut.selection = '1'
+            if cut.is_mc and is_data:
+                cut = deepcopy(cut)
+                cut.selection = '1'
+            return cut
+        return map(lambda c: validate_cut(c), self.cut_list)
 
     def convert_lepton_selections(self):
         """
@@ -129,16 +196,21 @@ class NewRegion(object):
         :return: None
         :rtype: None
         """
+        found_particle_cut = False
         if self.good_muon or self.common_selection and "good_muon" in self.common_selection:
             self.cut_list.append(self.build_particle_cut(self.good_muon, "good_muon", self.muon_operator,
                                                          'muon_n', self.n_muon))
+            found_particle_cut = True
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
         if self.good_electron or self.common_selection and "good_electron" in self.common_selection:
             self.cut_list.append(self.build_particle_cut(self.good_electron, "good_electron", self.electron_operator,
                                                          'electron_n', self.n_electron))
+            found_particle_cut = True
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
+        # if not found_particle_cut and self.n_electron > 0 or self.n_muon > 0:
+        #     self.cut_list.append(['Sum$({:s}) == {:s}')
 
     def convert2cut_string(self):
         """
@@ -174,6 +246,7 @@ class NewRegion(object):
             cut_list.append("{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon))
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
+        cut_list += map(lambda c: c.selection, self.cut_list)
         return " && ".join(cut_list)
 
     def build_label(self):
@@ -220,6 +293,14 @@ class NewRegionBuilder(object):
                                               **region_def))
         self.type = "PCModifier"
 
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string for all regions
+        :rtype: str
+        """
+        print self.regions
+
     def auto_generate_region(self, **kwargs):
         n_leptons = kwargs["nleptons"]
         for digits in product("".join(map(str, range(n_leptons + 1))), repeat=3):
@@ -247,10 +328,11 @@ class NewRegionBuilder(object):
         for region in self.regions:
             for pc in plot_configs:
                 region_pc = deepcopy(pc)
+                cuts = map(lambda c: c.selection, region.get_cut_list())
                 if region_pc.cuts is None:
-                    region_pc.cuts = region.get_cut_list()  # [region.convert2cut_string()]
+                    region_pc.cuts = cuts  # [region.convert2cut_string()]
                 else:
-                    region_pc.cuts += region.get_cut_list()  # .append(region.convert2cut_string())
+                    region_pc.cuts += cuts  # .append(region.convert2cut_string())
                 if region.weight:
                     if region_pc.weight is not None and not region_pc.weight.lower() == "none":
                         region_pc.weight += " * {:s}".format(region.weight)
@@ -267,9 +349,11 @@ class NewRegionBuilder(object):
         return self.modify_plot_configs(plot_configs)
 
 
-
-class Region(object):
+class Region(NewRegion):
     def __init__(self, **kwargs):
+        print "DEPRECATED"
+        super(Region, self).__init__(**kwargs)
+        return
         kwargs.setdefault("n_lep", -1)
         kwargs.setdefault("n_electron", -1)
         kwargs.setdefault("n_muon", -1)
@@ -325,6 +409,7 @@ class Region(object):
         if self.label is None:
             self.build_label()
         self.convert_lepton_selections()
+        raw_input('Deprecated. Please try to switch to NewRegionBuilder. Acknowledge by hitting enter')
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):
@@ -347,7 +432,6 @@ class Region(object):
         :rtype: string
         """
         new_cut_list = []
-
         if self.common_selection is not None and selection is not None:
             if selection in self.common_selection:
                 new_cut_list += self.common_selection[selection]
@@ -450,8 +534,11 @@ class Region(object):
             self.label += " on-Z" if self.is_on_z else " off-Z"
 
 
-class RegionBuilder(object):
+class RegionBuilder(NewRegionBuilder):
     def __init__(self, **kwargs):
+        print "DEPRECATED"
+        super(RegionBuilder, self).__init__(**kwargs)
+        return
         """
         contructor
 
@@ -500,29 +587,29 @@ class RegionBuilder(object):
 
     def build_custom_region(self):
         pass
+    #
+    # def modify_plot_configs(self, plot_configs):
+    #     tmp = []
+    #     for region in self.regions:
+    #         for pc in plot_configs:
+    #             region_pc = deepcopy(pc)
+    #             if region_pc.cuts is None:
+    #                 region_pc.cuts = region.get_cut_list()#[region.convert2cut_string()]
+    #             else:
+    #                 region_pc.cuts += region.get_cut_list()#.append(region.convert2cut_string())
+    #             if region.weight:
+    #                 if isinstance(region.weight, OrderedDict):
+    #                     region_pc.process_weight = region.weight
+    #                 elif region_pc.weight is not None and not region_pc.weight.lower() == "none":
+    #                     region_pc.weight += " * {:s}".format(region.weight)
+    #                 else:
+    #                     region_pc.weight = region.weight
+    #
+    #             region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
+    #             region_pc.decor_text = region.label
+    #             region_pc.region = region
+    #             tmp.append(region_pc)
+    #     return tmp
 
-    def modify_plot_configs(self, plot_configs):
-        tmp = []
-        for region in self.regions:
-            for pc in plot_configs:
-                region_pc = deepcopy(pc)
-                if region_pc.cuts is None:
-                    region_pc.cuts = region.get_cut_list()#[region.convert2cut_string()]
-                else:
-                    region_pc.cuts += region.get_cut_list()#.append(region.convert2cut_string())
-                if region.weight:
-                    if isinstance(region.weight, OrderedDict):
-                        region_pc.process_weight = region.weight
-                    elif region_pc.weight is not None and not region_pc.weight.lower() == "none":
-                        region_pc.weight += " * {:s}".format(region.weight)
-                    else:
-                        region_pc.weight = region.weight
-
-                region_pc.name = "{:s}_{:s}".format(region.name, pc.name)
-                region_pc.decor_text = region.label
-                region_pc.region = region
-                tmp.append(region_pc)
-        return tmp
-
-    def execute(self, plot_configs):
-        return self.modify_plot_configs(plot_configs)
+    # def execute(self, plot_configs):
+    #     return self.modify_plot_configs(plot_configs)
