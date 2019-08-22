@@ -1,0 +1,6 @@
+[run]
+omit =  numpy/*
+        yaml/*
+        pp/*
+        pathos/*
+        dill/*
