@@ -1,5 +1,5 @@
 [report]
-omit =  numpy/*
+omit =  *numpy/*
         yaml/*
         pp/*
         pathos/*
