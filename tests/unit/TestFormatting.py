@@ -1,9 +1,8 @@
 import unittest
-
 import ROOT
-
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.base import InvalidInputError
+from random import random
 
 
 class TestFormatting(unittest.TestCase):
@@ -13,6 +12,12 @@ class TestFormatting(unittest.TestCase):
 
     def tearDown(self):
         del self.hist
+
+    def get_2d_hist(self):
+        h = ROOT.TH2F('h2', '', 10, -1, 1, 10, -1, 1)
+        for i in range(10000):
+            h.Fill(random(), random())
+        return h
 
     def test_set_xtitle_hist_1d(self):
         fm.set_title_x(self.hist, "x_title")
@@ -129,12 +134,47 @@ class TestFormatting(unittest.TestCase):
         c = ROOT.TCanvas()
         self.assertRaises(AttributeError, fm.format_canvas, c, margin=['x', 0.2])
 
+    def test_range_z_all_none(self):
+        h = self.get_2d_hist()
+        init_min, init_max = h.GetMinimum(), h.GetMaximum()
+        fm.set_range_z(h)
+        self.assertEqual(init_min, h.GetMinimum())
+        self.assertEqual(init_min, h.GetZaxis().GetXmin())
+        self.assertEqual(init_max, h.GetMaximum())
+        self.assertEqual(init_max, h.GetZaxis().GetXmax())
+        del h
 
+    def test_range_z_min_only(self):
+        h = self.get_2d_hist()
+        init_max = h.GetMaximum()
+        fm.set_range_z(h, 10.)
+        self.assertEqual(10., h.GetMinimum())
+        self.assertEqual(10., h.GetZaxis().GetXmin())
+        self.assertEqual(init_max, h.GetMaximum())
+        self.assertEqual(init_max, h.GetZaxis().GetXmax())
+        del h
 
+    def test_range_z_max_only(self):
+        h = self.get_2d_hist()
+        init_min = h.GetMinimum()
+        fm.set_range_z(h, maximum=20.)
+        self.assertEqual(init_min, h.GetMinimum())
+        self.assertEqual(init_min, h.GetZaxis().GetXmin())
+        self.assertEqual(20., h.GetMaximum())
+        self.assertEqual(20., h.GetZaxis().GetXmax())
+        del h
 
+    def test_range_z_min_max(self):
+        h = self.get_2d_hist()
+        fm.set_range_z(h, 10., 20.)
+        self.assertEqual(10., h.GetMinimum())
+        self.assertEqual(10., h.GetZaxis().GetXmin())
+        self.assertEqual(20., h.GetMaximum())
+        self.assertEqual(20., h.GetZaxis().GetXmax())
+        del h
 
-
-
+    def test_range_z_graph(self):
+        self.assertEqual(None, fm.set_range_z(ROOT.TGraph))
 
     @unittest.skip("Not implemented")
     def test_set_xtitle_hist_2d(self):
