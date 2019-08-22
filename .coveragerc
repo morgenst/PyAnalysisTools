@@ -1,6 +1,10 @@
 [report]
 omit =  *numpy/*
-        yaml/*
-        pp/*
-        pathos/*
-        dill/*
+        *yaml/*
+        *pp/*
+        *pathos/*
+        *dill/*
+        *multiprocess/*
+        *mock/*
+        ROOT.py
+        -.*
