@@ -75,6 +75,7 @@ integrationtest:
     - pip install pathos --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
+    - echo $SERVICE_PASS | kinit $CERN_USER
     - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/CIfiles/PyAnalysisTools/integration/ntuple-311331_0.MC16d.root ${SRC_DIR_ABS}/tests/integration/fixtures/files
     - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/CIfiles/PyAnalysisTools/integration/ntuple-data18_13TeV_periodO_0.root ${SRC_DIR_ABS}/tests/integration/fixtures/files
     - nosetests tests.integration
