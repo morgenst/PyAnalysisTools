@@ -449,10 +449,29 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
-def set_range_z(graph_obj, minimum, maximum):
-    if isinstance(graph_obj, ROOT.TH1):
-        graph_obj.SetMaximum(maximum)
-        graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
+def set_range_z(graph_obj, minimum=None, maximum=None):
+    """
+    Set z-axis range for given plot object. If min/max is None take the current min/max of the axis
+    :param graph_obj: plottable object with z-axis
+    :type graph_obj: TH2
+    :param minimum: z-axis minimum (default: None)
+    :type minimum: float
+    :param maximum: z-axis maximum
+    :type maximum: float
+    :return: nothing
+    :rtype: None
+    """
+    if not isinstance(graph_obj, ROOT.TH1):
+        return
+    if minimum is None:
+        minimum = graph_obj.GetMinimum()
+    if maximum is None:
+        maximum = graph_obj.GetMaximum()
+
+    graph_obj.SetMinimum(minimum)
+    graph_obj.SetMaximum(maximum)
+    graph_obj.GetZaxis().SetLimits(minimum, maximum)
+    graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
 
 
 def set_range_x(graph_obj, minimum, maximum):
