@@ -52,8 +52,6 @@ unittest:
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
   before_script:
     - source /home/atlas/release_setup.sh
-    - which python
-    - which pip
     - pip install nose --user
     - pip install oyaml --user
     - pip install coverage --user
@@ -63,6 +61,23 @@ unittest:
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.unit --with-coverage
+
+integrationtest:
+  image: atlas/analysisbase:latest
+  stage: test
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - pip install nose --user
+    - pip install oyaml --user
+    - pip install coverage --user
+    - pip install nosedep --user
+    - pip install mock --user
+    - pip install pathos --user
+    - export PATH=$PATH:/home/atlas/.local/bin
+  script:
+    - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/CIfiles/PyAnalysisTools/integration/ntuple-311331_0.MC16d.root ${SRC_DIR_ABS}/tests/integration/fixtures/files
+    - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/CIfiles/PyAnalysisTools/integration/ntuple-data18_13TeV_periodO_0.root ${SRC_DIR_ABS}/tests/integration/fixtures/files
+    - nosetests tests.integration
 
 style_check:
   image: atlas/analysisbase:latest
