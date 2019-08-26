@@ -121,8 +121,17 @@ class Plotter(BasePlotter):
             self.syst_analyser = SystematicsAnalyser(**self.__dict__)
 
     def expand_plot_configs(self):
+        """
+        Expand raw plot configs for each specified region provided via module config files
+        :return:
+        :rtype:
+        """
+        if len(self.modules_pc_modifiers) == 0:
+            return
+        original_plot_configs = copy.deepcopy(self.plot_configs)
+        self.plot_configs = []
         for mod in self.modules_pc_modifiers:
-            self.plot_configs = mod.execute(self.plot_configs)
+            self.plot_configs += mod.execute(original_plot_configs)
 
     def init_modules(self):
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
