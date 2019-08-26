@@ -1,0 +1,109 @@
+import unittest
+import ROOT
+import os
+from PyAnalysisTools.base.ProcessConfig import Process
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
+from PyAnalysisTools.base import InvalidInputError
+
+cwd = os.path.dirname(__file__)
+
+
+class TestProcess(unittest.TestCase):
+    @classmethod
+    def setUpClass(self):
+        self.data_set_info = yl.read_yaml(os.path.join(os.path.dirname(__file__), 'fixtures/dataset_info_pmg.yml'))
+
+    def setUp(self):
+        pass
+
+    def tearDown(self):
+        pass
+
+    def test_process_file_name_ntuple(self):
+        process = Process('tmp/ntuple-311570_0.MC16a.root', self.data_set_info)
+        self.assertTrue(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertEqual('TBbLQmumu1300l1', process.process_name)
+        self.assertEqual('311570', process.dsid)
+        self.assertEqual('mc16a', process.mc_campaign)
+
+    def test_process_file_name_hist(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertTrue(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertEqual('TBbLQmumu1300l1', process.process_name)
+        self.assertEqual('311570', process.dsid)
+        self.assertEqual('mc16d', process.mc_campaign)
+
+    def test_process_file_name_arbitrary_tag(self):
+        process = Process('tmp/foo-311570_0.MC16e.root', self.data_set_info, tags=['foo'])
+        self.assertTrue(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertEqual('TBbLQmumu1300l1', process.process_name)
+        self.assertEqual('311570', process.dsid)
+        self.assertEqual('mc16e', process.mc_campaign)
+
+    def test_process_file_name_data(self):
+        process = Process('v21/ntuple-data18_13TeV_periodO_0.root', self.data_set_info, tags=['foo'])
+        self.assertFalse(process.is_mc)
+        self.assertTrue(process.is_data)
+        self.assertEqual('data18.periodO', process.process_name)
+        self.assertIsNone(process.dsid)
+        self.assertIsNone(process.mc_campaign)
+
+    def test_process_no_file_name(self):
+        process = Process(None, self.data_set_info, tags=['foo'])
+        self.assertFalse(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertIsNone(process.process_name)
+        self.assertIsNone(process.dsid)
+
+    def test_process_unconvential_file_name(self):
+        process = Process('tmp/hist-333311570_0.MC16e.root', self.data_set_info)
+        self.assertTrue(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertEqual(None, process.process_name)
+        self.assertEqual('333311570', process.dsid)
+
+    def test_str_operator(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertEqual('TBbLQmumu1300l1 parsed from file name tmp/hist-311570_0.MC16d.root', process.__str__())
+
+    def test_equality(self):
+        process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        process2 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertEqual(process1, process2)
+
+    def test_inequality(self):
+        process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        process2 = Process('tmp/hist-311570_0.MC16e.root', self.data_set_info)
+        self.assertNotEqual(process1, process2)
+
+    def test_inequality_type(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertNotEqual(process, None)
+
+    def test_match_true(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertTrue(process.match('TBbLQmumu1300l1'))
+
+    def test_match_false(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertFalse(process.match('TBbLQmumu1400l1'))
+
+    def test_match_fals_no_process(self):
+        process = Process('tmp/hist-333311570_0.MC16e.root', self.data_set_info)
+        self.assertFalse(process.match('TBbLQmumu1400l1'))
+
+    def test_match_any_true(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertTrue(process.matches_any(['TBbLQmumu1300l1']))
+
+    def test_match_any_false(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertFalse(process.matches_any(['TBbLQmumu1400l1']))
+
+    def test_match_any_false_invalid_input(self):
+        process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        self.assertFalse(process.matches_any('TBbLQmumu1400l1'))
+

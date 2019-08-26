@@ -8,7 +8,8 @@ class Process(object):
     """
     Class defining a physics process
     """
-    def __init__(self, file_name, dataset_info, process_name=None):
+
+    def __init__(self, file_name, dataset_info, process_name=None, tags=[]):
         """
         Constructor
         :param file_name: name of input file
@@ -17,13 +18,15 @@ class Process(object):
         :type dataset_info: dict
         """
         self.dataset_info = dataset_info
+        self.file_name = file_name
         self.stream = None
         self.is_mc = False
         self.is_data = False
         self.dsid = None
         self.mc_campaign = None
+        self.tags = re.compile('-?|'.join(map(re.escape, ['hist', 'ntuple'] + tags + [''])))
         if file_name is not None:
-            self.base_name = file_name.replace('hist-', '').replace('ntuple-', '').replace('.root', '')
+            self.base_name = self.tags.sub('', file_name).lstrip('-').replace('.root', '')
         else:
             self.base_name = None
         self.year = None
@@ -39,7 +42,7 @@ class Process(object):
         :rtype: str
         """
         obj_str = str(self.process_name)
-        obj_str += ' parsed from file name {:s}'.format(self.base_name)
+        obj_str += ' parsed from file name {:s}'.format(self.file_name)
         return obj_str
 
     def __eq__(self, other):
@@ -117,11 +120,10 @@ class Process(object):
         """
         self.is_mc = True
         try:
-            self.dsid = re.match('\d{6}', file_name).group(0)
+            self.dsid = re.search('\d{6,}', file_name).group(0)
         except AttributeError:
-
             pass
-        if re.match('\d{6}', file_name):
+        if re.search('\d{6,}', file_name):
             self.parse_from_dsid()
         else:
             self.process_name = file_name
@@ -134,7 +136,7 @@ class Process(object):
         :rtype: None
         """
         if self.dataset_info is None:
-            self.process_name = dsid
+            self.process_name = self.dsid
             return
         try:
             tmp = filter(lambda l: l.dsid == int(self.dsid), self.dataset_info.values())
@@ -220,7 +222,8 @@ class ProcessConfig(object):
         if not hasattr(self, "subprocesses"):
             return tmp
         for sub_process in self.subprocesses:
-            tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+            tmp[sub_process] = ProcessConfig(
+                **dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
         return tmp
 
     def add_subprocess(self, subprocess_name):
