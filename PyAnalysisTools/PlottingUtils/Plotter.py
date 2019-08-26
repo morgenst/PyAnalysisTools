@@ -89,7 +89,7 @@ class Plotter(BasePlotter):
         kwargs.setdefault("nfile_handles", 1)
         kwargs.setdefault("output_file_name", "plots.root")
         kwargs.setdefault("enable_systematics", False)
-        kwargs.setdefault("module_config_files", None)
+        kwargs.setdefault("module_config_files", [])
         kwargs.setdefault("read_hist", False)
         kwargs.setdefault('file_extension', ['.pdf'])
 
