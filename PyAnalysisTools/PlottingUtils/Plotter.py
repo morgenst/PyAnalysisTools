@@ -60,6 +60,7 @@ class Plotter(BasePlotter):
         kwargs.setdefault('cluster_mode', False)
         kwargs.setdefault('redraw_hists', None)
 
+        _logger.debug("Initialise Plotter")
         if kwargs['cluster_config'] is not None:
             self.cluster_init(kwargs['cluster_config'])
             self.cluster_mode = True
@@ -352,6 +353,7 @@ class Plotter(BasePlotter):
             HT.scale(hist, self.process_configs[process].scale_factor)
 
     def make_plot(self, plot_config, data):
+        _logger.debug("Making single plot")
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
         for mod in self.modules_data_modifiers:
@@ -570,16 +572,16 @@ class Plotter(BasePlotter):
         :return: decision if all checks are passed
         :rtype: bool
         """
-        if all([lambda pc: pc.outline == 'stack', self.plot_config_files]):
+        if all(map(lambda pc: pc.outline == 'stack', self.plot_configs)):
             if len(filter(lambda fh: fh.process.is_mc, self.file_handles)) == 0:
                 _logger.error("Requested only stack plots but only data inputs provided. Giving up")
                 return False
-        if len([lambda pc: pc.outline == 'stack', self.plot_config_files]) > 0:
+        if len(filter(lambda pc: pc.outline == 'stack', self.plot_configs)) > 0:
             if len(filter(lambda fh: fh.process.is_mc, self.file_handles)) == 0:
                 _logger.error("Requested at least stack plot but only data inputs provided. "
                               "Removing corresponding plot configs")
                 self.plot_configs = filter(lambda pc: pc.outline != 'stack', self.plot_configs)
-                return True
+        return True
 
     def make_plots(self, dumped_hist_path=None):
         """
@@ -590,6 +592,7 @@ class Plotter(BasePlotter):
         :rtype: None
         """
         if not self.consistency_check():
+            _logger.debug('Fail consistency check')
             exit()
         if dumped_hist_path is None:
             fetched_histograms = self.project_hists()
