@@ -57,7 +57,7 @@ class Process(object):
             for k, v in self.__dict__.iteritems():
                 if k not in other.__dict__:
                     return False
-                if k in ['base_name', 'dataset_info', 'file_name']:
+                if k in ['base_name', 'dataset_info', 'file_name', 'tags']:
                     continue
                 if self.__dict__[k] != other.__dict__[k]:
                     return False
