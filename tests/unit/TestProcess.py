@@ -74,6 +74,11 @@ class TestProcess(unittest.TestCase):
         process2 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         self.assertEqual(process1, process2)
 
+    def test_equality_different_files(self):
+        process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
+        process2 = Process('tmp/ntuple-311570_0.MC16d.root', self.data_set_info)
+        self.assertEqual(process1, process2)
+
     def test_inequality(self):
         process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         process2 = Process('tmp/hist-311570_0.MC16e.root', self.data_set_info)
