@@ -39,9 +39,9 @@ class XSInfo(object):
         for attr, val in dataset.__dict__.iteritems():
             setattr(self, attr, val)
         self.xsec = self.cross_section
-        if not hasattr(dataset, "kfactor"):
+        if not hasattr(dataset, 'kfactor'):
             self.kfactor = 1.
-        if not hasattr(dataset, "filtereff"):
+        if not hasattr(dataset, 'filtereff'):
             self.filtereff = 1.
 
 
@@ -61,6 +61,14 @@ class XSHandle(object):
                                    for key, val in cross_sections.iteritems() if val.is_mc}
 
     def get_xs_scale_factor(self, process):
+        """
+        Retrieve cross-section scale factor for a single process calculated based on PMG (or custom) cross section,
+        filter-efficiency and k-factor (last two are optional)
+        :param process: process name
+        :type process: str
+        :return: cross section scale factor
+        :rtype: float
+        """
         if self.invalid:
             return 1.
         if process not in self.cross_sections:
@@ -91,6 +99,19 @@ class XSHandle(object):
         return xsec, filter_eff, kfactor
 
     def get_lumi_scale_factor(self, process, lumi, mc_events, fixed_xsec=None):
+        """
+        Retrieve scale factor to scale process to specific luminosity
+        :param process: process name
+        :type process: str
+        :param lumi: luminosity
+        :type lumi: float
+        :param mc_events: number of initially produced MC events (actually sum of weights)
+        :type mc_events: float
+        :param fixed_xsec: use fixed cross section instead of stored for process (optional) - useful for limit setting
+        :type fixed_xsec: float
+        :return: luminosity scale factor
+        :rtype: float
+        """
         if fixed_xsec:
             xsec = fixed_xsec
         else:
@@ -98,4 +119,19 @@ class XSHandle(object):
         return xsec * lumi * 1000. * 1000. / mc_events
 
     def get_ds_info(self, process, element):
-        return getattr(self.cross_sections[process], element)
+        """
+        Retrieve a configurable attribute from a given process
+        :param process: process name
+        :type process: str
+        :param element: attribute name (e.g. label, name)
+        :type element: str
+        :return: attribute
+        :rtype: type(attribute)
+        """
+        try:
+            return getattr(self.cross_sections[process], element)
+        except KeyError:
+            _logger.error('Cannot find process {:s} in cross section table'.format(process))
+        except AttributeError:
+            _logger.error('Cannot find element {:s} for process {:s}'.format(element, process))
+        return None
