@@ -52,7 +52,7 @@ class SysOutputHandle(object):
         latest_link_path = os.path.join(self.base_output_dir, "latest")
         self._set_latest_link(latest_link_path)
         if overload:
-            latest_link_path_overload = os.path.join(self.base_output_dir, "latest_%s" % overload)
+            latest_link_path_overload = os.path.join(self.base_output_dir, 'latest_{:s}'.format(overload))
             self._set_latest_link(latest_link_path_overload)
 
 
@@ -74,7 +74,7 @@ class OutputHandle(SysOutputHandle):
                 _, file_name = os.path.split(abs_file_name)
                 ShellUtils.move(abs_file_name, os.path.join(self.output_dir, file_name))
             except IOError:
-                _logger.error("Unable to move %s to %s" % (abs_file_name, self.output_dir))
+                _logger.error("Unable to move {:s} to {:s}".format(abs_file_name, self.output_dir))
                 raise
         self.set_latest_link(overload)
 
@@ -201,11 +201,11 @@ class OutputFileHandle(SysOutputHandle):
             self.write_to_file(obj, tdir[0])
         self.output_file.Write("0", ROOT.TObject.kOverwrite)
         self.output_file.Close()
-        _logger.info("Written file %s" % self.output_file.GetName())
+        _logger.info("Written file {:s}".format(self.output_file.GetName()))
         self.output_root_file_path = self.output_file.GetName()
 
     def register_object(self, obj, tdir=None, disable_clone=False):
-        _logger.debug("Adding object %s" % obj.GetName())
+        _logger.debug("Adding object {:s}".format(obj.GetName()))
         if tdir is not None and not tdir.endswith("/"):
             tdir += "/"
         if isinstance(obj, ROOT.TTree):
