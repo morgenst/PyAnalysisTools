@@ -4,6 +4,9 @@ from PyAnalysisTools.base import _logger, InvalidInputError
 
 
 class DataSetStore(object):
+    """
+    Thread-safe singleton implementation to store dataset information and avoid re-reading db from yml file
+    """
     _instance = None
     _lock = threading.Lock()
 
@@ -15,7 +18,8 @@ class DataSetStore(object):
         return DataSetStore._instance
 
     def __init__(self, dataset_info):
-        self.dataset_info = YAMLLoader.read_yaml(dataset_info)
+        if not hasattr(self, 'dataset_info'):
+            self.dataset_info = YAMLLoader.read_yaml(dataset_info)
 
 
 class Dataset(object):
@@ -48,12 +52,13 @@ class XSHandle(object):
             return
         self.invalid = False
         _logger.debug("XSHandle read cross section file {:s}".format(cross_section_file))
+        cross_sections = YAMLLoader.read_yaml(cross_section_file)
         if not read_dsid:
             self.cross_sections = {value.process_name: XSInfo(value)
-                                   for value in YAMLLoader.read_yaml(cross_section_file).values() if value.is_mc}
+                                   for value in cross_sections.values() if value.is_mc}
         else:
             self.cross_sections = {key: XSInfo(val)
-                                   for key, val in YAMLLoader.read_yaml(cross_section_file).iteritems() if val.is_mc}
+                                   for key, val in cross_sections.iteritems() if val.is_mc}
 
     def get_xs_scale_factor(self, process):
         if self.invalid:
