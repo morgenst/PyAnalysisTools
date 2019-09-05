@@ -1,3 +1,6 @@
+from builtins import str
+from builtins import map
+from builtins import object
 import re
 from PyAnalysisTools.base import _logger
 
@@ -54,7 +57,7 @@ class Process(object):
         :rtype: boolean
         """
         if isinstance(self, other.__class__):
-            for k, v in self.__dict__.iteritems():
+            for k, v in self.__dict__.items():
                 if k not in other.__dict__:
                     return False
                 if k in ['base_name', 'dataset_info', 'file_name', 'tags']:
@@ -139,7 +142,7 @@ class Process(object):
             self.process_name = self.dsid
             return
         try:
-            tmp = filter(lambda l: l.dsid == int(self.dsid), self.dataset_info.values())
+            tmp = [l for l in list(self.dataset_info.values()) if l.dsid == int(self.dsid)]
         except ValueError:
             _logger.error("Could not find {:d}".format(self.dsid))
         if len(tmp) == 1:
@@ -186,7 +189,7 @@ class ProcessConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k.lower(), v)
         self.is_data, self.is_mc = self.transform_type()
 
@@ -197,7 +200,7 @@ class ProcessConfig(object):
         :rtype: str
         """
         obj_str = "Process config: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             obj_str += '{}={} \n'.format(attribute, value)
         return obj_str
 
@@ -231,7 +234,7 @@ class ProcessConfig(object):
             return tmp
         for sub_process in self.subprocesses:
             tmp[sub_process] = ProcessConfig(
-                **dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+                **dict((k, v) for (k, v) in self.__dict__.items() if not k == "subprocesses"))
         return tmp
 
     def add_subprocess(self, subprocess_name):
@@ -243,6 +246,6 @@ class ProcessConfig(object):
         :rtype:
         """
         self.subprocesses.append(subprocess_name)
-        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.items() if not k == "subprocesses"))
         pc.parent_process = self.name
         return pc
