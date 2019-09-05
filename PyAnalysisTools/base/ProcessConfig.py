@@ -91,7 +91,7 @@ class Process(object):
         elif re.match(r'\d{6}', file_name):
             self.set_mc_name(file_name)
         else:
-            _logger.warning("No dedicated parsing found. Assume MC and run simplified")
+            _logger.debug("No dedicated parsing found. Assume MC and run simplified")
             self.set_mc_name(file_name)
 
     def set_data_name(self, file_name):
@@ -188,7 +188,7 @@ class ProcessConfig(object):
         kwargs.setdefault('scale_factor', None)
         for k, v in kwargs.iteritems():
             setattr(self, k.lower(), v)
-        self.transform_type()
+        self.is_data, self.is_mc = self.transform_type()
 
     def __str__(self):
         """
@@ -210,14 +210,22 @@ class ProcessConfig(object):
         return self.__str__() + '\n'
 
     def transform_type(self):
+        """
+        Initialise MC or data type
+        :return: pair of TRUE/FALSE for is_data and is_mc
+        :rtype: (bool, bool)
+        """
         if "data" in self.type.lower():
-            self.is_data = True
-            self.is_mc = False
+            return True, False
         else:
-            self.is_data = False
-            self.is_mc = True
+            return False, True
 
     def retrieve_subprocess_config(self):
+        """
+        Retrieve all sub-process configurations
+        :return: sub-process configs
+        :rtype: dict
+        """
         tmp = {}
         if not hasattr(self, "subprocesses"):
             return tmp
@@ -227,6 +235,13 @@ class ProcessConfig(object):
         return tmp
 
     def add_subprocess(self, subprocess_name):
+        """
+        Add a sub-process to process and propagate config to it
+        :param subprocess_name: name of sub-process
+        :type subprocess_name: str
+        :return:
+        :rtype:
+        """
         self.subprocesses.append(subprocess_name)
         pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
         pc.parent_process = self.name
