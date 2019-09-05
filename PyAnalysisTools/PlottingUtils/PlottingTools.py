@@ -279,6 +279,17 @@ def format_hist(hist, plot_config):
 
 
 def make_graph(name, x_vals, y_vals):
+    """
+    Create a TGraph based on x and y-values
+    :param name: name of graph
+    :type name: str
+    :param x_vals: x-values
+    :type x_vals: list
+    :param y_vals: y-values
+    :type y_vals: lists
+    :return: graph
+    :rtype: ROOT.TGraph
+    """
     g = ROOT.TGraph(len(x_vals))
     g.SetName(name)
     for i, x in enumerate(x_vals):
@@ -288,6 +299,15 @@ def make_graph(name, x_vals, y_vals):
 
 
 def plot_graphs(graphs, plot_config):
+    """
+    Plot function for graphs
+    :param graphs: graphs to plot
+    :type graphs: list or dict of TGraphs
+    :param plot_config: plot configuration
+    :type plot_config: PlotConfig
+    :return: canvas with drawn graphs
+    :rtype: ROOT.TCanvas
+    """
     if isinstance(graphs, dict):
         graphs = graphs.values()
     canvas = plot_graph(graphs[0], plot_config)
@@ -297,10 +317,36 @@ def plot_graphs(graphs, plot_config):
 
 
 def add_signal_to_canvas(signal, canvas, plot_config, process_configs):
+    """
+    Overlay a signal histogram to an existing canvas
+    :param signal: tuple of signal name, histogram
+    :type signal: list
+    :param canvas: existing canvas to which signal should be added
+    :type canvas: ROOT.TCanvas
+    :param plot_config: plot configuration
+    :type plot_config: PlotConfig
+    :param process_configs: process configuration
+    :type process_configs: ProcessConfig
+    :return: nothing
+    :rtype: None
+    """
     add_histogram_to_canvas(canvas, signal[1], plot_config, process_configs[signal[0]])
 
 
 def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
+    """
+    Plot histograms in canvas and apply styles according to plot and process configuration
+    :param hists: histograms to plots
+    :type hists: list or dict
+    :param plot_config: plot configuration
+    :type plot_config: PlotConfig
+    :param process_configs: process configuration
+    :type process_configs: ProcessConfig
+    :param switchOff: switch off style application (optional)
+    :type switchOff: bool
+    :return: canvas with plotted histograms
+    :rtype: ROOT.TCanvas
+    """
     if plot_config is None:
         plot_config = get_default_plot_config(hists[0])
     canvas = retrieve_new_canvas(plot_config.name, "")
@@ -399,12 +445,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
-
-        #todo: might break something upstream
-        # if common_config is None or common_config.ignore_style:
-        #     style_setter = "Line"
-        # if plot_config.ignore_style:
-        #     style_setter = "Line"
         fm.apply_style(hist, plot_config, process_config, index=index)
 
         if is_first:
