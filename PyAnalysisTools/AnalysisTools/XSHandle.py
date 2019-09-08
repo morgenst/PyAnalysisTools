@@ -23,6 +23,9 @@ class DataSetStore(object):
 
 
 class Dataset(object):
+    """
+    Representation of a single dataset (data or MC)
+    """
     def __init__(self, **kwargs):
         kwargs.setdefault("is_data", False)
         kwargs.setdefault("is_mc", False)
@@ -33,6 +36,9 @@ class Dataset(object):
 
 
 class XSInfo(object):
+    """
+    Cross-section summary object. Contains data/MC info, cross-section, k-factor, filter-efficiency
+    """
     def __init__(self, dataset):
         if dataset.is_data:
             return
@@ -46,6 +52,9 @@ class XSInfo(object):
 
 
 class XSHandle(object):
+    """
+    Interface for cross-section scaling
+    """
     def __init__(self, cross_section_file, read_dsid=False):
         if cross_section_file is None:
             self.invalid = True
@@ -84,6 +93,13 @@ class XSHandle(object):
         return xs_scale_factor
 
     def retrieve_xs_info(self, process):
+        """
+        Get cross-section information (xsec, k-factor, filter-efficiency) for a single process
+        :param process: process name
+        :type process: str
+        :return: cross-section, filter-efficiency, k-factor
+        :rtype: tuple(float)
+        """
         if self.invalid:
             raise InvalidInputError("Invalid config of XSHandle")
         xsec, filter_eff, kfactor = None, 1., 1.
