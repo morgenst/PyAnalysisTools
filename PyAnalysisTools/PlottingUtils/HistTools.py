@@ -1,10 +1,22 @@
 import re
+from math import log10
+
 import ROOT
 from array import array
 from PyAnalysisTools.base import InvalidInputError, _logger
 
 
 def rebin(histograms, factor=None):
+    """
+    Rebin a histogram. Can be either symmetric, i.e. just merging X bins, or asymmetric
+    :param histograms: hists to be rebinned
+    :type histograms: list, dict, TH1
+    :param factor: rebin factor. If integer a symmetric rebinning will be performed, if a list of bin boarders are
+    provided an asymmetric rebinning will be performed
+    :type factor: int, list
+    :return: rebinned hists
+    :rtype: type(hists), i.e. list, dict, TH1
+    """
     if factor is None or factor == 1:
         return histograms
     if type(histograms) == dict:
@@ -71,11 +83,22 @@ def __rebin_asymmetric_1d_hist(hist, n_bins, bins):
 
 
 def __rebin_asymmetric_2d_hist(hist, n_binsx, bins_x):
-    hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
+    hist.GetYaxis().SetTitle(+ '{:s} x {:d}'.format(hist.GetYaxis().GetTitle(), n_binsx))
     return hist.Rebin(n_binsx - 1, hist.GetName(), bins_x)
 
 
 def merge_overflow_bins(hists, x_max=None, y_max=None):
+    """
+    Merge overflow bins
+    :param hists: hists for which merging should be applied
+    :type hists: dict, list, TH1
+    :param x_max: optional parameter to perform merging from a given x-value
+    :type x_max: float
+    :param y_max: optional parameter to perform merging from a given y-value (2D hists only)
+    :type y_max: float
+    :return: nothing
+    :rtype: None
+    """
     if type(hists) == dict:
         for item in hists.values():
             if isinstance(item, list):
@@ -97,7 +120,6 @@ def _merge_overflow_bins_1d(hist, x_max=None):
         last_visible_bin = hist.FindBin(x_max)
     else:
         last_visible_bin = hist.GetNbinsX()
-    print hist.Integral(last_visible_bin, -1), hist.GetBinContent(hist.GetNbinsX()+1), hist.GetBinContent(hist.GetNbinsX())
     hist.SetBinContent(last_visible_bin, hist.Integral(last_visible_bin, -1))
     for b in range(last_visible_bin+1, hist.GetNbinsX()+2):
         hist.SetBinContent(b, 0)
@@ -119,6 +141,15 @@ def _merge_overflow_bins_2d(hist, x_max=None, y_max=None):
 
         
 def merge_underflow_bins(hists, x_min=None):
+    """
+    Merge underflow bins
+    :param hists: hists for which merging should be applied
+    :type hists: dict, list, TH1
+    :param x_min: optional parameter to perform merging up to a given x-value
+    :type x_min: float
+    :return: nothing
+    :rtype: None
+    """
     if type(hists) == dict:
         for item in hists.values():
             if isinstance(item, list):
@@ -141,32 +172,77 @@ def _merge_underflow_bins_1d(hist, x_min=None):
 
 
 def scale(hist, weight):
+    """
+    Wrapper around TH1::Scale. Scales each bin content by weight
+    :param hist: histogram
+    :type hist: TH1
+    :param weight: scale factor
+    :type weight: float
+    :return: nothing
+    :rtype: None
+    """
     hist.Scale(weight)
 
 
-def normalise(histograms, integration_range=None, norm_scale=1.):
+def normalise(hists, integration_range=None, norm_scale=1.):
+    """
+    Wrapper for normalisation of histograms to a given scale in a given interval
+    :param hists: histograms
+    :type hists: list of dictionary of histograms
+    :param integration_range: range in which integration should be performed (default fill range)
+    :type integration_range: list (default: None)
+    :param norm_scale: normalisation scale (default 1.)
+    :type norm_scale: float
+    :return: nothing
+    :rtype: None
+    """
     if integration_range is None:
         integration_range = [-1, -1]
-    if type(histograms) == dict:
-        for h in histograms.keys():
-            histograms[h] = normalise_hist(histograms[h], integration_range, norm_scale)
-    elif type(histograms) == list:
-        for h in histograms:
+    if type(hists) == dict:
+        for h in hists.keys():
+            hists[h] = normalise_hist(hists[h], integration_range, norm_scale)
+    elif type(hists) == list:
+        for h in hists:
             h = normalise_hist(h, integration_range, norm_scale)
     else:
-        histograms = normalise_hist(histograms, integration_range, norm_scale)
+        hists = normalise_hist(hists, integration_range, norm_scale)
 
 
 def normalise_hist(hist, integration_range=[-1, -1], norm_scale=1.):
+    """
+    Perform histogram normalisation
+    :param hist: single histogram
+    :type hist: TH1
+    :param integration_range: range in which integration should be performed (default fill range)
+    :type integration_range: list (default: None)
+    :param norm_scale: normalisation scale (default 1.)
+    :type norm_scale: float
+    :return: nothing
+    :rtype: None
+    """
     if isinstance(hist, ROOT.TH2):
         return _normalise_2d_hist(hist, integration_range, norm_scale)
     if isinstance(hist, ROOT.TH1):
         return _normalise_1d_hist(hist, integration_range, norm_scale)
 
 
+def has_asymmetric_binning(hist):
+    """
+    Check if graph object has asymmetric x-binning
+    :param hist: histogram
+    :type hist: TH1
+    :return: true/false on asymmetric binning
+    :rtype: bool
+    """
+    return set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX())]) > 1
+
+
 def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
     if isinstance(hist, ROOT.THStack):
         return hist
+    if has_asymmetric_binning(hist):
+        for b in range(hist.GetNbinsX() + 1):
+            hist.SetBinContent(b, hist.GetBinContent(b)/ hist.GetBinWidth(b))
     integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
@@ -190,6 +266,13 @@ def read_bin_from_label(hist, label):
 
 
 def get_colors(hists):
+    """
+    Get colors of plotted objects from draw option
+    :param hists: histograms
+    :type hists: list
+    :return: list of colors
+    :rtype: list
+    """
     def get_color():
         draw_option = hist.GetDrawOption()
         if isinstance(hist, ROOT.TEfficiency):
@@ -202,7 +285,6 @@ def get_colors(hists):
 def set_axis_labels(obj, plot_config):
     """
     Set bin labels for x axis
-
     :param obj: plot object
     :type obj: TH1, TGraph
     :param plot_config: plot configuration
@@ -214,3 +296,21 @@ def set_axis_labels(obj, plot_config):
         return
     for b, label in enumerate(plot_config.axis_labels):
         obj.GetXaxis().SetBinLabel(b + 1, label)
+
+
+def get_log_scale_x_bins(nbins, xmin, xmax):
+    """
+    Calculate bin boarders for equidistant bins for log scale x-axis binning
+    :param nbins: number of bins
+    :type nbins: int
+    :param xmin: minimum of x-axis
+    :type xmin: float
+    :param xmax: maximum of x-axis
+    :type xmax: float
+    :return: binning
+    :rtype:
+    """
+    log_min = log10(xmin)
+    log_max = log10(xmax)
+    bin_width = (log_max - log_min) / int(nbins)
+    return [pow(10, log_min + i * bin_width) for i in range(0, int(nbins) + 1)]
