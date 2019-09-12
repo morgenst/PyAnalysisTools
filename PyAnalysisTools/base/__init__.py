@@ -1,6 +1,7 @@
+from __future__ import absolute_import
 import ROOT
 ROOT.PyConfig.IgnoreCommandLineOptions = True
-from Logger import Logger
+from .Logger import Logger
 import argparse
 
 

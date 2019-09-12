@@ -1,3 +1,4 @@
+from __future__ import print_function
 import re
 import traceback
 
@@ -15,7 +16,7 @@ def load_atlas_style():
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
         ROOT.SetAtlasStyle()
     except Exception as e:
-        print traceback.print_exc()
+        print(traceback.print_exc())
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
@@ -723,7 +724,7 @@ def add_legend_to_canvas(canvas, **kwargs):
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
-                print 'Could not find process label for ', plot_obj.GetName().split("_")[-1]
+                print('Could not find process label for ', plot_obj.GetName().split("_")[-1])
                 pass
             if label is None:
                 continue

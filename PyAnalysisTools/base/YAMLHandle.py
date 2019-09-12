@@ -1,8 +1,9 @@
+from __future__ import print_function
 try:
     import oyaml as yaml
 except ImportError:
-    print "yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration"
-    print "Please install via: \033[91m pip install oyaml --user.\033[0m"
+    print("yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration")
+    print("Please install via: \033[91m pip install oyaml --user.\033[0m")
     _ = raw_input("Acknowledge by hitting enter (running with yaml for now. Note this might cause crashes)")
     import yaml
 from . import _logger
