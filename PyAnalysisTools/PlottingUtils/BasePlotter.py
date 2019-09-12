@@ -1,4 +1,4 @@
-import pickle
+from __future__ import print_function
 import re
 from collections import OrderedDict
 
@@ -22,7 +22,6 @@ class BasePlotter(object):
         self.plot_configs = None
         self.lumi = None
         kwargs.setdefault("batch", True)
-        #kwargs.setdefault("process_config_file", None) #deprecated, for now kept for backwards compatibility
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
@@ -82,15 +81,8 @@ class BasePlotter(object):
         :return: list of build process configs from config file
         :rtype: list
         """
-        #TODO: can be simplified - actually can be removed
-        if self.process_config_files is None: # and self.process_config_file is None:
+        if self.process_config_files is None:
             return None
-        # if self.process_config_file is not None:
-        #     _logger.error("Single Process configs are deprecated. Please update you argument parser to "
-        #                   "process_config_files (NOTE the additional s).")
-        # if self.process_config_files is None:
-        #     process_config = parse_and_build_process_config(self.process_config_file)
-        # else:
         process_config = parse_and_build_process_config(self.process_config_files)
         return process_config
 
@@ -187,24 +179,6 @@ class BasePlotter(object):
                 self.event_yields[process] += file_handle.get_number_of_total_events()
             else:
                 self.event_yields[process] = file_handle.get_number_of_total_events()
-        #temporary patch due to missing
-        # with open('/user/mmorgens/workarea/devarea/rel21/Multilepton/source/ELMultiLep/macros/LQ_v25.pkl', 'r') as f:
-        #     old_yields = pickle.load(f)
-        # for k, v in old_yields.iteritems():
-        #     if k not in self.event_yields:
-        #         continue
-        #     if self.event_yields[k] < v:
-        #         self.event_yields[k] = v
-
-    # def fetch_histograms(self, data, systematic="Nominal"):
-    #     file_handle, plot_config = data
-    #     if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
-    #         return [None, None, None]
-    #     tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-    #     tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
-    #     if not plot_config.merge_mc_campaigns:
-    #         return plot_config, file_handle.process, tmp
-    #     return plot_config, file_handle.process, tmp
 
     def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
         file_handle, plot_config = data
@@ -251,7 +225,7 @@ class BasePlotter(object):
         except ValueError as e:
             _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
             range settings.".format(plot_config.name))
-            print traceback.print_exc()
+            print(traceback.print_exc())
             return None
         try:
             weight = None
@@ -304,9 +278,8 @@ class BasePlotter(object):
             except Exception as e:
                 _logger.error("Catched exception for process "
                               "{:s} and plot_config {:s}".format(file_handle, file_handle.process, plot_config.name))
-                print traceback.print_exc()
+                print(traceback.print_exc())
                 return None
-            #hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process {:s}".format(file_handle.process))
             if self.process_configs is None:
                 return hist
@@ -318,7 +291,7 @@ class BasePlotter(object):
         except Exception as e:
             _logger.error("Catched exception for "
                           "process {:s} and plot_config {:s}".format(file_handle.process, plot_config.name))
-            print traceback.print_exc()
+            print(traceback.print_exc())
             return None
         return hist
 
@@ -333,7 +306,6 @@ class BasePlotter(object):
             for i in comb:
                 hist = self.fetch_histograms_new(i, systematic=systematic, factor_syst=factor_syst)
                 histograms.append(hist)
-                #histograms.append(self.fetch_histograms(i, systematic=systematic))
         return histograms
 
     def read_histograms_plain(self, file_handle, plot_configs, systematic="Nominal"):
