@@ -1,8 +1,9 @@
+from __future__ import print_function
 import os
 import re
 import time
 from ROOT import TFile
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
 from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
@@ -49,15 +50,16 @@ class FileHandle(object):
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
-        #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
-            self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
+            if isinstance(kwargs['dataset_info'], dict):
+                self.dataset_info = kwargs['dataset_info']
+            else:
+                self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
         self.open_option = kwargs["open_option"]
         self.tfile = None
         self.initial_file_name = None
         self.run_dir = kwargs["run_dir"]
-        self.open()
         self.year = None
         self.period = None
         self.is_data = False
@@ -81,7 +83,6 @@ class FileHandle(object):
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
             self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
-            #self.process = self.parse_process()
             self.process = Process(self.file_name, self.dataset_info)
             if self.process is not None:
                 if self.mc16a:
@@ -97,12 +98,12 @@ class FileHandle(object):
         self.trees_with_friends = None
 
     def open(self, file_name=None):
+        if self.tfile is not None and self.tfile.IsOpen():
+            return
         if file_name is not None:
             return TFile.Open(file_name, "READ")
         if not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
-        if self.tfile is not None and self.tfile.IsOpen():
-            return
         if self.open_option.lower() == "update" and self.run_dir is not None:
             self.initial_file_name = self.file_name
             copy_dir = os.path.join(self.run_dir, self.file_name.split("/")[-2])
@@ -117,7 +118,9 @@ class FileHandle(object):
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
     def __del__(self):
-        #_logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
+        if self.tfile is None:
+            return
+        _logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
     def close(self):
@@ -128,89 +131,16 @@ class FileHandle(object):
         if self.initial_file_name is not None:
             move(self.file_name, self.initial_file_name)
 
-    def parse_process(self):
-        def analyse_process_name():
-            print 'NOW ANALYSIS PROCESS NAME'
-            if "user.shanisch" in process_name:
-                self.year = process_name.split(".")[2]
-                self.period = "periodB"
-                return ".".join([self.year, self.period])    
-            if "data" in process_name:
-                try:
-                    self.year, _, self.period = process_name.split("_")[0:3]
-                    self.is_data = True
-                    return ".".join([self.year, self.period])
-                except ValueError:
-                    tmp_name = process_name
-                    tmp_name.replace('ntuple-', '').replace('hist-', '')
-                    _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
-                    return "Data"
-            if self.dataset_info is not None:
-                try:
-                    tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
-                except ValueError:
-                    tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
-                                 self.dataset_info.values())
-                if len(tmp) == 1:
-                    self.is_mc = True
-                    return tmp[0].process_name
-            if process_name.isdigit():
-                print "Could not find config for ", process_name
-                return None
-                # self.is_data = True
-                # return "Data"
-
-        def simple_process_analysis(file_name):
-            return file_name.replace('hist-', '').replace('ntuple-', '').replace('.root')
-
-        if "mc16a" in self.file_name.lower():
-            self.mc16a = True
-            self.mc_campaign = 'mc16a'
-        if "mc16c" in self.file_name.lower():
-            self.mc16c = True
-            self.mc_campaign = 'mc16c'
-        if "mc16d" in self.file_name.lower():
-            self.mc16d = True
-            self.mc_campaign = 'mc16d'
-        if "mc16e" in self.file_name.lower():
-            self.mc16e = True
-            self.mc_campaign = 'mc16e'
-        process_name = self.file_name.split("-")[-1].split(".")[0]
-        if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Late')
-        if 'physics_CosmicCalo' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_CosmicCalo')
-        if 'physics_Background' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Background')
-        if "physics_Main" in self.file_name and '_cos.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_cosmics = True
-            return simple_process_analysis(file_name)
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
-        if self.switch_off_process_name_analysis:
-            return process_name
-        process_name = re.sub(r"(\_\d+)$", "", process_name)
-        analysed_process_name = analyse_process_name()
-        if analysed_process_name is None:
-            process_name = self.file_name.split("/")[-2]
-            analysed_process_name = analyse_process_name()
-        return analysed_process_name
-
     def get_directory(self, directory):
         if directory is None:
             return self.tfile
         try:
             return self.tfile.Get(directory)
         except Exception as e:
-            print e.msg()
+            print(e.msg())
 
     def get_objects(self, tdirectory=None):
+        self.open()
         objects = []
         tdir = self.tfile
         if tdirectory is not None:
