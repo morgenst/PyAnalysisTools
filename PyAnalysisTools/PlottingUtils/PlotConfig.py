@@ -430,7 +430,6 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
                 style_setter = process_config.format.capitalize()
             except AttributeError:
                 _logger.error('Problem getting style from format ')
-                print process_config.format
         elif style_attr:
             #TODO: needs fix
             #style_setter = 'Line'
@@ -444,8 +443,10 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
         style_setter = plot_config.style_setter
-    if plot_config.color is not None and index is not None:
-        if isinstance(plot_config.color, list) and index > len(plot_config.color):
+    if plot_config.color is not None:
+        if index is None:
+            index = 0
+        elif isinstance(plot_config.color, list) and index > len(plot_config.color):
             index = index % len(plot_config.color)
             style_attr = 10
         color = transform_color(plot_config.color, index)
