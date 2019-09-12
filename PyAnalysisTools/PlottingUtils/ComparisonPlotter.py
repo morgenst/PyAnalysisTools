@@ -1,24 +1,23 @@
+from __future__ import print_function
+
 import collections
-from copy import copy, deepcopy
-import ROOT
-from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
-from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
-from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.base.JSONHandle import JSONHandle
-from PyAnalysisTools.base.Modules import load_modules
-from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
+from copy import copy
+
 import PyAnalysisTools.PlottingUtils.Formatting as FM
-from PyAnalysisTools.PlottingUtils import HistTools as HT
-import PyAnalysisTools.PlottingUtils.PlottingTools as PT
-from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, \
-    get_objects_from_canvas
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
+import PyAnalysisTools.PlottingUtils.PlottingTools as PT
+import ROOT
+from PyAnalysisTools.PlottingUtils import HistTools as HT
+from PyAnalysisTools.PlottingUtils import set_batch_mode
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, parse_and_build_process_config, \
     find_process_config
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.JSONHandle import JSONHandle
+from PyAnalysisTools.base.Modules import load_modules
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
 
 class ComparisonReader(object):
@@ -37,20 +36,20 @@ class ComparisonReader(object):
     def get_instance(self, plot_config):
         if self.compare_files:
             if hasattr(plot_config, 'multi_ref') and plot_config.multi_ref:
-                print "Using MultiFileMultiRefReader instance"
+                print("Using MultiFileMultiRefReader instance")
                 _logger.debug("Using MultiFileMultiRefReader instance")
                 return MultiFileMultiRefReader(plot_config=plot_config, **self.__dict__)
             else:
-                print "Using MultiFileSingleRefReader instance"
+                print("Using MultiFileSingleRefReader instance")
                 _logger.debug("Using MultiFileSingleRefReader instance")
                 return MultiFileSingleRefReader(plot_config=plot_config, **self.__dict__)
         else:
             if hasattr(plot_config, 'multi_ref') and plot_config.multi_ref:
-                print "Using SingleFileMultiRefReader instance"
+                print("Using SingleFileMultiRefReader instance")
                 _logger.debug("Using SingleFileMultiRefReader instance")
                 return SingleFileMultiRefReader(plot_config=plot_config, **self.__dict__)
             else:
-                print "Using SingleFileSingleRefReader instance"
+                print("Using SingleFileSingleRefReader instance")
                 _logger.debug("Using SingleFileSingleRefReader instance")
                 return SingleFileSingleRefReader(plot_config=plot_config, **self.__dict__)
 
@@ -677,5 +676,5 @@ class ComparisonPlotter(BasePlotter):
                 self.output_handle.register_object(canvas_combined)
             else:
                 _logger.error('Ratio canvas was not created.')
-                print 'reference hists: ', reference_hists
-                print 'compare hists: ', compare_hists
+                print('reference hists: ', reference_hists)
+                print('compare hists: ', compare_hists)
