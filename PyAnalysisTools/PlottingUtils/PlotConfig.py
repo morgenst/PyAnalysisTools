@@ -1,3 +1,4 @@
+from __future__ import print_function
 import ROOT
 import math
 import re
@@ -559,7 +560,7 @@ def find_process_config(process, process_configs):
     matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
-            print 'SOMEHOW matched to multiple configs'
+            print('SOMEHOW matched to multiple configs')
         return None
     return matched_process_cfg[0]
 
@@ -594,6 +595,6 @@ def find_process_config_str(process_name, process_configs):
     matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
-            print 'SOMEHOW matched to multiple configs'
+            print('SOMEHOW matched to multiple configs')
         return None
     return matched_process_cfg[0]
