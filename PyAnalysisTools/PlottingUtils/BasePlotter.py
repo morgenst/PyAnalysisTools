@@ -82,6 +82,7 @@ class BasePlotter(object):
         :return: list of build process configs from config file
         :rtype: list
         """
+        #TODO: can be simplified - actually can be removed
         if self.process_config_files is None: # and self.process_config_file is None:
             return None
         # if self.process_config_file is not None:
@@ -195,15 +196,15 @@ class BasePlotter(object):
         #     if self.event_yields[k] < v:
         #         self.event_yields[k] = v
 
-    def fetch_histograms(self, data, systematic="Nominal"):
-        file_handle, plot_config = data
-        if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
-            return [None, None, None]
-        tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
-        if not plot_config.merge_mc_campaigns:
-            return plot_config, file_handle.process, tmp
-        return plot_config, file_handle.process, tmp
+    # def fetch_histograms(self, data, systematic="Nominal"):
+    #     file_handle, plot_config = data
+    #     if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
+    #         return [None, None, None]
+    #     tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
+    #     tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
+    #     if not plot_config.merge_mc_campaigns:
+    #         return plot_config, file_handle.process, tmp
+    #     return plot_config, file_handle.process, tmp
 
     def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
         file_handle, plot_config = data
@@ -238,6 +239,8 @@ class BasePlotter(object):
         :type plot_config: PlotConfig
         :param systematic:
         :type systematic: str
+        :param factor_syst:
+        :type factor_syst:
         :return: filled histogram - dimension depends on request in plot config
         :rtype: THX
         """
