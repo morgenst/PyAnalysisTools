@@ -1,3 +1,7 @@
+from __future__ import division
+from builtins import str
+from builtins import range
+from past.utils import old_div
 import re
 from math import log10
 
@@ -20,7 +24,7 @@ def rebin(histograms, factor=None):
     if factor is None or factor == 1:
         return histograms
     if type(histograms) == dict:
-        for key, hist in histograms.iteritems():
+        for key, hist in list(histograms.items()):
             if issubclass(hist.__class__, ROOT.TH1):
                 histograms[key] = _rebin_hist(hist, factor)
             elif isinstance(hist, list):
@@ -69,7 +73,7 @@ def _rebin_1d_hist(hist, factor):
         except ValueError:
             binning = int(re.findall('[0-9]+', y_title)[0])
         y_title = y_title.replace(str(binning), str(binning * factor))
-    except IndexError, KeyError:
+    except (IndexError, KeyError):
         pass
     hist.GetYaxis().SetTitle(y_title)
     return hist.Rebin(factor)
@@ -100,7 +104,7 @@ def merge_overflow_bins(hists, x_max=None, y_max=None):
     :rtype: None
     """
     if type(hists) == dict:
-        for item in hists.values():
+        for item in list(hists.values()):
             if isinstance(item, list):
                 for i in item:
                     _merge_overflow_bins_1d(i, x_max)
@@ -151,7 +155,7 @@ def merge_underflow_bins(hists, x_min=None):
     :rtype: None
     """
     if type(hists) == dict:
-        for item in hists.values():
+        for item in list(hists.values()):
             if isinstance(item, list):
                 for i in item:
                     _merge_underflow_bins_1d(i, x_min)
@@ -199,7 +203,7 @@ def normalise(hists, integration_range=None, norm_scale=1.):
     if integration_range is None:
         integration_range = [-1, -1]
     if type(hists) == dict:
-        for h in hists.keys():
+        for h in list(hists.keys()):
             hists[h] = normalise_hist(hists[h], integration_range, norm_scale)
     elif type(hists) == list:
         for h in hists:
@@ -242,11 +246,11 @@ def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
         return hist
     if has_asymmetric_binning(hist):
         for b in range(hist.GetNbinsX() + 1):
-            hist.SetBinContent(b, hist.GetBinContent(b)/ hist.GetBinWidth(b))
+            hist.SetBinContent(b, old_div(hist.GetBinContent(b), hist.GetBinWidth(b)))
     integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
-    hist.Scale(norm_scale / integral)
+    hist.Scale(old_div(norm_scale, integral))
     return hist
 
 
@@ -256,7 +260,7 @@ def _normalise_2d_hist(hist, integration_range=[-1,-1], norm_scale=1.):
 
 def read_bin_from_label(hist, label):
     labels = [hist.GetXaxis().GetBinLabel(i) for i in range(hist.GetNbinsX() + 1)]
-    matched_labels = filter(lambda l: re.search(label, l) is not None, labels)
+    matched_labels = [l for l in labels if re.search(label, l) is not None]
     if len(matched_labels) == 0:
         _logger.error("Could not find label matching {:s} in {:s}".format(label, hist.GetName()))
         return None
@@ -312,5 +316,5 @@ def get_log_scale_x_bins(nbins, xmin, xmax):
     """
     log_min = log10(xmin)
     log_max = log10(xmax)
-    bin_width = (log_max - log_min) / int(nbins)
+    bin_width = old_div((log_max - log_min), int(nbins))
     return [pow(10, log_min + i * bin_width) for i in range(0, int(nbins) + 1)]

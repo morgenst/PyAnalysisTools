@@ -1,4 +1,10 @@
 from __future__ import print_function
+from __future__ import division
+from builtins import input
+from builtins import str
+from builtins import range
+from past.utils import old_div
+from builtins import object
 import ROOT
 import math
 import re
@@ -31,7 +37,7 @@ class PlotConfig(object):
             config_file_name = user_config
             usr_defaults = yl.read_yaml(config_file_name)
 
-        for key, attr in defaults_py_ana.iteritems():
+        for key, attr in defaults_py_ana.items():
             if key in usr_defaults:
                 attr = usr_defaults[key]
             if isinstance(attr, str):
@@ -42,7 +48,7 @@ class PlotConfig(object):
             else:
                 kwargs.setdefault(key, attr)
 
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             if v == "None":
                 v = None
             if k == "ratio_config" and v is not None:
@@ -94,7 +100,7 @@ class PlotConfig(object):
         :rtype: str
         """
         obj_str = "Plot config: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
@@ -154,12 +160,12 @@ class PlotConfig(object):
         previous_choice = None
         if other is None:
             return
-        for attr, val in other.__dict__.iteritems():
+        for attr, val in other.__dict__.items():
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                dec = raw_input("Different settings for attribute {:s} in common configs."
+                dec = input("Different settings for attribute {:s} in common configs."
                                 "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val), str(getattr(self, attr)),
                                                                                    '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''))
 
@@ -254,7 +260,7 @@ def expand_plot_config(plot_config):
                 tmp_config.cuts = cuts
                 plot_configs.append(tmp_config)
         else:
-            for cut_name, cut in plot_config.cuts_ref.iteritems():
+            for cut_name, cut in plot_config.cuts_ref.items():
                 cuts = plot_config.cuts_ref[cut_name]
                 tmp_config = copy(plot_config)
                 tmp_config.cuts = plot_config.cuts + cuts
@@ -275,7 +281,7 @@ def parse_and_build_plot_config(config_file):
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
-        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
+        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.items() if not k=="common"]
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
@@ -296,11 +302,11 @@ def parse_and_build_process_config(process_config_files):
         _logger.debug("Parsing process configs")
         if not isinstance(process_config_files, list):
             parsed_process_config = yl.read_yaml(process_config_files)
-            process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
+            process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.items()}
         else:
             parsed_process_configs = [yl.read_yaml(pcf) for pcf in process_config_files]
             process_configs = {k: ProcessConfig(name=k, **v) for parsed_config in parsed_process_configs
-                               for k, v in parsed_config.iteritems()}
+                               for k, v in parsed_config.items()}
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
@@ -353,7 +359,7 @@ def propagate_common_config(common_config, plot_configs):
             return
         setattr(plot_config, attr, value)
 
-    for attr, value in common_config.__dict__.iteritems():
+    for attr, value in common_config.__dict__.items():
         for plot_config in plot_configs:
             integrate(plot_config, attr, value)
 
@@ -480,7 +486,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
         else:
             logxmin = log10(plot_config.xmin)
             logxmax = log10(plot_config.xmax)
-            binwidth = (logxmax - logxmin) / plot_config.bins
+            binwidth = old_div((logxmax - logxmin), plot_config.bins)
             xbins = []
             for i in range(0, plot_config.bins+1):
                 xbins.append(pow(10, logxmin + i * binwidth))
@@ -554,10 +560,10 @@ def find_process_config(process, process_configs):
         return find_process_config_str(process, process_configs)
     if process_configs is None or process is None:
         return None
-    match = process.matches_any(process_configs.keys())
+    match = process.matches_any(list(process_configs.keys()))
     if match is not None:
         return process_configs[match]
-    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
             print('SOMEHOW matched to multiple configs')
@@ -592,7 +598,7 @@ def find_process_config_str(process_name, process_configs):
         return None
     if process_name in process_configs:
         return process_configs[process_name]
-    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
             print('SOMEHOW matched to multiple configs')
