@@ -1,9 +1,12 @@
+from __future__ import print_function
+
 import argparse
-import sys
 import os
+import sys
+from subprocess import check_call
+
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs
-from subprocess import check_call
 
 
 def generate_file_list(**kwargs):
@@ -16,7 +19,6 @@ def generate_file_list(**kwargs):
 
     def clean_mount():
         return [file_name.replace('/afs/cern.ch/user/m/morgens/eos_atlas/', '') for file_name in file_list]
-
 
     output_file = None
     if not "inputs" in kwargs:
@@ -32,7 +34,7 @@ def generate_file_list(**kwargs):
         expand(f)
     file_list = clean_mount()
     for file_name in file_list:
-        print >> output_file, file_name
+        print(file_name, file=output_file)
 
 
 def copy(**kwargs):
@@ -51,7 +53,6 @@ def copy(**kwargs):
             check_call(cmd.split())
 
 
-
 def main(argv):
     parser = argparse.ArgumentParser(description="script download eos data to stoomboot")
     parser.add_argument("--filelist", "-f", type=str, default=None, help="input file containing files")
@@ -67,6 +68,7 @@ def main(argv):
         copy(**vars(args))
     else:
         generate_file_list(**vars(args))
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])

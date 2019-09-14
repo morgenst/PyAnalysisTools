@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 
+from builtins import map
+
 import ROOT
+
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 import os
 import sys
@@ -27,7 +30,7 @@ def main(argv):
                                                                                                    'signal efficiency')
     parser.add_argument('--disable_sm_total', '-dsm', default=False, action='store_true',
                         help="disable summing sm total")
-    parser.add_argument('--format', '-f', type=str, choices=map(str, tabulate_formats),
+    parser.add_argument('--format', '-f', type=str, choices=list(map(str, tabulate_formats)),
                         help="format of printed table")
     parser.add_argument('--no_merge', '-n', action='store_true', default=False, help="switch off merging")
     parser.add_argument('--precision', '-p', type=int, default=3, help="precision of printed numbers")
@@ -36,9 +39,8 @@ def main(argv):
     parser.add_argument('--module_config_files', '-mcf', nargs='+', default=None,
                         help='config of additional modules to apply')
     parser.add_argument('--enable_eff', '-ee', action='store_true', default=False, help='Enable cut efficiencies')
-    parser.add_argument('--percent_eff', '-p', action='store_true', default=False,
+    parser.add_argument('--percent_eff', '-per', action='store_true', default=False,
                         help='Calculate cut efficiencies in percent')
-
 
     args = default_init(parser)
     args.file_list = [os.path.abspath(f) for f in args.input_file_list]

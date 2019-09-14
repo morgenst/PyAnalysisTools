@@ -1,8 +1,15 @@
+from __future__ import print_function
+
 import argparse
 import os
-import sys
-from PyAnalysisTools.base import _logger
 from subprocess import check_call
+
+from builtins import input
+from builtins import map
+from builtins import object
+from builtins import range
+
+from PyAnalysisTools.base import _logger
 
 
 class SetupHelper(object):
@@ -12,8 +19,7 @@ class SetupHelper(object):
         self.install = kwargs["install"]
         self.base_dir = os.path.abspath(kwargs["base_dir"])
         self.bash_script = open(os.path.join(self.base_dir, ".setup_virtual_env.sh"), "w+")
-
-        print >> self.bash_script, "#!/usr/bin/env bash"
+        print("#!/usr/bin/env bash", file=self.bash_script)
 
     @staticmethod
     def check_virtual_env():
@@ -25,31 +31,32 @@ class SetupHelper(object):
 
     def setup_virtual_env(self):
         do_install = False
-        user_input = raw_input("virtualenv not installed. Do you want to install? [y|n]")
+        user_input = input("virtualenv not installed. Do you want to install? [y|n]")
         if user_input.lower() == "y" or user_input.lower() == "yes":
             do_install = True
         if not do_install:
             exit(0)
-        print >> self.bash_script, ""
+        print("", file=self.bash_script)
 
     def print_menu(self):
-        print "Supported applications. Dependencies will be resolved automatically"
-        print "1. numpy"
-        print "2. tensorflow (Note: Need to be on lxplus7 aka CC7)"
-        print "3. root_numpy"
-        print "4. sklearn"
-        print "5. matplotlib"
-        print "6. pandas"
-        print "a. All"
+        print("Supported applications. Dependencies will be resolved automatically")
+        print("1. numpy")
+        print("2. tensorflow (Note: Need to be on lxplus7 aka CC7)")
+        print("3. root_numpy")
+        print("4. sklearn")
+        print("5. matplotlib")
+        print("6. pandas")
+        print("6. python-future")
+        print("a. All")
 
-        user_input = raw_input("Please choose (space separated) the tools to install. Hit enter for exit.")
+        user_input = input("Please choose (space separated) the tools to install. Hit enter for exit.")
         if user_input == "":
             exit()
         if user_input.lower() == "a" or user_input.lower() == "all":
-            tools_to_install = range(1, len(self.tools)+1)
+            tools_to_install = list(range(1, len(self.tools)+1))
         else:
             try:
-                tools_to_install = map(int, user_input.split())
+                tools_to_install = list(map(int, user_input.split()))
             except ValueError:
                 _logger.fatal("Invalid input ", user_input)
                 return []
@@ -59,12 +66,12 @@ class SetupHelper(object):
         if not self.check_virtual_env():
             self.setup_virtual_env()
         if os.path.exists(os.path.join(self.base_dir, self.name)):
-            print >> self.bash_script, "source {:s}/bin/activate".format(os.path.join(self.base_dir, self.name))
+            print("source {:s}/bin/activate".format(os.path.join(self.base_dir, self.name)), file=self.bash_script)
             return
-        print >> self.bash_script, "cd {:s}".format(self.base_dir)
-        print >> self.bash_script, "virtualenv {:s}".format(self.name)
-        print >> self.bash_script, "source {:s}/bin/activate".format(self.name)
-        print >> self.bash_script, "python {:s} self.name --install".format(os.path.abspath(__file__))
+        print("cd {:s}".format(self.base_dir), file=self.bash_script)
+        print("virtualenv {:s}".format(self.name), file=self.bash_script)
+        print("source {:s}/bin/activate".format(self.name), file=self.bash_script)
+        print("python {:s} self.name --install".format(os.path.abspath(__file__)), file=self.bash_script)
 
     @staticmethod
     def _install(tool):
@@ -85,6 +92,8 @@ class SetupHelper(object):
             self._install("matplotlib")
         if 6 in tools_to_install:
             self._install("pandas")
+        if 7 in tools_to_install:
+            self._install("python-future")
 
     def run(self):
         if not self.install:

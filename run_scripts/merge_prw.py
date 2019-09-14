@@ -13,11 +13,11 @@ from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 def resolve_overlap(output_path, output_file_name, file_list):
     file_handle = FileHandle(file_name=os.path.join(output_path, output_file_name))
     existing_channels = file_handle.get_objects_by_type("TH1", "PileupReweighting")
-    existing_channels = map(lambda h: h.GetName(), existing_channels)
+    existing_channels = [h.GetName() for h in existing_channels]
     remove_list = []
     for file_name in file_list:
         file_handle = FileHandle(file_name=file_name)
-        new_channels = map(lambda h: h.GetName(), file_handle.get_objects_by_type("TH1", "PileupReweighting"))
+        new_channels = [h.GetName() for h in file_handle.get_objects_by_type("TH1", "PileupReweighting")]
         if set(existing_channels).issuperset(set(new_channels)):
             remove_list.append(file_name)
     for file_name in remove_list:

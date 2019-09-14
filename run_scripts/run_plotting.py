@@ -1,4 +1,7 @@
+from __future__ import print_function
+
 import ROOT
+
 ROOT.PyConfig.IgnoreCommandLineOptions = True
 import sys
 import os
@@ -33,7 +36,7 @@ def main(argv):
         #plotter = BP(**vars(args))
         plotter = BP(**arguments)
         plotter.make_plots()
-        print 'done'
+        print('done')
     #except Exception as e:
     #    raise e
 
