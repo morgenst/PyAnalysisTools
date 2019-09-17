@@ -1,4 +1,6 @@
 from __future__ import print_function
+from builtins import input
+from builtins import object
 import re
 from collections import OrderedDict
 
@@ -45,7 +47,7 @@ class BasePlotter(object):
             self.file_handles = []
             return
 
-        for attr, value in kwargs.iteritems():
+        for attr, value in list(kwargs.items()):
             setattr(self, attr.lower(), value)
         if not isinstance(self.plot_config_files, list):
             self.plot_config_files = [self.plot_config_files]
@@ -114,7 +116,7 @@ class BasePlotter(object):
 
         if not load_friend:
             return
-        self.file_handles = filter(lambda fh: len(fh.friends) > 0 or fh.is_data, self.file_handles)
+        self.file_handles = [fh for fh in self.file_handles if len(fh.friends) > 0 or fh.is_data]
 
     @staticmethod
     def load_atlas_style():
@@ -137,8 +139,8 @@ class BasePlotter(object):
         :rtype: None
         """
         provided_wrong_info = False
-        for plot_config, hist_set in histograms.iteritems():
-            for process, hist in hist_set.iteritems():
+        for plot_config, hist_set in list(histograms.items()):
+            for process, hist in list(hist_set.items()):
                 if hist is None:
                     _logger.error("Histogram for process {:s} is None".format(process))
                     continue
@@ -152,9 +154,9 @@ class BasePlotter(object):
                             _logger.error('Could not find MC campaign information, but lumi was provided per MC '
                                           'campaing. Not clear what to do. It will be assumed that you meant to scale '
                                           'to total lumi. Please update and acknowledge once.')
-                            raw_input('Hit enter to continue or Ctrl+c to quit...')
+                            eval(input('Hit enter to continue or Ctrl+c to quit...'))
                             provided_wrong_info = True
-                            plot_config.used_mc_campaigns = self.lumi.keys()
+                            plot_config.used_mc_campaigns = list(self.lumi.keys())
                         lumi = sum(self.lumi.values())
                     else:
                         lumi = self.lumi[process.mc_campaign]
@@ -233,8 +235,7 @@ class BasePlotter(object):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.process_weight is not None:
-                match = filter(lambda k: re.match(k.replace('re.', ''), file_handle.process),
-                               plot_config.process_weight.keys())
+                match = [k for k in list(plot_config.process_weight.keys()) if re.match(k.replace('re.', ''), file_handle.process)]
                 if len(match) > 0:
                     process_weight = plot_config.process_weight[match[0]]
                     if weight is not None:
@@ -245,8 +246,8 @@ class BasePlotter(object):
                 plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
-                mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
-                data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
+                mc_cuts = [cut for cut in plot_config.cuts if "MC:" in cut]
+                data_cuts = [cut for cut in plot_config.cuts if "DATA:" in cut]
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
                     if not "data" in file_handle.process:
@@ -327,7 +328,7 @@ class BasePlotter(object):
                 _logger.warning("hist for process {:s} is None".format(process))
                 continue
             try:
-                if process not in self.histograms[plot_config].keys():
+                if process not in list(self.histograms[plot_config].keys()):
                     self.histograms[plot_config][process] = hist
                 else:
                     self.histograms[plot_config][process].Add(hist)
@@ -336,9 +337,9 @@ class BasePlotter(object):
 
     @staticmethod
     def merge(histograms, process_configs):
-        for process in histograms.keys():
+        for process in list(histograms.keys()):
             parent_process = find_process_config(process, process_configs).name
-            if parent_process not in histograms.keys():
+            if parent_process not in list(histograms.keys()):
                 new_hist_name = histograms[process].GetName().replace(process.process_name, parent_process)
                 histograms[parent_process] = histograms[process].Clone(new_hist_name)
             else:
@@ -346,6 +347,6 @@ class BasePlotter(object):
             histograms.pop(process)
 
     def merge_histograms(self):
-        for plot_config, histograms in self.histograms.iteritems():
+        for plot_config, histograms in list(self.histograms.items()):
             if plot_config.merge:
                 self.merge(histograms, self.process_configs)

@@ -1,5 +1,11 @@
 from __future__ import print_function
+from __future__ import division
 
+from builtins import next
+from builtins import map
+from builtins import str
+from past.utils import old_div
+from builtins import object
 import collections
 from copy import copy
 
@@ -29,7 +35,7 @@ class ComparisonReader(object):
         self.input_files = kwargs['input_files']
         self.compare_files = kwargs['compare_files']
         self.tree_name = kwargs['tree_name']
-        for opt, val in kwargs.iteritems():
+        for opt, val in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, val)
 
@@ -64,7 +70,7 @@ class ComparisonReader(object):
         if file_handle.is_data:
             cut_string = cut_string.replace('DATA:', '')
         else:
-            cut_string = '&&'.join(filter(lambda ct: 'DATA' not in ct, cut_string.split("&&")))
+            cut_string = '&&'.join([ct for ct in cut_string.split("&&") if 'DATA' not in ct])
         file_handle.open() #?
         hist = get_histogram_definition(plot_config)
         hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
@@ -90,7 +96,7 @@ class ComparisonReader(object):
                 continue
             result.Add(hist)
         result.SetDirectory(0)
-        map(lambda fh: fh.close(), file_handles)
+        list([fh.close() for fh in file_handles])
         return result
 
     @staticmethod
@@ -125,7 +131,7 @@ class SingleFileSingleRefReader(ComparisonReader):
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
-        for opt, value in kwargs.iteritems():
+        for opt, value in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, value)
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
@@ -136,54 +142,54 @@ class SingleFileSingleRefReader(ComparisonReader):
         if not self.plot_config.cuts:
             setattr(self.plot_config, 'cuts', [])
         if hasattr(self.plot_config, 'cuts_l1'):
-            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+            for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
                 if hasattr(self.plot_config, 'cuts_l2'):
-                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                    for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
                         cuts[' '.join([k_l1, k_l2])] = '&&'.join(
-                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
+                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
+                    cuts[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
         elif hasattr(self.plot_config, 'cuts_l2'):
-            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                cuts[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
+            for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
+                cuts[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
         else:
-            cuts['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
-        cuts_ref = collections.OrderedDict([cuts.items()[0]])
+            cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+        cuts_ref = collections.OrderedDict([list(cuts.items())[0]])
         if len(cuts) == 2:
-            cuts_comp = collections.OrderedDict([cuts.items()[-1]])
+            cuts_comp = collections.OrderedDict([list(cuts.items())[-1]])
         else:
-            cuts_comp = collections.OrderedDict(cuts.items()[1:])
+            cuts_comp = collections.OrderedDict(list(cuts.items())[1:])
 
         plotable_objects = []
-        for k_cuts, v_cuts in cuts_ref.iteritems():
+        for k_cuts, v_cuts in list(cuts_ref.items()):
             reference = collections.OrderedDict()
-            for process, file_handles in self.file_handles.iteritems():
+            for process, file_handles in list(self.file_handles.items()):
                 reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                label = self.plot_config.labels[list(cuts_ref.keys()).index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label = ''
                 else:
                     label = k_cuts
-            for k_ref, v_ref in reference.iteritems():
+            for k_ref, v_ref in list(reference.items()):
                 v_ref.SetDirectory(0)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts,
                                       process=k_ref))
-        for k_cuts, v_cuts in cuts_comp.iteritems():
+        for k_cuts, v_cuts in list(cuts_comp.items()):
             compare = collections.OrderedDict()
-            for process, compare_file_handles in self.compare_file_handles.iteritems():
+            for process, compare_file_handles in list(self.compare_file_handles.items()):
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts) + 1]
+                label = self.plot_config.labels[list(cuts_comp.keys()).index(k_cuts) + 1]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
-            for k_comp, v_comp in compare.iteritems():
+            for k_comp, v_comp in list(compare.items()):
                 v_comp.SetDirectory(0)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts,
@@ -200,7 +206,7 @@ class SingleFileMultiRefReader(ComparisonReader):
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
-        for opt, value in kwargs.iteritems():
+        for opt, value in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, value)
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
@@ -212,70 +218,70 @@ class SingleFileMultiRefReader(ComparisonReader):
             setattr(self.plot_config, 'cuts', [])
         if hasattr(self.plot_config, 'cuts_l1'):
             if hasattr(self.plot_config, 'cuts_l2'):
-                for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                    cuts_ref[' '.join([self.plot_config.cuts_l1.keys()[0], k_l2])] = '&&'.join(
-                        map(lambda v: str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0] + v_l2))
+                for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
+                    cuts_ref[' '.join([list(self.plot_config.cuts_l1.keys())[0], k_l2])] = '&&'.join(
+                        [str(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l1.values())[0] + v_l2])
             else:
-                cuts_ref[self.plot_config.cuts_l1.keys()[0]] = '&&'.join(
-                    map(lambda v: str(v), self.plot_config.cuts + self.plot_config.cuts_l1.values()[0]))
+                cuts_ref[list(self.plot_config.cuts_l1.keys())[0]] = '&&'.join(
+                    [str(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l1.values())[0]])
         elif hasattr(self.plot_config, 'cuts_l2'):
-            cuts_ref[self.plot_config.cuts_l2.keys()[0]] = '&&'.join(
-                map(lambda v: str(v), self.plot_config.cuts + self.plot_config.cuts_l2.values()[0]))
+            cuts_ref[list(self.plot_config.cuts_l2.keys())[0]] = '&&'.join(
+                [str(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l2.values())[0]])
         else:
-            cuts_ref['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
+            cuts_ref['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
         cuts_comp = collections.OrderedDict()
         if not self.plot_config.cuts:
             setattr(self.plot_config, 'cuts', [])
         if hasattr(self.plot_config, 'cuts_l1'):
-            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
-                if self.plot_config.cuts_l1.keys().index(k_l1) == 0:
+            for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
+                if list(self.plot_config.cuts_l1.keys()).index(k_l1) == 0:
                     continue
                 if hasattr(self.plot_config, 'cuts_l2'):
-                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                    for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
                         cuts_comp[' '.join([k_l1, k_l2])] = '&&'.join(
-                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
+                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
                 else:
-                    cuts_comp[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
+                    cuts_comp[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
         elif hasattr(self.plot_config, 'cuts_l2'):
-            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                if self.plot_config.cuts_l2.keys().index(k_l2) == 0:
+            for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
+                if list(self.plot_config.cuts_l2.keys()).index(k_l2) == 0:
                     continue
-                cuts_comp[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
+                cuts_comp[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
         else:
-            cuts_comp['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
+            cuts_comp['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
 
         plotable_objects = []
-        for k_cuts, v_cuts in cuts_ref.iteritems():
+        for k_cuts, v_cuts in list(cuts_ref.items()):
             reference = collections.OrderedDict()
-            for process, file_handles in self.file_handles.iteritems():
+            for process, file_handles in list(self.file_handles.items()):
                 reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                label = self.plot_config.labels[list(cuts_ref.keys()).index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
-            for k_ref, v_ref in reference.iteritems():
+            for k_ref, v_ref in list(reference.items()):
                 v_ref.SetDirectory(0)
                 plotable_objects.append(
-                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=cuts_ref.keys().index(k_cuts), label=label,
+                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=list(cuts_ref.keys()).index(k_cuts), label=label,
                                       cuts=v_cuts, process=k_ref))
-        for k_cuts, v_cuts in cuts_comp.iteritems():
+        for k_cuts, v_cuts in list(cuts_comp.items()):
             compare = collections.OrderedDict()
-            for process, compare_file_handles in self.compare_file_handles.iteritems():
+            for process, compare_file_handles in list(self.compare_file_handles.items()):
                 compare[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                label = self.plot_config.labels[list(cuts_comp.keys()).index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
-            for k_comp, v_comp in compare.iteritems():
+            for k_comp, v_comp in list(compare.items()):
                 v_comp.SetDirectory(0)
-                ref_id = cuts_comp.keys().index(k_cuts) % len(cuts_ref)
+                ref_id = list(cuts_comp.keys()).index(k_cuts) % len(cuts_ref)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts,
                                       process=k_comp))
@@ -291,7 +297,7 @@ class MultiFileSingleRefReader(ComparisonReader):
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
-        for opt, value in kwargs.iteritems():
+        for opt, value in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, value)
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
@@ -302,52 +308,52 @@ class MultiFileSingleRefReader(ComparisonReader):
         if not self.plot_config.cuts:
             setattr(self.plot_config, 'cuts', [])
         if hasattr(self.plot_config, 'cuts_l1'):
-            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+            for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
                 if hasattr(self.plot_config, 'cuts_l2'):
-                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                    for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
                         cuts[' '.join([k_l1, k_l2])] = '&&'.join(
-                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
+                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
+                    cuts[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
         elif hasattr(self.plot_config, 'cuts_l2'):
-            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                cuts[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
+            for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
+                cuts[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
         else:
-            cuts['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
-        cuts_ref = collections.OrderedDict([cuts.items()[0]])
+            cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+        cuts_ref = collections.OrderedDict([list(cuts.items())[0]])
         cuts_comp = cuts
 
         plotable_objects = []
-        for k_cuts, v_cuts in cuts_ref.iteritems():
+        for k_cuts, v_cuts in list(cuts_ref.items()):
             reference = collections.OrderedDict()
-            for process, file_handles in self.file_handles.iteritems():
+            for process, file_handles in list(self.file_handles.items()):
                 reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_ref.keys().index(k_cuts)]
+                label = self.plot_config.labels[list(cuts_ref.keys()).index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
-            for k_ref, v_ref in reference.iteritems():
+            for k_ref, v_ref in list(reference.items()):
                 v_ref.SetDirectory(0)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=1, label=label, cuts=v_cuts,
                                       process=k_ref))
 
-        for k_cuts, v_cuts in cuts_comp.iteritems():
+        for k_cuts, v_cuts in list(cuts_comp.items()):
             compare = collections.OrderedDict()
-            for process, compare_file_handles in self.compare_file_handles.iteritems():
+            for process, compare_file_handles in list(self.compare_file_handles.items()):
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts_comp.keys().index(k_cuts)]
+                label = self.plot_config.labels[list(cuts_comp.keys()).index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
-            for k_comp, v_comp in compare.iteritems():
+            for k_comp, v_comp in list(compare.items()):
                 v_comp.SetDirectory(0)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts,
@@ -365,7 +371,7 @@ class MultiFileMultiRefReader(ComparisonReader):
                                      compare_files]
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
-        for opt, value in kwargs.iteritems():
+        for opt, value in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, value)
         self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
@@ -376,51 +382,51 @@ class MultiFileMultiRefReader(ComparisonReader):
         if not self.plot_config.cuts:
             setattr(self.plot_config, 'cuts', [])
         if hasattr(self.plot_config, 'cuts_l1'):
-            for k_l1, v_l1 in self.plot_config.cuts_l1.iteritems():
+            for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
                 if hasattr(self.plot_config, 'cuts_l2'):
-                    for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
+                    for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
                         cuts[' '.join([k_l1, k_l2])] = '&&'.join(
-                            map(lambda v: str(v), self.plot_config.cuts + v_l1 + v_l2))
+                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l1))
+                    cuts[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
         elif hasattr(self.plot_config, 'cuts_l2'):
-            for k_l2, v_l2 in self.plot_config.cuts_l2.iteritems():
-                cuts[' '.join([k_l2])] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts + v_l2))
+            for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
+                cuts[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
         else:
-            cuts['cut'] = '&&'.join(map(lambda v: str(v), self.plot_config.cuts))
+            cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
 
         plotable_objects = []
-        for k_cuts, v_cuts in cuts.iteritems():
+        for k_cuts, v_cuts in list(cuts.items()):
             reference = collections.OrderedDict()
             compare = collections.OrderedDict()
-            for process, file_handles in self.file_handles.iteritems():
+            for process, file_handles in list(self.file_handles.items()):
                 reference[process] = self.make_hists(file_handles, self.plot_config, k_cuts, v_cuts, self.tree_name)
-            for process, compare_file_handles in self.compare_file_handles.iteritems():
+            for process, compare_file_handles in list(self.compare_file_handles.items()):
                 compare[process] = self.make_hists(compare_file_handles, self.plot_config, k_cuts, v_cuts,
                                                    self.tree_name)
             if self.plot_config.labels is not None:
-                label = self.plot_config.labels[cuts.keys().index(k_cuts)]
+                label = self.plot_config.labels[list(cuts.keys()).index(k_cuts)]
             else:
                 if k_cuts == 'cut':
                     label = ""
                 else:
                     label = k_cuts
-            for k_ref, v_ref in reference.iteritems():
+            for k_ref, v_ref in list(reference.items()):
                 v_ref.SetDirectory(0)
                 if len(reference) == len(compare):
-                    ref_id = ((reference.keys().index(k_ref) + 1) * 100) + (
-                                (reference.keys().index(k_ref) + 1) * 10) + cuts.keys().index(k_cuts)
+                    ref_id = ((list(reference.keys()).index(k_ref) + 1) * 100) + (
+                                (list(reference.keys()).index(k_ref) + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 else:
-                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)
+                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=ref_id, label=label, cuts=v_cuts,
                                       process=k_ref))
-            for k_comp, v_comp in compare.iteritems():
+            for k_comp, v_comp in list(compare.items()):
                 if len(reference) == len(compare):
-                    ref_id = ((compare.keys().index(k_comp) + 1) * 100) + (
-                                (compare.keys().index(k_comp) + 1) * 10) + cuts.keys().index(k_cuts)
+                    ref_id = ((list(compare.keys()).index(k_comp) + 1) * 100) + (
+                                (list(compare.keys()).index(k_comp) + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 else:
-                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + cuts.keys().index(k_cuts)
+                    ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 v_comp.SetDirectory(0)
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=ref_id, label=label, cuts=v_cuts,
@@ -499,7 +505,7 @@ class ComparisonPlotter(BasePlotter):
         #                       22,
         #                       23,
         #                       ]          
-        for attr, value in kwargs.iteritems():
+        for attr, value in list(kwargs.items()):
             if not hasattr(self, attr):
                 setattr(self, attr, value)
         # if self.systematics is None:
@@ -547,7 +553,7 @@ class ComparisonPlotter(BasePlotter):
 
     def make_comparison_plots(self):
         data = self.getter.get_data()
-        for k, v in data.iteritems():
+        for k, v in list(data.items()):
             self.make_comparison_plot(k, v)
         self.output_handle.write_and_close()
 
@@ -555,8 +561,8 @@ class ComparisonPlotter(BasePlotter):
         for i in data:
             HT.merge_overflow_bins(i.plot_object)
             HT.merge_underflow_bins(i.plot_object)
-        reference_hists = filter(lambda x: x.is_ref, data)
-        compare_hists = filter(lambda x: not x.is_ref, data)
+        reference_hists = [x for x in data if x.is_ref]
+        compare_hists = [x for x in data if not x.is_ref]
 
         offset = len(reference_hists) if (
                     len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
@@ -564,51 +570,51 @@ class ComparisonPlotter(BasePlotter):
             setattr(ref, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
                 setattr(ref, 'marker_color',
-                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'marker_style', PO.marker_style_palette_filled[
-                    i - (int(i / len(PO.marker_style_palette_filled)) * len(PO.marker_style_palette_filled))])
+                    i - (int(old_div(i, len(PO.marker_style_palette_filled))) * len(PO.marker_style_palette_filled))])
                 setattr(ref, 'line_color',
-                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
                 setattr(ref, 'line_color',
-                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'line_style', PO.line_style_palette_homogen[
-                    i - (int(i / len(PO.line_style_palette_homogen)) * len(PO.line_style_palette_homogen))])
+                    i - (int(old_div(i, len(PO.line_style_palette_homogen))) * len(PO.line_style_palette_homogen))])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
                 setattr(ref, 'fill_color',
-                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'fill_style',
-                        PO.fill_style_palette_left[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.fill_style_palette_left[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'line_color',
-                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'marker_color',
-                        PO.color_palette[i - (int(i / len(PO.color_palette)) * len(PO.color_palette))])
+                        PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
 
         for i, comp in enumerate(compare_hists):
             setattr(comp, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
                 setattr(comp, 'marker_color', PO.color_palette[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(comp, 'marker_style', PO.marker_style_palette_empty[(i + offset) - (
-                            int((i + offset) / len(PO.marker_style_palette_empty)) * len(
+                            int(old_div((i + offset), len(PO.marker_style_palette_empty))) * len(
                         PO.marker_style_palette_empty))])
                 setattr(comp, 'line_color', PO.color_palette[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
                 setattr(comp, 'line_color', PO.color_palette[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(comp, 'line_style', PO.line_style_palette_heterogen[(i + offset) - (
-                            int((i + offset) / len(PO.line_style_palette_heterogen)) * len(
+                            int(old_div((i + offset), len(PO.line_style_palette_heterogen))) * len(
                         PO.line_style_palette_heterogen))])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
                 setattr(comp, 'fill_color', PO.color_palette[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(comp, 'fill_style', PO.fill_style_palette_right[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(comp, 'line_color', PO.color_palette[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(comp, 'marker_color', PO.color_palette[
-                    (i + offset) - (int((i + offset) / len(PO.color_palette)) * len(PO.color_palette))])
+                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
 
         # plot_config.color = self.color_palette
         # plot_config.styles = self.style_palette
@@ -636,8 +642,8 @@ class ComparisonPlotter(BasePlotter):
         if plot_config.enable_legend:
             labels = {}
             FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio,
-                                    labels=map(lambda x: x.label, reference_hists + compare_hists),
-                                    plot_objects=map(lambda x: x.plot_object, reference_hists + compare_hists),
+                                    labels=[x.label for x in reference_hists + compare_hists],
+                                    plot_objects=[x.plot_object for x in reference_hists + compare_hists],
                                     **plot_config.legend_options)
         if plot_config.lumi:
             FM.decorate_canvas(canvas, plot_config)
@@ -656,7 +662,7 @@ class ComparisonPlotter(BasePlotter):
                 plot_config.name = 'ratio_' + plot_config.name
             canvas_ratio = None
             for ref in reference_hists:
-                for comp in map(lambda x: x.plot_object, filter(lambda y: y.ref_id == ref.ref_id, compare_hists)):
+                for comp in [x.plot_object for x in [y for y in compare_hists if y.ref_id == ref.ref_id]]:
                     if canvas_ratio:
                         ROOT.SetOwnership(canvas_ratio, False)
                         canvas_ratio.cd()

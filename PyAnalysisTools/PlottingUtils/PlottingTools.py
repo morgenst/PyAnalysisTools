@@ -1,3 +1,8 @@
+from __future__ import division
+from builtins import map
+from builtins import zip
+from builtins import range
+from past.utils import old_div
 import ROOT
 from collections import defaultdict
 from operator import itemgetter
@@ -33,22 +38,22 @@ def project_hist(tree, hist, var_name, cut_string='', weight=None, is_data=False
     if weight:
         if 'MC:' in weight:
             weight = weight.split('*')
-            mc_weights = filter(lambda w: 'MC:' in w, weight)
+            mc_weights = [w for w in weight if 'MC:' in w]
             for mc_w in mc_weights:
                 weight.remove(mc_w)
             weight = '*'.join(weight)
             if not is_data:
-                mc_weights = map(lambda mc_w: mc_w.replace('MC:', ''), mc_weights)
+                mc_weights = [mc_w.replace('MC:', '') for mc_w in mc_weights]
                 for mc_w in mc_weights:
                     weight += '* {:s}'.format(mc_w)
         if 'DATA:' in weight:
             weight = weight.split('*')
-            data_weights = filter(lambda w: 'DATA:' in w, weight)
+            data_weights = [w for w in weight if 'DATA:' in w]
             for data_w in data_weights:
                 weight.remove(data_w)
             weight = '*'.join(weight)
             if is_data:
-                data_weights = map(lambda data_w: data_w.replace('DATA:', ''), data_weights)
+                data_weights = [data_w.replace('DATA:', '') for data_w in data_weights]
                 for data_w in data_weights:
                     weight += '* {:s}'.format(data_w)
         if cut_string == '':
@@ -87,7 +92,7 @@ def plot_objects(objects, plot_config, process_configs=None):
         _logger.warning("Requested plot objects with zero objects")
         return
     if isinstance(objects, dict):
-        first_obj = objects.values()[0]
+        first_obj = list(objects.values())[0]
     elif isinstance(objects, list):
         first_obj = objects[0]
     if isinstance(first_obj, PO.PlotableObject):
@@ -99,7 +104,7 @@ def plot_objects(objects, plot_config, process_configs=None):
         return plot_histograms(objects, plot_config, process_configs)
     if isinstance(first_obj, ROOT.TEfficiency) or isinstance(first_obj, ROOT.TGraph):
         return plot_graphs(objects, plot_config)
-    _logger.error("Unsupported type {:s} passed for plot_objects".format(type(objects.values()[0])))
+    _logger.error("Unsupported type {:s} passed for plot_objects".format(type(list(objects.values())[0])))
 
 
 def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=None):
@@ -309,7 +314,7 @@ def plot_graphs(graphs, plot_config):
     :rtype: ROOT.TCanvas
     """
     if isinstance(graphs, dict):
-        graphs = graphs.values()
+        graphs = list(graphs.values())
     canvas = plot_graph(graphs[0], plot_config)
     for index, graph in enumerate(graphs[1:]):
         add_graph_to_canvas(canvas, graph, plot_config, index+1)
@@ -354,11 +359,11 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     is_first = True
     max_y = None
     if isinstance(hists, dict):
-        hist_defs = hists.items()
+        hist_defs = list(hists.items())
         import re
         #hist_defs.sort(key=lambda s: int(re.findall('\d+', s[0])[0]))
     elif isinstance(hists, list):
-        hist_defs = zip([None] * len(hists), hists)
+        hist_defs = list(zip([None] * len(hists), hists))
 
     if isinstance(hist_defs[0][1], PO.PlotableObject):
         if not switchOff and not isinstance(hist_defs[0][1].plot_object, ROOT.TH2):
@@ -430,7 +435,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     if plot_config.ordering is not None:
         hist_defs = sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
-        index = map(itemgetter(1), hist_defs).index(hist)
+        index = list(map(itemgetter(1), hist_defs)).index(hist)
         hist = format_hist(hist, plot_config)
 
         try:
@@ -602,9 +607,9 @@ def plot_stack(hists, plot_config, **kwargs):
     canvas.Clear()
     canvas.cd()
     if isinstance(hists, dict) or isinstance(hists, defaultdict):
-        hist_defs = hists.items()
+        hist_defs = list(hists.items())
     elif isinstance(hists, list):
-        hist_defs = zip([None] * len(hists), hists)
+        hist_defs = list(zip([None] * len(hists), hists))
     else:
         _logger.error('Cannot deal with provided input {:s}'.format(hists.__str__()))
         raise InvalidInputError()
@@ -742,7 +747,7 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
     pad1.SetBottomMargin(0.05)
     pad1.Draw()
-    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, ((1 - y_frac) * canvas.GetBottomMargin() / y_frac + 1) * y_frac - 0.009)
+    pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1, (old_div((1 - y_frac) * canvas.GetBottomMargin(), y_frac) + 1) * y_frac - 0.009)
     pad2.SetBottomMargin(0.1)
     pad2.Draw()
     pad1.cd()
@@ -767,7 +772,7 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
 
     pad2.cd()
     hratio.GetYaxis().SetNdivisions(505)
-    scale = 1. / (((1 - y_frac) * (canvas.GetBottomMargin()) / y_frac + 1) * y_frac)
+    scale = 1. / ((old_div((1 - y_frac) * (canvas.GetBottomMargin()), y_frac) + 1) * y_frac)
 
     reset_frame_text(hratio)
     scale_frame_text(hratio, scale)

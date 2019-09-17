@@ -1,22 +1,24 @@
-from __future__ import print_function
 from __future__ import division
-from builtins import input
-from builtins import str
-from builtins import range
-from past.utils import old_div
-from builtins import object
-import ROOT
-import math
-import re
+from __future__ import print_function
+
 import os
-from math import log10
+import re
 from array import array
+from collections import OrderedDict
 from copy import copy, deepcopy
+from math import log10
+
+from builtins import input
+from builtins import object
+from builtins import range
+from builtins import str
+from past.utils import old_div
+
+import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig, Process
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
-from collections import OrderedDict
 from PyAnalysisTools.base.ShellUtils import find_file
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 
 class PlotConfig(object):
@@ -37,7 +39,7 @@ class PlotConfig(object):
             config_file_name = user_config
             usr_defaults = yl.read_yaml(config_file_name)
 
-        for key, attr in defaults_py_ana.items():
+        for key, attr in list(defaults_py_ana.items()):
             if key in usr_defaults:
                 attr = usr_defaults[key]
             if isinstance(attr, str):
@@ -48,7 +50,7 @@ class PlotConfig(object):
             else:
                 kwargs.setdefault(key, attr)
 
-        for k, v in kwargs.items():
+        for k, v in list(kwargs.items()):
             if v == "None":
                 v = None
             if k == "ratio_config" and v is not None:
@@ -160,14 +162,14 @@ class PlotConfig(object):
         previous_choice = None
         if other is None:
             return
-        for attr, val in other.__dict__.items():
+        for attr, val in list(other.__dict__.items()):
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                dec = input("Different settings for attribute {:s} in common configs."
+                dec = eval(input("Different settings for attribute {:s} in common configs."
                                 "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val), str(getattr(self, attr)),
-                                                                                   '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''))
+                                                                                   '[default = {:d}]'.format(previous_choice) if previous_choice is not None else '')))
 
                 if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
@@ -260,7 +262,7 @@ def expand_plot_config(plot_config):
                 tmp_config.cuts = cuts
                 plot_configs.append(tmp_config)
         else:
-            for cut_name, cut in plot_config.cuts_ref.items():
+            for cut_name, cut in list(plot_config.cuts_ref.items()):
                 cuts = plot_config.cuts_ref[cut_name]
                 tmp_config = copy(plot_config)
                 tmp_config.cuts = plot_config.cuts + cuts
@@ -281,7 +283,7 @@ def parse_and_build_plot_config(config_file):
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
-        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.items() if not k=="common"]
+        plot_configs = [PlotConfig(name=k, **v) for k, v in list(parsed_config.items()) if not k=="common"]
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
@@ -302,11 +304,11 @@ def parse_and_build_process_config(process_config_files):
         _logger.debug("Parsing process configs")
         if not isinstance(process_config_files, list):
             parsed_process_config = yl.read_yaml(process_config_files)
-            process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.items()}
+            process_configs = {k: ProcessConfig(name=k, **v) for k, v in list(parsed_process_config.items())}
         else:
             parsed_process_configs = [yl.read_yaml(pcf) for pcf in process_config_files]
             process_configs = {k: ProcessConfig(name=k, **v) for parsed_config in parsed_process_configs
-                               for k, v in parsed_config.items()}
+                               for k, v in list(parsed_config.items())}
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
@@ -359,7 +361,7 @@ def propagate_common_config(common_config, plot_configs):
             return
         setattr(plot_config, attr, value)
 
-    for attr, value in common_config.__dict__.items():
+    for attr, value in list(common_config.__dict__.items()):
         for plot_config in plot_configs:
             integrate(plot_config, attr, value)
 
@@ -457,6 +459,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
             index = index % len(plot_config.color)
             style_attr = 10
         color = transform_color(plot_config.color, index)
+
     # else:
     #     style_attr = None
     if not isinstance(style_setter, list):

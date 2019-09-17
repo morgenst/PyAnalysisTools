@@ -1,3 +1,7 @@
+from __future__ import division
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import ROOT
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils import Formatting as fm
@@ -47,7 +51,7 @@ class RatioCalculator(object):
             elif eff_reference == 0. and eff_compare != 0.:
                 ratio = 0.
             else:
-                ratio = eff_compare / eff_reference
+                ratio = old_div(eff_compare, eff_reference)
             x = ROOT.Double(0.)
             y = ROOT.Double(0.)
             ratio_graph.GetPoint(b, x, y)
@@ -118,7 +122,7 @@ class RatioPlotter(object):
         canvas = pt.plot_hist(hist[0], plot_config[0], index=0)
         if len(hist) > 1:
             for i, unc_hist in enumerate(hist[1:]):
-                pc = plot_config[i/n_systematics]
+                pc = plot_config[old_div(i,n_systematics)]
                 pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i+1)#index=i - i/n_systematics * n_systematics)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
         return canvas

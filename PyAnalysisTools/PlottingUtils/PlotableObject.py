@@ -1,3 +1,4 @@
+from builtins import object
 import ROOT
 
 color_palette = [
@@ -86,7 +87,7 @@ fill_style_palette_right = [3359,
 ]
 
 
-class PlotableObject():
+class PlotableObject(object):
     def __init__(self, plot_object = None, is_ref = True, ref_id = -1, label = "", cuts = None, process=None, draw_option = "Marker", marker_color = 1, marker_size = 1, marker_style = 1, line_color = 1, line_width = 1, line_style = 1, fill_color = 0, fill_style = 0):
         self.plot_object = plot_object
         self.is_ref = is_ref
@@ -104,4 +105,3 @@ class PlotableObject():
         self.line_style = line_style
         self.fill_color = fill_color
         self.fill_style = fill_style
-        

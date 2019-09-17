@@ -1,3 +1,7 @@
+from builtins import filter
+from builtins import map
+from builtins import range
+from builtins import object
 import ROOT
 from copy import deepcopy
 from itertools import combinations
@@ -39,7 +43,7 @@ class CorrelationPlotter(object):
                                         friend_tree_names=kwargs["friend_tree_names"],
                                         friend_pattern=kwargs["friend_file_pattern"]) for fn in kwargs["input_files"]]
         self.tree_name = kwargs["tree_name"]
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             if k in ["input_files", "tree"]:
                 continue
             setattr(self, k.lower(), v)
@@ -100,18 +104,18 @@ class CorrelationPlotter(object):
         self.merge(self.correlation_hists, self.process_configs)
 
     def merge(self, histograms, process_configs):
-        for process, process_config in process_configs.iteritems():
+        for process, process_config in list(process_configs.items()):
 
             if not hasattr(process_config, "subprocesses"):
                 continue
             for sub_process in process_config.subprocesses:
                 #TODO: this is a ridiculously stupid implementation
-                if sub_process not in histograms.keys() and sub_process + ".mc16a" not in histograms.keys() and sub_process + ".mc16d" not in histograms.keys():
+                if sub_process not in list(histograms.keys()) and sub_process + ".mc16a" not in list(histograms.keys()) and sub_process + ".mc16d" not in list(histograms.keys()):
                     continue
                 for extension in ["", ".mc16a", ".mc16c", ".mc16d"]:
                     tmp_sub_process = sub_process + extension
-                    if process not in histograms.keys():
-                        if tmp_sub_process not in histograms.keys():
+                    if process not in list(histograms.keys()):
+                        if tmp_sub_process not in list(histograms.keys()):
                             continue
                         for hist in histograms[tmp_sub_process]:
                             new_hist_name = hist.GetName().replace(tmp_sub_process, process)
@@ -120,7 +124,7 @@ class CorrelationPlotter(object):
                             except:
                                 histograms[process] = [hist.Clone(new_hist_name)]
                     else:
-                        if tmp_sub_process not in histograms.keys():
+                        if tmp_sub_process not in list(histograms.keys()):
                             continue
                         for index, hist in enumerate(histograms[tmp_sub_process]):
                             histograms[process][index].Add(hist)
@@ -135,7 +139,7 @@ class CorrelationPlotter(object):
             for combination in self.corr_plot_configs:
                 self.fetch_correlation_hist(fh, combination)
         self.merge_hists()
-        for process, hist_set in self.correlation_hists.iteritems():
+        for process, hist_set in list(self.correlation_hists.items()):
             if process not in self.correlation_coeff_hists:
                 self.prepare_correlation_coefficient_hist(self.variable_list, process)
 
@@ -147,7 +151,7 @@ class CorrelationPlotter(object):
                 var_x, var_y = pc.dist.split(":")
                 self.fill_correlation_coefficient(correlation_coefficient, var_x, var_y, process)
 
-        for corr_coeff in self.correlation_coeff_hists.values():
+        for corr_coeff in list(self.correlation_coeff_hists.values()):
             pc = deepcopy(self.plot_config_corr_coeff)
             pc.name = corr_coeff.GetName()
             canvas = pt.plot_2d_hist(corr_coeff, pc)
@@ -204,7 +208,7 @@ class CorrelationPlotter(object):
             return self.process_configs[process].color
 
         profiles = {}
-        for process, hists in self.correlation_hists.iteritems():
+        for process, hists in list(self.correlation_hists.items()):
             for hist in hists:
                 hist_base_name = "_".join(hist.GetName().split("_")[1:-1])
                 profileX = hist.ProfileX(hist_base_name+"_profileX_{:s}".format(process))
@@ -217,9 +221,9 @@ class CorrelationPlotter(object):
                 profiles[process].append(profileY)
         profile_plots = {}
         labels = []
-        colors = [(process, get_color(process)) for process in profiles.keys()]
-        marker_styles = range(20, 34)
-        for process, hists in profiles.iteritems():
+        colors = [(process, get_color(process)) for process in list(profiles.keys())]
+        marker_styles = list(range(20, 34))
+        for process, hists in list(profiles.items()):
             labels.append(process)
             for hist in hists:
                 pc = deepcopy(get_plot_config(hist))
@@ -235,7 +239,7 @@ class CorrelationPlotter(object):
                     pc.ytitle = xtitle
 
                 pc.draw = "Marker"
-                pc.color = map(itemgetter(1), colors)
+                pc.color = list(map(itemgetter(1), colors))
                 index = map(itemgetter(0), colors).index(process)
                 pc.style = marker_styles[index]
                 hist_base_name = pc.name
@@ -247,7 +251,6 @@ class CorrelationPlotter(object):
                     profile_plots[hist_base_name] = canvas
                 else:
                     pt.add_object_to_canvas(profile_plots[hist_base_name], hist, pc, index=index)
-        p = get_objects_from_canvas_by_type(profile_plots.values()[0], "TProfile")[0]
-        map(lambda c: fm.add_legend_to_canvas(c, ratio=False, process_configs=self.process_configs, format="marker"),
-            profile_plots.values())
-        map(lambda c: self.output_handle.register_object(c), profile_plots.values())
+        p = get_objects_from_canvas_by_type(list(profile_plots.values())[0], "TProfile")[0]
+        list([fm.add_legend_to_canvas(c, ratio=False, process_configs=self.process_configs, format="marker") for c in list(profile_plots.values())])
+        list([self.output_handle.register_object(c) for c in list(profile_plots.values())])
