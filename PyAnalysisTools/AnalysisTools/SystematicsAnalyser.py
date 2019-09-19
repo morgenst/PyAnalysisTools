@@ -1,21 +1,16 @@
-import imp
 import math
-import numpy as np
+from copy import deepcopy
 from itertools import product
 from math import sqrt
-from copy import deepcopy
-from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, get_default_color_scheme
-import PyAnalysisTools.PlottingUtils.PlottingTools as pt
+
 import PyAnalysisTools.PlottingUtils.Formatting as fm
+import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import ROOT
 from PyAnalysisTools.PlottingUtils import HistTools as HT
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_color_scheme
 from PyAnalysisTools.base import _logger
-
-
-def parse_syst_config(config_file):
-    _, shape_syst, scale_syst = imp.load_source('config_systematics', config_file).config_systematics('1:1')
-    return shape_syst, scale_syst
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 
 class SystematicsCategory(object):
@@ -33,18 +28,62 @@ class SystematicsCategory(object):
         return any(map(lambda all_syst: all_syst in systematic, self.systematics))
 
 
-class FixedSystematics(object):
-    def __init__(self, **kwargs):
-        kwargs.setdefault('variation', None)
-        self.name = kwargs["name"]
-        if kwargs['variation'] is not None:
-            if kwargs['variation'] == 1:
-                self.weights = ["weight_{:s}__1up".format(kwargs["weight"])]
-            else:
-                self.weights = ["weight_{:s}__1down".format(kwargs["weight"])]
-        else:
-            self.weights = ["weight_{:s}__1down".format(kwargs["weight"]),
-                            "weight_{:s}__1up".format(kwargs["weight"])]
+class Systematic(object):
+    """
+    Class to define singe systematic uncertainty
+    """
+    def __init__(self, name, **kwargs):
+        """
+        Constructor
+        :param kwargs: configuration arguments
+        :type kwargs: dict
+        """
+        kwargs.setdefault('prefix', '')
+        kwargs.setdefault('symmetrise', False)
+        kwargs.setdefault('call', None)
+        kwargs.setdefault('affects', None)
+        kwargs.setdefault('samples', None)
+        kwargs.setdefault('group', None)
+        self.name = name
+        for k, v in kwargs.iteritems():
+            setattr(self, k, v)
+        if self.type == 'scale' and self.prefix == '':
+            self.prefix = 'weight_'
+
+    def __str__(self):
+        """
+        Overloaded string operator providing formatted output
+        :return: formatted string
+        :rtype: str
+        """
+        obj_str = "Systematic uncertainty: {:s}".format(self.name)
+        return obj_str
+
+    def __repr__(self):
+        """
+        Overloads representation operator. Get's called e.g. if list of objects are printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        return self.__str__() + '\n'
+
+    def get_variations(self):
+        if self.variation == 'updown':
+            return [self.prefix + self.name + var for var in ['__1up', '__1down']]
+        if 'single' in self.variation:
+            if len(self.variation.split(':')) == 2:
+                return [self.prefix + self.name + '__1' + self.variation.split(':')[-1]]
+        return []
+
+    def get_symmetrised_name(self):
+        if not self.symmetrise:
+            _logger.error("Request name of symmetrised systematic, but symmetrise set to False. Something went wrong")
+            return None
+        if 'up' in self.variation:
+            return [self.prefix + self.name + '__1down']
+        if 'down' in self.variation:
+            return [self.prefix + self.name + '__1up']
+        _logger.error("Catched undefined behaviour in systematics symmetrisation")
 
 
 class SystematicsAnalyser(BasePlotter):
@@ -52,6 +91,7 @@ class SystematicsAnalyser(BasePlotter):
         kwargs.setdefault("ncpu", 1)
         kwargs.setdefault("dump_hists", False)
         kwargs.setdefault("cluster_mode", False)
+        kwargs.setdefault('store_abs_syst', False)
         self.file_handles = None
         for attr, value in kwargs.iteritems():
             setattr(self, attr.lower(), value)
@@ -59,40 +99,21 @@ class SystematicsAnalyser(BasePlotter):
         self.systematic_hists = {}
         self.systematic_variations = {}
         self.total_systematics = {}
-        self.shape_syst_config, self.scale_syst_config = parse_syst_config(kwargs['systematics_config'])
+        self.systematic_configs = self.parse_syst_config(kwargs['systematics_config'])
+        self.scale_uncerts = filter(lambda s: s.type == 'scale', self.systematic_configs)
+        self.shape_uncerts = filter(lambda s: s.type == 'shape', self.systematic_configs)
+        self.custom_uncerts = filter(lambda s: s.type == 'custom', self.systematic_configs)
         self.xs_handle = kwargs["xs_handle"]
-        self.theory_sys_provider = TheoryUncertaintyProvider()
-        # SystematicsCategory(name="Muon", systematics=["MUON_MS"]),
-        # SystematicsCategory(name="Electron", systematics=["EG_RESOLUTION_ALL"], color=ROOT.kYellow),
-        unsymmetric_shape_uncertainties = filter(lambda s: not isinstance(s, tuple), self.shape_syst_config)
-        self.shape_syst_config = filter(lambda s: isinstance(s, tuple), self.shape_syst_config)
-        shape_syst = ['{:s}__1{:s}'.format(sn, 'up' if svar == 1 else 'down') for sn, svar in self.shape_syst_config]
-        shape_syst += unsymmetric_shape_uncertainties
-        scale_syst = map(lambda s: s[0], self.scale_syst_config)
-        single_direction_sys = filter(lambda sn: scale_syst.count(sn) != 2, set(scale_syst))
-        self.syst_categories = [SystematicsCategory(name="Total", systematics=shape_syst, color=ROOT.kRed)]
-
-        self.scale_systematics = [FixedSystematics(name=sn, weight=sn)
-                                  for sn in set(scale_syst) if sn not in single_direction_sys]
-        for syst_name in single_direction_sys:
-            self.scale_systematics.append(FixedSystematics(name=syst_name, weight=syst_name,
-                                                           variation=filter(lambda s: s[0] == syst_name,
-                                                                            self.scale_syst_config)[0][1]))
+        self.syst_categories = [SystematicsCategory(name="Total", systematics=self.shape_uncerts, color=ROOT.kRed)]
         file_handles = filter(lambda fh: fh.process.is_mc, self.file_handles)
         self.disable = False
         if len(file_handles) == 0:
             self.disable = True
-        try:
-            self.parse_systematics(filter(lambda fh: fh.process.is_mc, file_handles)[0])
-        except IndexError:
-            _logger.error("Could not parse any systematics as no MC file handles are provided")
-        
 
-    def parse_systematics(self, file_handle):
-        if self.systematics is not None:
-            return
-        self.systematics = map(lambda o: o.GetName(), file_handle.get_objects_by_type("TDirectoryFile"))
-        self.systematics.remove("Nominal")
+    @staticmethod
+    def parse_syst_config(cfg_file):
+        cfg = yl.read_yaml(cfg_file)
+        return [Systematic(k, **v) for k, v in cfg.iteritems()]
 
     @staticmethod
     def load_dumped_hist(arg, systematic):
@@ -127,23 +148,37 @@ class SystematicsAnalyser(BasePlotter):
             return
         file_handles = filter(lambda fh: fh.process.is_mc, self.file_handles)
         if len(file_handles) == 0:
+            _logger.debug("Could not find any MC file handle. Nothing to do for systematics")
             return
-        for systematic in self.systematics:
+        for systematic in self.shape_uncerts:
+            self.get_shape_uncertainty(file_handles, systematic, dumped_hist_path)
+        for systematic in self.scale_uncerts:
+            self.get_scale_uncertainties(file_handles, systematic.get_variations(), dumped_hist_path)
+        for systematic in self.custom_uncerts:
+            if systematic.call is not None:
+                eval(systematic.call)
+        #self.theory_sys_provider.get_envelop(self, dumped_hist_path)
+
+    def get_symmetrised_hists(self, sys_hist, nominal_hist, new_hist_name):
+        h_tmp = sys_hist.Clone(new_hist_name)
+        for i in range(sys_hist.GetNbinsX()):
+            h_tmp.SetBinContent(i, 2. * nominal_hist.GetBinContent(i) - sys_hist.GetBinContent(i))
+        return h_tmp
+
+    def get_shape_uncertainty(self, file_handles, systematic, dumped_hist_path=None):
+        for syst in systematic.get_variations():
             if dumped_hist_path is None:
                 fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=self.plot_configs,
-                                                          systematic=systematic)
+                                                          systematic=syst)
             else:
-                fetched_histograms = self.load_dumped_hists(file_handles, self.plot_configs, systematic)
+                fetched_histograms = self.load_dumped_hists(file_handles, self.plot_configs, syst)
             if self.dump_hists:
                 histograms = map(lambda it: it[-1], fetched_histograms)
                 for h in histograms:
-                    h.SetName("{:s}_{:s}".format(h.GetName(), systematic))
+                    h.SetName("{:s}_{:s}".format(h.GetName(), syst))
                     self.output_handle.register_object(h)
                 continue
-            self.process_histograms(fetched_histograms, systematic)
-        for scale_systematic in self.scale_systematics:
-            self.get_scale_uncertainties(file_handles, scale_systematic.weights, dumped_hist_path)
-        self.theory_sys_provider.get_envelop(self, dumped_hist_path)
+            self.process_histograms(fetched_histograms, syst)
 
     def get_scale_uncertainties(self, file_handles, weights, dumped_hist_path=None):
         for weight in weights:
@@ -187,25 +222,39 @@ class SystematicsAnalyser(BasePlotter):
                 for plot_config, data in systematic_hists.iteritems():
                     for process, systematics in data.iteritems():
                         systematics = dict(filter(lambda s: category.contains_syst(s[0]), systematics.iteritems()))
-                        hist = systematics.values()[0]
+                        hist = systematics.values()[0].Clone('_'.join([plot_config.name, process, 'total_syst',
+                                                                       name]))
+                        if hist is None:
+                            _logger.error("Systematics histogram for systematic {:s} and process {:s} is None. "
+                                          "Continue.".format(name, process))
+                            continue
                         for b in range(hist.GetNbinsX() + 1):
-                            total_uncertainty = sqrt(sum([pow(hist.GetBinContent(b), 2) for hist in systematics.values()]))
+                            total_uncertainty = sqrt(sum([pow(h.GetBinContent(b), 2) for h in systematics.values() if h is not None]))
                             hist.SetBinContent(b, total_uncertainty)
                         if plot_config not in self.total_systematics[category][name]:
                             self.total_systematics[category][name][plot_config] = {}
                         if process not in self.total_systematics[category][name][plot_config]:
                             self.total_systematics[category][name][plot_config][process] = {}
                         self.total_systematics[category][name][plot_config][process] = hist
+
         up_variation_names = filter(lambda systematic: "up" in systematic.lower(), self.systematic_variations.keys())
         down_variation_names = filter(lambda systematic: "down" in systematic.lower(), self.systematic_variations.keys())
         up_variation = rearrange_dict(up_variation_names)
         down_variation = rearrange_dict(down_variation_names)
-        get_total_relative_systematics(up_variation, "up")
+        # get_total_relative_systematics(up_variation, "up")
         get_total_relative_systematics(down_variation, "down")
 
     def calculate_variations(self, nominal):
         for systematic in self.systematic_hists.keys():
             self.systematic_variations[systematic] = self.get_variations_single_systematic(systematic, nominal)
+        if len(self.systematic_variations) == 0:
+            return
+        for syst in filter(lambda s: s.symmetrise, self.systematic_configs):
+            self.systematic_variations[syst.get_symmetrised_name()[0]] = {}
+            for pc in self.systematic_variations[syst.get_variations()[0]]:
+                self.systematic_variations[syst.get_symmetrised_name()[0]][pc] = {}
+                for process, hist in self.systematic_variations[syst.get_variations()[0]][pc].iteritems():
+                    self.systematic_variations[syst.get_symmetrised_name()[0]][pc][process] = self.get_symmetrised_hists(hist, nominal[pc][process], hist.GetName().replace(syst.get_variations()[0], syst.get_symmetrised_name()[0]))
 
     def get_variations_single_systematic(self, systematic, nominal):
         variations = {}
@@ -230,8 +279,11 @@ class SystematicsAnalyser(BasePlotter):
 
                 if nominal != 0:
                     hist.SetBinContent(b, (variation - nominal) / nominal)
-                    _logger.debug('set variation to: ', (variation - nominal) / nominal, ' with nominal: ', nominal,
-                                  ' variation: ', variation, ' for syst: ', systematic_hist.GetName())
+                    _logger.debug('set variation to: {:.4f} with nominal: {:.2f} '
+                                  'variation: {:.2f} for syst: {:s}'.format((variation - nominal) / nominal,
+                                                                            nominal,
+                                                                            variation,
+                                                                            systematic_hist.GetName()))
                 else:
                     hist.SetBinContent(b, 0.)
                 if math.isnan(hist.GetBinContent(b)):
@@ -249,10 +301,19 @@ class SystematicsAnalyser(BasePlotter):
             return nominal
         if systematic == 'theory_envelop' and process not in self.systematic_hists[systematic][systematic_plot_config]:
             hist = nominal.Clone()
+            if self.store_abs_syst:
+                return hist
             for b in range(nominal.GetNbinsX() + 1):
                 hist.SetBinContent(b, 1.)
             return hist
+        if process not in self.systematic_hists[systematic][systematic_plot_config]:
+            if 'theory_envelop' in systematic and process is not 'Zjets':
+                return None
+            _logger.warning("Could not find systematic {:s} for process {:s}".format(systematic, process))
+            return None
         systematic_hist = self.systematic_hists[systematic][systematic_plot_config][process]
+        if self.store_abs_syst:
+            return systematic_hist
         return calculate_diff(nominal, systematic_hist)
 
     def get_relative_unc_on_SM_total(self, plot_config, nominal):
@@ -357,6 +418,7 @@ class TheoryUncertaintyProvider(object):
                                   'weight_pdf_uncert_MUR2_MUF2_PDF261000',
                                   'weight_pdf_uncert_MUR1_MUF1_PDF25300',
                                   'weight_pdf_uncert_MUR1_MUF1_PDF13000']
+        self.all_uneffected = False
 
     @staticmethod
     def is_affected(file_handle, tree_name):
@@ -394,6 +456,10 @@ class TheoryUncertaintyProvider(object):
             file_handles = filter(lambda fh: self.is_affected(fh, analyser.tree_name), analyser.file_handles)
         else:
             file_handles = analyser.file_handles
+        if len(file_handles) == 0:
+            _logger.debug("Could not find any file handle affected by theory uncertainty. Will do nothing")
+            self.all_uneffected = True
+            return
         analyser.get_scale_uncertainties(file_handles, self.sherpa_pdf_uncert, dump_hist_path)
 
     def calculate_envelop(self, analyser):
@@ -409,24 +475,37 @@ class TheoryUncertaintyProvider(object):
             :rtype: PlotConfig
             """
             return filter(lambda pc: pc.dist == plot_config.dist, hists.keys())[0]
-
+        if self.all_uneffected:
+            return
         try:
             for plot_config in analyser.systematic_hists['pdf_uncert_MUR1_MUF0.5_PDF261000'].keys():
                 for process, hist in analyser.systematic_hists['pdf_uncert_MUR1_MUF0.5_PDF261000'][plot_config].iteritems():
-                    envelop = hist.Clone(hist.GetName()+'_theory_envelop')
-                    for b in range(envelop.GetNbinsX()+1):
-
-                        env_b = max([analyser.systematic_hists[sys.replace('weight_', '')][get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][process].GetBinContent(b)
+                    nominal_hist = analyser.nominal_hists[get_pc(analyser.nominal_hists, plot_config)][process]
+                    new_hist_name = hist.GetName().replace('weight_pdf_uncert_MUR1_MUF0.5_PDF261000', '') + '_theory_envelop'
+                    new_hist_name = new_hist_name.replace('_clone', '')
+                    envelop_up = hist.Clone(new_hist_name + '__1up')
+                    envelop_down = hist.Clone(new_hist_name + '__1down')
+                    for b in range(envelop_up.GetNbinsX()+1):
+                        env_up = max([analyser.systematic_hists[sys.replace('weight_', '')][get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][process].GetBinContent(b) - nominal_hist.GetBinContent(b)
                                      for sys in self.sherpa_pdf_uncert])
-                        envelop.SetBinContent(b, env_b)
-                    if 'theory_envelop' not in analyser.systematic_hists:
-                        analyser.systematic_hists['theory_envelop'] = {}
-                    if plot_config not in analyser.systematic_hists['theory_envelop']:
-                        analyser.systematic_hists['theory_envelop'][plot_config] = {}
-                    analyser.systematic_hists['theory_envelop'][plot_config] = {process: deepcopy(envelop)}
+                        env_down = max([nominal_hist.GetBinContent(b) - analyser.systematic_hists[sys.replace('weight_', '')][
+                                         get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][
+                                         process].GetBinContent(b)
+                                     for sys in self.sherpa_pdf_uncert])
+                        envelop_up.SetBinContent(b, env_up)
+                        envelop_down.SetBinContent(b, env_down)
+                    if 'theory_envelop__1up' not in analyser.systematic_hists:
+                        analyser.systematic_hists['theory_envelop__1up'] = {}
+                        analyser.systematic_hists['theory_envelop__1down'] = {}
+                    if plot_config not in analyser.systematic_hists['theory_envelop__1up']:
+                        analyser.systematic_hists['theory_envelop__1up'][plot_config] = {}
+                        analyser.systematic_hists['theory_envelop__1down'][plot_config] = {}
+
+                    analyser.systematic_hists['theory_envelop__1up'][plot_config][process] = deepcopy(envelop_up)
+                    analyser.systematic_hists['theory_envelop__1down'][plot_config][process] = deepcopy(envelop_down)
             for sys in self.sherpa_pdf_uncert:
                 analyser.systematic_hists.pop(sys.replace('weight_', ''))
-        except KeyError:
+        except KeyError as e:
             _logger.debug("Could not find theory uncertainties")
             pass
 

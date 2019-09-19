@@ -1,26 +1,29 @@
-import ROOT
-import PyAnalysisTools.PlottingUtils.Formatting as fm
+from __future__ import print_function
+
 import copy
-import array
-from ROOT import RooFit
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+
+from builtins import map
+from builtins import object
+
 from PyAnalysisTools.AnalysisTools.FitHelpers import *
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
-from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
+from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+from ROOT import RooFit
+
 
 class PDFConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("blind", False)
         if "fit_config_file" in kwargs:
             config = YAMLLoader.read_yaml(kwargs["fit_config_file"])
-            self.pdf = config.keys()[0]
+            self.pdf = list(config.keys())[0]
             self.set_attr("blind", False)
-            for attr, val in config[self.pdf].iteritems():
+            for attr, val in list(config[self.pdf].items()):
                 self.set_attr(attr, val)
         else:
-            for attr, val in kwargs.iteritems():
+            for attr, val in list(kwargs.items()):
                 self.set_attr(attr, val)
 
     def set_attr(self, attr, val):
@@ -32,7 +35,7 @@ class PDFConfig(object):
         except (TypeError, NameError) as e:
             try:
                 if isinstance(val, list):
-                    setattr(self, attr, map(eval, val))
+                    setattr(self, attr, list(map(eval, val)))
                 else:
                     raise e
             except (TypeError, NameError):
@@ -127,7 +130,7 @@ class PDFAdd(PDF):
         self.quantity = kwargs["var"]
 
     def build(self):
-        print self.pdf1_config
+        print(self.pdf1_config)
         self.pdf1 = PDFArgus(var=self.quantity, **{"pdf_config": self.pdf1_config}).build()
         self.pdf2 = PDFBernstein(var=self.quantity, **{"pdf_config": self.pdf2_config}).build()
         nsig = ROOT.RooRealVar("nsig", "#signal events", 200, 0., 10000)
@@ -291,7 +294,7 @@ class Fitter(object):
         self.model = self.pdf.build()
 
     def fit(self, return_fit=False, extra_selection=[]):
-        print self.file_handles, self.tree_name, self.var, self.quantity, self.blind, self.selection, extra_selection
+        print(self.file_handles, self.tree_name, self.var, self.quantity, self.blind, self.selection, extra_selection)
         self.data = create_roodata(self.file_handles, self.tree_name, self.var, self.quantity, self.blind, copy.deepcopy(self.selection), extra_selection, self.weight)
         self.build_model()
         if self.blind:

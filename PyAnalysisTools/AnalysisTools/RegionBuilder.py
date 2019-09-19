@@ -1,7 +1,14 @@
-from collections import OrderedDict
+from __future__ import print_function
+
 import re
 from copy import deepcopy
 from itertools import product
+
+from builtins import input
+from builtins import map
+from builtins import object
+from builtins import range
+from builtins import zip
 
 
 class Cut(object):
@@ -53,7 +60,7 @@ class Cut(object):
         return self.__str__() + '\n'
 
 
-class NewRegion(object):
+class Region(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("n_lep", -1)
         kwargs.setdefault("n_electron", -1)
@@ -89,7 +96,8 @@ class NewRegion(object):
         kwargs.setdefault("split_mc_data", False)
         kwargs.setdefault("common_selection", None)
         kwargs.setdefault("weight", None)
-        for k, v in kwargs.iteritems():
+        kwargs.setdefault("binning", None)
+        for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         if self.label is None:
             self.build_label()
@@ -131,7 +139,7 @@ class NewRegion(object):
         :rtype: str
         """
         obj_str = "Region: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             if attribute == 'name':
                 continue
             obj_str += '{}={} '.format(attribute, value)
@@ -186,7 +194,7 @@ class NewRegion(object):
                 cut = deepcopy(cut)
                 cut.selection = '1'
             return cut
-        return map(lambda c: validate_cut(c), self.cut_list)
+        return [validate_cut(c) for c in self.cut_list]
 
     def convert_lepton_selections(self):
         """
@@ -246,7 +254,7 @@ class NewRegion(object):
             cut_list.append("{:s} && muon_n {:s} {:d}".format(muon_selector, self.muon_operator, self.n_muon))
         if not self.disable_electrons:
             cut_list.append(" {:s} && electron_n {:s} {:d}".format(electron_selector, self.operator, self.n_electron))
-        cut_list += map(lambda c: c.selection, self.cut_list)
+        cut_list += [c.selection for c in self.cut_list]
         return " && ".join(cut_list)
 
     def build_label(self):
@@ -262,7 +270,7 @@ class NewRegion(object):
             self.label += " on-Z" if self.is_on_z else " off-Z"
 
 
-class NewRegionBuilder(object):
+class RegionBuilder(object):
     def __init__(self, **kwargs):
         """
         contructor
@@ -285,10 +293,10 @@ class NewRegionBuilder(object):
             self.auto_generate_region(**kwargs)
 
         if "regions" in kwargs:
-            for region_name, region_def in kwargs["regions"].iteritems():
+            for region_name, region_def in list(kwargs["regions"].items()):
                 if kwargs["modify_mc_data_split"]:
                     region_def["split_mc_data"] = False
-                self.regions.append(NewRegion(name=region_name,
+                self.regions.append(Region(name=region_name,
                                               common_selection=kwargs["common_selection"],
                                               **region_def))
         self.type = "PCModifier"
@@ -299,12 +307,12 @@ class NewRegionBuilder(object):
         :return: formatted string for all regions
         :rtype: str
         """
-        print self.regions
+        print(self.regions)
 
     def auto_generate_region(self, **kwargs):
         n_leptons = kwargs["nleptons"]
-        for digits in product("".join(map(str, range(n_leptons + 1))), repeat=3):
-            comb = map(int, digits)
+        for digits in product("".join(map(str, list(range(n_leptons + 1)))), repeat=3):
+            comb = list(map(int, digits))
             if sum(comb) == n_leptons:
                 if kwargs["same_flavour_only"] and not comb.count(0) == 2:
                     continue
@@ -312,12 +320,12 @@ class NewRegionBuilder(object):
                 if kwargs["disable_taus"] and comb[2] > 0:
                     continue
                 if kwargs["split_z_mass"]:
-                    self.regions.append(NewRegion(name=name + "_onZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
+                    self.regions.append(Region(name=name + "_onZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
                                                n_tau=comb[2], is_on_z=True, **kwargs))
-                    self.regions.append(NewRegion(name=name + "_offZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
+                    self.regions.append(Region(name=name + "_offZ", n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
                                                n_tau=comb[2], is_on_z=False, **kwargs))
                 else:
-                    self.regions.append(NewRegion(name=name, n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
+                    self.regions.append(Region(name=name, n_lep=n_leptons, n_electron=comb[0], n_muon=comb[1],
                                                n_tau=comb[2], **kwargs))
 
     def build_custom_region(self):
@@ -328,7 +336,7 @@ class NewRegionBuilder(object):
         for region in self.regions:
             for pc in plot_configs:
                 region_pc = deepcopy(pc)
-                cuts = map(lambda c: c.selection, region.get_cut_list())
+                cuts = [c.selection for c in region.get_cut_list()]
                 if region_pc.cuts is None:
                     region_pc.cuts = cuts  # [region.convert2cut_string()]
                 else:
@@ -349,9 +357,9 @@ class NewRegionBuilder(object):
         return self.modify_plot_configs(plot_configs)
 
 
-class Region(NewRegion):
+class OldRegion(Region):
     def __init__(self, **kwargs):
-        print "DEPRECATED"
+        print("DEPRECATED")
         super(Region, self).__init__(**kwargs)
         return
         kwargs.setdefault("n_lep", -1)
@@ -388,7 +396,7 @@ class Region(NewRegion):
         kwargs.setdefault("split_mc_data", False)
         kwargs.setdefault("common_selection", None)
         kwargs.setdefault("weight", None)
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         if self.label is None:
             self.build_label()
@@ -409,7 +417,7 @@ class Region(NewRegion):
         if self.label is None:
             self.build_label()
         self.convert_lepton_selections()
-        raw_input('Deprecated. Please try to switch to NewRegionBuilder. Acknowledge by hitting enter')
+        eval(input('Deprecated. Please try to switch to RegionBuilder. Acknowledge by hitting enter'))
 
     def __eq__(self, other):
         if isinstance(self, other.__class__):
@@ -439,7 +447,7 @@ class Region(NewRegion):
             new_cut_list += cut_list
         if not self.split_mc_data:
             return " && ".join(new_cut_list)
-        return " && ".join(filter(lambda cut: "data:" not in cut.lower(), new_cut_list)), \
+        return " && ".join([cut for cut in new_cut_list if "data:" not in cut.lower()]), \
                " && ".join(new_cut_list).replace("Data:", "").replace("data:", "").replace("DATA:", "")
 
     def get_cut_list(self):
@@ -534,9 +542,9 @@ class Region(NewRegion):
             self.label += " on-Z" if self.is_on_z else " off-Z"
 
 
-class RegionBuilder(NewRegionBuilder):
+class OldRegionBuilder(RegionBuilder):
     def __init__(self, **kwargs):
-        print "DEPRECATED"
+        print("DEPRECATED")
         super(RegionBuilder, self).__init__(**kwargs)
         return
         """
@@ -560,7 +568,7 @@ class RegionBuilder(NewRegionBuilder):
             self.auto_generate_region(**kwargs)
 
         if "regions" in kwargs:
-            for region_name, region_def in kwargs["regions"].iteritems():
+            for region_name, region_def in list(kwargs["regions"].items()):
                 if kwargs["modify_mc_data_split"]:
                     region_def["split_mc_data"] = False
                 self.regions.append(Region(name=region_name, common_selection=kwargs["common_selection"], **region_def))
@@ -568,8 +576,8 @@ class RegionBuilder(NewRegionBuilder):
 
     def auto_generate_region(self, **kwargs):
         n_leptons = kwargs["nleptons"]
-        for digits in product("".join(map(str, range(n_leptons+1))), repeat=3):
-            comb = map(int, digits)
+        for digits in product("".join(map(str, list(range(n_leptons+1)))), repeat=3):
+            comb = list(map(int, digits))
             if sum(comb) == n_leptons:
                 if kwargs["same_flavour_only"] and not comb.count(0) == 2:
                     continue

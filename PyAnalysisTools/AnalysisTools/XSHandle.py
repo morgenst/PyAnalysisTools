@@ -1,6 +1,13 @@
+from __future__ import division
+
 import threading
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+
+from builtins import object
+from builtins import str
+from past.utils import old_div
+
 from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 
 class DataSetStore(object):
@@ -29,7 +36,7 @@ class Dataset(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("is_data", False)
         kwargs.setdefault("is_mc", False)
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         if "cross_section" in kwargs and "*" in str(kwargs["cross_section"]):
             self.cross_section = eval(kwargs["cross_section"])
@@ -42,7 +49,7 @@ class XSInfo(object):
     def __init__(self, dataset):
         if dataset.is_data:
             return
-        for attr, val in dataset.__dict__.iteritems():
+        for attr, val in list(dataset.__dict__.items()):
             setattr(self, attr, val)
         self.xsec = self.cross_section
         if not hasattr(dataset, 'kfactor'):
@@ -64,10 +71,10 @@ class XSHandle(object):
         cross_sections = YAMLLoader.read_yaml(cross_section_file)
         if not read_dsid:
             self.cross_sections = {value.process_name: XSInfo(value)
-                                   for value in cross_sections.values() if value.is_mc}
+                                   for value in list(cross_sections.values()) if value.is_mc}
         else:
             self.cross_sections = {key: XSInfo(val)
-                                   for key, val in cross_sections.iteritems() if val.is_mc}
+                                   for key, val in list(cross_sections.items()) if val.is_mc}
 
     def get_xs_scale_factor(self, process):
         """
@@ -132,7 +139,7 @@ class XSHandle(object):
             xsec = fixed_xsec
         else:
             xsec = self.get_xs_scale_factor(process)
-        return xsec * lumi * 1000. * 1000. / mc_events
+        return old_div(xsec * lumi * 1000. * 1000., mc_events)
 
     def get_ds_info(self, process, element):
         """

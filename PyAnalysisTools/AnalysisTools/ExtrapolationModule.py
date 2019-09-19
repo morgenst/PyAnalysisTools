@@ -1,8 +1,8 @@
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
-from PyAnalysisTools.base import _logger
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.AnalysisTools.LimitHelpers import Yield
 import ROOT
+from PyAnalysisTools.AnalysisTools.LimitHelpers import Yield
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base import _logger
 
 
 class ExtrapolationModule(object):
@@ -65,34 +65,32 @@ class ExtrapolationModule(object):
             new_yield = self.functions[region][0][0].Integral(xmin, xmax)
         elif len(self.histograms) > 0:
             h = filter(lambda h: h.GetName() == region, self.histograms)[0]
-            new_yield = h.Integral(h.FindBin(xmin), -1)
+            max_bin = -1
+            if xmax is not None:
+                max_bin = h.FindBin(xmax) - 1
+            new_yield = h.Integral(h.FindBin(xmin), max_bin)
             huncert = filter(lambda h: h.GetName() == region + '_uncert', self.histograms)[0].Clone()
             huncert.Multiply(h)
-            uncert = huncert.Integral(huncert.FindBin(xmin), -1)
+            max_bin = -1
+            if xmax is not None:
+                max_bin = huncert.FindBin(xmax)
+            uncert = huncert.Integral(huncert.FindBin(xmin), max_bin)
         else:
             _logger.error('Could not find information to extrapolate top')
             exit(-1)
         new_yield *= lumi
-        _logger.debug('RESET bin content: {:.1f} {:.1f} {:.1f} {:.1f}'.format(xmin, xmax, new_yield, uncert))
+        _logger.debug('RESET bin content: {:.1f} {:.1f} {:.1f} {:.5f}'.format(xmin, xmax, new_yield, uncert))
         return new_yield, uncert
 
-    # def execute(self, histograms):
-    #     top_hist = histograms['ttbar']
-    #     region = [r for r in self.functions.keys() if r in top_hist.GetName()][0]
-    #     _logger.debug('Running top extrapolation in region {:s}'.format(region))
-    #     for i in range(top_hist.GetNbinsX() + 1):
-    #         bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
-    #                                                         top_hist.GetXaxis().GetBinUpEdge(i), 139.)
-    #         _logger.debug("old yield: {:.2f} new yield: {:.2f}".format(top_hist.GetBinContent(i), bin_content))
-    #         if bin_content is None:
-    #             continue
-    #         top_hist.SetBinContent(i, bin_content)
-
-    def execute_top(self, histograms, output_handle):
+    def execute_top(self, histograms, output_handle, plot_config, systematics_handle):
+        if 'ttbar' not in histograms:
+            _logger.warn("Requested top extrapolation, but could not find ttbar in histograms.")
+            return
         top_hist = histograms['ttbar']
         #top_uncert_hist_down = top_hist.Clone('top_extrapol_unc__1down')
         region = [r for r in self.stich_points.keys() if r in top_hist.GetName()][0]
-        top_uncert = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc'.format(region))
+        top_uncert_up = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1up'.format(region))
+        top_uncert_down = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1down'.format(region))
         _logger.debug('Running top extrapolation in region {:s}'.format(region))
         for i in range(top_hist.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
@@ -101,8 +99,31 @@ class ExtrapolationModule(object):
                 continue
             _logger.debug("old yield: {:.2f} new yield: {:.2f}".format(top_hist.GetBinContent(i), bin_content[0]))
             top_hist.SetBinContent(i, bin_content[0])
-            top_uncert.SetBinContent(i, bin_content[1])
-        output_handle.register_object(top_uncert)
+            if systematics_handle is not None:
+                #need to modify all tail of the systematics histograms:
+                for unc in systematics_handle.systematic_variations.keys():
+                    if 'ttbar' not in systematics_handle.systematic_variations[unc][plot_config]:
+                        continue
+                    if 'theory_envelop' in unc:
+                        continue
+                    if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None:
+                        _logger.error("Somehow ttbar unc is None for {:s}".format(unc))
+                        continue
+                    systematics_handle.systematic_variations[unc][plot_config]['ttbar'].SetBinContent(i, bin_content[0])
+            #TODO: Need some way for relative and abs uncertainty
+            top_uncert_up.SetBinContent(i, bin_content[0] * bin_content[1])
+            top_uncert_down.SetBinContent(i, bin_content[0] * (2. - bin_content[1]))
+        output_handle.register_object(top_hist)
+        output_handle.register_object(top_uncert_up)
+        output_handle.register_object(top_uncert_down)
+        if systematics_handle is not None:
+            for unc in systematics_handle.systematic_variations.keys():
+                if 'ttbar' not in systematics_handle.systematic_variations[unc][plot_config]:
+                    continue
+                if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None:
+                    _logger.error("Somehow hist is None. Something likely went wrong")
+                    continue
+                output_handle.register_object(systematics_handle.systematic_variations[unc][plot_config]['ttbar'])
 
     def execute_qcd(self, histograms, output_handle):
         region = [r for r in self.stich_points.keys() if r in histograms.values()[0].GetName()][0]
@@ -118,9 +139,9 @@ class ExtrapolationModule(object):
         output_handle.register_object(h_qcd)
         output_handle.register_object(h_unc)
 
-    def execute(self, histograms, output_handle):
+    def execute(self, histograms, output_handle, plot_config=None, systematics_handle=None):
         if not self.qcd_mode:
-            self.execute_top(histograms, output_handle)
+            self.execute_top(histograms, output_handle, plot_config, systematics_handle)
         else:
             self.execute_qcd(histograms, output_handle)
 

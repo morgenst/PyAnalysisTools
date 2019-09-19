@@ -1,14 +1,20 @@
-import traceback
+from __future__ import print_function
 
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader
-from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils import PlottingTools as PT
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
+import traceback
 from copy import copy
 from math import sqrt, pi
+
+from builtins import filter
+from builtins import object
+from builtins import range
+from builtins import str
+
 import PyAnalysisTools.PlottingUtils.Formatting as FT
 import ROOT
-
+from PyAnalysisTools.PlottingUtils import PlottingTools as PT
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 particle_map = dict()
 particle_map["Ds-"] = [-431, "D_{s}^{-}"]
@@ -30,7 +36,7 @@ particle_map["omega"] = [223, "#omega"]
 particle_map["LQ"] = [1102, "LQ"]
 particle_map["e-"] = [11, "e^{-}"]
 particle_map["e+"] = [-11, "e^{+}"]
-particle_map["q"] = [range(1,6), "q"]
+particle_map["q"] = [list(range(1,6)), "q"]
 particle_map["d"] = [1, "d"]
 particle_map["s"] = [3, "s"]
 particle_map["b"] = [5, "b"]
@@ -75,11 +81,11 @@ class Process(object):
     def __init__(self, config):
         self.decay1_str = config["decay1"]
         self.decay2 = config["decay2"]
-        self.decay1_pdgid = map(lambda name: particle_map[name][0] if isinstance(name, str) else name, self.decay1_str)
-        self.decay2_pdgid = [map(lambda name: particle_map[name][0] if isinstance(name, str) else name, sub)
+        self.decay1_pdgid = [particle_map[name][0] if isinstance(name, str) else name for name in self.decay1_str]
+        self.decay2_pdgid = [[particle_map[name][0] if isinstance(name, str) else name for name in sub]
                              for sub in self.decay2]
         self.decay_2_initial_resonance = [decay[0] for decay in self.decay2_pdgid]
-        self.decay2_sorted = map(lambda i: sorted(i[:-1], reverse=True), self.decay2_pdgid)
+        self.decay2_sorted = [sorted(i[:-1], reverse=True) for i in self.decay2_pdgid]
 
     def get_bin_labels(self):
         labels = ["undefined"]
@@ -98,7 +104,7 @@ class TruthAnalyer(object):
         self.references = dict()
         self.tree_name = "CollectionTree"
         process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
-        self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
+        self.processes = {int(channel): Process(process_config) for channel, process_config in list(process_configs.items())}
         self.current_process_config = None
         self.setup()
         self.book_plot_configs()
@@ -158,7 +164,7 @@ class TruthAnalyer(object):
         def book_plot_config(name, xtitle, **kwargs):
             pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
                             color=ROOT.kBlue, lumi=-1)
-            for args, val in kwargs.iteritems():
+            for args, val in list(kwargs.items()):
                 setattr(pc, name, val)
             self.plot_configs[name] = pc
 
@@ -211,7 +217,7 @@ class TruthAnalyer(object):
             decay2_mode = filter(lambda decay: sorted(decay[:-1], reverse=True) == mode, process.decay2_pdgid)[0]
             return decay2_mode[-1]
 
-        for process_id, process in self.processes.iteritems():
+        for process_id, process in list(self.processes.items()):
             reference_hist = ROOT.TH1F("decay_mode_reference_{:d}".format(process_id), "", 4, -1.5, 2.5)
             reference_hist.SetBinContent(1, 0)
             for mode_index in range(len(process.decay2_sorted)):
@@ -220,8 +226,8 @@ class TruthAnalyer(object):
             self.references[process_id] = reference_hist
 
     def plot_histograms(self):
-        for process_id, histograms in self.histograms.iteritems():
-            for hist_name, hist in histograms.iteritems():
+        for process_id, histograms in list(self.histograms.items()):
+            for hist_name, hist in list(histograms.items()):
                 pc = self.plot_configs[hist_name]
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
@@ -250,7 +256,7 @@ class TruthAnalyer(object):
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
-        for entry in xrange(tree.GetEntries()):
+        for entry in range(tree.GetEntries()):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
             if process_id not in self.histograms:
@@ -258,13 +264,12 @@ class TruthAnalyer(object):
             if self.current_process_config is None:
                 self.current_process_config = self.processes[process_id]
             truth_particles = tree.TruthParticles
-            resonance_decay1 = filter(lambda p: p.pdgId() == self.current_process_config.decay1_pdgid[0],
-                                      truth_particles)
+            resonance_decay1 = [p for p in truth_particles if p.pdgId() == self.current_process_config.decay1_pdgid[0]]
             self.histograms[process_id]["resonance_counter_decay1"].Fill(len(resonance_decay1))
             self.histograms[process_id]["decay1_lepton_e"].Fill(resonance_decay1[0].e() / 1000.)
 
             if len(resonance_decay1) == 0:
-                print "Suspicious event. Could not find ", self.current_process_config.decay1_pdgid[0], " for process ", process_id
+                print("Suspicious event. Could not find ", self.current_process_config.decay1_pdgid[0], " for process ", process_id)
                 continue
             resonance1_vertex = resonance_decay1[0].decayVtxLink().outgoingParticleLinks()
             muon_pts = list()
@@ -276,7 +281,7 @@ class TruthAnalyer(object):
                                      filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0].eta(),
                                      filter(lambda particle: abs(particle.pdgId()) == 13, resonance1_vertex)[0].phi()])
             except IndexError:
-                print "Could not find any muon for first resonance decay in process", process_id
+                print("Could not find any muon for first resonance decay in process", process_id)
                 continue
             mode = list()
             for resonance1_child in resonance1_vertex:
@@ -328,7 +333,7 @@ class TruthAnalyer(object):
                                             resonance2_child.phi()])
             mode.sort(key=lambda i: i[0], reverse=True)
             try:
-                decay_mode = self.current_process_config.decay2_sorted.index(map(lambda i: i[0], mode))
+                decay_mode = self.current_process_config.decay2_sorted.index([i[0] for i in mode])
             except ValueError:
                 decay_mode = -1
             if decay_mode == -1:
@@ -340,7 +345,7 @@ class TruthAnalyer(object):
             self.histograms[process_id]["decay2_mode"].Fill(decay_mode)
             muon_pts.sort(key=lambda x: x[0], reverse=True)
             if len(muon_pts) < 3:
-                print "did not find 3 muons!"
+                print("did not find 3 muons!")
                 continue
             self.histograms[process_id]["lead_muon_e"].Fill(muon_pts[0][0])
             self.histograms[process_id]["sub_lead_muon_e"].Fill(muon_pts[1][0])
@@ -371,7 +376,7 @@ class LQTruthAnalyser(object):
         self.tree_name = "CollectionTree"
         self.max_events = kwargs['max_events']
         process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
-        self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
+        self.processes = {int(channel): Process(process_config) for channel, process_config in list(process_configs.items())}
         self.current_process_config = None
         self.setup()
         self.book_plot_configs()
@@ -451,7 +456,7 @@ class LQTruthAnalyser(object):
         def book_plot_config(name, xtitle, **kwargs):
             pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
                             color=ROOT.kBlue, draw="HIST", no_fill=True, lumi=None)
-            for args, val in kwargs.iteritems():
+            for args, val in list(kwargs.items()):
                 setattr(pc, name, val)
             self.plot_configs[name] = pc
 
@@ -534,7 +539,7 @@ class LQTruthAnalyser(object):
             decay2_mode = filter(lambda decay: sorted(decay[:-1], reverse=True) == mode, process.decay2_pdgid)[0]
             return decay2_mode[-1]
 
-        for process_id, process in self.processes.iteritems():
+        for process_id, process in list(self.processes.items()):
             reference_hist = ROOT.TH1F("decay_mode_reference_{:d}".format(process_id), "", 4, -1.5, 2.5)
             reference_hist.SetBinContent(1, 0)
             for mode_index in range(len(process.decay2_sorted)):
@@ -543,8 +548,8 @@ class LQTruthAnalyser(object):
             self.references[process_id] = reference_hist
 
     def plot_histograms(self):
-        for process_id, histograms in self.histograms.iteritems():
-            for hist_name, hist in histograms.iteritems():
+        for process_id, histograms in list(self.histograms.items()):
+            for hist_name, hist in list(histograms.items()):
                 pc = self.plot_configs[hist_name]
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
@@ -554,7 +559,7 @@ class LQTruthAnalyser(object):
                     pc_ref = copy(pc)
                     pc_ref.color = ROOT.kRed
                     PT.add_histogram_to_canvas(canvas, self.references[process_id], pc_ref)
-                print canvas, hist_name, hist, process_id
+                print(canvas, hist_name, hist, process_id)
                 FT.decorate_canvas(canvas, pc)
                 self.output_handle.register_object(canvas, str(process_id))
 
@@ -574,11 +579,11 @@ class LQTruthAnalyser(object):
         def run_schannel():
             self.is_schan = True
             self.histograms[process_id]["event_yields"].Fill(1)
-            leptons = filter(lambda particle: abs(particle.pdgId()) == 11 or
+            leptons = [particle for particle in truth_particles if abs(particle.pdgId()) == 11 or
                                                    abs(particle.pdgId()) == 13 or
-                                                   abs(particle.pdgId()) == 15, truth_particles)
-            stable_leptons = filter(lambda p: p.status() == 1, leptons)
-            lepton_prod_vertex = filter(lambda p: p.prodVtxLink().outgoingParticleLinks(), stable_leptons)
+                                                   abs(particle.pdgId()) == 15]
+            stable_leptons = [p for p in leptons if p.status() == 1]
+            lepton_prod_vertex = [p for p in stable_leptons if p.prodVtxLink().outgoingParticleLinks()]
             resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
             try:
                 lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or
@@ -599,7 +604,7 @@ class LQTruthAnalyser(object):
                 self.histograms[process_id]["quark_phi_resonant"].Fill(quark_1.phi())
 
             except IndexError:
-                print "Could not find any first lepton for first resonance decay in process", process_id
+                print("Could not find any first lepton for first resonance decay in process", process_id)
                 return
 
             try:
@@ -611,10 +616,10 @@ class LQTruthAnalyser(object):
                 self.histograms[process_id]["lepton2_eta_resonant"].Fill(lepton_2.eta())
                 self.histograms[process_id]["lepton2_phi_resonant"].Fill(lepton_2.phi())
             except IndexError:
-                print "Could not find any second lepton for first resonance decay in process", process_id
+                print("Could not find any second lepton for first resonance decay in process", process_id)
                 return
             except KeyError:
-                print "Could not add process {:f}. Check if it is defined in process defintion.".format(process_id)
+                print("Could not add process {:f}. Check if it is defined in process defintion.".format(process_id))
                 return
             tlv_lepton_1 = ROOT.TLorentzVector()
             tlv_lepton_1.SetPxPyPzE(lepton_1.px(), lepton_1.py(), lepton_1.pz(), lepton_1.e())
@@ -650,14 +655,14 @@ class LQTruthAnalyser(object):
         def run_tchannel():
             self.is_tchan = True
             self.histograms[process_id]["event_yields"].Fill(2)
-            LQ_decay_particles = filter(lambda p: p.status() == 23, truth_particles)
+            LQ_decay_particles = [p for p in truth_particles if p.status() == 23]
             prod_vtx = LQ_decay_particles[0].prodVtxLink().outgoingParticleLinks()
 
-            leptons = filter(lambda particle: abs(particle.pdgId()) == 11 or
+            leptons = [particle for particle in prod_vtx if abs(particle.pdgId()) == 11 or
                                                abs(particle.pdgId()) == 13 or
-                                               abs(particle.pdgId()) == 15, prod_vtx)
+                                               abs(particle.pdgId()) == 15]
             if len(leptons) < 2:
-                print "PROBLEM"
+                print("PROBLEM")
                 return
             lepton_1 = leptons[0]
             lepton_2 = leptons[1]
@@ -716,16 +721,15 @@ class LQTruthAnalyser(object):
         if self.max_events is not None:
             max_entries = self.max_events
 
-        for entry in xrange(max_entries):
+        for entry in range(max_entries):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
             if process_id not in self.histograms:
                 self.book_histograms(process_id)
             truth_particles = tree.TruthParticles
-            LQ = filter(lambda p: p.pdgId() == 1102 or p.pdgId() == 1101 or p.pdgId() == 42 or p.pdgId() == 9000005
-                                  or abs(p.pdgId()) == 9000002,
-                        truth_particles)
-            map(lambda p: self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.), LQ)
+            LQ = [p for p in truth_particles if p.pdgId() == 1102 or p.pdgId() == 1101 or p.pdgId() == 42 or p.pdgId() == 9000005
+                                  or abs(p.pdgId()) == 9000002]
+            list([self.histograms[process_id]["lq_mass"].Fill(p.m() / 1000.) for p in LQ])
             self.histograms[process_id]["event_yields"].Fill(0)
             if len(LQ) == 0:
                 run_tchannel()
@@ -744,7 +748,7 @@ class BcTruthAnalyser(object):
         self.tree_name = "CollectionTree"
         process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
         self.processes = {int(channel): Process(process_config) for channel, process_config in
-                          process_configs.iteritems()}
+                          list(process_configs.items())}
         self.current_process_config = None
         self.setup()
         #self.book_histograms()
@@ -812,7 +816,7 @@ class BcTruthAnalyser(object):
         def book_plot_config(name, xtitle, **kwargs):
             pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
                             color=ROOT.kBlue, draw="HIST", no_fill=True, lumi=None)
-            for args, val in kwargs.iteritems():
+            for args, val in list(kwargs.items()):
                 setattr(pc, name, val)
             self.plot_configs[name] = pc
 
@@ -870,10 +874,10 @@ class BcTruthAnalyser(object):
         self.output_handle_hists.write_and_close()
 
     def plot_histograms(self):
-        for process_id, histograms in self.histograms.iteritems():
+        for process_id, histograms in list(self.histograms.items()):
             if process_id not in self.processed_ids:
                 continue
-            for hist_name, hist in histograms.iteritems():
+            for hist_name, hist in list(histograms.items()):
                 pc = self.plot_configs[hist_name]
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
@@ -905,7 +909,7 @@ class BcTruthAnalyser(object):
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
         n_entries = 0
-        for entry in xrange(tree.GetEntries()):
+        for entry in range(tree.GetEntries()):
             n_entries += 1
             #for entry in xrange(100):
             tree.GetEntry(entry)
@@ -917,10 +921,10 @@ class BcTruthAnalyser(object):
             # if self.current_process_config is None:
             #     self.current_process_config = self.processes[process_id]
             truth_particles = tree.TruthParticles
-            Bc = filter(lambda p: p.pdgId() == 521 or p.pdgId() == 541, truth_particles)
+            Bc = [p for p in truth_particles if p.pdgId() == 521 or p.pdgId() == 541]
             # self.histograms[process_id]["resonance_counter_decay1"].Fill(1)
             if len(Bc) == 0:
-                print "Suspicious event. Could not find Bc"
+                print("Suspicious event. Could not find Bc")
                 continue
             if process_id in [400571, 400572, 400573, 400574]:
                 Bc_init = filter(lambda p: p.status() == 23, Bc)[0]
@@ -929,7 +933,7 @@ class BcTruthAnalyser(object):
                 self.histograms[process_id]["Bc_init_pt"].Fill(Bc_tlv_init.Pt() / 1000.)
                 self.histograms[process_id]["Bc_init_eta"].Fill(Bc_tlv_init.Eta())
                 self.histograms[process_id]["Bc_init_phi"].Fill(Bc_tlv_init.Phi())
-                Bc = filter(lambda p: p.status() == 2, Bc)
+                Bc = [p for p in Bc if p.status() == 2]
             Bc_tlv = ROOT.TLorentzVector()
             Bc_tlv.SetPxPyPzE(Bc[0].px(), Bc[0].py(), Bc[0].pz(), Bc[0].e())
             for bc in Bc:
@@ -944,7 +948,7 @@ class BcTruthAnalyser(object):
             try:
                 jpsi = filter(lambda particle: abs(particle.pdgId()) == 443, prod_vtx)[0]
             except IndexError:
-                print "Could not find J/Psi"
+                print("Could not find J/Psi")
                 continue
             self.histograms[process_id]["jpsi_e"].Fill(jpsi.e() / 1000.)
             self.histograms[process_id]["jpsi_eta"].Fill(jpsi.eta())
@@ -1034,7 +1038,7 @@ class BcTruthAnalyser(object):
             self.histograms[process_id]["B_mass_visible"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv).M() / 1000.)
             self.histograms[process_id]["B_mass"].Fill((jpsi_muon1_tlv + jpsi_muon2_tlv + lepton_tlv + resonance_neutrino_tlv).M() / 1000.)
 
-        print "N processed entries: ", n_entries, " and hist entries: ", self.histograms[process_id]["B_mass"].GetEntries()
+        print("N processed entries: ", n_entries, " and hist entries: ", self.histograms[process_id]["B_mass"].GetEntries())
 
 
 class TruthAnalyerT3M(object):
@@ -1047,7 +1051,7 @@ class TruthAnalyerT3M(object):
         self.references = dict()
         self.tree_name = "CollectionTree"
         process_configs = YAMLLoader.read_yaml(kwargs["config_file"])
-        self.processes = {int(channel): Process(process_config) for channel, process_config in process_configs.iteritems()}
+        self.processes = {int(channel): Process(process_config) for channel, process_config in list(process_configs.items())}
         self.current_process_config = None
         self.setup()
         self.book_plot_configs()
@@ -1111,7 +1115,7 @@ class TruthAnalyerT3M(object):
         def book_plot_config(name, xtitle, **kwargs):
             pc = PlotConfig(dist=None, name=name, xtitle=xtitle, ytitle="Entries", watermark="Simulation Internal",
                             color=ROOT.kBlue, lumi=-1)
-            for args, val in kwargs.iteritems():
+            for args, val in list(kwargs.items()):
                 setattr(pc, args, val)
             self.plot_configs[name] = pc
 
@@ -1145,12 +1149,12 @@ class TruthAnalyerT3M(object):
 
     def run(self):
         for input_file in self.input_files:
-            print input_file
+            print(input_file)
             try:
                 self.analyse_file(input_file)
             except TypeError as e:
-                print traceback.print_exc()
-                print "Could not analyse {:s}".format(input_file)
+                print(traceback.print_exc())
+                print("Could not analyse {:s}".format(input_file))
                 continue
         self.print_decay_chains()
         self.plot_histograms()
@@ -1159,19 +1163,19 @@ class TruthAnalyerT3M(object):
     def print_decay_chains(self):
         def convert_pdgid(pdgid):
             try:
-                return filter(lambda d: d[0] == pdgid, particle_map.values())[0][1]
+                return filter(lambda d: d[0] == pdgid, list(particle_map.values()))[0][1]
             except IndexError:
                 return str(pdgid)
 
-        for chain, count in self.decay_chains.iteritems():
-            print map(lambda part: convert_pdgid(part), chain), " \t & \t", count
+        for chain, count in list(self.decay_chains.items()):
+            print([convert_pdgid(part) for part in chain], " \t & \t", count)
 
     def build_references(self):
         def find_br(process, mode):
             decay2_mode = filter(lambda decay: sorted(decay[:-1], reverse=True) == mode, process.decay2_pdgid)[0]
             return decay2_mode[-1]
 
-        for process_id, process in self.processes.iteritems():
+        for process_id, process in list(self.processes.items()):
             reference_hist = ROOT.TH1F("decay_mode_reference_{:d}".format(process_id), "", 4, -1.5, 2.5)
             reference_hist.SetBinContent(1, 0)
             for mode_index in range(len(process.decay2_sorted)):
@@ -1180,8 +1184,8 @@ class TruthAnalyerT3M(object):
             self.references[process_id] = reference_hist
 
     def plot_histograms(self):
-        for process_id, histograms in self.histograms.iteritems():
-            for hist_name, hist in histograms.iteritems():
+        for process_id, histograms in list(self.histograms.items()):
+            for hist_name, hist in list(histograms.items()):
                 pc = self.plot_configs[hist_name]
                 if hist_name == "decay2_mode":
                     pc.axis_labels = self.processes[process_id].get_bin_labels()
@@ -1210,7 +1214,7 @@ class TruthAnalyerT3M(object):
         f = ROOT.TFile.Open(input_file)
         tree = ROOT.xAOD.MakeTransientTree(f, self.tree_name)
         self.current_process_config = None
-        for entry in xrange(tree.GetEntries()):
+        for entry in range(tree.GetEntries()):
             tree.GetEntry(entry)
             process_id = tree.EventInfo.runNumber()
             if process_id not in self.histograms:
@@ -1218,14 +1222,14 @@ class TruthAnalyerT3M(object):
             if self.current_process_config is None:
                 self.current_process_config = self.processes[process_id]
             truth_particles = tree.TruthParticles
-            tau_decay = filter(lambda p: abs(p.pdgId()) == 15, truth_particles)
+            tau_decay = [p for p in truth_particles if abs(p.pdgId()) == 15]
             if len(tau_decay) == 0:
-                print "Suspicious event. Could not find tau for process ", process_id
+                print("Suspicious event. Could not find tau for process ", process_id)
                 continue
             muon_kinematics = list()
             tau_decay_vertex = tau_decay[0].decayVtxLink().outgoingParticleLinks()
             for dec in tau_decay:
-                if len(filter(lambda particle: abs(particle.pdgId()) == 13, dec.decayVtxLink().outgoingParticleLinks())) != 3:
+                if len([particle for particle in dec.decayVtxLink().outgoingParticleLinks() if abs(particle.pdgId()) == 13]) != 3:
                     continue
                 tau_decay_vertex = dec.decayVtxLink().outgoingParticleLinks()
                 lfv_decay = dec
@@ -1243,7 +1247,7 @@ class TruthAnalyerT3M(object):
             decay_length = (vec_decay - vec_prod).Mag()
             self.histograms[process_id]['tau_lifetime'].Fill(decay_length)
             try:
-                muons = filter(lambda particle: abs(particle.pdgId()) == 13, tau_decay_vertex)
+                muons = [particle for particle in tau_decay_vertex if abs(particle.pdgId()) == 13]
                 for i in range(3):
                     tlv = ROOT.TLorentzVector()
                     tlv.SetPxPyPzE(muons[i].px() / 1000., muons[i].py() / 1000., muons[i].pz() / 1000.,
@@ -1253,7 +1257,7 @@ class TruthAnalyerT3M(object):
                                            muons[i].phi(),
                                            tlv.Pt()])
             except IndexError:
-                print "Could not find any muon for first resonance decay in process", process_id
+                print("Could not find any muon for first resonance decay in process", process_id)
                 continue
             muon_kinematics.sort(key=lambda i: i[0], reverse=True)
 

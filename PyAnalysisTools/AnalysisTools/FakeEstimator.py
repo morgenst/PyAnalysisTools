@@ -1,26 +1,29 @@
-import ROOT
+from __future__ import print_function
+
 import traceback
 from array import array
-from itertools import permutations
-from copy import copy, deepcopy
+from copy import deepcopy
 from functools import partial
-from PyAnalysisTools.base import _logger, InvalidInputError, Utilities
-import PyAnalysisTools.PlottingUtils.PlottingTools as PT
-import PyAnalysisTools.PlottingUtils.HistTools as HT
-import PyAnalysisTools.PlottingUtils.Formatting as FT
-#from PyAnalysisTools.PlottingUtils.Plotter import Plotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, PlotConfig
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
-from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from itertools import permutations
+
 import pathos.multiprocessing as mp
+from builtins import filter
+from builtins import object
+from builtins import range
+from builtins import zip
+
+import ROOT
+# from PyAnalysisTools.PlottingUtils.Plotter import Plotter
+from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
+from PyAnalysisTools.base import _logger
 
 
 class MuonFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
-        self.file_handles = filter(lambda fh: "data" in fh.process.lower(), kwargs["file_handles"])
+        self.file_handles = [fh for fh in kwargs["file_handles"] if "data" in fh.process.lower()]
         self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
@@ -29,7 +32,7 @@ class MuonFakeEstimator(object):
 
     def get_fake_background(self, plot_config):
         def rebuild_dict_structure():
-            for key, data in fake_histograms.iteritems():
+            for key, data in list(fake_histograms.items()):
                 hist_data = {k: v for k, v in data[0][1]}
                 fake_histograms[key] = hist_data
 
@@ -37,7 +40,7 @@ class MuonFakeEstimator(object):
         if len(fake_plot_configs) == 0:
             return None
         fake_histograms = dict()
-        for key, plot_config in fake_plot_configs.iteritems():
+        for key, plot_config in list(fake_plot_configs.items()):
             fake_histograms[key] = mp.ThreadPool(self.plotter.ncpu).map(partial(self.plotter.read_histograms,
                                                                         file_handles=self.file_handles),
                                                                         [plot_config])
@@ -50,22 +53,22 @@ class MuonFakeEstimator(object):
 
     @staticmethod
     def build_fake_contribution(fake_histograms):
-        single_lepton_fake_contribution = filter(lambda (k, v): k[0] == 1, fake_histograms.iteritems())
+        single_lepton_fake_contribution = [k_v1 for k_v1 in iter(list(fake_histograms.items())) if k_v1[0][0] == 1]
         fake_contribution = single_lepton_fake_contribution.pop()[-1]
         while len(single_lepton_fake_contribution) > 0:
             fake_contribution.Add(single_lepton_fake_contribution.pop()[-1])
-        di_lepton_fake_contribution = filter(lambda (k, v): k[0] == 2, fake_histograms.iteritems())
+        di_lepton_fake_contribution = [k_v2 for k_v2 in iter(list(fake_histograms.items())) if k_v2[0][0] == 2]
         while len(di_lepton_fake_contribution) > 0:
             fake_contribution.Add(di_lepton_fake_contribution.pop()[-1], -1)
-        tri_lepton_fake_contribution = filter(lambda (k, v): k[0] == 3, fake_histograms.iteritems())
+        tri_lepton_fake_contribution = [k_v3 for k_v3 in iter(list(fake_histograms.items())) if k_v3[0][0] == 3]
         while len(tri_lepton_fake_contribution) > 0:
             fake_contribution.Add(tri_lepton_fake_contribution.pop()[-1])
         return fake_contribution
 
     def merge(self, fake_histograms):
-        for key, histograms in fake_histograms.iteritems():
-            hist = histograms.pop(histograms.keys()[0])
-            for process in histograms.keys():
+        for key, histograms in list(fake_histograms.items()):
+            hist = histograms.pop(list(histograms.keys())[0])
+            for process in list(histograms.keys()):
                 hist.Add(histograms.pop(process))
             fake_histograms[key] = hist
         return fake_histograms
@@ -73,10 +76,10 @@ class MuonFakeEstimator(object):
     def retrieve_fake_plot_configs(self, plot_config):
         n_muon = plot_config.region.n_muon
         fake_plot_configs = dict()
-        l = range(1, n_muon + 1)
-        combinations = [zip(x, l) for x in permutations(l, len(l))]
+        l = list(range(1, n_muon + 1))
+        combinations = [list(zip(x, l)) for x in permutations(l, len(l))]
         combinations = [i for comb in combinations for i in comb]
-        combinations = filter(lambda e: e[1] >= e[0], combinations)
+        combinations = [e for e in combinations if e[1] >= e[0]]
         for combination in combinations:
             fake_plot_configs[combination] = self.retrieve_single_fake_plot_config(plot_config, *combination)
         return fake_plot_configs
@@ -124,7 +127,7 @@ class MuonFakeProvider(object):
 
 class MuonFakeDecorator(object):
     def __init__(self, **kwargs):
-        input_files = filter(lambda fn: "data" in fn, kwargs["input_files"])
+        input_files = [fn for fn in kwargs["input_files"] if "data" in fn]
         self.input_file_handles = [FileHandle(file_name=input_file, open_option="UPDATE",
                                               run_dir=kwargs["run_dir"]) for input_file in input_files]
         self.estimator = MuonFakeProvider(**kwargs)
@@ -220,7 +223,7 @@ class ElectronFakeDecorator(object):
     Apply electron fake factors
     """
     def __init__(self, **kwargs):
-        input_files = filter(lambda fn: "data" in fn, kwargs["input_files"])
+        input_files = [fn for fn in kwargs["input_files"] if "data" in fn]
         self.input_file_handles = [FileHandle(file_name=input_file, open_option="UPDATE",
                                               run_dir=kwargs["run_dir"]) for input_file in input_files]
         self.estimator = ElectronFakeProvider(**kwargs)
@@ -286,7 +289,7 @@ class ElectronFakeEstimator(object):
     def __init__(self, plotter_instance, **kwargs):
         kwargs.setdefault("sample_name", "Fakes")
         self.plotter = plotter_instance
-        self.file_handles = filter(lambda fh: fh.process.is_data, kwargs["file_handles"])
+        self.file_handles = [fh for fh in kwargs["file_handles"] if fh.process.is_data]
         self.sample_name = kwargs["sample_name"]
         self.type = "DataProvider"
 
@@ -295,21 +298,21 @@ class ElectronFakeEstimator(object):
 
     def get_fake_background(self, plot_config):
         def rebuild_dict_structure():
-            for key, data in fake_histograms.iteritems():
-                data = filter(lambda hist_set: all(hist_set), data)
+            for key, data in list(fake_histograms.items()):
+                data = [hist_set for hist_set in data if all(hist_set)]
                 hist_data = {}
                 for plot_config, process, hist in data:
                     if hist is None:
                         _logger.warning("hist for process {:s} is None".format(process))
                         continue
                     try:
-                        if process not in hist_data[plot_config].keys():
+                        if process not in list(hist_data[plot_config].keys()):
                             hist_data[plot_config][process] = hist
                         else:
                             hist_data[plot_config][process].Add(hist)
                     except KeyError:
                         hist_data[plot_config] = {process: hist}
-                print data
+                print(data)
                 #hist_data = {k: v for k, v in data[0][1]}
                 fake_histograms[key] = hist_data
 
@@ -318,15 +321,15 @@ class ElectronFakeEstimator(object):
             return None
         fake_histograms = dict()
 
-        for key, plot_config in fake_plot_configs.iteritems():
+        for key, plot_config in list(fake_plot_configs.items()):
             fake_histograms[key] = self.plotter.read_histograms(self.file_handles, [plot_config], systematic="Nominal")
         rebuild_dict_structure()
-        for key, data in fake_histograms.iteritems():
+        for key, data in list(fake_histograms.items()):
             self.plotter.apply_lumi_weights(data)
             #print self.plotter.process_configs
             #print hists
             #self.plotter.merge(hists, self.plotter.process_configs)
-            for plot_config, hists in data.iteritems():
+            for plot_config, hists in list(data.items()):
                 fake_histograms[key][plot_config] = self.merge(hists, self.plotter.process_configs)
         #fake_histograms = self.merge(fake_histograms)
         fake_hist = self.build_fake_contribution(fake_histograms)
@@ -336,11 +339,11 @@ class ElectronFakeEstimator(object):
     @staticmethod
     def build_fake_contribution(fake_histograms):
         fake_contribution = None
-        single_lepton_fake_contribution = dict(filter(lambda (k, v): k[0] == 1, fake_histograms.iteritems()))
-        for key, data in single_lepton_fake_contribution.iteritems():
-            for pc, hist in data.iteritems():
+        single_lepton_fake_contribution = dict([k_v for k_v in iter(list(fake_histograms.items())) if k_v[0][0] == 1])
+        for key, data in list(single_lepton_fake_contribution.items()):
+            for pc, hist in list(data.items()):
                 if fake_contribution is None:
-                    fake_contribution = hist.values()[0]
+                    fake_contribution = list(hist.values())[0]
         # print fake_contribution
         # exit()
         return fake_contribution
@@ -369,14 +372,14 @@ class ElectronFakeEstimator(object):
     #     return fake_histograms
 
     def merge(self, histograms, process_configs):
-        for process, process_config in process_configs.iteritems():
+        for process, process_config in list(process_configs.items()):
             if not hasattr(process_config, "subprocesses"):
                 continue
-            print process_config
+            print(process_config)
             for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
+                if sub_process not in list(histograms.keys()):
                     continue
-                if process not in histograms.keys():
+                if process not in list(histograms.keys()):
                     new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
                     histograms[process] = histograms[sub_process].Clone(new_hist_name)
                 else:
@@ -387,11 +390,11 @@ class ElectronFakeEstimator(object):
     def retrieve_fake_plot_configs(self, plot_config):
         n_electron = plot_config.region.n_electron
         fake_plot_configs = dict()
-        l = range(1, n_electron + 1)
-        combinations = [zip(x, [n_electron]) for x in permutations(l, len(l))]
+        l = list(range(1, n_electron + 1))
+        combinations = [list(zip(x, [n_electron])) for x in permutations(l, len(l))]
         combinations = [i for comb in combinations for i in comb]
-        combinations = filter(lambda e: e[1] >= e[0], combinations)
-        combinations = filter(lambda e: e[1] >= e[0], combinations)
+        combinations = [e for e in combinations if e[1] >= e[0]]
+        combinations = [e for e in combinations if e[1] >= e[0]]
         for combination in combinations:
             fake_plot_configs[combination] = self.retrieve_single_fake_plot_config(plot_config, *combination)
         return fake_plot_configs
