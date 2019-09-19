@@ -318,3 +318,17 @@ def get_log_scale_x_bins(nbins, xmin, xmax):
     log_max = log10(xmax)
     bin_width = old_div((log_max - log_min), int(nbins))
     return [pow(10, log_min + i * bin_width) for i in range(0, int(nbins) + 1)]
+
+
+def check_name(name):
+    """
+    Checks name for problematic characters and replaces them
+    :param name: object name
+    :type name: str
+    :return: converted name
+    :rtype: str
+    """
+    name = name.replace('>', '_geq_')
+    name = name.replace('<', '_leq_')
+    name = name.replace('=', '_eq_')
+    return name
