@@ -511,8 +511,12 @@ def apply_style(obj, style_setter, style_attr, color):
     :rtype: None
     """
     if style_attr is not None:
-        for ss in style_setter:
-            getattr(obj, "Set" + ss + "Style")(style_attr)
+        if isinstance(style_attr, dict):
+            for ss, attr in style_attr.items():
+                getattr(obj, "Set" + ss + "Style")(attr)
+        else:
+            for ss in style_setter:
+                getattr(obj, "Set" + ss + "Style")(style_attr)
     if color is not None:
         for ss in style_setter:
             getattr(obj, "Set" + ss + "Color")(color)
