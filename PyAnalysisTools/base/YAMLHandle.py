@@ -1,10 +1,16 @@
+from __future__ import unicode_literals
 from __future__ import print_function
+
+from copy import deepcopy
+
+from builtins import input
+from builtins import object
 try:
     import oyaml as yaml
 except ImportError:
     print("yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration")
     print("Please install via: \033[91m pip install oyaml --user.\033[0m")
-    _ = raw_input("Acknowledge by hitting enter (running with yaml for now. Note this might cause crashes)")
+    _ = input("Acknowledge by hitting enter (running with yaml for now. Note this might cause crashes)")
     import yaml
 from . import _logger
 
@@ -12,17 +18,31 @@ from . import _logger
 class YAMLLoader(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('log_level', 'warning')
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
+
+    def construct_yaml_str(self, node):
+        # Override the default string handling function
+        # to always return unicode objects
+        return self.construct_scalar(node)
+    global default_ctor
+    default_ctor = deepcopy(yaml.pyyaml.Loader.__dict__['yaml_constructors'])
+    yaml.pyyaml.Loader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
 
     @staticmethod
     def read_yaml(file_name, accept_none=False):
         if accept_none and file_name is None:
             return None
         try:
-            with open(file_name, 'r') as config_file:
-                config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
-                return config
+            try:
+                with open(file_name, 'r') as config_file:
+                    config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
+            except TypeError:
+                #workaround for existing yaml files written with py2 loader
+                with open(file_name, 'r') as config_file:
+                    setattr(yaml.pyyaml.Loader, 'yaml_constructors', default_ctor)
+                    config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
+            return config
         except IOError as e:
             _logger.error("Could not find or open yaml file %s" % file_name)
             _logger.error(e.strerror)
@@ -35,7 +55,7 @@ class YAMLLoader(object):
 class YAMLDumper(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('log_level', 'warning')
-        for k, v in kwargs.iteritems():
+        for k, v in kwargs.items():
             setattr(self, k, v)
 
     @staticmethod
