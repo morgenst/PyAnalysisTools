@@ -1,3 +1,5 @@
+from builtins import map
+from builtins import range
 import unittest
 import ROOT
 import PyAnalysisTools.ROOTUtils.ObjectHandle as oh
@@ -15,7 +17,7 @@ class TestObjectHandle(unittest.TestCase):
         self.h.Draw()
 
     def tearDown(self):
-        map(lambda c: c.Close(), ROOT.gROOT.GetListOfCanvases())
+        list([c.Close() for c in ROOT.gROOT.GetListOfCanvases()])
         del self.h
 
     def testGetObjectFromCanvas(self):

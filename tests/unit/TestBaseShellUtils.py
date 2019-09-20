@@ -1,3 +1,4 @@
+from __future__ import print_function
 import unittest
 from PyAnalysisTools.base import ShellUtils as SU
 import os
@@ -75,8 +76,8 @@ class TestShellUtils(unittest.TestCase):
     def test_source(self):
         file_name = "test.sh"
         f = open(file_name, "w+")
-        print >> f, "#!/bin/bash"
-        print >> f, "export FOO=test"
+        print("#!/bin/bash", file=f)
+        print("export FOO=test", file=f)
         f.close()
         self.assertFalse("FOO" in os.environ)
         SU.source(file_name)
