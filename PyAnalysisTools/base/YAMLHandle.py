@@ -16,6 +16,9 @@ from . import _logger
 
 
 class YAMLLoader(object):
+    """
+    Class to load data from yaml files using oyaml module for ordered dicts
+    """
     def __init__(self, **kwargs):
         kwargs.setdefault('log_level', 'warning')
         for k, v in kwargs.items():
@@ -26,11 +29,23 @@ class YAMLLoader(object):
         # to always return unicode objects
         return self.construct_scalar(node)
     global default_ctor
-    default_ctor = deepcopy(yaml.pyyaml.Loader.__dict__['yaml_constructors'])
+    try:
+        default_ctor = deepcopy(yaml.pyyaml.Loader.__dict__['yaml_constructors'])
+    except KeyError:
+        pass
     yaml.pyyaml.Loader.add_constructor(u'tag:yaml.org,2002:str', construct_yaml_str)
 
     @staticmethod
     def read_yaml(file_name, accept_none=False):
+        """
+        Read data from given file and return it
+        :param file_name: name of yaml file
+        :type file_name: str
+        :param accept_none: switch to deal with no file name provided (returns None)
+        :type accept_none: bool
+        :return: loaded data
+        :rtype: any
+        """
         if accept_none and file_name is None:
             return None
         try:
@@ -53,6 +68,9 @@ class YAMLLoader(object):
 
 
 class YAMLDumper(object):
+    """
+    Wrapper to write data to yaml file
+    """
     def __init__(self, **kwargs):
         kwargs.setdefault('log_level', 'warning')
         for k, v in kwargs.items():
@@ -60,12 +78,23 @@ class YAMLDumper(object):
 
     @staticmethod
     def dump_yaml(data, file_name, **kwargs):
+        """
+        Converts and writes data to yaml file
+        :param data: data to be stored
+        :type data: ant
+        :param file_name: output file name
+        :type file_name: str
+        :param kwargs: optional arguments
+        :type kwargs: dict
+        :return: nothing
+        :rtype: None
+        """
         try:
-            _logger.debug("Try to open file %s" % file_name)
+            _logger.debug("Try to open file {:s}".format(file_name))
             out_file = open(file_name, "w+")
-            _logger.debug("Try to dump data to file %s" % file_name)
+            _logger.debug("Try to dump data to file {:s}".format(file_name))
             yaml.dump(data, out_file, **kwargs)
             out_file.close()
         except Exception as e:
-            _logger.error("Failed to dump data to file %s" % file_name)
+            _logger.error("Failed to dump data to file {:s}".format(file_name))
             raise e
