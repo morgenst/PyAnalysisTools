@@ -1,38 +1,28 @@
 from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import bytes
+from builtins import object
 import os
 import re
 import time
 from ROOT import TFile
+from builtins import str
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
 from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
 
-_memoized = {}
 
-
-def get_id_tuple(f, args, kwargs, mark=object()):
-    l = [hash(f)]
-    for arg in args:
-        l.append(hash(arg))
-    l.append(id(mark))
-    for k, v in kwargs.iteritems():
-        l.append(k)
-        l.append(id(v))
-    return tuple(l)
-
-
-def memoize(f):
-    """
-    Some basic memoizer
-    """
-    def memoized(*args, **kwargs):
-        key = get_id_tuple(f, args, kwargs)
-        if key not in _memoized:
-            _memoized[key] = f(*args, **kwargs)
-        return _memoized[key]
-    return memoized
+# def get_id_tuple(f, args, kwargs, mark=object()):
+#     l = [hash(f)]
+#     for arg in args:
+#         l.append(hash(arg))
+#     l.append(id(mark))
+#     for k, v in list(kwargs.items()):
+#         l.append(k)
+#         l.append(id(v))
+#     return tuple(l)
 
 
 class FileHandle(object):
@@ -42,7 +32,7 @@ class FileHandle(object):
         kwargs.setdefault("open_option", "READ")
         kwargs.setdefault("run_dir", None)
         kwargs.setdefault("switch_off_process_name_analysis", False)
-        kwargs.setdefault("friend_directory", None)
+        kwargs.setdefault('friend_directory', None)
         kwargs.setdefault("friend_pattern", None)
         kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("split_mc", False)
@@ -132,10 +122,11 @@ class FileHandle(object):
             move(self.file_name, self.initial_file_name)
 
     def get_directory(self, directory):
+        self.open()
         if directory is None:
             return self.tfile
         try:
-            return self.tfile.Get(directory)
+            return self.tfile.Get(bytes(directory))
         except Exception as e:
             print(e.msg())
 
@@ -146,12 +137,12 @@ class FileHandle(object):
         if tdirectory is not None:
             tdir = self.get_directory(tdirectory)
         for obj in tdir.GetListOfKeys():
-            objects.append(tdir.Get(obj.GetName()))
+            objects.append(tdir.Get(obj.GetName()))  # , encoding='utf8'
         return objects
 
     def get_objects_by_type(self, typename, tdirectory=None):
         obj = self.get_objects(tdirectory)
-        obj = filter(lambda t: t.InheritsFrom(typename), obj)
+        obj = [t for t in obj if t.InheritsFrom(typename)]
         return obj
 
     def get_objects_by_pattern(self, pattern, tdirectory=None):
@@ -188,10 +179,11 @@ class FileHandle(object):
                     tdir = self.get_object_by_name(tdirectory)
             except ValueError as e:
                 raise e
+        # obj = tdir.Get(bytes(obj_name))
         obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
             raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
-                                                                                                tdirectory,
+                                                                                                str(tdirectory),
                                                                                                 os.path.join(self.path,
                                                                                                              self.file_name)))
         return obj
@@ -229,8 +221,9 @@ class FileHandle(object):
             _logger.error("No friend tree names provided, but requested to link them.")
             return
         for friend_file in self.friend_files:
-            friend_trees = filter(lambda t: t is not None,
-                                  [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names])
+            friend_trees = [t for t in
+                            [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names] if
+                            t is not None]
             if self.trees_with_friends is None:
                 self.trees_with_friends = []
             for tree in friend_trees:
@@ -258,11 +251,12 @@ class FileHandle(object):
         base_file_name = self.file_name.split("/")[-1]
         for pattern in self.friend_pattern:
             try:
-                friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
-                                  available_files)[0]
+                # friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
+                #                    available_files)[0]
+                friend_fn = [fn for fn in available_files if fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern)][0]
                 self.friends.append(os.path.join(directory, friend_fn))
             except IndexError:
-                _logger.error("Could not find friend for ", base_file_name)
+                _logger.error("Could not find friend for {:s}".format(base_file_name))
 
     @staticmethod
     def release_object_from_file(obj):
