@@ -146,21 +146,28 @@ class CommonCutFlowAnalyser(object):
             else:
                 return "{:.2f} ".format(value)
 
-        if not self.raw:
-            # cutflow = np.array([(cutflow[i]["cut"],
-            #                      format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-            #                      # cutflow[i]["eff"],
-            #                      cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-            #                    dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)])  # ("eff", float),
-            cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield"])) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield", "S100")])
-        else:
-            cutflow = np.array([(cutflow[i]["cut"],
-                                 format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-                                 # cutflow[i]["eff"],
-                                 cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-                               dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
+        print(cutflow)
+        name = 'yield'
+        if self.raw:
+            name = 'yield_raw'
+        cutflow = np.array([(cutflow[i]["cut"],
+                             format_yield(cutflow[i][name])) for i in range(len(cutflow))],
+                           dtype=[("cut", "S100"), (name, "S100")])
+        # if not self.raw:
+        #     # cutflow = np.array([(cutflow[i]["cut"],
+        #     #                      format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
+        #     #                      # cutflow[i]["eff"],
+        #     #                      cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+        #     #                    dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)])  # ("eff", float),
+        #     cutflow = np.array([(cutflow[i]["cut"],
+        #                          format_yield(cutflow[i]["yield"])) for i in range(len(cutflow))],
+        #                        dtype=[("cut", "S100"), ("yield", "S100")])
+        # else:
+        #     cutflow = np.array([(cutflow[i]["cut"],
+        #                          format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
+        #                          # cutflow[i]["eff"],
+        #                          cutflow[i]["eff_total"]) for i in range(len(cutflow))],
+        #                        dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
         return cutflow
 
     def print_cutflow_table(self):
@@ -172,8 +179,8 @@ class CommonCutFlowAnalyser(object):
             for i, region in enumerate(available_cutflows):
                 print(i, ")", region)
             print("a) all")
-            user_input = eval(input(
-                "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) "))
+            user_input = input(
+                "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
             if user_input == "":
                 selections = ["BaseSelection"]
             elif user_input.lower() == "a":
@@ -234,7 +241,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         self.converter = Root2NumpyConverter(["weight"])
         self.cutflow_tables = {}
         self.cutflows = {}
-
+        print("setup extended cfa")
         if kwargs["output_dir"] is not None:
             self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         for k, v in list(kwargs.items()):
@@ -300,11 +307,14 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 else:
                     for icut, y in enumerate(yields):
                         self.cutflows[systematic][region.name][process][icut][1] += y[1]
+            name = 'yield'
+            if self.raw:
+                name = 'yield_raw'
             for process in list(self.cutflows[systematic][region.name].keys()):
                 list(map(tuple, self.cutflows[systematic][region.name][process]))
                 self.cutflows[systematic][region.name][process] = list(map(tuple, self.cutflows[systematic][region.name][process]))
                 self.cutflows[systematic][region.name][process] = np.array(self.cutflows[systematic][region.name][process],
-                                                                           dtype=[('cut', 'S300'), ('yield', 'f4')])
+                                                                           dtype=[('cut', 'S300'), (name, 'f4')])
 
     def apply_cross_section_weight(self, systematic, region):
         for process in list(self.cutflows[systematic][region].keys()):
@@ -786,8 +796,9 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         for i, region in enumerate(available_cutflows):
             print(i, ")", region)
         print("a) all")
-        user_input = eval(input(
-            "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) "))
+        user_input = input(
+            "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
+        print('user INPUT: ', user_input)
         if user_input == "":
             selections = ["BaseSelection"]
         elif user_input.lower() == "a":
