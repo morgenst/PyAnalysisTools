@@ -60,6 +60,7 @@ unittest:
     - pip install nosedep --user
     - pip install mock --user
     - pip install pathos --user
+    - pip install future --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - nosetests tests.unit --with-coverage
