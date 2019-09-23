@@ -179,8 +179,13 @@ class FileHandle(object):
                     tdir = self.get_object_by_name(tdirectory)
             except ValueError as e:
                 raise e
-        # obj = tdir.Get(bytes(obj_name))
-        obj = tdir.Get(obj_name)
+        try:
+            # python2 w/ future
+            obj = tdir.Get(bytes(obj_name, encoding='utf8'))
+        except TypeError:
+            #python3
+            obj = tdir.Get(obj_name)
+        #obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
             raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
                                                                                                 str(tdirectory),
@@ -190,7 +195,7 @@ class FileHandle(object):
 
     def get_number_of_total_events(self, unweighted=False):
         try:
-            cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
+            cutflow_hist = self.get_object_by_name('cutflow_DxAOD', tdirectory='Nominal')
             if unweighted:
                 return cutflow_hist.GetBinContent(1)
             return cutflow_hist.GetBinContent(2)
