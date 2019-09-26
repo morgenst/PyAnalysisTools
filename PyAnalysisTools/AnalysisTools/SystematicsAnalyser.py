@@ -139,8 +139,8 @@ class SystematicsAnalyser(BasePlotter):
         if not self.cluster_mode:
             self.apply_lumi_weights(self.histograms)
         self.merge_histograms()
-        map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
-        map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
+        # map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
+        # map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
         self.systematic_hists[syst] = deepcopy(self.histograms)
 
     def retrieve_sys_hists(self, dumped_hist_path=None):
@@ -161,7 +161,7 @@ class SystematicsAnalyser(BasePlotter):
 
     def get_symmetrised_hists(self, sys_hist, nominal_hist, new_hist_name):
         h_tmp = sys_hist.Clone(new_hist_name)
-        for i in range(sys_hist.GetNbinsX()):
+        for i in range(sys_hist.GetNbinsX()+1):
             h_tmp.SetBinContent(i, 2. * nominal_hist.GetBinContent(i) - sys_hist.GetBinContent(i))
         return h_tmp
 
@@ -180,12 +180,15 @@ class SystematicsAnalyser(BasePlotter):
                 continue
             self.process_histograms(fetched_histograms, syst)
 
-    def get_scale_uncertainties(self, file_handles, weights, dumped_hist_path=None):
+    def get_scale_uncertainties(self, file_handles, weights, dumped_hist_path=None, disable_relative=False):
         for weight in weights:
             plot_configs = deepcopy(self.plot_configs)
             for pc in plot_configs:
                 new_weight = '{:s} * ({:s} != -1111.) + ({:s}==-1111.)*1.'.format(weight, weight, weight)
-                pc.weight = pc.weight.replace('weight', '{:s}*({:s})'.format(pc.weight, new_weight))
+                if not disable_relative:
+                    pc.weight = pc.weight.replace('weight', '{:s}*({:s})'.format(pc.weight, new_weight))
+                else:
+                    pc.weight = pc.weight.replace('weight', '({:s})'.format(new_weight))
             if dumped_hist_path is None:
                 fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=plot_configs,
                                                           systematic="Nominal", factor_syst=weight)
@@ -460,7 +463,7 @@ class TheoryUncertaintyProvider(object):
             _logger.debug("Could not find any file handle affected by theory uncertainty. Will do nothing")
             self.all_uneffected = True
             return
-        analyser.get_scale_uncertainties(file_handles, self.sherpa_pdf_uncert, dump_hist_path)
+        analyser.get_scale_uncertainties(file_handles, self.sherpa_pdf_uncert, dump_hist_path, disable_relative=True)
 
     def calculate_envelop(self, analyser):
         def get_pc(hists, plot_config):
@@ -474,7 +477,7 @@ class TheoryUncertaintyProvider(object):
             :return: plot config for given systematic uncertainty
             :rtype: PlotConfig
             """
-            return filter(lambda pc: pc.dist == plot_config.dist, hists.keys())[0]
+            return filter(lambda pc: pc.name == plot_config.name, hists.keys())[0]
         if self.all_uneffected:
             return
         try:
@@ -486,14 +489,15 @@ class TheoryUncertaintyProvider(object):
                     envelop_up = hist.Clone(new_hist_name + '__1up')
                     envelop_down = hist.Clone(new_hist_name + '__1down')
                     for b in range(envelop_up.GetNbinsX()+1):
-                        env_up = max([analyser.systematic_hists[sys.replace('weight_', '')][get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][process].GetBinContent(b) - nominal_hist.GetBinContent(b)
+                        unc_max = max([analyser.systematic_hists[sys.replace('weight_', '')][get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][process].GetBinContent(b) - nominal_hist.GetBinContent(b)
                                      for sys in self.sherpa_pdf_uncert])
-                        env_down = max([nominal_hist.GetBinContent(b) - analyser.systematic_hists[sys.replace('weight_', '')][
-                                         get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][
-                                         process].GetBinContent(b)
-                                     for sys in self.sherpa_pdf_uncert])
-                        envelop_up.SetBinContent(b, env_up)
-                        envelop_down.SetBinContent(b, env_down)
+                        nom = nominal_hist.GetBinContent(b)
+                        if unc_max > 0:
+                            up, down = unc_max + nom, nom - unc_max
+                        else:
+                            up, down = nom - unc_max, nom + unc_max
+                        envelop_up.SetBinContent(b, up)
+                        envelop_down.SetBinContent(b, down)
                     if 'theory_envelop__1up' not in analyser.systematic_hists:
                         analyser.systematic_hists['theory_envelop__1up'] = {}
                         analyser.systematic_hists['theory_envelop__1down'] = {}
@@ -503,8 +507,8 @@ class TheoryUncertaintyProvider(object):
 
                     analyser.systematic_hists['theory_envelop__1up'][plot_config][process] = deepcopy(envelop_up)
                     analyser.systematic_hists['theory_envelop__1down'][plot_config][process] = deepcopy(envelop_down)
-            for sys in self.sherpa_pdf_uncert:
-                analyser.systematic_hists.pop(sys.replace('weight_', ''))
+            # for sys in self.sherpa_pdf_uncert:
+            #     analyser.systematic_hists.pop(sys.replace('weight_', ''))
         except KeyError as e:
             _logger.debug("Could not find theory uncertainties")
             pass
