@@ -1,3 +1,4 @@
+from __future__ import unicode_literals
 from builtins import str
 from builtins import map
 from builtins import object
@@ -57,7 +58,7 @@ class Process(object):
         :rtype: boolean
         """
         if isinstance(self, other.__class__):
-            for k, v in self.__dict__.items():
+            for k, v in list(self.__dict__.items()):
                 if k not in other.__dict__:
                     return False
                 if k in ['base_name', 'dataset_info', 'file_name', 'tags']:
@@ -189,7 +190,7 @@ class ProcessConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
-        for k, v in kwargs.items():
+        for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         self.is_data, self.is_mc = self.transform_type()
 
@@ -234,7 +235,7 @@ class ProcessConfig(object):
             return tmp
         for sub_process in self.subprocesses:
             tmp[sub_process] = ProcessConfig(
-                **dict((k, v) for (k, v) in self.__dict__.items() if not k == "subprocesses"))
+                **dict((k, v) for (k, v) in list(self.__dict__.items()) if not k == "subprocesses"))
         return tmp
 
     def add_subprocess(self, subprocess_name):
@@ -246,6 +247,6 @@ class ProcessConfig(object):
         :rtype:
         """
         self.subprocesses.append(subprocess_name)
-        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.items() if not k == "subprocesses"))
+        pc = ProcessConfig(**dict((k, v) for (k, v) in list(self.__dict__.items()) if not k == "subprocesses"))
         pc.parent_process = self.name
         return pc
