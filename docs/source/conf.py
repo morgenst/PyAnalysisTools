@@ -52,7 +52,8 @@ extensions = [
     'sphinx.ext.githubpages',
 ]
 
-autodoc_mock_imports = ["ROOT", "numpy", "sklearn", "pathos", "tensorflow", "tabulate", "root_numpy", "pyAMI", "pandas"]
+autodoc_mock_imports = ['base', 'ROOT', "numpy", "sklearn", "pathos", "tensorflow", "tabulate", "root_numpy", "pyAMI", "pandas",
+                        'mock']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']

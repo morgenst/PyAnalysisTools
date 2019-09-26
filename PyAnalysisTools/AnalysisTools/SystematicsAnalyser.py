@@ -44,6 +44,7 @@ class Systematic(object):
         kwargs.setdefault('affects', None)
         kwargs.setdefault('samples', None)
         kwargs.setdefault('group', None)
+        kwargs.setdefault('title', None)
         self.name = name
         for k, v in kwargs.iteritems():
             setattr(self, k, v)
@@ -139,8 +140,12 @@ class SystematicsAnalyser(BasePlotter):
         if not self.cluster_mode:
             self.apply_lumi_weights(self.histograms)
         self.merge_histograms()
-        # map(lambda hists: HT.merge_overflow_bins(hists), self.histograms.values())
-        # map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
+        for pc, hists in list(self.histograms.items()):
+            if pc.disable_bin_merge:
+                continue
+            HT.merge_overflow_bins(hists)
+            HT.merge_underflow_bins(hists)
+        #map(lambda hists: HT.merge_underflow_bins(hists), self.histograms.values())
         self.systematic_hists[syst] = deepcopy(self.histograms)
 
     def retrieve_sys_hists(self, dumped_hist_path=None):

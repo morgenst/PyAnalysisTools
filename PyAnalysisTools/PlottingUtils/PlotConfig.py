@@ -15,6 +15,7 @@ from builtins import str
 from past.utils import old_div
 
 import ROOT
+from PyAnalysisTools.PlottingUtils.HistTools import check_name
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig, Process
 from PyAnalysisTools.base.ShellUtils import find_file
@@ -464,7 +465,7 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
     #     style_attr = None
     if not isinstance(style_setter, list):
         style_setter = [style_setter]
-    _logger.debug("Parsed style setter {:s} from draw option {:s}".format(style_setter, draw_option))
+    _logger.debug("Parsed style setter {:s} from draw option {:s}".format(str(style_setter), str(draw_option)))
     return style_setter, style_attr, color
 
 
@@ -474,6 +475,10 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     distribution is provided by default a one dimension histogram will be created
     :param plot_config: plot configuration with binning and name
     :type plot_config: PlotConfig
+    :param systematics: name of systematic uncertainty (default: Nominal)
+    :type systematics: str
+    :param factor_syst: scale factor systematic uncertainty name
+    :type factor_syst:  str
     :return: histogram
     :rtype: ROOT.THXF
     """
@@ -482,7 +487,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     else:
         dimension = 0
     hist = None
-    hist_name = '{:s}%%{:s}_{:s}%%'.format(plot_config.name, systematics, factor_syst)
+    hist_name = check_name('{:s}%%{:s}_{:s}%%'.format(plot_config.name, systematics, factor_syst))
     if dimension == 0:
         if not plot_config.logx:
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)

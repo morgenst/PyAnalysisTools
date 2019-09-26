@@ -376,8 +376,9 @@ class Plotter(BasePlotter):
         data = {k: v for k, v in list(data.items()) if v}
         if plot_config.normalise:
             HT.normalise(data, integration_range=[0, -1], norm_scale=plot_config.norm_scale)
-        HT.merge_overflow_bins(data)
-        HT.merge_underflow_bins(data)
+        if not plot_config.disable_bin_merge:
+            HT.merge_overflow_bins(data)
+            HT.merge_underflow_bins(data)
         signals = None
         if plot_config.signal_extraction:
             signals = self.get_signal_hists(data)
@@ -640,7 +641,6 @@ class Plotter(BasePlotter):
                             self.output_handle.register_object(h)
             self.syst_analyser.calculate_total_systematics()
             #For some reason need to transfer histograms
-
             if self.cluster_mode:
                 for tdir, obj in list(self.syst_analyser.output_handle.objects.items()):
                     self.output_handle.register_object(obj, tdir=tdir[0])

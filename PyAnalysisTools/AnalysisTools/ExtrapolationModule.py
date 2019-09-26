@@ -106,7 +106,8 @@ class ExtrapolationModule(object):
                         continue
                     if 'theory_envelop' in unc:
                         continue
-                    if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None:
+                    if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None \
+                            and 'pdf_uncert_MU' not in unc:
                         _logger.error("Somehow ttbar unc is None for {:s}".format(unc))
                         continue
                     systematics_handle.systematic_variations[unc][plot_config]['ttbar'].SetBinContent(i, bin_content[0])
