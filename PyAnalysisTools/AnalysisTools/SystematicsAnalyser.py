@@ -202,6 +202,10 @@ class SystematicsAnalyser(BasePlotter):
         for weight in weights:
             plot_configs = deepcopy(self.plot_configs)
             for pc in plot_configs:
+                if pc.weight is None:
+                    _logger.error("Try to modify plot config {:s} for systematic weights {:s} which has no weight "
+                                  "set. Cannot do anything here.".format(pc.name, weight))
+                    continue
                 new_weight = '{:s} * ({:s} != -1111.) + ({:s}==-1111.)*1.'.format(weight, weight, weight)
                 if not disable_relative:
                     pc.weight = pc.weight.replace('weight', '{:s}*({:s})'.format(pc.weight, new_weight))
