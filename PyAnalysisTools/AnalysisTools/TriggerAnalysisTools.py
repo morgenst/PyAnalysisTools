@@ -18,7 +18,7 @@ from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, get_histogram_definition
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import find_branches_matching_pattern
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.base import _logger, InvalidInputError

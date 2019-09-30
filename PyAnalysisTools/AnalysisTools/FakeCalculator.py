@@ -8,7 +8,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import ROOT
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 
 
 class MuonFakeCalculator(object):

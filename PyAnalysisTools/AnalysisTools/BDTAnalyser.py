@@ -2,9 +2,9 @@ import ROOT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as PC
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_KS
 

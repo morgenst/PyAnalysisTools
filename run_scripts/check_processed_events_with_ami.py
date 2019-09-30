@@ -4,7 +4,7 @@ import itertools
 import sys
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 
 try:
     import pyAMI.client

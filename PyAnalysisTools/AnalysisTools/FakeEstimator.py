@@ -14,7 +14,7 @@ from builtins import zip
 
 import ROOT
 # from PyAnalysisTools.PlottingUtils.Plotter import Plotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 from PyAnalysisTools.base import _logger
 

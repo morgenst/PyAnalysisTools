@@ -1,7 +1,7 @@
 import ROOT
 from PyAnalysisTools.AnalysisTools.LimitHelpers import Yield
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger
 
 
@@ -106,9 +106,9 @@ class ExtrapolationModule(object):
                         continue
                     if 'theory_envelop' in unc:
                         continue
-                    if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None \
-                            and 'pdf_uncert_MU' not in unc:
-                        _logger.error("Somehow ttbar unc is None for {:s}".format(unc))
+                    if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None:
+                        if 'pdf_uncert_MU' not in unc:
+                            _logger.error("Somehow ttbar unc is None for {:s}".format(unc))
                         continue
                     systematics_handle.systematic_variations[unc][plot_config]['ttbar'].SetBinContent(i, bin_content[0])
             #TODO: Need some way for relative and abs uncertainty

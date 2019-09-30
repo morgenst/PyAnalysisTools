@@ -2,19 +2,17 @@ from builtins import filter
 from builtins import map
 from builtins import range
 from builtins import object
-import ROOT
 from copy import deepcopy
 from itertools import combinations
 from operator import itemgetter
 
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas, get_objects_from_canvas_by_type
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, parse_and_build_plot_config, get_histogram_definition, parse_and_build_process_config
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter as bp
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, ProcessConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 
 

@@ -24,7 +24,7 @@ tabulate.LATEX_ESCAPE_RULES = {}
 
 from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
+from PyAnalysisTools.base.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle, get_xsec_weight
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig, \

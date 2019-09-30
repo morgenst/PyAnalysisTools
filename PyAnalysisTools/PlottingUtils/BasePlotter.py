@@ -1,5 +1,4 @@
 from __future__ import print_function
-from builtins import input
 from builtins import object
 import re
 from collections import OrderedDict
@@ -12,7 +11,7 @@ from itertools import product
 
 from PyAnalysisTools.AnalysisTools.XSHandle import get_xsec_weight
 from PyAnalysisTools.base import _logger
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht

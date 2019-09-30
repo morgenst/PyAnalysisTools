@@ -7,7 +7,7 @@ from subprocess import check_call
 from PyAnalysisTools.base import _logger, InvalidInputError, default_init, get_default_argparser
 from PyAnalysisTools.base.Utilities import recursive_glob
 from PyAnalysisTools.base.ShellUtils import move, remove_file
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 
 
 def resolve_overlap(output_path, output_file_name, file_list):

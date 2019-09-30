@@ -1,8 +1,7 @@
 import ROOT
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
 from PyAnalysisTools.PlottingUtils.ComparisonPlotter import ComparisonPlotter
-from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
 

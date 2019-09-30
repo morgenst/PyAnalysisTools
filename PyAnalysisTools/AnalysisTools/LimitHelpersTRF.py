@@ -12,10 +12,10 @@ import re
 import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder, NewRegionBuilder
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import parse_syst_config, TheoryUncertaintyProvider
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config, \
     transform_color

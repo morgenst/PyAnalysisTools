@@ -16,7 +16,7 @@ import ROOT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 

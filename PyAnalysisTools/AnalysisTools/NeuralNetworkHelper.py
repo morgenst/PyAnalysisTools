@@ -26,7 +26,7 @@ import ROOT
 from .MLHelper import Root2NumpyConverter, TrainingReader, DataScaler
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import NewRegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl

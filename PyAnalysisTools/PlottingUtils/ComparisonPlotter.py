@@ -2,7 +2,6 @@ from __future__ import print_function
 from __future__ import division
 
 from builtins import next
-from builtins import map
 from builtins import str
 from past.utils import old_div
 from builtins import object
@@ -19,7 +18,7 @@ from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, parse_and_build_process_config, \
     find_process_config
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.JSONHandle import JSONHandle
 from PyAnalysisTools.base.Modules import load_modules

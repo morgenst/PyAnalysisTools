@@ -1,3 +1,11 @@
+from __future__ import print_function
+from __future__ import division
+from builtins import input
+from builtins import filter
+from builtins import str
+from builtins import range
+from builtins import object
+from past.utils import old_div
 import numbers
 import pickle
 from copy import deepcopy
@@ -13,10 +21,10 @@ import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.HistTools as ht
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder, NewRegionBuilder
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import parse_syst_config, TheoryUncertaintyProvider
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder#, NewRegionBuilder
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvider #parse_syst_config,
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
@@ -28,7 +36,6 @@ from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from collections import OrderedDict
-import pathos.multiprocessing as mp
 import dill
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 
@@ -42,7 +49,7 @@ sys.modules[tabulate.__module__].LATEX_ESCAPE_RULES = {}
 def dump_input_config(cfg, output_dir):
     if output_dir is None:
         return
-    yd.dump_yaml(dict(filter(lambda kv: kv[0] != 'scan_info' and kv[0] != 'xsec_handle', cfg.iteritems())),
+    yd.dump_yaml(dict([kv for kv in iter(list(cfg.items())) if kv[0] != 'scan_info' and kv[0] != 'xsec_handle']),
                  os.path.join(output_dir, 'config.yml'))
 
 
@@ -98,13 +105,13 @@ class Yield(object):
                 return 0.
             _logger.error('Summed other to null. Return Nan {:f}'.format(self.weights.sum()))
             return np.nan
-        return self.weights.sum() / other.weights.sum()
+        return old_div(self.weights.sum(), other.weights.sum())
 
     def reduce(self):
         init = len(self.weights)
         self.weights = self.weights[abs(self.weights) < 40.]
         if init != len(self.weights):
-            print 'removed weight'
+            print('removed weight')
 
     def append(self, other):
         if isinstance(other, self.__class__):
@@ -166,30 +173,30 @@ class LimitArgs(object):
         obj_str += 'signal region: {:s}\n'.format(self.sig_reg_name)
         obj_str += 'mass cut: {:.1f}\n'.format(self.kwargs['mass_cut'])
         obj_str += 'registered processes: \n'
-        for process in self.kwargs['process_configs'].keys():
+        for process in list(self.kwargs['process_configs'].keys()):
             obj_str += '\t{:s}\n'.format(process)
-        for sig_reg, yld in self.kwargs['sig_yield'].iteritems():
+        for sig_reg, yld in list(self.kwargs['sig_yield'].items()):
             obj_str += 'SR {:s} yield: {:.2f} +- {:.2f}\n'.format(sig_reg, *yld)
 
         if 'sr_syst' in self.kwargs:
-            for sig_reg in self.kwargs['sr_syst'].keys():
+            for sig_reg in list(self.kwargs['sr_syst'].keys()):
                 obj_str += 'SR systematics for {:s}: \n'.format(sig_reg)
-                for process in self.kwargs['sr_syst'][sig_reg].keys():
+                for process in list(self.kwargs['sr_syst'][sig_reg].keys()):
                     obj_str += 'Process: {:s}\n'.format(process)
-                    for name, unc in self.kwargs['sr_syst'][sig_reg][process].iteritems():
+                    for name, unc in list(self.kwargs['sr_syst'][sig_reg][process].items()):
                         obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
                     obj_str += '\n'
-        for sig_reg in self.kwargs['bkg_yields'].keys():
+        for sig_reg in list(self.kwargs['bkg_yields'].keys()):
             obj_str += 'Bkg yields in {:s}: \n'.format(sig_reg)
-            for process, ylds in self.kwargs['bkg_yields'][sig_reg].iteritems():
+            for process, ylds in list(self.kwargs['bkg_yields'][sig_reg].items()):
                 obj_str += '\t{:s}\t\t{:.2f} +- {:.2f}\n'.format(process, *ylds)
         if self.kwargs['ctrl_syst'] is not None:
             obj_str += 'CR systematics: \n'
-            for region in self.kwargs['ctrl_syst'].keys():
+            for region in list(self.kwargs['ctrl_syst'].keys()):
                 obj_str += 'CR: {:s}\n'.format(region)
-                for process in self.kwargs['ctrl_syst'][region].keys():
+                for process in list(self.kwargs['ctrl_syst'][region].keys()):
                     obj_str += 'Process: {:s}\n'.format(process)
-                    for name, unc in self.kwargs['ctrl_syst'][region][process].iteritems():
+                    for name, unc in list(self.kwargs['ctrl_syst'][region][process].items()):
                         obj_str += '\t{:s}\t\t{:.2f}\n'.format(name, unc)
                     obj_str += '\n'
         return obj_str
@@ -213,14 +220,14 @@ class LimitArgs(object):
             channel['samples'] = [build_sample(self.kwargs['sig_name'],
                                                sig_yield,
                                                'mu')]
-            for sn, sy in self.kwargs['bkg_yields'][name].iteritems():
+            for sn, sy in list(self.kwargs['bkg_yields'][name].items()):
                 channel['samples'].append(build_sample(sn, sy))
             return channel
 
         def add_channel(name, info):
             data = None
             channel = OrderedDict({'name': name, 'samples': []})
-            for sn, sy in info.iteritems():
+            for sn, sy in list(info.items()):
                 if sn.lower() == 'data':
                     data = [sy]
                     continue
@@ -239,15 +246,15 @@ class LimitArgs(object):
 
         def add_systematics(channel_id, process, systematics):
             sample = filter(lambda s: s['name'] == process, specs['channels'][channel_id]['samples'])[0]
-            syst_strings = set(map(lambda sn: sn.split('__')[0], systematics.keys()))
+            syst_strings = set([sn.split('__')[0] for sn in list(systematics.keys())])
             for sys in syst_strings:
                 try:
-                    down, up = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])
+                    down, up = sorted([s for s in iter(list(systematics.items())) if sys in s[0]], key=lambda i: i[0])
                     sample['modifiers'].append({"type": "histosys", "data": {"lo_data": [down[1] * sample['data'][0]],
                                                                              "hi_data": [up[1] * sample['data'][0]]},
                                                 'name': sys})
                 except ValueError:
-                    variation = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])[0]
+                    variation = sorted([s for s in iter(list(systematics.items())) if sys in s[0]], key=lambda i: i[0])[0]
                     if variation[1] > 1.:
                         sample['modifiers'].append({"type": "histosys",
                                                     "data": {"lo_data": [sample['data'][0]],
@@ -261,22 +268,22 @@ class LimitArgs(object):
         specs = OrderedDict()
         specs['channels'] = [add_signal_region(sig_reg) for sig_reg in self.kwargs['sig_yield']]
         specs['data'] = OrderedDict()
-        for region, info in self.kwargs['control_regions'].iteritems():
+        for region, info in list(self.kwargs['control_regions'].items()):
             channel, data = add_channel(region, info)
             specs['channels'].append(channel)
             if data is None:
                 data = [0.]
             specs['data'][region] = data
-        for sig_reg in self.kwargs['sig_yield'].keys():
+        for sig_reg in list(self.kwargs['sig_yield'].keys()):
             specs['data'][sig_reg] = [0.]
 
         specs['measurements'] = [{'config': {'poi': 'mu', 'parameters': []}, 'name': self.sig_reg_name}]
 
-        for sig_reg in self.kwargs['sr_syst'].keys():
-            for process, systematics in self.kwargs['sr_syst'][sig_reg].iteritems():
+        for sig_reg in list(self.kwargs['sr_syst'].keys()):
+            for process, systematics in list(self.kwargs['sr_syst'][sig_reg].items()):
                 channel_id = [i for i, c in enumerate(specs['channels']) if c['name'] == sig_reg][0]
                 add_systematics(channel_id, process, systematics)
-        for region in self.kwargs['ctrl_syst'].keys():
+        for region in list(self.kwargs['ctrl_syst'].keys()):
             channel_id = [i for i, c in enumerate(specs['channels']) if c['name'] == region][0]
             add_systematics(channel_id, process, systematics)
 
@@ -314,7 +321,7 @@ def make_cross_section_limit_plot(data, plot_config, sig_reg_name=''):
                     logy=True, lumi=plot_config.get_lumi(), watermark=plot_config['watermark'])
     graph = ROOT.TGraph(len(data))
     for i, item in enumerate(data):
-        graph.SetPoint(i, item[0], item[1] * item[2] / (plot_config.get_lumi() * 1000.))
+        graph.SetPoint(i, item[0], old_div(item[1] * item[2], (plot_config.get_lumi() * 1000.)))
     graph.SetName('xsec_limit_{:s}'.format(sig_reg_name))
     canvas = pt.plot_obj(graph, pc)
     fm.decorate_canvas(canvas, pc)
@@ -332,7 +339,7 @@ class LimitInfo(object):
         :rtype: str
         """
         obj_str = "Limit info for: {:s} \n".format(self.sig_name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
@@ -345,7 +352,7 @@ class LimitInfo(object):
         return self.__str__() + '\n'
 
     def add_info(self, **kwargs):
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             setattr(self, k, v)
 
 
@@ -409,12 +416,12 @@ class LimitAnalyserCL(object):
             scale_factor = 1000. * signal_scale
             if fixed_signal is not None:
                 if isinstance(sig_yield, OrderedDict):
-                    if isinstance(sig_yield.values()[0], numbers.Number):
-                        scale_factor = scale_factor * sum([fixed_signal / yld for yld in sig_yield.values()])
+                    if isinstance(list(sig_yield.values())[0], numbers.Number):
+                        scale_factor = scale_factor * sum([old_div(fixed_signal, yld) for yld in list(sig_yield.values())])
                     else:
-                        scale_factor = scale_factor * sum([fixed_signal / yld[0] for yld in sig_yield.values()])
+                        scale_factor = scale_factor * sum([old_div(fixed_signal, yld[0]) for yld in list(sig_yield.values())])
                 else:
-                    scale_factor = scale_factor * fixed_signal / sig_yield
+                    scale_factor = old_div(scale_factor * fixed_signal, sig_yield)
             if pmg_xsec is not None:
                 scale_factor = 1000.
             return scale_factor
@@ -497,9 +504,9 @@ class LimitPlotter(object):
             graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
         if theory_xsec is not None:
             graph_theory = []
-            processed_mass_points = sorted(map(lambda li: li.mass, limits))
+            processed_mass_points = sorted([li.mass for li in limits])
 
-            for process, xsecs in theory_xsec.iteritems():
+            for process, xsecs in list(theory_xsec.items()):
                 masses = []
                 cross_sections = []
                 for mass, lam, xsec in xsecs:
@@ -535,19 +542,19 @@ class LimitPlotter(object):
 
     def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sr_name):
         def find_excluded_lambda(mass, xsec, excl_limit):
-            xsecs = filter(lambda xs: xs[0] == mass, xsec)
+            xsecs = [xs for xs in xsec if xs[0] == mass]
             #xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
             try:
-                return sqrt(excl_limit / xsecs[0][-1])
+                return sqrt(old_div(excl_limit, xsecs[0][-1]))
             except IndexError:
                 return None
 
         if theory_xsec is None:
             return
         graphs_contour = []
-        for process, xsecs in theory_xsec.iteritems():
+        for process, xsecs in list(theory_xsec.items()):
             excl_lambdas = [(limit.mass, find_excluded_lambda(limit.mass, xsecs, limit.exp_limit)) for limit in limits]
-            excl_lambdas = filter(lambda v: v[1] is not None, excl_lambdas)
+            excl_lambdas = [v for v in excl_lambdas if v[1] is not None]
             excl_lambdas = sorted(excl_lambdas, key=lambda i: i[0])
             graphs_contour.append(ROOT.TGraph(len(excl_lambdas)))
             for i, limit in enumerate(excl_lambdas):
@@ -556,7 +563,7 @@ class LimitPlotter(object):
 
         pc = PlotConfig(name='limit_contour_{:s}'.format(sr_name), watermark=plot_config['watermark'], ymax=10.,
                         xtitle=plot_config['xtitle'], ytitle='#lambda', logy=False, ymin=0., draw='Line',
-                        lumi=plot_config['lumi'], labels=map(lambda g: g.GetName().split('_')[-1], graphs_contour),
+                        lumi=plot_config['lumi'], labels=[g.GetName().split('_')[-1] for g in graphs_contour],
                         color=get_default_color_scheme())
         canvas = pt.plot_graphs(graphs_contour, pc)
         fm.decorate_canvas(canvas, pc)
@@ -639,7 +646,7 @@ class XsecLimitAnalyser(object):
             chains = []
         if self.xsec_map is not None:
 
-             theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
+             theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0] in chains])
         self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.sig_reg_name)
 
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec,
@@ -727,7 +734,7 @@ class LimitScanAnalyser(object):
             # for mode in chains:
             #     # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
             #     #                                    scan.kwargs['sig_name'])
-            theory_xsec = dict(filter(lambda kv: kv[0] in chains, self.xsec_map.iteritems()))
+            theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0] in chains])
         self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec, self.sig_reg_name)
         if theory_xsec is not None:
             self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
@@ -750,12 +757,12 @@ class LimitScanAnalyser(object):
                 data_mass_point.append("{:.2f} $\\pm$ {:.2f}".format(*prefit_ylds_bkg[process]))
             data.append(data_mass_point)
         headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [\\GeV{}]', 'UL [pb]', 'Signal'] + ordering
-        print tabulate(data, headers=headers, tablefmt='latex_raw')
+        print(tabulate(data, headers=headers, tablefmt='latex_raw'))
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
-            print >> f, tabulate(data, headers=headers, tablefmt='latex_raw')
-        print 'wrote to file ', os.path.join(self.output_handle.output_dir,
-                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name))
+            print(tabulate(data, headers=headers, tablefmt='latex_raw'), file=f)
+        print('wrote to file ', os.path.join(self.output_handle.output_dir,
+                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -767,11 +774,11 @@ class LimitScanAnalyser(object):
 
     @staticmethod
     def find_best_limit(limits):
-        limits = filter(lambda li: li.exp_limit > 0., limits)
-        masses = set(map(lambda li: li.mass, limits))
+        limits = [li for li in limits if li.exp_limit > 0.]
+        masses = set([li.mass for li in limits])
         best_limits = []
         for mass in masses:
-            mass_limits = filter(lambda li: li.mass == mass, limits)
+            mass_limits = [li for li in limits if li.mass == mass]
             best_limits.append(min(mass_limits, key=lambda li: li.exp_limit))
         return best_limits
 
@@ -822,13 +829,13 @@ class LimitScanAnalyser(object):
                     hist_vs_cut.Fill(mass, yields[process].GetBinContent(1))
                 except KeyError:
                     hist_vs_cut.Fill(mass, 0.)
-                    print "Did not fine yields for {:s} and LQ mass {:.0f} and cut {:.0f}".format(process, mass, cut)
+                    print("Did not fine yields for {:s} and LQ mass {:.0f} and cut {:.0f}".format(process, mass, cut))
                 hist_vs_mass = yields_single_mass_hists[(mass, process)]
                 try:
                     hist_vs_mass.Fill(cut, yields[process].GetBinContent(1))
                 except KeyError:
                     hist_vs_mass.Fill(cut, 0.)
-            signal_process = filter(lambda p: "LQ" in p, yields.keys())[0]
+            signal_process = filter(lambda p: "LQ" in p, list(yields.keys()))[0]
             hist_vs_cut = yields_single_cut_hists[(cut, "signal")]
             hist_vs_cut.Fill(mass, yields[signal_process].GetBinContent(1))
             hist_vs_mass = yields_single_mass_hists[(mass, "signal")]
@@ -839,7 +846,7 @@ class LimitScanAnalyser(object):
         pc_vs_mass = PlotConfig(name="", xtitle=self.plot_config['ytitle'], ytitle="Event yields",
                                 watermark=self.plot_config['watermark'], lumi=self.plot_config['lumi'],
                                 color=get_default_color_scheme(), style=1001)
-        for mass, cut in self.prefit_yields.keys():
+        for mass, cut in list(self.prefit_yields.keys()):
             pc_vs_cut.name = "yield_vs_cut_{:s}".format(str(mass))
             pc_vs_mass.name = "yield_vs_mass_{:s}".format(str(mass))
             pc_vs_cut_log = deepcopy(pc_vs_cut)
@@ -887,22 +894,22 @@ class LimitScanAnalyser(object):
             self.mass_cut_offset = 50.
 
         self.sig_mass_binning = [
-            int((self.scanned_sig_masses[-1] - self.scanned_sig_masses[0]) / (self.min_mass_diff * 2)) + 1,
+            int(old_div((self.scanned_sig_masses[-1] - self.scanned_sig_masses[0]), (self.min_mass_diff * 2))) + 1,
             self.scanned_sig_masses[0] - self.min_mass_diff,
             self.scanned_sig_masses[-1] + self.min_mass_diff]
         self.scan_mass_binning = [
-            int((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]) / (self.mass_cut_offset * 2)) + 1,
+            int(old_div((self.scanned_mass_cuts[-1] - self.scanned_mass_cuts[0]), (self.mass_cut_offset * 2))) + 1,
             self.scanned_mass_cuts[0] - self.mass_cut_offset,
             self.scanned_mass_cuts[-1] + self.mass_cut_offset]
         y_binning = self.scan_mass_binning
-        y_binning[2] += (y_binning[2] - y_binning[1]) / y_binning[0] * 10
+        y_binning[2] += old_div((y_binning[2] - y_binning[1]), y_binning[0] * 10)
         y_binning[0] += 10
         hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning + y_binning))
         hist_best = hist.Clone("best_limit")
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
         limit_scan_table = OrderedDict()
-        mass_points = sorted(set(map(lambda i: i.mass, parsed_data)))
+        mass_points = sorted(set([i.mass for i in parsed_data]))
         for limit_info in parsed_data:
             if limit_info.mass_cut not in limit_scan_table:
                 limit_scan_table[limit_info.mass_cut] = [-1.] * len(mass_points)
@@ -937,10 +944,10 @@ class LimitScanAnalyser(object):
         self.output_handle.register_object(canvas_status)
         canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
         self.output_handle.register_object(canvas_quality)
-        limit_scan_table = [['{:.0f}'.format(i[0])] + i[1] for i in limit_scan_table.items()]
+        limit_scan_table = [['{:.0f}'.format(i[0])] + i[1] for i in list(limit_scan_table.items())]
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
-            print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
+            print(tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw'), file=f)
 
 
 class Sample(object):
@@ -974,7 +981,7 @@ class Sample(object):
         :rtype: str
         """
         obj_str = "Sample : {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             if attribute == 'name':
                 continue
             obj_str += '{}={} \n'.format(attribute, value)
@@ -989,12 +996,12 @@ class Sample(object):
         return self.__str__() + '\n'
 
     def clear_yields(self):
-        for sr in self.nominal_evt_yields.keys():
-            for cut in self.nominal_evt_yields[sr].keys():
+        for sr in list(self.nominal_evt_yields.keys()):
+            for cut in list(self.nominal_evt_yields[sr].keys()):
                 self.nominal_evt_yields[sr][cut] = None
                 self.shape_uncerts[sr][cut] = {}
                 self.scale_uncerts[sr][cut] = {}
-        for cr in self.ctrl_region_yields.keys():
+        for cr in list(self.ctrl_region_yields.keys()):
             self.ctrl_region_yields[cr] = {}
             self.ctrl_reg_shape_ylds[cr] = {}
             self.ctrl_reg_scale_ylds[cr] = {}
@@ -1005,7 +1012,7 @@ class Sample(object):
             self.raw_nominal_evt_yields[cut] = nom_yields
             self.scale_uncerts[cut] = {}
             return
-        for syst in nom_yields.keys():
+        for syst in list(nom_yields.keys()):
             if syst == 'weight' or 'pdf_uncert' in syst:
                 continue
             nom_yields[syst] *= nom_yields['weight']
@@ -1016,26 +1023,24 @@ class Sample(object):
 
         self.nominal_evt_yields[sr_name][cut] = nom_yields['weight']
         if shape_uncerts is not None:
-            self.shape_uncerts[sr_name][cut] = {syst: yld for syst, yld in shape_uncerts.iteritems()}
-        self.scale_uncerts[sr_name][cut] = {syst: yld for syst, yld in nom_yields.iteritems() if not syst == 'weight'}
+            self.shape_uncerts[sr_name][cut] = {syst: yld for syst, yld in list(shape_uncerts.items())}
+        self.scale_uncerts[sr_name][cut] = {syst: yld for syst, yld in list(nom_yields.items()) if not syst == 'weight'}
         self.theory_uncert_provider.calculate_envelop_count(self.scale_uncerts[sr_name][cut])
-        self.scale_uncerts[sr_name][cut] = dict(filter(lambda kv: 'pdf_uncert' not in kv[0],
-                                                       self.scale_uncerts[sr_name][cut].iteritems()))
+        self.scale_uncerts[sr_name][cut] = dict([kv for kv in iter(list(self.scale_uncerts[sr_name][cut].items())) if 'pdf_uncert' not in kv[0]])
 
     def add_ctrl_region(self, region_name, nominal_evt_yields, shape_uncert_yields=None):
-        for syst in nominal_evt_yields.keys():
+        for syst in list(nominal_evt_yields.keys()):
             if syst == 'weight' or 'pdf_uncert' in syst:
                 continue
             nominal_evt_yields[syst] *= nominal_evt_yields['weight']
 
-        self.ctrl_reg_scale_ylds[region_name] = {syst: yld for syst, yld in nominal_evt_yields.iteritems() if
+        self.ctrl_reg_scale_ylds[region_name] = {syst: yld for syst, yld in list(nominal_evt_yields.items()) if
                                                  not syst == 'weight'}
         self.theory_uncert_provider.calculate_envelop_count(self.ctrl_reg_scale_ylds[region_name])
-        self.ctrl_reg_scale_ylds[region_name] = dict(filter(lambda kv: 'pdf_uncert' not in kv[0],
-                                                            self.ctrl_reg_scale_ylds[region_name].iteritems()))
+        self.ctrl_reg_scale_ylds[region_name] = dict([kv for kv in iter(list(self.ctrl_reg_scale_ylds[region_name].items())) if 'pdf_uncert' not in kv[0]])
         if shape_uncert_yields is not None:
             self.ctrl_reg_shape_ylds[region_name] = {syst: yld for syst, yld in
-                                                     shape_uncert_yields.iteritems()}
+                                                     list(shape_uncert_yields.items())}
         else:
             if self.ctrl_reg_shape_ylds is None:
                 self.ctrl_reg_shape_ylds = {region_name: {}}
@@ -1044,41 +1049,39 @@ class Sample(object):
         self.ctrl_region_yields[region_name] = nominal_evt_yields['weight']
 
     def build_sum(self):
-        for region in self.nominal_evt_yields.keys():
-            for cut, yld in self.nominal_evt_yields[region].iteritems():
+        for region in list(self.nominal_evt_yields.keys()):
+            for cut, yld in list(self.nominal_evt_yields[region].items()):
                 self.nominal_evt_yields[region][cut] = yld.sum(), yld.stat_unc()
-        for region, yld in self.ctrl_region_yields.iteritems():
+        for region, yld in list(self.ctrl_region_yields.items()):
             self.ctrl_region_yields[region] = yld.sum(), yld.stat_unc()
 
     def remove_empties(self):
-        self.scale_uncerts = {cut: dict(filter(lambda ylds: ylds[1] > 0., syst.iteritems()))
-                              for cut, syst in self.scale_uncerts.iteritems()}
-        self.shape_uncerts = {cut: dict(filter(lambda ylds: ylds[1] > 0., syst.iteritems()))
-                              for cut, syst in self.shape_uncerts.iteritems()}
-        for region in self.ctrl_reg_scale_ylds.keys():
-            self.ctrl_reg_scale_ylds[region] = dict(filter(lambda ylds: ylds[1] > 0.,
-                                                           self.ctrl_reg_scale_ylds[region].iteritems()))
-            self.ctrl_reg_shape_ylds[region] = dict(filter(lambda ylds: ylds[1] > 0.,
-                                                           self.ctrl_reg_shape_ylds[region].iteritems()))
+        self.scale_uncerts = {cut: dict([ylds for ylds in iter(list(syst.items())) if ylds[1] > 0.])
+                              for cut, syst in list(self.scale_uncerts.items())}
+        self.shape_uncerts = {cut: dict([ylds for ylds in iter(list(syst.items())) if ylds[1] > 0.])
+                              for cut, syst in list(self.shape_uncerts.items())}
+        for region in list(self.ctrl_reg_scale_ylds.keys()):
+            self.ctrl_reg_scale_ylds[region] = dict([ylds for ylds in iter(list(self.ctrl_reg_scale_ylds[region].items())) if ylds[1] > 0.])
+            self.ctrl_reg_shape_ylds[region] = dict([ylds for ylds in iter(list(self.ctrl_reg_shape_ylds[region].items())) if ylds[1] > 0.])
 
     def calculate_relative_uncert(self):
-        print "HEREEEEE"
-        for region in self.nominal_evt_yields.keys():
-            for cut in self.shape_uncerts[region].keys():
+        print("HEREEEEE")
+        for region in list(self.nominal_evt_yields.keys()):
+            for cut in list(self.shape_uncerts[region].keys()):
                 nominal = self.nominal_evt_yields[region][cut]
-                for syst, yld in self.shape_uncerts[region][cut].iteritems():
-                    self.shape_uncerts[region][cut][syst] = yld / nominal
-                for syst, yld in self.scale_uncerts[region][cut].iteritems():
+                for syst, yld in list(self.shape_uncerts[region][cut].items()):
+                    self.shape_uncerts[region][cut][syst] = old_div(yld, nominal)
+                for syst, yld in list(self.scale_uncerts[region][cut].items()):
                     if 'theory' in syst and cut == 900.:
-                        print "THEO yields ", yld.weights, nominal.weights
-                        print "THEO yields sum", np.sum(yld.weights), np.sum(nominal.weights), yld / nominal
-                    self.scale_uncerts[region][cut][syst] = yld / nominal
-        for region in self.ctrl_region_yields.keys():
+                        print("THEO yields ", yld.weights, nominal.weights)
+                        print("THEO yields sum", np.sum(yld.weights), np.sum(nominal.weights), old_div(yld, nominal))
+                    self.scale_uncerts[region][cut][syst] = old_div(yld, nominal)
+        for region in list(self.ctrl_region_yields.keys()):
             ctrl_nom_ylds = self.ctrl_region_yields[region]
-            for syst, yld in self.ctrl_reg_scale_ylds[region].iteritems():
-                self.ctrl_reg_scale_ylds[region][syst] = yld / ctrl_nom_ylds
-            for syst, yld in self.ctrl_reg_shape_ylds[region].iteritems():
-                self.ctrl_reg_shape_ylds[region][syst] = yld / ctrl_nom_ylds
+            for syst, yld in list(self.ctrl_reg_scale_ylds[region].items()):
+                self.ctrl_reg_scale_ylds[region][syst] = old_div(yld, ctrl_nom_ylds)
+            for syst, yld in list(self.ctrl_reg_shape_ylds[region].items()):
+                self.ctrl_reg_shape_ylds[region][syst] = old_div(yld, ctrl_nom_ylds)
 
     def remove_unused(self):
         self.remove_low_systematics()
@@ -1091,49 +1094,49 @@ class Sample(object):
                                                      fixed_xsec=signal_xsec)
         else:
             weight = xs_handle.get_lumi_scale_factor(self.name.split('.')[0], lumi, self.generated_ylds)
-        for region in self.nominal_evt_yields.keys():
-            for cut in self.nominal_evt_yields[region].keys():
+        for region in list(self.nominal_evt_yields.keys()):
+            for cut in list(self.nominal_evt_yields[region].keys()):
                 self.nominal_evt_yields[region][cut] *= weight
-                for syst in self.scale_uncerts[region][cut].keys():
+                for syst in list(self.scale_uncerts[region][cut].keys()):
                     self.scale_uncerts[region][cut][syst] *= weight
-                for syst in self.shape_uncerts[region][cut].keys():
+                for syst in list(self.shape_uncerts[region][cut].keys()):
                     self.shape_uncerts[region][cut][syst] *= weight
 
-        for region in self.ctrl_region_yields.keys():
+        for region in list(self.ctrl_region_yields.keys()):
             self.ctrl_region_yields[region] *= weight
-            for syst in self.ctrl_reg_scale_ylds[region].keys():
+            for syst in list(self.ctrl_reg_scale_ylds[region].keys()):
                 self.ctrl_reg_scale_ylds[region][syst] *= weight
-            for syst in self.ctrl_reg_shape_ylds[region].keys():
+            for syst in list(self.ctrl_reg_shape_ylds[region].keys()):
                 self.ctrl_reg_shape_ylds[region][syst] *= weight
 
     def __add__(self, other):
         self.generated_ylds += other.generated_ylds
-        for region in self.nominal_evt_yields.keys():
-            for cut in self.nominal_evt_yields[region].keys():
+        for region in list(self.nominal_evt_yields.keys()):
+            for cut in list(self.nominal_evt_yields[region].keys()):
                 self.nominal_evt_yields[region][cut].append(other.nominal_evt_yields[region][cut])
-            for cut in self.shape_uncerts[region].keys():
-                for syst in self.shape_uncerts[region][cut].keys():
+            for cut in list(self.shape_uncerts[region].keys()):
+                for syst in list(self.shape_uncerts[region][cut].keys()):
                     self.shape_uncerts[region][cut][syst].append(other.shape_uncerts[region][cut][syst])
-            for cut in self.scale_uncerts[region].keys():
-                for syst in self.scale_uncerts[region][cut].keys():
+            for cut in list(self.scale_uncerts[region].keys()):
+                for syst in list(self.scale_uncerts[region][cut].keys()):
                     self.scale_uncerts[region][cut][syst].append(other.scale_uncerts[region][cut][syst])
         for region in self.ctrl_region_yields:
             self.ctrl_region_yields[region].append(other.ctrl_region_yields[region])
-            for syst in self.ctrl_reg_scale_ylds[region].keys():
+            for syst in list(self.ctrl_reg_scale_ylds[region].keys()):
                 self.ctrl_reg_scale_ylds[region][syst].append(other.ctrl_reg_scale_ylds[region][syst])
             try:
-                for syst in self.ctrl_reg_shape_ylds[region].keys():
+                for syst in list(self.ctrl_reg_shape_ylds[region].keys()):
                     try:
                         self.ctrl_reg_shape_ylds[region][syst].append(other.ctrl_reg_shape_ylds[region][syst])
                     except KeyError as ke:
                         _logger.error('Could not find control region systematic {:s} for region {:s}'.format(syst,
                                                                                                              region))
-                        _logger.error('Available systematics {:s}'.format(', '.join(self.ctrl_reg_shape_ylds[region].keys())))
+                        _logger.error('Available systematics {:s}'.format(', '.join(list(self.ctrl_reg_shape_ylds[region].keys()))))
 
                         raise ke
             except KeyError as ke:
                 _logger.error('Could not find control region systematic b/c of missing region {:s}'.format(region))
-                _logger.error('Available regions {:s}'.format(', '.join(self.ctrl_reg_shape_ylds.keys())))
+                _logger.error('Available regions {:s}'.format(', '.join(list(self.ctrl_reg_shape_ylds.keys()))))
                 if self.ctrl_region_yields[region] == 0:
                     continue
                 raise ke
@@ -1160,7 +1163,7 @@ class Sample(object):
         :rtype: None
         """
         def affects_signal_reg(syst_name, syst_yields):
-            for ylds in syst_yields.values():
+            for ylds in list(syst_yields.values()):
                 if syst_name in ylds[cut]:
                     return True
             return False
@@ -1169,18 +1172,14 @@ class Sample(object):
             new_name = name.replace('weight_', '').replace('__1up', '').replace('__1down', '')
             return new_name
 
-        for region in self.shape_uncerts.keys():
-            for cut in self.shape_uncerts[region].keys():
+        for region in list(self.shape_uncerts.keys()):
+            for cut in list(self.shape_uncerts[region].keys()):
                 if shape_uncert is not None:
                     self.shape_uncerts[region][cut] = dict(
-                        filter(lambda kv: convert_name(kv[0]) in map(lambda i: i[0] if not isinstance(i, str) else i,
-                                                                     shape_uncert),
-                               self.shape_uncerts[region][cut].iteritems()))
+                        [kv for kv in iter(list(self.shape_uncerts[region][cut].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in shape_uncert]])
                 if scale_uncert is not None:
                     self.scale_uncerts[region][cut] = dict(
-                            filter(lambda kv: convert_name(kv[0]) in map(lambda i: i[0] if not isinstance(i, str) else i,
-                                                                         scale_uncert),
-                                   self.scale_uncerts[region][cut].iteritems()))
+                            [kv for kv in iter(list(self.scale_uncerts[region][cut].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in scale_uncert]])
                 # self.shape_uncerts[region][cut] = dict(filter(lambda kv: abs(1. - kv[1]) > threshold,
                 #                                               self.shape_uncerts[region][cut].iteritems()))
                 # self.scale_uncerts[region][cut] = dict(filter(lambda kv: abs(1. - kv[1]) > threshold,
@@ -1191,17 +1190,13 @@ class Sample(object):
                 # self.scale_uncerts[region][cut] = dict(filter(lambda kv: kv[1] != 0.,
                 #                                               self.scale_uncerts[region][cut].iteritems()))
 
-        for reg in self.ctrl_reg_shape_ylds.keys():
+        for reg in list(self.ctrl_reg_shape_ylds.keys()):
             if shape_uncert is not None:
                 self.ctrl_reg_shape_ylds[reg] = dict(
-                    filter(lambda kv: convert_name(kv[0]) in map(lambda i: i[0] if not isinstance(i, str) else i,
-                                                                 shape_uncert),
-                           self.ctrl_reg_shape_ylds[reg].iteritems()))
+                    [kv for kv in iter(list(self.ctrl_reg_shape_ylds[reg].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in shape_uncert]])
             if scale_uncert is not None:
                 self.ctrl_reg_scale_ylds[reg] = dict(
-                    filter(lambda kv: convert_name(kv[0]) in map(lambda i: i[0] if not isinstance(i, str) else i,
-                                                                 scale_uncert),
-                           self.ctrl_reg_scale_ylds[reg].iteritems()))
+                    [kv for kv in iter(list(self.ctrl_reg_scale_ylds[reg].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in scale_uncert]])
 
             # self.ctrl_reg_shape_ylds[reg] = dict(
             #     filter(lambda kv: abs(1. - kv[1]) > threshold or affects_signal_reg(kv[0], self.shape_uncerts),
@@ -1220,44 +1215,44 @@ class Sample(object):
 
     def merge_child_processes(self, samples, has_syst=True):
         if isinstance(samples[0], dict) and len(samples[0].generated_ylds) > 0:
-            self.generated_ylds = sum(map(lambda s: s.generated_ylds, samples))
+            self.generated_ylds = sum([s.generated_ylds for s in samples])
         else:
             self.generated_ylds = {}
         self.is_data = samples[0].is_data
         self.is_signal = samples[0].is_signal
-        for region in samples[0].nominal_evt_yields.keys():
+        for region in list(samples[0].nominal_evt_yields.keys()):
             if region not in self.nominal_evt_yields:
                 self.nominal_evt_yields[region] = {}
-            for cut in samples[0].nominal_evt_yields[region].keys():
-                self.nominal_evt_yields[region][cut] = sum(map(lambda s: s.nominal_evt_yields[region][cut], samples))
-        for cut in samples[0].raw_nominal_evt_yields.keys():
-            self.raw_nominal_evt_yields[cut] = sum(map(lambda s: s.raw_nominal_evt_yields[cut], samples))
+            for cut in list(samples[0].nominal_evt_yields[region].keys()):
+                self.nominal_evt_yields[region][cut] = sum([s.nominal_evt_yields[region][cut] for s in samples])
+        for cut in list(samples[0].raw_nominal_evt_yields.keys()):
+            self.raw_nominal_evt_yields[cut] = sum([s.raw_nominal_evt_yields[cut] for s in samples])
         if has_syst:
-            for region in samples[0].shape_uncerts.keys():
-                for cut in samples[0].shape_uncerts[region].keys():
+            for region in list(samples[0].shape_uncerts.keys()):
+                for cut in list(samples[0].shape_uncerts[region].keys()):
                     if region not in self.shape_uncerts:
                         self.shape_uncerts[region] = {}
                     self.shape_uncerts[region][cut] = {}
-                    for syst in samples[0].shape_uncerts[region][cut].keys():
-                        self.shape_uncerts[region][cut][syst] = sum(map(lambda s: s.shape_uncerts[region][cut][syst], samples))
-                for cut in samples[0].scale_uncerts[region].keys():
+                    for syst in list(samples[0].shape_uncerts[region][cut].keys()):
+                        self.shape_uncerts[region][cut][syst] = sum([s.shape_uncerts[region][cut][syst] for s in samples])
+                for cut in list(samples[0].scale_uncerts[region].keys()):
                     if region not in self.scale_uncerts:
                         self.scale_uncerts[region] = {}
                     self.scale_uncerts[region][cut] = {}
-                    for syst in samples[0].scale_uncerts[region][cut].keys():
-                        self.scale_uncerts[region][cut][syst] = sum(map(lambda s: s.scale_uncerts[region][cut][syst], samples))
+                    for syst in list(samples[0].scale_uncerts[region][cut].keys()):
+                        self.scale_uncerts[region][cut][syst] = sum([s.scale_uncerts[region][cut][syst] for s in samples])
 
         for region in samples[0].ctrl_region_yields:
-            self.ctrl_region_yields[region] = sum(map(lambda s: s.ctrl_region_yields[region], samples))
+            self.ctrl_region_yields[region] = sum([s.ctrl_region_yields[region] for s in samples])
             if not has_syst:
                 continue
             self.ctrl_reg_scale_ylds[region] = {}
             self.ctrl_reg_shape_ylds[region] = {}
-            for syst in samples[0].ctrl_reg_scale_ylds[region].keys():
-                self.ctrl_reg_scale_ylds[region][syst] = sum(map(lambda s: s.ctrl_reg_scale_ylds[region][syst], samples))
+            for syst in list(samples[0].ctrl_reg_scale_ylds[region].keys()):
+                self.ctrl_reg_scale_ylds[region][syst] = sum([s.ctrl_reg_scale_ylds[region][syst] for s in samples])
 
-            for syst in samples[0].ctrl_reg_shape_ylds[region].keys():
-                self.ctrl_reg_shape_ylds[region][syst] = sum(map(lambda s: s.ctrl_reg_shape_ylds[region][syst], samples))
+            for syst in list(samples[0].ctrl_reg_shape_ylds[region].keys()):
+                self.ctrl_reg_shape_ylds[region][syst] = sum([s.ctrl_reg_shape_ylds[region][syst] for s in samples])
 
 
 class SampleStore(object):
@@ -1269,7 +1264,7 @@ class SampleStore(object):
 
     def get_all_thresholds(self):
         evt_ylds = self.samples[0].nominal_evt_yields
-        return evt_ylds.values()[0].keys()
+        return list(list(evt_ylds.values())[0].keys())
 
     def register_samples(self, samples):
         self.samples = samples
@@ -1278,19 +1273,19 @@ class SampleStore(object):
         self.samples.append(sample)
 
     def filter_entries(self, shape_uncert=None, scale_uncert=None):
-        map(lambda s: s.filter_systematics(shape_uncert, scale_uncert, threshold=0), self.samples)
+        list([s.filter_systematics(shape_uncert, scale_uncert, threshold=0) for s in self.samples])
 
     def scale_signal(self, factor):
-        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        signal_samples = [s for s in self.samples if s.is_signal]
         for sample in signal_samples:
-            for region in sample.nominal_evt_yields.keys():
-                for threshold in sample.nominal_evt_yields[region].keys():
+            for region in list(sample.nominal_evt_yields.keys()):
+                for threshold in list(sample.nominal_evt_yields[region].keys()):
                     sample.nominal_evt_yields[region][threshold] *= factor
-            for reg in sample.ctrl_region_yields.keys():
+            for reg in list(sample.ctrl_region_yields.keys()):
                 sample.ctrl_region_yields[reg] *= factor
 
     def scale_signal_by_pmg_xsec(self):
-        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        signal_samples = [s for s in self.samples if s.is_signal]
         for sample in signal_samples:
             factor = self.xs_handle.cross_sections[sample.name]
             self.scale_signal(factor)
@@ -1301,10 +1296,10 @@ class SampleStore(object):
         :return:
         :rtype:
         """
-        sample_names = map(lambda sample: sample.name, self.samples)
+        sample_names = [sample.name for sample in self.samples]
         duplicates_names = set([x for x in sample_names if sample_names.count(x) > 1])
         for name in duplicates_names:
-            duplicate_samples = filter(lambda s: s.name == name, self.samples)
+            duplicate_samples = [s for s in self.samples if s.name == name]
             for s in duplicate_samples[1:]:
                 duplicate_samples[0] += s
             summed_sample = sum(duplicate_samples)
@@ -1336,7 +1331,7 @@ class SampleStore(object):
                 continue
             base_sample_name = sample.name.split('.')[0]
             merged_sample = Sample(base_sample_name, None)
-            samples_to_merge = filter(lambda s: base_sample_name == s.name.split('.')[0], self.samples)
+            samples_to_merge = [s for s in self.samples if base_sample_name == s.name.split('.')[0]]
             merged_sample.merge_child_processes(samples_to_merge)  # , self.with_syst)
             self.samples.append(merged_sample)
             samples_to_remove += samples_to_merge
@@ -1356,7 +1351,7 @@ class SampleStore(object):
                 samples_to_merge[process_config.name] = [sample]
             else:
                 samples_to_merge[process_config.name].append(sample)
-        for process, samples in samples_to_merge.iteritems():
+        for process, samples in list(samples_to_merge.items()):
             if samples[0] in samples_to_remove:
                 continue
             merged_sample = Sample(process, None)
@@ -1371,7 +1366,7 @@ class SampleStore(object):
     def retrieve_ctrl_region_yields(self, regions=None):
         ctrl_region_ylds = {}
         for s in self.samples:
-            for region, yld in s.ctrl_region_yields.iteritems():
+            for region, yld in list(s.ctrl_region_yields.items()):
                 if regions is not None and region not in regions:
                     continue
                 if region not in ctrl_region_ylds:
@@ -1383,16 +1378,16 @@ class SampleStore(object):
     def retrieve_ctrl_region_syst(self, regions=None):
         systematics = {}
         for s in self.samples:
-            for region in s.ctrl_reg_scale_ylds.keys():
+            for region in list(s.ctrl_reg_scale_ylds.keys()):
                 if regions is not None and region not in regions:
                     continue
                 if region not in systematics:
                     systematics[region] = {s.name: s.ctrl_reg_scale_ylds[region]}
                 else:
                     systematics[region][s.name] = s.ctrl_reg_scale_ylds[region]
-                for syst_name, syst_yld in s.ctrl_reg_scale_ylds[region].iteritems():
+                for syst_name, syst_yld in list(s.ctrl_reg_scale_ylds[region].items()):
                     systematics[region][s.name][syst_name] = syst_yld
-                for syst_name, syst_yld in s.ctrl_reg_shape_ylds[region].iteritems():
+                for syst_name, syst_yld in list(s.ctrl_reg_shape_ylds[region].items()):
                     systematics[region][s.name][syst_name] = syst_yld
         return systematics
 
@@ -1404,9 +1399,9 @@ class SampleStore(object):
         :return: stored signal regions * filter
         :rtype: list
         """
-        available_regions = self.samples[0].nominal_evt_yields.keys()
+        available_regions = list(self.samples[0].nominal_evt_yields.keys())
         if regions is not None:
-            available_regions = filter(lambda r: r in regions, available_regions)
+            available_regions = [r for r in available_regions if r in regions]
         return available_regions
 
     def retrieve_signal_ylds(self, sig_name, cut, region):
@@ -1430,15 +1425,15 @@ class SampleStore(object):
         return signal_sample.nominal_evt_yields[region][cut]
 
     def retrieve_signal_names(self):
-        return map(lambda s: s.name, filter(lambda s: s.is_signal, self.samples))
+        return [s.name for s in [s for s in self.samples if s.is_signal]]
 
     def retrieve_all_signal_ylds(self, cut, regions = None):
-        signal_samples = filter(lambda s: s.is_signal, self.samples)
+        signal_samples = [s for s in self.samples if s.is_signal]
         return {reg: {s.name: s.nominal_evt_yields[reg][cut]
                 for s in signal_samples} for reg in self.get_signal_region_names(regions)}
 
     def retrieve_bkg_ylds(self, cut, region):
-        bkg_samples = filter(lambda s: not s.is_data and not s.is_signal, self.samples)
+        bkg_samples = [s for s in self.samples if not s.is_data and not s.is_signal]
         return {s.name: s.nominal_evt_yields[region][cut] for s in bkg_samples}
 
     def build_event_sums(self):
@@ -1460,28 +1455,28 @@ class SampleStore(object):
             if len(s.shape_uncerts) == 0:
                 return {}
             systematics = s.shape_uncerts[region][cut]
-            for syst_name, syst_yld in s.scale_uncerts[region][cut].iteritems():
+            for syst_name, syst_yld in list(s.scale_uncerts[region][cut].items()):
                 systematics[syst_name] = syst_yld
             return systematics
 
-        mc_samples = filter(lambda s: not s.is_data and (not s.is_signal or s.name == sig_name), self.samples)
+        mc_samples = [s for s in self.samples if not s.is_data and (not s.is_signal or s.name == sig_name)]
         return {s.name: get_syst_dict(s) for s in mc_samples}
 
     def get_sample(self, sample_name):
-        sample = filter(lambda s: s.name == sample_name, self.samples)
+        sample = [s for s in self.samples if s.name == sample_name]
         if len(sample) == 1:
             return sample[0]
         return None
 
     def retrieve_all_raw_signal_ylds(self, cut):
-        signal_samples = filter(lambda s: s.is_signal, self.samples)
-        print signal_samples[0].raw_nominal_evt_yields
+        signal_samples = [s for s in self.samples if s.is_signal]
+        print(signal_samples[0].raw_nominal_evt_yields)
         return {s.name: s.raw_nominal_evt_yields[cut] for s in signal_samples}
 
 class LimitValidator(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('scan_info', None)
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             setattr(self, k, v)
 
         if kwargs['scan_info'] is None:
@@ -1490,8 +1485,8 @@ class LimitValidator(object):
     def make_yield_summary_plots(self):
         def get_hists_for_process(process):
             if not process.lower() == 'data':
-                return filter(lambda h: process in h.GetName() and 'Nom' in h.GetName(), hists)
-            return filter(lambda h: process in h.GetName(), hists)
+                return [h for h in hists if process in h.GetName() and 'Nom' in h.GetName()]
+            return [h for h in hists if process in h.GetName()]
 
         def fill_hists(hist, input_hists):
             for ibin, reg in enumerate(regions):
@@ -1511,9 +1506,8 @@ class LimitValidator(object):
         hists = fh.get_objects_by_type('TH1')
         scan_info = self.scan_info[5]
 
-        bkg_processes = dict(filter(lambda p: p[1].type.lower() != 'signal' and p[1].type.lower() != 'data',
-                                    scan_info.kwargs['process_configs'].iteritems()))
-        bkg_hists = {p: get_hists_for_process(p.name) for p in bkg_processes.values()}
+        bkg_processes = dict([p for p in iter(list(scan_info.kwargs['process_configs'].items())) if p[1].type.lower() != 'signal' and p[1].type.lower() != 'data'])
+        bkg_hists = {p: get_hists_for_process(p.name) for p in list(bkg_processes.values())}
         sig_hists = get_hists_for_process(scan_info.kwargs['sig_name'])
         data_hists = get_hists_for_process('Data')
         regions = [scan_info.sig_reg_name] + sorted(self.scan_info[5].kwargs['ctrl_config'].keys())
@@ -1530,7 +1524,7 @@ class LimitValidator(object):
         summary_hists = {}
         # print bkg_processes
         # exit()
-        for bkg, hists in bkg_hists.iteritems():
+        for bkg, hists in list(bkg_hists.items()):
             new_hist = hist.Clone('region_summary_{:s}'.format(bkg.name))
             fill_hists(new_hist, hists)
             summary_hists[bkg.name] = new_hist
@@ -1550,7 +1544,7 @@ class LimitValidator(object):
         ROOT.gROOT.SetBatch(False)
         fm.decorate_canvas(canvas, pc)
         fm.add_legend_to_canvas(canvas, labels=labels)
-        raw_input()
+        eval(input())
 
 
 class LimitChecker(object):
@@ -1560,7 +1554,7 @@ class LimitChecker(object):
         kwargs.setdefault('pattern', 'test')
         if 'workspace_file' not in kwargs:
             raise InvalidInputError('No workspace provided. Cannot do anything')
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             setattr(self, k, v)
         self.stat_tools_path = '/user/mmorgens/workarea/devarea/rel21/Multilepton/source/CommonStatTools/'
         self.setup()
@@ -1772,7 +1766,7 @@ class LimitValidationPlotter(object):
                 raise e
             hists = f.get_objects_by_type('TH1F')
             roo_hists = f.get_objects_by_type('RooHist')
-            map(lambda h: h.SetDirectory(0), hists)
+            list([h.SetDirectory(0) for h in hists])
             return hists, roo_hists
 
         cfg = yl.read_yaml(os.path.join(self.input_path, 'config.yml'))
@@ -1780,7 +1774,7 @@ class LimitValidationPlotter(object):
         index = int(path.split('/')[-3])
         info_file = yl.read_yaml(os.path.join(path, '../../../../scan_info.yml'))
         ws_cfg = info_file[index]
-        bkg_regions = map(lambda rn: rn + '_yield', ws_cfg.kwargs['ctrl_config'].keys())
+        bkg_regions = [rn + '_yield' for rn in list(ws_cfg.kwargs['ctrl_config'].keys())]
         backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
         ratios = ['pre-fit', 'post-fit']
         tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
@@ -1793,7 +1787,7 @@ class LimitValidationPlotter(object):
             except ValueError:
                 _logger.error('Missing after fit workspace for {:s}'.format(region))
                 continue
-            hists = filter(lambda h: h.GetName() in backgrounds, hists)
+            hists = [h for h in hists if h.GetName() in backgrounds]
             for hist in hists:
                 if i == 0:
                     hist.SetFillColor(i+hists.index(hist)+2)
@@ -1812,7 +1806,7 @@ class LimitValidationPlotter(object):
 
 
         stack = ROOT.THStack()
-        map(lambda h: stack.Add(h, 'hist'), tmp_hists[0:-1])
+        list([stack.Add(h, 'hist') for h in tmp_hists[0:-1]])
         c = pt.retrieve_new_canvas('post_fit_yields')
         c_ratio = pt.retrieve_new_canvas('post_fit_yields_r')
         c.cd()
@@ -1972,7 +1966,7 @@ class CommonLimitOptimiser(BasePlotter):
                 tree_name = self.syst_tree_name
             return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
 
-        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
+        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name)]
 
     # def init_sample(self, file_handle):
     #     generated_yields = file_handle.get_number_of_total_events()

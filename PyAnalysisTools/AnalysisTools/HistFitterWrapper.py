@@ -18,15 +18,14 @@ except ImportError:
 
 
 import ROOT
-from ROOT import kBlack, kWhite, kGray, kRed, kPink, kMagenta, kViolet, kBlue, kAzure, kCyan, kTeal, kGreen, kSpring, \
-    kYellow, kOrange, TCanvas, TLegend, TLegendEntry
+from ROOT import kBlack, kPink, kGreen
 from configWriter import Sample
 from systematic import Systematic
 from math import sqrt
 import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, transform_color
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 

@@ -2,12 +2,11 @@ from __future__ import print_function
 
 import copy
 
-from builtins import map
 from builtins import object
 
 from PyAnalysisTools.AnalysisTools.FitHelpers import *
 from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from ROOT import RooFit

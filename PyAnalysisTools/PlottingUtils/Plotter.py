@@ -1,5 +1,4 @@
 from __future__ import division
-from builtins import map
 from builtins import str
 from past.utils import old_div
 from builtins import object
@@ -13,7 +12,7 @@ import copy
 copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
 
 import os
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig
@@ -29,11 +28,8 @@ from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyse
 from PyAnalysisTools.AnalysisTools import StatisticsTools as ST
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
 from PyAnalysisTools.AnalysisTools.FakeEstimator import ElectronFakeEstimator
 from PyAnalysisTools.base.Modules import load_modules
-from collections import OrderedDict
 
 
 class PlotArgs(object):
