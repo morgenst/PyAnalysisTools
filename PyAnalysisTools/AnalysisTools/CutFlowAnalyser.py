@@ -26,7 +26,7 @@ from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils.HistTools import scale
-from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
+from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle, get_xsec_weight
 from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig, \
     parse_and_build_plot_config, get_default_color_scheme
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
@@ -105,7 +105,7 @@ class CommonCutFlowAnalyser(object):
         else:
             self.event_numbers[process] += file_handle.get_number_of_total_events()
 
-    def get_cross_section_weight_new(self, process):
+    def get_cross_section_weight(self, process):
         """
         Calculates weight according to process cross section and luminosity. If MC samples are split in several
         production campaigns and the luminosity information is provided as a dictionary with the campaign name as key
@@ -115,18 +115,7 @@ class CommonCutFlowAnalyser(object):
         :return: luminosity weight
         :rtype: float
         """
-        lumi = self.lumi
-        if isinstance(self.lumi, OrderedDict):
-            if process.mc_campaign is None:
-                _logger.error('Could not find MC campaign information, but lumi was provided per MC '
-                              'campaign. Not clear what to do. It will be assumed that you meant to scale '
-                              'to total lumi. Please update and acknowledge once.')
-                eval(input('Hit enter to continue or Ctrl+c to quit...'))
-                lumi = sum(self.lumi.values())
-            else:
-                lumi = self.lumi[process.mc_campaign]
-        cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.process_name, lumi,
-                                                                    self.event_numbers[process])
+        cross_section_weight = get_xsec_weight(self.lumi, process, self.xs_handle, self.event_numbers)
         return cross_section_weight
 
     @staticmethod
@@ -146,28 +135,12 @@ class CommonCutFlowAnalyser(object):
             else:
                 return "{:.2f} ".format(value)
 
-        print(cutflow)
         name = 'yield'
         if self.raw:
             name = 'yield_raw'
         cutflow = np.array([(cutflow[i]["cut"],
                              format_yield(cutflow[i][name])) for i in range(len(cutflow))],
                            dtype=[("cut", "S100"), (name, "S100")])
-        # if not self.raw:
-        #     # cutflow = np.array([(cutflow[i]["cut"],
-        #     #                      format_yield(cutflow[i]["yield"], cutflow[i]["yield_unc"]),
-        #     #                      # cutflow[i]["eff"],
-        #     #                      cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-        #     #                    dtype=[("cut", "S100"), ("yield", "S100"), ("eff_total", float)])  # ("eff", float),
-        #     cutflow = np.array([(cutflow[i]["cut"],
-        #                          format_yield(cutflow[i]["yield"])) for i in range(len(cutflow))],
-        #                        dtype=[("cut", "S100"), ("yield", "S100")])
-        # else:
-        #     cutflow = np.array([(cutflow[i]["cut"],
-        #                          format_yield(cutflow[i]["yield_raw"], cutflow[i]["yield_unc_raw"]),
-        #                          # cutflow[i]["eff"],
-        #                          cutflow[i]["eff_total"]) for i in range(len(cutflow))],
-        #                        dtype=[("cut", "S100"), ("yield_raw", "S100"), ("eff_total", float)])  # ("eff", float),
         return cutflow
 
     def print_cutflow_table(self):
@@ -321,7 +294,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             if process.is_data:
                 continue
             try:
-                lumi_weight = self.get_cross_section_weight_new(process)
+                lumi_weight = self.get_cross_section_weight(process)
             except InvalidInputError:
                 _logger.error("None type parsed for ", process)
                 continue
@@ -623,7 +596,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
             if process.is_data:
                 continue
             try:
-                lumi_weight = self.get_cross_section_weight_new(process)
+                lumi_weight = self.get_cross_section_weight(process)
             except InvalidInputError:
                 _logger.error("None type parsed for ", self.cutflow_hists[process])
                 continue

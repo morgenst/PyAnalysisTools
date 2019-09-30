@@ -9,6 +9,8 @@ import traceback
 from copy import deepcopy
 from functools import partial
 from itertools import product
+
+from PyAnalysisTools.AnalysisTools.XSHandle import get_xsec_weight
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
@@ -146,23 +148,13 @@ class BasePlotter(object):
                     continue
                 if process.is_data:
                     continue
-
-                lumi = self.lumi
+                cross_section_weight = get_xsec_weight(self.lumi, process, self.xs_handle, self.event_yields)
                 if isinstance(self.lumi, OrderedDict):
                     if re.search('mc16[acde]$', process.mc_campaign) is None:
                         if provided_wrong_info is False:
-                            _logger.error('Could not find MC campaign information, but lumi was provided per MC '
-                                          'campaing. Not clear what to do. It will be assumed that you meant to scale '
-                                          'to total lumi. Please update and acknowledge once.')
-                            eval(input('Hit enter to continue or Ctrl+c to quit...'))
-                            provided_wrong_info = True
                             plot_config.used_mc_campaigns = list(self.lumi.keys())
-                        lumi = sum(self.lumi.values())
                     else:
-                        lumi = self.lumi[process.mc_campaign]
                         plot_config.used_mc_campaigns.append(process.mc_campaign)
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.process_name, lumi,
-                                                                            self.event_yields[process])
                 ht.scale(hist, cross_section_weight)
 
     def read_cutflows(self):
