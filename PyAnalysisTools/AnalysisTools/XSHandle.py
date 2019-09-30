@@ -1,32 +1,29 @@
 from __future__ import division
 
-import threading
-
+import re
 from builtins import object
 from builtins import str
+from collections import OrderedDict
+
 from past.utils import old_div
 
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 
-class DataSetStore(object):
-    """
-    Thread-safe singleton implementation to store dataset information and avoid re-reading db from yml file
-    """
-    _instance = None
-    _lock = threading.Lock()
-
-    def __new__(cls, *args):
-        if DataSetStore._instance is None:
-            with DataSetStore._lock:
-                if DataSetStore._instance is None:
-                    DataSetStore._instance = super(DataSetStore, cls).__new__(cls, *args)
-        return DataSetStore._instance
-
-    def __init__(self, dataset_info):
-        if not hasattr(self, 'dataset_info'):
-            self.dataset_info = YAMLLoader.read_yaml(dataset_info)
+def get_xsec_weight(lumi, process, xs_handle, event_numbers):
+    if isinstance(lumi, OrderedDict):
+        if process.mc_campaign is None or re.search('mc16[acde]$', process.mc_campaign) is None:
+            _logger.error('Could not find MC campaign information, but lumi was provided per MC '
+                          'campaign. Not clear what to do. It will be assumed that you meant to scale '
+                          'to total lumi. Please update and acknowledge once.')
+            eval(input('Hit enter to continue or Ctrl+c to quit...'))
+            lumi = sum(lumi.values())
+        else:
+            lumi = lumi[process.mc_campaign]
+    cross_section_weight = xs_handle.get_lumi_scale_factor(process.process_name, lumi,
+                                                           event_numbers[process])
+    return cross_section_weight
 
 
 class Dataset(object):
