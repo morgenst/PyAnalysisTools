@@ -164,3 +164,18 @@ def find_file(file_name, subdirectory=''):
         if file_name in names:
             return os.path.join(root, file_name)
     return None
+
+
+@contextmanager
+def change_dir(path):
+    """
+    Custom change dir. Changes to path, executes and returns to old path
+    :param path:
+    :return:
+    """
+    oldpwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(oldpwd)
