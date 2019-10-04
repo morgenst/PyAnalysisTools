@@ -1,4 +1,6 @@
 from __future__ import print_function
+
+import sys
 from builtins import object
 import re
 from collections import OrderedDict
@@ -285,7 +287,7 @@ class BasePlotter(object):
     def read_histograms(self, file_handles, plot_configs, systematic="Nominal", factor_syst=''):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
-        if cpus > 0:
+        if cpus > 0 and sys.version_info[0] != 3:
             pool = mp.ProcessPool(nodes=cpus)
             histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
         else:

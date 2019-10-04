@@ -10,6 +10,7 @@ ignore_style: False
 style: None
 rebin: None
 ratio: None
+calcsig: False
 ignore_rebin: False
 enable_legend: False
 blind: None

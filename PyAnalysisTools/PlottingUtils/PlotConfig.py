@@ -70,6 +70,10 @@ class PlotConfig(object):
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
+        if self.calcsig and self.ratio:
+            _logger.error('Requested both significance calculation and ratio plotting which is currently not supported.'
+                          'This requires an implementation of at least two ratio pads. Thus disabling calcsig')
+            self.calcsig = False
         self.is_multidimensional = False
         self.auto_decorate()
         self.used_mc_campaigns = []

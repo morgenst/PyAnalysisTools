@@ -418,7 +418,7 @@ class Plotter(BasePlotter):
                                         **plot_config.legend_options)
             else:
                 FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
-        if hasattr(plot_config, "calcsig"):
+        if plot_config.calcsig:
             # todo: "Background" should be an actual type
             merged_process_configs = dict([pc for pc in iter(list(self.process_configs.items())) if hasattr(pc[1], "type")])
             #signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
@@ -609,7 +609,7 @@ class Plotter(BasePlotter):
             fetched_histograms = self.read_hists(dumped_hist_path)
         self.categorise_histograms(fetched_histograms)
         if not self.cluster_mode:
-            if not self.lumi < 0:
+            if isinstance(self.lumi, dict) or not self.lumi < 0:
                 self.apply_lumi_weights(self.histograms)
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
