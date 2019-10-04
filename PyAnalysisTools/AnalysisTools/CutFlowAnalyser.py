@@ -65,7 +65,7 @@ class CommonCutFlowAnalyser(object):
         self.file_handles = [FH(file_name=fn, dataset_info=kwargs['xs_config_file'],
                                 friend_directory=kwargs['friend_directory'],
                                 friend_tree_names=kwargs['friend_tree_names'],
-                                friend_pattern=kwargs['friend_file_pattern']) for fn in kwargs['file_list']]
+                                friend_pattern=kwargs['friend_file_pattern']) for fn in set(kwargs['file_list'])]
         self.process_configs = None
         self.save_table = kwargs['save_table']
         if kwargs['process_config_files'] is not None:
