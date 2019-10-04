@@ -1,6 +1,7 @@
 from __future__ import unicode_literals
 from __future__ import print_function
 
+from collections import OrderedDict
 from copy import deepcopy
 
 from builtins import input
@@ -11,7 +12,8 @@ except ImportError:
     print("yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration")
     print("Please install via: \033[91m pip install oyaml --user.\033[0m")
     _ = input("Acknowledge by hitting enter (running with yaml for now. Note this might cause crashes)")
-    import yaml
+    #import yaml
+    pass
 from . import _logger
 
 
@@ -46,6 +48,22 @@ class YAMLLoader(object):
         :return: loaded data
         :rtype: any
         """
+        def convert_to_ordered_dict(item):
+            """
+            Convert dict to OrderedDict. Required because since python 3.7 dicts are automatically ordered, but in
+            several places it is checked if an object is an instance of OrderedDict. Parses recursively through dict
+            and lists.
+            :param item: current entry
+            :return: converted entry
+            """
+            if isinstance(item, dict):
+                item = OrderedDict(item)
+                for k, v in item.items():
+                    item[k] = convert_to_ordered_dict(v)
+            if isinstance(item, list):
+                item = [convert_to_ordered_dict(i) for i in item]
+            return item
+
         if accept_none and file_name is None:
             return None
         try:
@@ -57,6 +75,7 @@ class YAMLLoader(object):
                 with open(file_name, 'r') as config_file:
                     setattr(yaml.pyyaml.Loader, 'yaml_constructors', default_ctor)
                     config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
+            config = convert_to_ordered_dict(config)
             return config
         except IOError as e:
             _logger.error("Could not find or open yaml file %s" % file_name)
