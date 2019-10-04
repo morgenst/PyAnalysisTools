@@ -25,6 +25,8 @@ def load_modules(config_files, callee):
     :rtype: list
     """
     modules = []
+    if not isinstance(config_files, list):
+        config_files = [config_files]
     try:
         for cfg_file in config_files:
             if cfg_file is None:
