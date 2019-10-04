@@ -1,0 +1,36 @@
+RegionBuilder:
+  auto_generate: False
+  common_selection:
+    event_cuts:
+      - "1 ::: Preselection"
+      - "electron_n == 2 ::: Two electrons"
+      - "jet_n > 0 ::: At least 1 jet"
+      - "electron_pt[0] / 1000. > 65. ::: electron \\pT{} > 65~\\GeV{}"
+      - "inv_mass_electrons > 400. ::: \\minv{} > 400 GeV"
+      - "ht_jets + ht_leptons > 350. ::: \\HT{} > 350~\\GeV{}"
+
+  regions:
+    SR_el_btag:
+      n_lep: 2
+      n_electron: 2
+      n_muon: 0
+      disable_taus: True
+      same_flavour_only: True
+      label: "e^{#pm}e^{#mp} 1 b-tag"
+      event_cuts:
+        - "Sum$(jet_has_btag) == 1 ::: 1 b-tagged jet"
+        - "jet_has_btag[0] == 1 ::: leading jet b-tagged"
+
+    SR_el_bveto:
+      n_lep: 2
+      n_electron: 2
+      n_muon: 0
+      disable_taus: True
+      same_flavour_only: True
+      label: "e^{#pm}e^{#mp} b-veto"
+      event_cuts:
+        - "Sum$(jet_has_btag==1) == 0 ::: b-tag veto"
+
+#TopExtrapolationModule:
+#  input_hist_file: output_20190626_10-34-31/top_extrapolation_hists.root
+#  qcd_mode: False
