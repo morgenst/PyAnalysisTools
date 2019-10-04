@@ -14,7 +14,7 @@ copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
 import os
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
@@ -160,7 +160,7 @@ class Plotter(BasePlotter):
         if len(kwargs['process_config_files']) > 0:
             self.process_config_files = kwargs['process_config_files']
             self.process_config_file = None
-            self.process_configs = self.parse_process_config()
+            self.process_configs = parse_and_build_process_config(self.process_config_files)
         else:
             self.process_configs = config.extra_args['process_configs']
         self.syst_analyser = config.extra_args['syst_analyser']
@@ -169,7 +169,6 @@ class Plotter(BasePlotter):
             self.syst_analyser.event_yields = self.event_yields
             self.syst_analyser.dump_hists = False
             self.syst_analyser.plot_configs = self.plot_configs
-        #config.output_dir = "/Users/morgens/tmp/test"
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=['.pdf'], output_dir=kwargs['output_dir'])
         self.output_handle.reinitialise_output_dir()

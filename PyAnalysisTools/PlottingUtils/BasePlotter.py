@@ -53,7 +53,7 @@ class BasePlotter(object):
         if not isinstance(self.plot_config_files, list):
             self.plot_config_files = [self.plot_config_files]
         set_batch_mode(kwargs["batch"])
-        self.process_configs = self.parse_process_config()
+        self.process_configs = parse_and_build_process_config(self.process_config_files)
         self.parse_plot_config()
         self.split_mc_campaigns = False
         if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) \
@@ -77,17 +77,6 @@ class BasePlotter(object):
 
     def cluster_setup(self, config):
         self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
-
-    def parse_process_config(self):
-        """
-        Parse process config file and build process configs
-        :return: list of build process configs from config file
-        :rtype: list
-        """
-        if self.process_config_files is None:
-            return None
-        process_config = parse_and_build_process_config(self.process_config_files)
-        return process_config
 
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
