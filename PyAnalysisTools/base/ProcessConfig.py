@@ -1,13 +1,17 @@
 from __future__ import unicode_literals
+
+import codecs
 from builtins import str
 from builtins import map
 from builtins import object
+from future.utils import python_2_unicode_compatible
 import re
 from PyAnalysisTools.base import _logger
 
 data_streams = ['physics_Late', 'physics_Main']
 
 
+@python_2_unicode_compatible
 class Process(object):
     """
     Class defining a physics process
@@ -39,15 +43,33 @@ class Process(object):
         if file_name is not None:
             self.parse_file_name(self.base_name.split('/')[-1])
 
-    def __str__(self):
+    # def __str__(self):
+    #     """
+    #     Overloaded str operator. Get's called if object is printed
+    #     :return: formatted string with name and attributes
+    #     :rtype: str
+    #     """
+    #     obj_str = str(self.process_name)
+    #     obj_str += ' parsed from file name {:s}'.format(self.file_name)
+    #     return obj_str
+
+    def __unicode__(self):
         """
-        Overloaded str operator. Get's called if object is printed
+        Overloaded unicode str operator. Get's called if object is printed
         :return: formatted string with name and attributes
         :rtype: str
         """
         obj_str = str(self.process_name)
         obj_str += ' parsed from file name {:s}'.format(self.file_name)
         return obj_str
+
+    def __format__(self, format_spec):
+        """
+        Overloaded format operated called when formatted string output is requested.
+        :param format_spec:
+        :return: unicode str
+        """
+        return self.__unicode__()
 
     def __eq__(self, other):
         """
