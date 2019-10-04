@@ -278,8 +278,8 @@ class BasePlotter(object):
                 return None
 
         except Exception as e:
-            _logger.error("Catched exception for "
-                          "process {:s} and plot_config {:s}".format(file_handle.process, plot_config.name))
+            _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
+                                                                                           plot_config.name))
             print(traceback.print_exc())
             return None
         return hist
