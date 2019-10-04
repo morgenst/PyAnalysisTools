@@ -130,9 +130,14 @@ class FileHandle(object):
         if directory is None:
             return self.tfile
         try:
-            return self.tfile.Get(bytes(directory))
+            try:
+                return self.tfile.Get(bytes(directory, encoding='utf8'))
+            except TypeError:
+                #python3
+                return self.tfile.Get(directory)
         except Exception as e:
-            print(e.msg())
+            print(str(e))
+            raise e
 
     def get_objects(self, tdirectory=None):
         self.open()
@@ -189,7 +194,6 @@ class FileHandle(object):
         except TypeError:
             #python3
             obj = tdir.Get(obj_name)
-        #obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
             raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
                                                                                                 str(tdirectory),

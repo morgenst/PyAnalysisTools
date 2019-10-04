@@ -1,7 +1,7 @@
 import unittest
 import os
 import ROOT
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 
 
 class TestFileHandle(unittest.TestCase):
@@ -88,3 +88,9 @@ class TestFileHandle(unittest.TestCase):
                                  friend_directory=os.path.join(os.path.dirname(__file__), 'fixtures/files/'),
                                  friend_pattern='ntuple-', friend_tree_names='BaseSelection_lq_tree_syst_Final')
 
+    def test_get_directory(self):
+        self.assertIsNotNone(self.file_handle.get_directory('Nominal'))
+
+    @unittest.skip("Segfault in py3")
+    def test_get_directory_fail(self):
+        self.assertRaises(TypeError, self.file_handle.get_directory('Nominal2'))
