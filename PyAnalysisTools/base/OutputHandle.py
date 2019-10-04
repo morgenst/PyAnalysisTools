@@ -1,3 +1,5 @@
+from builtins import range
+from builtins import object
 import os
 import re
 import time
@@ -113,7 +115,6 @@ class OutputFileHandle(SysOutputHandle):
                                                    "RECREATE")
             self.output_file.cd()
             self.attached = True
-        self.output_file.ls()
 
     def dump_canvas(self, canvas, name=None, tdir=None):
         if self.extension is None:
@@ -167,8 +168,8 @@ class OutputFileHandle(SysOutputHandle):
         return plot_book_canvas
 
     def make_plot_book(self):
-        all_canvases = filter(lambda obj: isinstance(obj, ROOT.TCanvas), self.objects.values())
-        ratio_plots = filter(lambda c: "ratio" in c.GetName(), all_canvases)
+        all_canvases = [obj for obj in list(self.objects.values()) if isinstance(obj, ROOT.TCanvas)]
+        ratio_plots = [c for c in all_canvases if "ratio" in c.GetName()]
         plots = list(set(all_canvases) - set(ratio_plots))
         plots.sort(key=lambda i: i.GetName())
         ratio_plots.sort(key=lambda i: i.GetName())
@@ -195,7 +196,7 @@ class OutputFileHandle(SysOutputHandle):
         if self.enable_make_plot_book:
             self.make_plot_book()
         self.attach_file()
-        for tdir, obj in self.objects.iteritems():
+        for tdir, obj in list(self.objects.items()):
             if isinstance(obj, ROOT.TCanvas) and not self.enable_make_plot_book:
                 self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
