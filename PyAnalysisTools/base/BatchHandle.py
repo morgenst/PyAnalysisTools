@@ -38,13 +38,18 @@ class BatchHandle(object):
 
         for job_id in range(n_jobs):
             if self.local:
+                log_fn = 'log_plotting_{:d}.txt'.format(job_id)
                 os.system('python {:s} -mtcf {:s} -id {:d} -log {:s} > {:s}'.format(exec_script, cfg_file_name, job_id,
-                                                                              self.log_level, os.path.join(output_dir, 'log_plotting_{:d}.txt'.format(job_id))))
+                                                                                    self.log_level,
+                                                                                    os.path.join(output_dir, log_fn)))
                 continue
-            os.system('echo "source $HOME/.bashrc && cd {:s} && source setup_python_ana_cc7.sh && cd macros '
+            if 'AnaPySetup' not in os.environ:
+                _logger.error('Cannot find env AnaPySetup and thus not determine setup script. Exiting')
+                exit(9)
+            os.system('echo "source $HOME/.bashrc && cd {:s} && source {:s} && cd macros '
                       '&& python {:s} -mtcf {:s} -id {:d} -log {:s}" | {:s} -q {:s} '
-                      '-o {:s}.txt -e {:s}.err'.format(base_path, exec_script, cfg_file_name, job_id, self.log_level,
-                                                       self.system, self.queue,
+                      '-o {:s}.txt -e {:s}.err'.format(base_path, os.environ['AnaPySetup'], exec_script, cfg_file_name,
+                                                       job_id, self.log_level, self.system, self.queue,
                                                        os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id)),
                                                        os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id))))
 
