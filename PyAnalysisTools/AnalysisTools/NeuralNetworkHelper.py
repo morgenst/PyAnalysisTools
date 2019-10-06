@@ -28,7 +28,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
-from PyAnalysisTools.AnalysisTools.RegionBuilder import NewRegionBuilder
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
 np.seterr(divide='ignore', invalid='ignore')
@@ -125,7 +125,7 @@ class NNTrainer(object):
         if kwargs['icomb'] is not None:
             self.output_path = os.path.join(self.output_path, str(kwargs['icomb']))
         self.limit_config = self.build_limit_config(kwargs['training_config_file'])
-        self.selection_cfg = NewRegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[0]
+        self.selection_cfg = RegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[0]
         self.selection = ['&&'.join([c.selection for c in self.selection_cfg.get_cut_list(is_data=False)]),
                           '&&'.join([c.selection for c in self.selection_cfg.get_cut_list(is_data=True)])]
         self.store_arrays = not kwargs['disable_array_safe']
@@ -387,7 +387,7 @@ class NNReader(object):
             self.nominal_dir = None
         self.selection = None
         if kwargs["selection_config"]:
-            self.selection_cfg = NewRegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[
+            self.selection_cfg = RegionBuilder(**yl.read_yaml(kwargs['selection_config'])['RegionBuilder']).regions[
                 0]
             self.selection = ['&&'.join([c.selection for c in self.selection_cfg.get_cut_list(is_data=False)]),
                               '&&'.join([c.selection for c in self.selection_cfg.get_cut_list(is_data=True)])]
