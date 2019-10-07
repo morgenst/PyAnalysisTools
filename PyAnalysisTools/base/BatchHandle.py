@@ -26,6 +26,7 @@ class BatchHandle(object):
             self.is_master = True
 
     def execute(self):
+        _logger.debug("Executing batch job")
         if self.is_master:
             self.job.prepare()
             self.output_dir = self.submit_childs(*self.job.submit_args)
@@ -61,10 +62,12 @@ class BatchHandle(object):
         if not self.is_master:
             return
         _logger.debug("Taring log files")
-        with change_dir(self.output_dir):
-            os.system('tar -cf {:s} log*.txt log*.err &> /dev/null'.format('logs.tar'))
-            for fn in glob.glob('log*.txt'):
-                remove_file(fn)
-            for fn in glob.glob('log*.err'):
-                remove_file(fn)
-
+        try:
+            with change_dir(self.output_dir):
+                os.system('tar -cf {:s} log*.txt log*.err &> /dev/null'.format('logs.tar'))
+                for fn in glob.glob('log*.txt'):
+                    remove_file(fn)
+                for fn in glob.glob('log*.err'):
+                    remove_file(fn)
+        except AttributeError:
+            _logger.error('Something went wrong in processing. Could not clean up. Check carefully')
