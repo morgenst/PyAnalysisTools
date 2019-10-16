@@ -725,11 +725,13 @@ def add_legend_to_canvas(canvas, **kwargs):
             try:
                 process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
                 if process_config is None:
-                    process_config = filter(lambda pn: pn[0] in plot_obj.GetName(), iter(list(kwargs['process_configs'].items())))[0][1]
+                    process_config = sorted([pn for pn in kwargs['process_configs'] if pn[0] in plot_obj.GetName()],
+                                            key=lambda i: len(i[0]))[-1][1]
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
-                print('Could not find process label for ', plot_obj.GetName().split("_")[-1])
+                _logger.error('Could not find process label for object {:s} with parsed '
+                              'name {:s}'.format(plot_obj.GetName(), plot_obj.GetName().split("_")[-1]))
                 pass
             if label is None:
                 continue
