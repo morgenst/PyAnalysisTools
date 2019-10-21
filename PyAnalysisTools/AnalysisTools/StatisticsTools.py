@@ -18,36 +18,47 @@ def consistency_check_bins(obj1, obj2):
 
 
 def calculate_significance(signal, background):
+    """
+    Calculate significance as s/sqrt(b)
+    :param signal: signal yield
+    :param background: background yield
+    :return: significance (0 if background=0)
+    """
     try:
         return float(signal)/sqrt(float(background))
     except ZeroDivisionError:
         return 0.
 
 
-def get_significance(signal, background, plot_config, canvas=None):
-    #significance_hist_up = signal.Clone("significance_up")
-    significance_hist_down = signal.Clone("significance_down")
-
+def get_significance(signal, background, plot_config, canvas=None, upper_cut=False):
+    """
+    Calculate significance for cutting on some variable
+    :param signal: signal histogram
+    :param background: background histogram
+    :param plot_config:
+    :param canvas:
+    :param upper_cut:
+    :return:
+    """
+    significance_hist = signal.Clone("significance")
     if not consistency_check_bins(signal, background):
         _logger.error("Signal and background have different binnings.")
         raise InvalidInputError("Inconsistent binning")
     for ibin in range(signal.GetNbinsX() + 1):
         try:
-            significance_hist_down.SetBinContent(ibin, calculate_significance(signal.Integral(-1, ibin),
-                                                                         background.Integral(-1, ibin)))
+            if not upper_cut:
+                significance_hist.SetBinContent(ibin, calculate_significance(signal.Integral(-1, ibin),
+                                                                             background.Integral(-1, ibin)))
+            else:
+                significance_hist.SetBinContent(ibin, calculate_significance(signal.Integral(ibin, -1),
+                                                                                background.Integral(ibin, -1)))
         except ValueError:
             pass
-        # try:
-        #     significance_hist_up.SetBinContent(ibin, calculate_significance(signal.Integral(ibin, -1),
-        #                                                                  background.Integral(ibin, -1)))
-        # except ValueError:
-        #     pass
-    fm.set_title_y(significance_hist_down, "S/#sqrt{B}")
+    fm.set_title_y(significance_hist, "S/#sqrt{B}")
     if canvas is None:
-
-        canvas = pt.plot_obj(significance_hist_down, plot_config)
+        canvas = pt.plot_obj(significance_hist, plot_config)
     else:
-        pt.add_object_to_canvas(canvas, significance_hist_down, plot_config)
+        pt.add_object_to_canvas(canvas, significance_hist, plot_config)
     return canvas
 
 
@@ -119,15 +130,13 @@ def get_KS(reference, compare):
     return reference.KolmogorovTest(compare)
 
 
-def get_signal_acceptance(signal_yields, generated_events, plot_config, process_config):
+def get_signal_acceptance(signal_yields, generated_events, plot_config=None):
     """
     Calculate signal acceptance
     :param signal_yields: process and signal yields after cut
     :type signal_yields: dict
     :param generated_events: generated MC statistics
     :type generated_events: dict
-    :param process_config: process configs
-    :type process_config: dict
     :return: hist of signal acceptance
     :rtype: TH1
     """
@@ -157,24 +166,18 @@ def get_signal_acceptance(signal_yields, generated_events, plot_config, process_
             acceptance_hists.append((cut_name, make_acceptance_graph([(signal[icut][0],
                                                                        signal[icut][2]) for signal in acceptance])))
             acceptance_hists[-1][-1].SetName(cut_name)
-    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
-                             labels=[data[0] for data in acceptance_hists],
-                             xtitle="LQ mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1,
-                             watermark="Internal", watermark_size=0.02, watermark_offset=1, ymin=0., ymax=100.)
-    plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
-                    labels=[data[0] for data in acceptance_hists],
-                    xtitle="Gluino mass [GeV]", ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal", watermark_size=0.02, watermark_offset = 1,
-                    ymin=0., ymax=100.)
+    if plot_config is None:
+        plot_config = PlotConfig(name="acceptance_all_cuts", color=get_default_color_scheme(),
+                                 labels=[data[0] for data in acceptance_hists], xtitle="x-title",
+                                 ytitle="efficiency [%]", draw="Marker", lumi=-1, watermark="Internal",)
 
     pc_log = deepcopy(plot_config)
     pc_log.name += "_log"
     pc_log.logy = True
     pc_log.ymin = 0.1
     canvas = pt.plot_objects([data[1] for data in acceptance_hists], plot_config)
-    #fm.add_legend_to_canvas(canvas, labels=plot_config.labels)
     fm.decorate_canvas(canvas, plot_config=plot_config)
     canvas_log = pt.plot_objects([data[1] for data in acceptance_hists], pc_log)
-    #fm.add_legend_to_canvas(canvas_log, labels=pc_log.labels)
     fm.decorate_canvas(canvas_log, plot_config=pc_log)
     acceptance_hists[-1][1].SetName("acceptance_final")
     pc_final = deepcopy(plot_config)
