@@ -4,17 +4,20 @@ import os
 import subprocess
 import sys
 from contextlib import contextmanager
+from threading import Lock
 from PyAnalysisTools.base import _logger
 
 
 def make_dirs(path):
     """
-    Create (nested) directories
+    Create (nested) directories (thread-safe)
     :param path: directory
     :type path: str
     :return: Nothing
     :rtype: None
     """
+    lock = Lock()
+    lock.acquire()
     path = os.path.expanduser(path)
     if os.path.exists(path):
         return
@@ -23,6 +26,8 @@ def make_dirs(path):
     except OSError:
         _logger.error('Unable to create directory {:s}'.format(path))
         raise OSError
+    finally:
+        lock.release()
 
 
 def resolve_path_from_symbolic_links(symbolic_link, relative_path):
