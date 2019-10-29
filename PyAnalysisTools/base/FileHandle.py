@@ -10,23 +10,11 @@ from builtins import str
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
-#from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
 try:
     from PyAnalysisTools.AnalysisTools.DataStorePy3 import DataSetStore
 except SyntaxError:
     from PyAnalysisTools.AnalysisTools.DataStorePy2 import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
-
-
-# def get_id_tuple(f, args, kwargs, mark=object()):
-#     l = [hash(f)]
-#     for arg in args:
-#         l.append(hash(arg))
-#     l.append(id(mark))
-#     for k, v in list(kwargs.items()):
-#         l.append(k)
-#         l.append(id(v))
-#     return tuple(l)
 
 
 class FileHandle(object):
@@ -114,13 +102,13 @@ class FileHandle(object):
     def __del__(self):
         if self.tfile is None:
             return
-        _logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
+        _logger.verbose("Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
     def close(self):
         if self.tfile is None or not self.tfile.IsOpen():
             return
-        _logger.debug("Closing file {:s}".format(self.tfile.GetName()))
+        _logger.verbose("Closing file {:s}".format(self.tfile.GetName()))
         self.tfile.Close()
         if self.initial_file_name is not None:
             move(self.file_name, self.initial_file_name)
