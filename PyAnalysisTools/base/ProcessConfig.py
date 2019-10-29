@@ -1,6 +1,5 @@
 from __future__ import unicode_literals
 
-import codecs
 from builtins import str
 from builtins import map
 from builtins import object
@@ -17,7 +16,7 @@ class Process(object):
     Class defining a physics process
     """
 
-    def __init__(self, file_name, dataset_info, process_name=None, tags=[]):
+    def __init__(self, file_name, dataset_info, process_name=None, tags=[], cut=None):
         """
         Constructor
         :param file_name: name of input file
@@ -32,6 +31,7 @@ class Process(object):
         self.is_data = False
         self.dsid = None
         self.mc_campaign = None
+        self.cut = cut
         self.tags = re.compile('-?|'.join(map(re.escape, ['hist', 'ntuple'] + tags + [''])))
         if file_name is not None:
             self.base_name = self.tags.sub('', file_name).lstrip('-').replace('.root', '')
@@ -42,16 +42,18 @@ class Process(object):
         self.process_name = process_name
         if file_name is not None:
             self.parse_file_name(self.base_name.split('/')[-1])
+        if self.cut is not None:
+            self.process_name += self.cut
 
-    # def __str__(self):
-    #     """
-    #     Overloaded str operator. Get's called if object is printed
-    #     :return: formatted string with name and attributes
-    #     :rtype: str
-    #     """
-    #     obj_str = str(self.process_name)
-    #     obj_str += ' parsed from file name {:s}'.format(self.file_name)
-    #     return obj_str
+    def __str__(self):
+        """
+        Overloaded str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = str(self.process_name)
+        obj_str += ' parsed from file name {:s}'.format(self.file_name)
+        return obj_str
 
     def __unicode__(self):
         """

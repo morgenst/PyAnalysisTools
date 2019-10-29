@@ -1,9 +1,7 @@
 import unittest
-import ROOT
 import os
 from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
-from PyAnalysisTools.base import InvalidInputError
 
 cwd = os.path.dirname(__file__)
 
@@ -112,3 +110,9 @@ class TestProcess(unittest.TestCase):
         process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         self.assertFalse(process.matches_any('TBbLQmumu1400l1'))
 
+    def test_with_cut(self):
+        process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info, cut='foo')
+        process2 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info, cut='bar')
+        self.assertNotEqual(process1, process2)
+        self.assertNotEqual(process1.process_name, process2.process_name)
+        self.assertEqual(process1.dsid, process2.dsid)
