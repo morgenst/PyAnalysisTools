@@ -136,6 +136,84 @@ parsed and propagated to each plot config not matching the name *common*
 For ratio plots (needs proper phrasing): If one wants to show the uncertainties of points which are outside of the range
 one needs to set draw_option: "e0" in the ratio_config.
 
+Printing cutflows
+-----------------
+
+Printing cutflows is another main functionality needed for data analyses. Similar to making a plot cutflows can be produced
+given a set of configuration files. The steering script to initiate can be found in 'run_script/print_cutflow.py' and is
+shipped as executable binary when setting up PyAnalysisTools.
+Operation modes: The cutflow provides two operation modes:
+1.) Printing cutflows of pre-selection, i.e. the yields after each selection of the ntuple production
+2.) Printing cutflows for a selection applied to the ntuples, i.e. on top of the preselection
+
+For the first operation mode only the stored cutflow histograms are read from all input files and converted to numpy arrays.
+For the second operation mode one needs to provide a selection configuration (see NEED TO BE WRITTEN). The cuts in this
+selection will be applied consecutively and the event yields after each single cut will be stored in an equivalent numpy
+array. Finally the yields are scaled to luminosity and processes are added according to the process definition provided
+in the process configuration file (see above).
+
+All arguments are explained by calling the help. The important options are:
+
+Positional arguments:
+
+* input_file_list : list of input files
+
+Optional arguments:
+
+* systematics: name of input directory in input files (default: Nominal)
+* tree_name: name of input tree if custom selection
+* config_file: configuration file (luminosity etc. - see below for further details)
+* disable_sm_total: disable calculation of SM background as sum of all backgrounds
+* format: Output format, e.g. latex, rst, plain
+* selection_config: yaml file containing selection cuts
+* xs_config_file: yaml file containing mapping b/w dsid and dataset info (see above)
+* process_config_files: yaml files containing information on how processes are to be merged
+* output_dir: output directory to store acceptance plots (for each cut) if they are requested
+
+*Cutflow configuration file*
+The cutflow config file contains optional information which are not suitable to provide via the command line such as the
+luminosity information for each MC production campaign or the ordering of the processes in the cutflow table (as this will
+likely change between different regions). This is how it looks like:
+
+.. code-block:: python
+
+    Lumi:
+      mc16a: 36.24
+      mc16d: 44.3
+      mc16e: 58.45
+    ordering:
+      - ttbar
+      - ttbarV
+      - singletop
+      - Zjets
+      - Others
+      - SMTotal
+      - Data
+
+*Example*
+
+.. code-block:: python
+
+    print_cutflow.py /dcache/atlas/susy/mmorgens/LQ/ntuples/incl/v28_merged/ntuple-311556_0.MC16* -xcf  config/common/dataset_info_pmg.yml -prcf config/plotting/LQ/process_merge_LQe_all.yml --tree_name BaseSelection_lq_tree_syst_Final  -o /data/atlas/users/morgens/LQ/test  -cf config/plotting/LQ/cutflow_config.yml  -f latex -dsm -r -sc config/plotting/LQ/mass_selection_electron.yml -dsp
+
+Output:
+
+.. code-block:: latex
+
+    Cutflow for region TopCR_mu
+    \begin{tabular}{ll}
+    \toprule
+                          cut & LQPairmumu300 \\
+    \midrule
+                 Preselection &      5.70e+04 \\
+              At least 2 jets &      5.41e+04 \\
+      Exactly 2 b-tagged jets &      1189.16  \\
+       Muon \pT{} > 65~\GeV{} &      1189.16  \\
+           \minv > 130~\GeV{} &      1015.88  \\
+       \mLQmax{} > 300~\GeV{} &       711.88  \\
+    \bottomrule
+    \end{tabular}
+
 Setting limits
 --------------
 
