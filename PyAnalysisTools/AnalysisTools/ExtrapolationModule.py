@@ -72,13 +72,13 @@ class ExtrapolationModule(object):
             exit()
             new_yield = self.functions[region][0][0].Integral(xmin, xmax)
         elif len(self.histograms) > 0:
-            h_qcd_nom = [htmp for htmp in self.histograms if htmp.GetName() == region][0]
+            h_nom = [htmp for htmp in self.histograms if htmp.GetName() == region][0]
             max_bin = -1
             if xmax is not None:
-                max_bin = h_qcd_nom.FindBin(xmax) - 1
-            new_yield = h_qcd_nom.Integral(h_qcd_nom.FindBin(xmin), max_bin)
+                max_bin = h_nom.FindBin(xmax) - 1
+            new_yield = h_nom.Integral(h_nom.FindBin(xmin), max_bin)
             huncert = [htmp for htmp in self.histograms if htmp.GetName() == region + '_uncert'][0].Clone()
-            huncert.Multiply(h_qcd_nom)
+            huncert.Multiply(h_nom)
             max_bin = -1
             if xmax is not None:
                 max_bin = huncert.FindBin(xmax) - 1
@@ -90,7 +90,7 @@ class ExtrapolationModule(object):
         _logger.debug('RESET bin content: {:.1f} {:.1f} {:.1f} {:.5f} based on {:s} and {:s}'.format(xmin, xmax,
                                                                                                      new_yield,
                                                                                                      uncert,
-                                                                                                     h_qcd_nom.GetName(),
+                                                                                                     h_nom.GetName(),
                                                                                                      huncert.GetName()))
         return new_yield, uncert
 
