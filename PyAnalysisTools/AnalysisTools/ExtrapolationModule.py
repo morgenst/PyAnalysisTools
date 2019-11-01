@@ -87,6 +87,7 @@ class ExtrapolationModule(object):
             _logger.error('Could not find information to extrapolate top')
             exit(-1)
         new_yield *= lumi
+        uncert *= lumi
         _logger.debug('RESET bin content: {:.1f} {:.1f} {:.1f} {:.5f} based on {:s} and {:s}'.format(xmin, xmax,
                                                                                                      new_yield,
                                                                                                      uncert,
@@ -99,11 +100,11 @@ class ExtrapolationModule(object):
             _logger.warn("Requested top extrapolation, but could not find ttbar in histograms.")
             return
         top_hist = histograms['ttbar']
-        #top_uncert_hist_down = top_hist.Clone('top_extrapol_unc__1down')
         region = [r for r in list(self.stich_points.keys()) if r in top_hist.GetName()][0]
         top_uncert_up = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1up'.format(region))
         top_uncert_down = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1down'.format(region))
         _logger.debug('Running top extrapolation in region {:s}'.format(region))
+        uncert_sum = 0.
         for i in range(top_hist.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
                                                             top_hist.GetXaxis().GetBinUpEdge(i), 139.)
@@ -111,6 +112,8 @@ class ExtrapolationModule(object):
                 continue
             _logger.debug("old yield: {:.2f} new yield: {:.2f}".format(top_hist.GetBinContent(i), bin_content[0]))
             top_hist.SetBinContent(i, bin_content[0])
+            if top_hist.GetBinLowEdge(i) > 1699.:
+                uncert_sum += bin_content[1]
             if systematics_handle is not None:
                 #need to modify all tail of the systematics histograms:
                 for unc in list(systematics_handle.systematic_variations.keys()):
@@ -124,8 +127,8 @@ class ExtrapolationModule(object):
                         continue
                     systematics_handle.systematic_variations[unc][plot_config]['ttbar'].SetBinContent(i, bin_content[0])
             #TODO: Need some way for relative and abs uncertainty
-            top_uncert_up.SetBinContent(i, bin_content[0] * bin_content[1])
-            top_uncert_down.SetBinContent(i, bin_content[0] * (2. - bin_content[1]))
+            top_uncert_up.SetBinContent(i, bin_content[0] + bin_content[1])
+            top_uncert_down.SetBinContent(i, bin_content[0] - bin_content[1])
         output_handle.register_object(top_hist)
         output_handle.register_object(top_uncert_up)
         output_handle.register_object(top_uncert_down)
