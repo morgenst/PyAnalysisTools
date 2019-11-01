@@ -7,8 +7,9 @@ Making a plot
 -------------
 
 Creating plots is one of the core functionality and the code is designed such that everything can be configured via
-several configuration files defining the content. All configuration files are written in **yaml** To understand the concept behind it one needs to understand the meaning
-of these config files. To make a *standard* plot one typically needs at least three configuration files:
+several configuration files defining the content. All configuration files are written in **yaml**. To understand the
+concept behind it one needs to understand the meaning of these config files.
+To make a *standard* plot one typically needs at least three configuration files:
 
 1.) **The dataset config**
 
@@ -135,6 +136,23 @@ parsed and propagated to each plot config not matching the name *common*
 
 For ratio plots (needs proper phrasing): If one wants to show the uncertainties of points which are outside of the range
 one needs to set draw_option: "e0" in the ratio_config.
+
+**Invoking plot making**
+
+To make plots several steering script are provided (not all have been moved to the run_scripts directory, yet, and thus
+are not always provided as binaries - meaning one has to use an existing script or write one on its own). The "standard"
+plots can be produced by either the *run_plotting.py* or the *run_plotting_cluster.py* scripts (at some point they'll be
+merged into a single script - see ELB-). Both are wrappers to configure and execute the sequence implemented in the Plotter
+class with the only difference being that the run_plotting_cluster.py script runs in cluster-mode. This is meant to speed
+up the plot making which can depending on the input file size and the number of requested histograms run for several hours
+which of course is far from ideal. If the user has access to a computing cluster - currently only qsub systems are supported,
+but implementing bsub systems should be trivial in the BatchHandle class - the plot production is split into single jobs.
+Each job will create all requested histograms for a single input file and dump the histograms in the output directory. Once
+all files are processed a final job will be launched locally which reads back all these histograms, merges and scales them,
+and make the final plot. This last step is very fast as the input files are small. For simple plots that's usually not
+much of a concern, but once systematics are considered the amount of histograms to fetch exceeds 10k very easily.
+In general re-making all plots in an analysis including systematics (ignoring limits) should not take more than a few
+minutes (provided that the cluster availability is high).
 
 Printing cutflows
 -----------------
