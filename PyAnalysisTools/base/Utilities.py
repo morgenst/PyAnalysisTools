@@ -56,7 +56,7 @@ class Cleaner(object):
         self.base_path = os.path.abspath(kwargs["base_path"])
         self.safe = kwargs["safe"]
         self.keep_pattern = [".git", ".keep", ".svn", "InstallArea", "RootCoreBin", "WorkArea"]
-        self.deletion_list= []
+        self.deletion_list = []
         self.touch_threshold_days = 14.
         self.trash_path = os.path.expanduser(kwargs["trash_path"])
 
@@ -69,7 +69,8 @@ class Cleaner(object):
     def check_lifetime(threshold, d1, filelist):
         return divmod(calendar.timegm(time.gmtime()) - os.path.getctime(min(map(lambda fn: os.path.join(d1, fn),
                                                                                 filelist),
-                                                                            key=os.path.getctime)), 3600. * 24.)[0] < threshold
+                                                                            key=os.path.getctime)), 3600. * 24.)[
+                   0] < threshold
 
     def retrieve_directory_list(self):
         directories = filter(lambda d: os.path.isdir(os.path.join(self.base_path, d)), os.listdir(self.base_path))
@@ -83,7 +84,7 @@ class Cleaner(object):
                         if self.check_lifetime(self.touch_threshold_days, d1, filelist):
                             continue
                     except OSError:
-                        #todo: check for symlinks, remove invalid ones and check again
+                        # todo: check for symlinks, remove invalid ones and check again
                         continue
                 self.deletion_list.append(d1)
                 if any(keep_pattern in d1 for keep_pattern in self.keep_pattern):
@@ -94,7 +95,7 @@ class Cleaner(object):
                     keep_list.append(d1)
 
         self.deletion_list = filter(lambda dn: True not in map(lambda keep: dn.startswith(keep) or
-                                                               keep.startswith(dn), keep_list),
+                                                                            keep.startswith(dn), keep_list),
                                     self.deletion_list)
         self.deletion_list = filter(lambda dn: True not in map(lambda base: dn.startswith(base) and dn != base,
                                                                self.deletion_list), self.deletion_list)
