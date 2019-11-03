@@ -441,8 +441,8 @@ class Plotter(BasePlotter):
 
                 significance_canvas = ST.get_significance(signal_hist, background_hist, sig_plot_config,
                                                           significance_canvas)
-                canvas_significance_ratio = pt.add_ratio_to_canvas(canvas, significance_canvas,
-                                                                   name=canvas.GetName() + "_significance")
+                canvas_significance_ratio = RP.RatioPlotter.add_ratio_to_canvas(canvas, significance_canvas,
+                                                                                name=canvas.GetName() + "_significance")
             if significance_canvas is not None:
                 self.output_handle.register_object(canvas_significance_ratio)
 
@@ -516,7 +516,7 @@ class Plotter(BasePlotter):
                 self.syst_analyser.make_overview_plots(plot_config)
 
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
-            canvas_combined = pt.add_ratio_to_canvas(canvas, canvas_ratio)
+            canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio)
             _logger.debug('register canvas {:s}'.format(canvas_combined.GetName()))
             self.output_handle.register_object(canvas_combined)
 

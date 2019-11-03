@@ -3,12 +3,13 @@ from builtins import range
 from builtins import object
 from past.utils import old_div
 import ROOT
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import PlottingTools as pt
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils.HistTools import get_colors
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
+from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 
 
 class RatioCalculator(object):
@@ -177,3 +178,105 @@ class RatioPlotter(object):
         canvas.Modified()
         canvas.Update()
         return canvas
+    
+    @staticmethod
+    def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, name=None, title=''):
+        def scale_frame_text(fr, scale):
+            x_axis = fr.GetXaxis()
+            y_axis = fr.GetYaxis()
+            y_axis.SetTitleSize(y_axis.GetTitleSize() * scale)
+            y_axis.SetLabelSize(y_axis.GetLabelSize() * scale)
+            y_axis.SetTitleOffset(1.1 * y_axis.GetTitleOffset() / scale)
+            y_axis.SetLabelOffset(0.01)
+            x_axis.SetTitleSize(x_axis.GetTitleSize() * scale)
+            x_axis.SetLabelSize(x_axis.GetLabelSize() * scale)
+            x_axis.SetTickLength(x_axis.GetTickLength() * scale)
+            x_axis.SetTitleOffset(2.5 * x_axis.GetTitleOffset() / scale)
+            x_axis.SetLabelOffset(2.5 * x_axis.GetLabelOffset() / scale)
+
+        def reset_frame_text(fr):
+            x_axis = fr.GetXaxis()
+            y_axis = fr.GetYaxis()
+            gs = ROOT.gStyle
+            y_axis.SetTitleSize(gs.GetTitleSize('Y'))
+            y_axis.SetLabelSize(gs.GetLabelSize('Y'))
+            y_axis.SetTitleOffset(gs.GetTitleOffset('Y'))
+            y_axis.SetLabelOffset(gs.GetLabelOffset('Y'))
+            x_axis.SetTitleSize(gs.GetTitleSize('X'))
+            x_axis.SetLabelSize(gs.GetLabelSize('X'))
+            x_axis.SetTickLength(gs.GetTickLength('X'))
+
+        if not canvas or not ratio:
+            raise InvalidInputError("Either canvas or ratio not provided.")
+        y_frac = 0.25
+        if isinstance(ratio, ROOT.TCanvas):
+            supported_types = ["TH1F", "TH1D", "TGraph", "TGraphAsymmErrors", "TEfficiency"]
+            try:
+                hratio = object_handle.get_objects_from_canvas_by_type(ratio, supported_types)[0]
+            except:
+                _logger.error("Could not find any supported hist type in canvas {:s}".format(ratio.GetName()))
+                return canvas
+        else:
+            hratio = ratio
+            ratio = pt.plot_obj(ratio, PlotConfig())
+
+        if name is None:
+            name = canvas.GetName() + "_ratio"
+        c = pt.retrieve_new_canvas(name, title)
+        c.Draw()
+        pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
+        pad1.SetBottomMargin(0.05)
+        pad1.Draw()
+        pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1,
+                         (old_div((1 - y_frac) * canvas.GetBottomMargin(), y_frac) + 1) * y_frac - 0.009)
+        pad2.SetBottomMargin(0.1)
+        pad2.Draw()
+        pad1.cd()
+        object_handle.get_objects_from_canvas(canvas)
+        try:
+            stack = object_handle.get_objects_from_canvas_by_type(canvas, "THStack")[0]
+        except IndexError:
+            try:
+                stack = object_handle.get_objects_from_canvas_by_type(canvas, "TEfficiency")[0]
+            except IndexError:
+                try:
+                    stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+                except:
+                    stack = object_handle.get_objects_from_canvas_by_type(canvas, "TGraph")[0]
+        stack.GetXaxis().SetTitleSize(0)
+        stack.GetXaxis().SetLabelSize(0)
+        scale = 1. / (1. - y_frac)
+        scale_frame_text(stack, scale)
+        canvas.DrawClonePad()
+
+        pad2.cd()
+        hratio.GetYaxis().SetNdivisions(505)
+        scale = 1. / ((old_div((1 - y_frac) * (canvas.GetBottomMargin()), y_frac) + 1) * y_frac)
+
+        reset_frame_text(hratio)
+        scale_frame_text(hratio, scale)
+        ratio.Update()
+        ratio.SetBottomMargin(0.4)
+        ratio.DrawClonePad()
+        pad2.Update()
+        xlow = pad2.GetUxmin()
+        xup = pad2.GetUxmax()
+        if ratio.GetLogx():
+            stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
+            xlow = stack.GetXaxis().GetXmin()
+            xup = stack.GetXaxis().GetXmax()
+        line = ROOT.TLine(xlow, 1, xup, 1)
+        line.Draw('same')
+        pad2.Update()
+        c.line = line
+        pad = c.cd(1)
+        if y_min is not None or y_max is not None:
+            efficiency_obj = object_handle.get_objects_from_canvas_by_type(pad1, "TEfficiency")
+            first = efficiency_obj[0]
+            fm.set_title_y(first, y_title)
+            for obj in efficiency_obj:
+                fm.set_range_y(obj, y_min, y_max)
+            pad1.Update()
+        pad.Update()
+        pad.Modified()
+        return c
