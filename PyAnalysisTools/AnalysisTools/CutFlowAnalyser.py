@@ -346,7 +346,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     for i, process in enumerate(signals):
                         print("{:d}, {:s}".format(i, process[0]))
                     print("a) All")
-                    choice = eval(input("What processes do you like to have shown (comma/space seperated)?"))
+                    choice = input("What processes do you like to have shown (comma/space seperated)?")
                     try:
                         if choice.lower() == "a":
                             choices = None
@@ -370,7 +370,11 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     else:
                         cutflow_tables[region].columns = ["cut", process]
                     continue
-                d = {process: cutflow_tmp['yield']}
+                if not self.raw:
+                    d = {process: cutflow_tmp['yield']}
+                else:
+                    d = {process: cutflow_tmp['yield_raw']}
+                print(d)
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
                 if self.enable_eff:
                     cutflow_tables[region] = self.calculate_cut_efficiencies(cutflow_tables[region], cutflow_tmp,
@@ -438,7 +442,10 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 yields[parent_process] = yields[process]
             else:
                 try:
-                    yields[parent_process]["yield"] += yields[process]["yield"]
+                    if not self.raw:
+                        yields[parent_process]["yield"] += yields[process]["yield"]
+                    else:
+                        yields[parent_process]["yield"] += yields[process]["yield_raw"]
                 except TypeError:
                     yields[parent_process] += yields[process]
             yields.pop(process)
@@ -485,9 +492,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             signal_yields = dict([cf for cf in iter(list(cutflows.items())) if cf[0] in [prc.name for prc in signal_processes]])
             if len(signal_yields) == 0:
                 continue
-            canvas_cuts, canvas_cuts_log, canvas_final = get_signal_acceptance(signal_yields,
-                                                                               signal_generated_events,
-                                                                               self.plot_config, None)
+            canvas_cuts, canvas_cuts_log, canvas_final = get_signal_acceptance(signal_yields, signal_generated_events,
+                                                                               self.plot_config)
 
             new_name_cuts = canvas_cuts.GetName()
             new_name_cuts_log = canvas_cuts_log.GetName()
