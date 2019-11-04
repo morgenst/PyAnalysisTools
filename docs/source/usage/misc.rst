@@ -77,3 +77,5 @@ meet the needs or taste of the user it can be overwritten by putting a config fi
 within the user's analysis package (e.g. ELYourFancyAnalysis/macros/plot_config_defaults.yml). If such a file is found
 the defaults will be taken from there. Of course the user only needs to specify the attributes he/she likes to overwrite
 while if any attribute is not provided by neither the users default and plot config the package's default config is used.
+
+* enable_range_arrows (bool): enable/disable arrows in ratio if ratio is out of range

@@ -444,12 +444,15 @@ def set_minimum_x(graph_obj, minimum):
 
 
 def set_range_y(graph_obj, minimum, maximum):
+    if minimum >= maximum:
+        return
     if isinstance(graph_obj, ROOT.THStack):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
     elif isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.TGraph):
         if not isinstance(graph_obj, ROOT.TH2):
             graph_obj.SetMaximum(maximum)
+            graph_obj.SetMinimum(minimum)
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)

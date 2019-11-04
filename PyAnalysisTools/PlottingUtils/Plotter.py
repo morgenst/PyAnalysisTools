@@ -485,10 +485,10 @@ class Plotter(BasePlotter):
                 stat_unc_ratio = ST.get_statistical_uncertainty_ratio(self.stat_unc_hist)
                 stat_unc_ratio.SetMarkerColor(ROOT.kYellow)
                 stat_unc_ratio.SetMarkerStyle(1)
-
                 if self.syst_analyser is None:
                     canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio, stat_unc_ratio,
                                                                            plot_config_stat_unc_ratio)
+
             if self.syst_analyser is not None:
                 syst_color = ROOT.kRed
                 plot_config_syst_unc_ratio = copy.copy(ratio_plot_config)
@@ -514,7 +514,6 @@ class Plotter(BasePlotter):
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
                 self.syst_analyser.make_overview_plots(plot_config)
-
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio)
             _logger.debug('register canvas {:s}'.format(canvas_combined.GetName()))

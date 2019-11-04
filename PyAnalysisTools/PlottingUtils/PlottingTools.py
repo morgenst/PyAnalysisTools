@@ -449,15 +449,16 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             draw_option += "sames"
         hist.Draw(draw_option)
         fm.apply_style(hist, plot_config, process_config, index=index)
-
         if is_first:
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
             format_hist(hist, plot_config)
             if plot_config.ymax:
-                 hist.SetMaximum(plot_config.ymax)
+                 fm.set_maximum_y(hist, plot_config.ymax)#hist.SetMaximum(plot_config.ymax)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.2)
+            if plot_config.ymin:
+                fm.set_minimum_y(hist, plot_config.ymin)
         if plot_config.logy:
             hist.SetMaximum(hist.GetMaximum() * 100.)
             if plot_config.ymin > 0.:

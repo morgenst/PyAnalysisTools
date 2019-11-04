@@ -4,6 +4,7 @@ from builtins import object
 from past.utils import old_div
 import ROOT
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import PlottingTools as pt
@@ -103,20 +104,15 @@ class RatioPlotter(object):
                 self.plot_config.color = colors
             self.plot_config.ordering = None
         self.plot_config.normalise = False
+        _logger.debug('Plotting now ratio histograms')
         canvas = pt.plot_histograms(ratios, self.plot_config)
-        # self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
-        # if len(self.compare) > 1:
-        #     colors = get_colors(self.compare)
-        #     self.plot_config.color = colors
-        # self.plot_config.ordering = None
-        # self.plot_config.logy = False
-        # self.plot_config.ymin = 0.
-        # self.plot_config.ymax = 2.
-        #canvas = pt.plot_histograms(ratios, self.plot_config, switchOff=True)
+        if self.plot_config.enable_range_arrows:
+            RatioPlotter.overlay_out_of_range_arrow(canvas)
         return canvas
 
     def add_uncertainty_to_canvas(self, canvas, hist, plot_config, n_systematics=1):
         ratio_hist = fm.get_objects_from_canvas_by_type(canvas, "TH1F")[0]
+        arrows = object_handle.get_objects_from_canvas_by_type(canvas, "TArrow")
         if not isinstance(hist, list):
             hist = [hist]
             plot_config = [plot_config]
@@ -126,6 +122,8 @@ class RatioPlotter(object):
                 pc = plot_config[old_div(i,n_systematics)]
                 pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i+1)#index=i - i/n_systematics * n_systematics)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
+        for a in arrows:
+            a.Draw()
         return canvas
 
     def decorate_ratio_canvas(self, canvas):
@@ -161,20 +159,28 @@ class RatioPlotter(object):
 
     @staticmethod
     def overlay_out_of_range_arrow(canvas):
-        hist = pt.get_objects_from_canvas_by_name(canvas, "Data")[0]
+        hist = get_objects_from_canvas_by_name(canvas, "Data")[0]
         y_min, y_max = hist.GetMinimum(), hist.GetMaximum()
         canvas.cd()
-        for b in range(hist.GetNbinsX() + 1):
+        for b in range(1, hist.GetNbinsX() + 1):
             bin_content = hist.GetBinContent(b)
-            if bin_content > y_min and bin_content < y_max:
+            if bin_content >= y_min and bin_content < y_max:
                 continue
             bin_center = hist.GetXaxis().GetBinCenter(b)
             if bin_content < y_min:
-                a = ROOT.TArrow(bin_center, y_min, bin_center, y_min+0.3, 0.03, "<")
-            elif bin_content < y_min:
-                a = ROOT.TArrow(bin_center, y_max - 0.3, bin_center, y_max, 0.03, ">")
+                a = ROOT.TArrow(bin_center, y_min+0.05*(y_max-y_min), bin_center, y_min, 0.03/(canvas.GetWw()/596.),
+                                "|>")
+            elif bin_content > y_max:
+                a = ROOT.TArrow(bin_center, y_max-0.05*(y_max-y_min), bin_center, y_max, 0.03/(canvas.GetWw()/596.),
+                                "|>")
+
             ROOT.SetOwnership(a, False)
-            a.Draw("sames")
+            a.SetFillColor(10)
+            a.SetFillStyle(1001)
+            a.SetLineColor(ROOT.kBlue - 7)
+            a.SetLineWidth(2)
+            a.SetAngle(40)
+            a.Draw()
         canvas.Modified()
         canvas.Update()
         return canvas
