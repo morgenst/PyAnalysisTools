@@ -113,8 +113,8 @@ class TestFormatting(unittest.TestCase):
         self.assertEqual(0.5, self.hist.GetXaxis().GetXmax())
 
     def test_set_maximum_y(self):
-        fm.set_maximum_y(self.hist, 2.)
-        self.assertEqual(2., self.hist.GetMaximum())
+        fm.set_maximum_y(self.hist, 2000.)
+        self.assertEqual(2000., self.hist.GetMaximum())
 
     def test_add_text_to_canvas(self):
         c = ROOT.TCanvas()
@@ -250,9 +250,9 @@ class TestFormatting(unittest.TestCase):
         fm.set_range(self.hist, 1.)
         self.assertEqual(self.hist.GetMinimum(), 1.)
 
-    def test_set_range_hist_max_only(self):
+    def test_set_range_hist_max_only_min_larger(self):
         fm.set_range(self.hist, maximum=10.)
-        self.assertEqual(self.hist.GetMaximum(), 10.)
+        self.assertNotEqual(self.hist.GetMaximum(), 10.)
 
     def test_set_range_hist(self):
         fm.set_range(self.hist, 1., 10.)
@@ -267,12 +267,6 @@ class TestFormatting(unittest.TestCase):
     @unittest.skip("Not implemented")
     def test_set_range_graph_max_only(self):
         fm.set_range(self.unformatted_graph_1d, maximum=10.)
-        self.assertEqual(self.unformatted_graph_1d.GetMaximum(), 10.)
-
-    @unittest.skip("Not implemented")
-    def test_set_range_hist(self):
-        fm.set_range(self.unformatted_graph_1d, 1., 10.)
-        self.assertEqual(self.unformatted_graph_1d.GetMinimum(), 1.)
         self.assertEqual(self.unformatted_graph_1d.GetMaximum(), 10.)
 
     def test_make_text(self):

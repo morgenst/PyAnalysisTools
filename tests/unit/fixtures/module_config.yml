@@ -30,7 +30,3 @@ RegionBuilder:
       label: "e^{#pm}e^{#mp} b-veto"
       event_cuts:
         - "Sum$(jet_has_btag==1) == 0 ::: b-tag veto"
-
-#TopExtrapolationModule:
-#  input_hist_file: output_20190626_10-34-31/top_extrapolation_hists.root
-#  qcd_mode: False
