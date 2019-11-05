@@ -76,8 +76,8 @@ class MuonFakeEstimator(object):
     def retrieve_fake_plot_configs(self, plot_config):
         n_muon = plot_config.region.n_muon
         fake_plot_configs = dict()
-        l = list(range(1, n_muon + 1))
-        combinations = [list(zip(x, l)) for x in permutations(l, len(l))]
+        muon_indices = list(range(1, n_muon + 1))
+        combinations = [list(zip(x, muon_indices)) for x in permutations(muon_indices, len(muon_indices))]
         combinations = [i for comb in combinations for i in comb]
         combinations = [e for e in combinations if e[1] >= e[0]]
         for combination in combinations:
@@ -88,8 +88,8 @@ class MuonFakeEstimator(object):
     def retrieve_single_fake_plot_config(plot_config, n_fake_muon, n_total_muon):
         pc = deepcopy(plot_config)
         pc.name = "fake_single_lep"
-        cut_name = "Sum$(muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3)" #""Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)" #"Sum$(muon_isolFixedCutLoose == 0)"
-
+        cut_name = "Sum$(muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3)"
+        #  ""Sum$(muon_is_num == 1 && muon_is_prompt_fix == 1)" #"Sum$(muon_isolFixedCutLoose == 0)"
         good_muon = "muon_isolFixedCutTight == 1 && muon_is_prompt == 1 && abs(muon_d0sig) < 3"
         bad_muon = "muon_isolFixedCutLoose == 0 && abs(muon_d0sig) < 3"
         muon_selector = "Sum$({:s})".format(good_muon)
@@ -143,8 +143,8 @@ class MuonFakeDecorator(object):
     def decorate_event(self):
         def get_n_jets_dr(n_muon, dR):
             n_jets_dr = 0
-            #todo: fix to new branch name: muon_jet_dr (v15 onwards)
-            for jet_dr in self.tree.muon_all_jet_dr:#[n_muon]:
+            # todo: fix to new branch name: muon_jet_dr (v15 onwards)
+            for jet_dr in self.tree.muon_all_jet_dr:  # [n_muon]:
                 if jet_dr > dR:
                     continue
                 n_jets_dr += 1
@@ -152,15 +152,13 @@ class MuonFakeDecorator(object):
         self.fake_factors.clear()
         self.total_sf[0] = 1.
         for n_muon in range(self.tree.muon_n):
-            #muon_isolFixedCutLoose == 0 & & muon_is_prompt == 1 & & abs(muon_d0sig) > 3 & & mc_weight >= 0
+            # muon_isolFixedCutLoose == 0 & & muon_is_prompt == 1 & & abs(muon_d0sig) > 3 & & mc_weight >= 0
             fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
                                                               self.tree.muon_eta[n_muon],
                                                               self.tree.muon_isolFixedCutLoose[n_muon] == 0,
                                                               0)
-                                                              #self.tree.muon_n_jet_dr2[n_muon])
             self.total_sf[0] *= fake_factor
             self.fake_factors.push_back(fake_factor)
-                                                                            #get_n_jets_dr(n_muon, 0.3)))
 
     def event_loop(self):
         total_entries = self.tree.GetEntries()
@@ -240,15 +238,13 @@ class ElectronFakeDecorator(object):
         self.fake_factors.clear()
         self.total_sf[0] = 1.
         for n_electron in range(self.tree.electron_n):
-            #muon_isolFixedCutLoose == 0 & & muon_is_prompt == 1 & & abs(muon_d0sig) > 3 & & mc_weight >= 0
-            fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
-                                                              self.tree.muon_eta[n_muon],
-                                                              self.tree.muon_isolFixedCutLoose[n_muon] == 0,
-                                                              0)
-                                                              #self.tree.muon_n_jet_dr2[n_muon])
-            self.total_sf[0] *= fake_factor
-            self.fake_factors.push_back(fake_factor)
-                                                                            #get_n_jets_dr(n_muon, 0.3)))
+            pass
+            # fake_factor = self.estimator.retrieve_fake_factor(self.tree.muon_pt[n_muon],
+            #                                                   self.tree.muon_eta[n_muon],
+            #                                                   self.tree.muon_isolFixedCutLoose[n_muon] == 0,
+            #                                                   0)
+            # self.total_sf[0] *= fake_factor
+            # self.fake_factors.push_back(fake_factor)
 
     def event_loop(self):
         total_entries = self.tree.GetEntries()
@@ -313,7 +309,7 @@ class ElectronFakeEstimator(object):
                     except KeyError:
                         hist_data[plot_config] = {process: hist}
                 print(data)
-                #hist_data = {k: v for k, v in data[0][1]}
+                # hist_data = {k: v for k, v in data[0][1]}
                 fake_histograms[key] = hist_data
 
         fake_plot_configs = self.retrieve_fake_plot_configs(plot_config)
@@ -326,12 +322,10 @@ class ElectronFakeEstimator(object):
         rebuild_dict_structure()
         for key, data in list(fake_histograms.items()):
             self.plotter.apply_lumi_weights(data)
-            #print self.plotter.process_configs
-            #print hists
-            #self.plotter.merge(hists, self.plotter.process_configs)
+            # self.plotter.merge(hists, self.plotter.process_configs)
             for plot_config, hists in list(data.items()):
                 fake_histograms[key][plot_config] = self.merge(hists, self.plotter.process_configs)
-        #fake_histograms = self.merge(fake_histograms)
+        # fake_histograms = self.merge(fake_histograms)
         fake_hist = self.build_fake_contribution(fake_histograms)
         fake_hist.SetName("{:s}_{:s}".format(plot_config.name, self.sample_name))
         return fake_hist
@@ -390,8 +384,8 @@ class ElectronFakeEstimator(object):
     def retrieve_fake_plot_configs(self, plot_config):
         n_electron = plot_config.region.n_electron
         fake_plot_configs = dict()
-        l = list(range(1, n_electron + 1))
-        combinations = [list(zip(x, [n_electron])) for x in permutations(l, len(l))]
+        electron_indices = list(range(1, n_electron + 1))
+        combinations = [list(zip(x, [n_electron])) for x in permutations(electron_indices, len(electron_indices))]
         combinations = [i for comb in combinations for i in comb]
         combinations = [e for e in combinations if e[1] >= e[0]]
         combinations = [e for e in combinations if e[1] >= e[0]]
@@ -413,7 +407,8 @@ class ElectronFakeEstimator(object):
         cut = cut.replace("{:s} == electron_n".format(electron_selector),
                           "{:s} == (electron_n - {:d})".format(electron_selector, n_fake_electron))
         cut = cut.replace("electron_n == {:d}".format(n_total_electron),
-                          "electron_n == {:d} && Sum$({:s}) == {:d}".format(n_total_electron, bad_electron, n_fake_electron))
+                          "electron_n == {:d} && Sum$({:s}) == {:d}".format(n_total_electron, bad_electron,
+                                                                            n_fake_electron))
         pc.cuts[cut_index] = cut
         pc.weight += " * 0.5"
         return pc

@@ -3,9 +3,6 @@ import unittest
 import numpy as np
 from ROOT import TFile
 
-from PyAnalysisTools.base import InvalidInputError
-#from PyAnalysisTools.AnalysisTools.CutFlowAnalyser import CutflowAnalyser as ca
-
 
 class TestCutFlowAnalyser(unittest.TestCase):
     def setUp(self):
@@ -13,7 +10,7 @@ class TestCutFlowAnalyser(unittest.TestCase):
         f = TFile(self.test_input_file_name, "READ")
         self.cutflow_raw_hist = f.Get("cutflow_raw")
         self.cutflow_raw_hist.SetDirectory(0)
-        #self.ca = ca(file_list=[self.test_input_file_name], dataset_config=None, systematics='')
+        # self.ca = ca(file_list=[self.test_input_file_name], dataset_config=None, systematics='')
 
     @unittest.skip("Old interface")
     def test_analyse_cutflow(self):
@@ -29,7 +26,7 @@ class TestCutFlowAnalyser(unittest.TestCase):
     @unittest.skip("Not implemented")
     def test_read_cutflow_default_name(self):
         self.ca.read_cutflows()
-        #self.assertEqual(self.ca.cutflow_hists, )
+        # self.assertEqual(self.ca.cutflow_hists, )
 
     @unittest.skip("Old interface")
     def test_execution(self):
@@ -37,8 +34,9 @@ class TestCutFlowAnalyser(unittest.TestCase):
 
     @unittest.skip("Not catching right exception")
     def test_non_existing_file(self):
-        self.assertRaises(ValueError, ca(**{'file_list': ['NonExistingFile'],
-                                                   'dataset_config': None, 'systematics': ''}))
+        pass
+        # self.assertRaises(ValueError, (**{'file_list': ['NonExistingFile'],
+        #                                            'dataset_config': None, 'systematics': ''}))
 
     @unittest.skip("Not implemented")
     def test_capture_missing_cutflow(self):

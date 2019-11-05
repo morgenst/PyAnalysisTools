@@ -1,13 +1,13 @@
 #!/usr/bin/env python
 
-import ROOT
-ROOT.PyConfig.IgnoreCommandLineOptions = True
 import os
 from subprocess import check_call
 from PyAnalysisTools.base import _logger, InvalidInputError, default_init, get_default_argparser
 from PyAnalysisTools.base.Utilities import recursive_glob
 from PyAnalysisTools.base.ShellUtils import move, remove_file
 from PyAnalysisTools.base.FileHandle import FileHandle
+import ROOT
+ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 def resolve_overlap(output_path, output_file_name, file_list):
@@ -52,4 +52,3 @@ if __name__ == '__main__':
 
     args = default_init(parser)
     merge(args)
-

@@ -10,12 +10,12 @@ import sys
 
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
+
 try:
     import configManager
 except ImportError:
     print("HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now.")
     exit(1)
-
 
 import ROOT
 from ROOT import kBlack, kPink, kGreen
@@ -61,7 +61,7 @@ class HistFitterWrapper(object):
         make_dirs(os.path.join(self.output_dir, "config"))
         os.chdir(self.output_dir)
         copy(os.path.join(os.environ["HISTFITTER"], "config/HistFactorySchema.dtd"),
-                          os.path.join(self.output_dir, "config/HistFactorySchema.dtd"))
+             os.path.join(self.output_dir, "config/HistFactorySchema.dtd"))
 
     def clean(self):
         return
@@ -78,7 +78,7 @@ class HistFitterWrapper(object):
         kwargs.setdefault("disable_limit_plot", True)
         kwargs.setdefault("hypotest", False)
         kwargs.setdefault("discovery_hypotest", False)
-        kwargs.setdefault("draw", None)#"before,after,corrMatrix")
+        kwargs.setdefault("draw", None)  # "before,after,corrMatrix")
         kwargs.setdefault("draw_before", False)
         kwargs.setdefault("draw_after", False)
         kwargs.setdefault("drawCorrelationMatrix", False)
@@ -184,7 +184,7 @@ class HistFitterWrapper(object):
         if self.use_XML:
             self.configMgr.writeXML = True
 
-        #self.configMgr.userArg = self.userArg
+        # self.configMgr.userArg = self.userArg
         self.configMgr.nTOYs = self.num_toys
 
         # if self.log_level:
@@ -205,9 +205,6 @@ class HistFitterWrapper(object):
 
         if self.use_asimov:
             self.configMgr.useAsimovSet = True
-
-        if self.run_toys:
-            runToys = True
 
         if self.minos is not None:
             minosArgs = self.minos.split(",")
@@ -232,7 +229,6 @@ class HistFitterWrapper(object):
 
         self.configMgr.initialize()
         ROOT.RooRandom.randomGenerator().SetSeed(self.configMgr.toySeed)
-        ReduceCorrMatrix = self.configMgr.ReduceCorrMatrix
 
         """
         runs Trees->histos and/or histos->workspace according to specifications
@@ -259,7 +255,8 @@ class HistFitterWrapper(object):
                             if self.systematics:
                                 Systs = self.systematics
                             else:
-                                _logger.info("no systematic has been specified.... all the systematics will be considered")
+                                _logger.info("no systematic has been specified.... "
+                                             "all the systematics will be considered")
                                 Systs = ""
                                 for i in list(sam.systDict.keys()):
                                     Systs += i
@@ -269,8 +266,8 @@ class HistFitterWrapper(object):
                                 if Systs != "":
                                     Systs = Systs[:-1]
                             if Systs != "":
-                                Util.plotUpDown(self.configMgr.histCacheFile, sam.name, Systs,
-                                                            chan.regionString, chan.variableName)
+                                Util.plotUpDown(self.configMgr.histCacheFile, sam.name, Systs, chan.regionString,
+                                                chan.variableName)
 
     def run_fit(self):
         """
@@ -309,15 +306,15 @@ class HistFitterWrapper(object):
                                            self.doFixParameters, self.fixedPars, self.configMgr.ReduceCorrMatrix,
                                            not self.fit)
             _logger.debug(
-                    "GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, "
-                    "drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, "
-                    "minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
+                "GenerateFitAndPlotCPP(self.configMgr.fitConfigs[%d], self.configMgr.analysisName, drawBeforeFit, "
+                "drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, drawLogLikelihood, runMinos, "
+                "minosPars, doFixParameters, fixedPars, ReduceCorrMatrix)" % idx)
             _logger.debug(
-                    "where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, "
-                    "drawLogLikelihood, ReduceCorrMatrix are booleans")
+                "where drawBeforeFit, drawAfterFit, drawCorrelationMatrix, drawSeparateComponents, "
+                "drawLogLikelihood, ReduceCorrMatrix are booleans")
 
         """
-        calculating and printing upper limits for model-(in)dependent signal fit configurations 
+        calculating and printing upper limits for model-(in)dependent signal fit configurations
         (aka Exclusion/Discovery fit setup)
         """
         if not self.disable_limit_plot:
@@ -346,12 +343,12 @@ class HistFitterWrapper(object):
             if self.hypotest:
                 self.configMgr.cppMgr.doHypoTestAll(os.path.join(self.output_dir, 'results/'), True)
 
-        if self.run_toys and self.configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and self.fit is False:
+        if self.run_toys and self.configMgr.nTOYs > 0 and self.hypotest is False and self.disable_limit_plot and \
+                self.fit is False:
             self.configMgr.cppMgr.runToysAll()
 
         if self.interactive:
             from code import InteractiveConsole
-            from ROOT import Util
             cons = InteractiveConsole(locals())
             cons.interact("Continuing interactive session... press Ctrl+d to exit")
 
@@ -404,7 +401,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
         kwargs.setdefault("bkg_name", "Bkg")
         kwargs.setdefault("analysis_name", "foo")
         kwargs.setdefault("output_dir", kwargs["output_dir"])
-        kwargs.setdefault("bkg_yields",  0.911)
+        kwargs.setdefault("bkg_yields", 0.911)
         kwargs.setdefault("call", 0)
         kwargs.setdefault("scan", False)
         kwargs.setdefault("use_asimov", False)
@@ -473,7 +470,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                     sample.buildHisto([sqrt(yld[0])], region, "yield", 0.5)
                 else:
                     sample.buildHisto([yld[0]], region, "yield", 0.5)
-                #sample.buildStatErrors([yld[1]], region, "yield")
+                # sample.buildStatErrors([yld[1]], region, "yield")
         return sample
 
     def setup_single_background(self, **kwargs):
@@ -547,7 +544,8 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                 nsig = kwargs["sig_yield"][sig_reg]
             else:
                 nsig = (kwargs['fixed_signal'],
-                        old_div(kwargs['fixed_signal'] * kwargs['sig_yield'][sig_reg][1], kwargs['sig_yield'][sig_reg][0]))
+                        old_div(kwargs['fixed_signal'] * kwargs['sig_yield'][sig_reg][1],
+                                kwargs['sig_yield'][sig_reg][0]))
             sigSample.buildHisto([nsig[0]], sig_reg, self.var_name, 0.5)
             sigSample.buildStatErrors([nsig[1]], sig_reg, self.var_name)
 
@@ -610,26 +608,27 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                                low=down_var if down_var > 0. else 0.,
                                                method='histoSys', type='user'))
                                 continue
-                            if uncert[syst+'__1up'] >1. and uncert[syst+'__1down'] > 1.:
-                                unc = max(uncert[syst+'__1up'], uncert[syst+'__1down'])
+                            if uncert[syst + '__1up'] > 1. and uncert[syst + '__1down'] > 1.:
+                                unc = max(uncert[syst + '__1up'], uncert[syst + '__1down'])
                                 self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
-                                                                                 nominal=0.,
-                                                                                 high=unc,
-                                                                                 low=2. - unc,
-                                                                                 method='histoSys',
-                                                                                 type='user'))
+                                                                                     nominal=0.,
+                                                                                     high=unc,
+                                                                                     low=2. - unc,
+                                                                                     method='histoSys',
+                                                                                     type='user'))
                                 continue
-                            if uncert[syst+'__1up'] <1. and uncert[syst+'__1down'] < 1.:
+                            if uncert[syst + '__1up'] < 1. and uncert[syst + '__1down'] < 1.:
                                 unc = min(uncert[syst + '__1up'], uncert[syst + '__1down'])
                                 self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
-                                                                                 nominal=0.,
-                                                                                 high=2. - unc,
-                                                                                 low=unc,
-                                                                                 method='histoSys',
-                                                                                 type='user'))
+                                                                                     nominal=0.,
+                                                                                     high=2. - unc,
+                                                                                     low=unc,
+                                                                                     method='histoSys',
+                                                                                     type='user'))
                                 continue
                             self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
-                                                                                 nominal=0., high=uncert[syst + '__1up'],
+                                                                                 nominal=0.,
+                                                                                 high=uncert[syst + '__1up'],
                                                                                  low=down_var if down_var > 0. else 0.,
                                                                                  method='histoSys', type='user'))
                         except KeyError:
@@ -659,13 +658,13 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                     low = 0.0001
                                 print('NOW ADD ', reg, process, syst)
                                 self.systematics[sig_reg][process].append(Systematic(name=syst.replace('weight_', ''),
-                                                                                 nominal=0.,
-                                                                                 high=high,
-                                                                                 low=low,
-                                                                                 method='histoSys',
-                                                                                 type='user'))
+                                                                                     nominal=0.,
+                                                                                     high=high,
+                                                                                     low=low,
+                                                                                     method='histoSys',
+                                                                                     type='user'))
 
-                        except:
+                        except Exception:
                             print("Could not find systematic {:s} in signal region".format(syst))
 
         for cr in list(self.systematics.keys()):
@@ -758,7 +757,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
             except IndexError:
                 _logger.error("No data found for region: {:s}".format(reg))
-                continue #tmp fix
+                continue  # tmp fix
                 exit()
             if kwargs['ctrl_syst'] is not None:
                 systematics = kwargs['ctrl_syst'][reg]
@@ -780,8 +779,8 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                                                                  method='histoSys',
                                                                                  type='user'))
                                 continue
-                            if uncert[syst+'__1up'] >1. and uncert[syst+'__1down'] > 1.:
-                                unc = max(uncert[syst+'__1up'], uncert[syst+'__1down'])
+                            if uncert[syst + '__1up'] > 1. and uncert[syst + '__1down'] > 1.:
+                                unc = max(uncert[syst + '__1up'], uncert[syst + '__1down'])
                                 self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
                                                                                  nominal=0.,
                                                                                  high=unc,
@@ -789,7 +788,7 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                                                                  method='histoSys',
                                                                                  type='user'))
                                 continue
-                            if uncert[syst+'__1up'] <1. and uncert[syst+'__1down'] < 1.:
+                            if uncert[syst + '__1up'] < 1. and uncert[syst + '__1down'] < 1.:
                                 unc = min(uncert[syst + '__1up'], uncert[syst + '__1down'])
                                 self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
                                                                                  nominal=0.,
@@ -801,8 +800,8 @@ class HistFitterCountingExperiment(HistFitterWrapper):
 
                             self.systematics[reg][process].append(Systematic(name=syst.replace('weight_', ''),
                                                                              nominal=0.,
-                                                                             high=uncert[syst+'__1up'],
-                                                                             low=uncert[syst+'__1down'],
+                                                                             high=uncert[syst + '__1up'],
+                                                                             low=uncert[syst + '__1down'],
                                                                              method='histoSys',
                                                                              type='user'))
 
@@ -838,9 +837,10 @@ class HistFitterCountingExperiment(HistFitterWrapper):
                                                                                  method='histoSys',
                                                                                  type='user'))
                             else:
-                                _logger.error("Could not find systematic {:s} in region {:s} for process {:s}".format(syst,
-                                                                                                                  reg,
-                                                                                                                  process))
+                                _logger.error(
+                                    "Could not find systematic {:s} in region {:s} for process {:s}".format(syst,
+                                                                                                            reg,
+                                                                                                            process))
 
     def get_upper_limit(self, name="hypo_Sig"):
         f = ROOT.TFile.Open(os.path.join(self.output_dir,

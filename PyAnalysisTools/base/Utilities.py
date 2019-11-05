@@ -68,9 +68,8 @@ class Cleaner(object):
     @staticmethod
     def check_lifetime(threshold, d1, filelist):
         return divmod(calendar.timegm(time.gmtime()) - os.path.getctime(min(map(lambda fn: os.path.join(d1, fn),
-                                                                                filelist),
-                                                                            key=os.path.getctime)), 3600. * 24.)[
-                   0] < threshold
+                                                                                filelist), key=os.path.getctime)),
+                      3600. * 24.)[0] < threshold
 
     def retrieve_directory_list(self):
         directories = filter(lambda d: os.path.isdir(os.path.join(self.base_path, d)), os.listdir(self.base_path))
@@ -94,8 +93,8 @@ class Cleaner(object):
                 if len(filter(lambda fn: fn in self.keep_pattern, filelist)) > 0:
                     keep_list.append(d1)
 
-        self.deletion_list = filter(lambda dn: True not in map(lambda keep: dn.startswith(keep) or
-                                                                            keep.startswith(dn), keep_list),
+        self.deletion_list = filter(lambda dn: True not in map(lambda keep: dn.startswith(keep) or keep.startswith(dn),
+                                                               keep_list),
                                     self.deletion_list)
         self.deletion_list = filter(lambda dn: True not in map(lambda base: dn.startswith(base) and dn != base,
                                                                self.deletion_list), self.deletion_list)

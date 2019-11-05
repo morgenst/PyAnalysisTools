@@ -21,10 +21,10 @@ def generate_file_list(**kwargs):
         return [file_name.replace('/afs/cern.ch/user/m/morgens/eos_atlas/', '') for file_name in file_list]
 
     output_file = None
-    if not "inputs" in kwargs:
+    if "inputs" not in kwargs:
         _logger.error("No inputs provided, but generation of file list requested.")
         exit(1)
-    if not "output_file" in kwargs:
+    if "output_file" not in kwargs:
         _logger.warning("No output file provided")
     else:
         output_file = open(kwargs["output_file"], "w")
@@ -49,7 +49,7 @@ def copy(**kwargs):
             if recursive_level > 0:
                 sub_dir = file.split("/")[-(recursive_level+1):-1][0]
                 make_dirs(os.path.join(output_path, sub_dir))
-            cmd = "xrdcp root://eosatlas.cern.ch//eos/%s %s" %(file, os.path.join(output_path, sub_dir))
+            cmd = "xrdcp root://eosatlas.cern.ch//eos/{:s} {:s}".format(file, os.path.join(output_path, sub_dir))
             check_call(cmd.split())
 
 

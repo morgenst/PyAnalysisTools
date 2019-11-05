@@ -70,7 +70,7 @@ class ComparisonReader(object):
             cut_string = cut_string.replace('DATA:', '')
         else:
             cut_string = '&&'.join([ct for ct in cut_string.split("&&") if 'DATA' not in ct])
-        file_handle.open() #?
+        file_handle.open()  # ?
         hist = get_histogram_definition(plot_config)
         hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
         if tree_name is None:
@@ -112,7 +112,7 @@ class ComparisonReader(object):
 
         tmp_file_handles = collections.OrderedDict()
         for fh in file_handles:
-            parent_process = find_process_config(fh.process, process_configs)#find_parent_process(fh.process)
+            parent_process = find_process_config(fh.process, process_configs)  # find_parent_process(fh.process)
             if parent_process not in tmp_file_handles:
                 tmp_file_handles[parent_process] = [fh]
                 continue
@@ -124,7 +124,7 @@ class SingleFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
         compare_files = kwargs['input_files']
-        #self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
+        # self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
         self.file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in input_files]
         self.compare_file_handles = [FileHandle(file_name=fn, dataset_info=kwargs['xs_config_file']) for fn in
                                      compare_files]
@@ -264,7 +264,8 @@ class SingleFileMultiRefReader(ComparisonReader):
             for k_ref, v_ref in list(reference.items()):
                 v_ref.SetDirectory(0)
                 plotable_objects.append(
-                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=list(cuts_ref.keys()).index(k_cuts), label=label,
+                    PO.PlotableObject(plot_object=v_ref, is_ref=True, ref_id=list(cuts_ref.keys()).index(k_cuts),
+                                      label=label,
                                       cuts=v_cuts, process=k_ref))
         for k_cuts, v_cuts in list(cuts_comp.items()):
             compare = collections.OrderedDict()
@@ -413,8 +414,8 @@ class MultiFileMultiRefReader(ComparisonReader):
             for k_ref, v_ref in list(reference.items()):
                 v_ref.SetDirectory(0)
                 if len(reference) == len(compare):
-                    ref_id = ((list(reference.keys()).index(k_ref) + 1) * 100) + (
-                                (list(reference.keys()).index(k_ref) + 1) * 10) + list(cuts.keys()).index(k_cuts)
+                    ref_id = ((list(reference.keys()).index(k_ref) + 1) * 100) + \
+                             ((list(reference.keys()).index(k_ref) + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 else:
                     ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 plotable_objects.append(
@@ -423,7 +424,7 @@ class MultiFileMultiRefReader(ComparisonReader):
             for k_comp, v_comp in list(compare.items()):
                 if len(reference) == len(compare):
                     ref_id = ((list(compare.keys()).index(k_comp) + 1) * 100) + (
-                                (list(compare.keys()).index(k_comp) + 1) * 10) + list(cuts.keys()).index(k_cuts)
+                            (list(compare.keys()).index(k_comp) + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 else:
                     ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 v_comp.SetDirectory(0)
@@ -435,13 +436,13 @@ class MultiFileMultiRefReader(ComparisonReader):
 
 class ComparisonPlotter(BasePlotter):
     def __init__(self, **kwargs):
-        if not 'input_files' in kwargs:
+        if 'input_files' not in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("Missing input files")
-        if not 'plot_config_files' in kwargs:
+        if 'plot_config_files' not in kwargs:
             _logger.error("No config file provided")
             raise InvalidInputError("Missing config")
-        if not 'output_dir' in kwargs:
+        if 'output_dir' not in kwargs:
             _logger.warning("No output directory given. Using ./")
         kwargs.setdefault('batch', True)
         kwargs.setdefault('tree_name', None)
@@ -484,7 +485,7 @@ class ComparisonPlotter(BasePlotter):
         #     ROOT.kPink-7,
         #     ROOT.kSpring-7,
         #     ROOT.kPink-1,
-        # ] 
+        # ]
         # self.style_palette = [21,
         #                       20,
         #                       22,
@@ -503,7 +504,7 @@ class ComparisonPlotter(BasePlotter):
         #                       20,
         #                       22,
         #                       23,
-        #                       ]          
+        #                       ]
         for attr, value in list(kwargs.items()):
             if not hasattr(self, attr):
                 setattr(self, attr, value)
@@ -564,7 +565,7 @@ class ComparisonPlotter(BasePlotter):
         compare_hists = [x for x in data if not x.is_ref]
 
         offset = len(reference_hists) if (
-                    len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
+                len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
         for i, ref in enumerate(reference_hists):
             setattr(ref, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
@@ -583,7 +584,8 @@ class ComparisonPlotter(BasePlotter):
                 setattr(ref, 'fill_color',
                         PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'fill_style',
-                        PO.fill_style_palette_left[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
+                        PO.fill_style_palette_left[
+                            i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'line_color',
                         PO.color_palette[i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))])
                 setattr(ref, 'marker_color',
@@ -591,34 +593,29 @@ class ComparisonPlotter(BasePlotter):
 
         for i, comp in enumerate(compare_hists):
             setattr(comp, 'draw_option', plot_config.draw)
+            index = (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
-                setattr(comp, 'marker_color', PO.color_palette[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
+                setattr(comp, 'marker_color', PO.color_palette[index])
                 setattr(comp, 'marker_style', PO.marker_style_palette_empty[(i + offset) - (
-                            int(old_div((i + offset), len(PO.marker_style_palette_empty))) * len(
-                        PO.marker_style_palette_empty))])
-                setattr(comp, 'line_color', PO.color_palette[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
+                        int(old_div((i + offset), len(PO.marker_style_palette_empty))) *
+                        len(PO.marker_style_palette_empty))])
+                setattr(comp, 'line_color', PO.color_palette[index])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
-                setattr(comp, 'line_color', PO.color_palette[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
+                setattr(comp, 'line_color', PO.color_palette[index])
                 setattr(comp, 'line_style', PO.line_style_palette_heterogen[(i + offset) - (
-                            int(old_div((i + offset), len(PO.line_style_palette_heterogen))) * len(
-                        PO.line_style_palette_heterogen))])
+                        int(old_div((i + offset), len(PO.line_style_palette_heterogen))) * len(
+                    PO.line_style_palette_heterogen))])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
-                setattr(comp, 'fill_color', PO.color_palette[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
-                setattr(comp, 'fill_style', PO.fill_style_palette_right[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
-                setattr(comp, 'line_color', PO.color_palette[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
-                setattr(comp, 'marker_color', PO.color_palette[
-                    (i + offset) - (int(old_div((i + offset), len(PO.color_palette))) * len(PO.color_palette))])
+                setattr(comp, 'fill_color', PO.color_palette[index])
+                setattr(comp, 'fill_style', PO.fill_style_palette_right[index])
+                setattr(comp, 'line_color', PO.color_palette[index])
+                setattr(comp, 'marker_color', PO.color_palette[index])
 
         # plot_config.color = self.color_palette
         # plot_config.styles = self.style_palette
 
-        # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config, plotable_objects=reference_hists+compare_hists)
+        # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists),
+        # plot_config, plotable_objects=reference_hists+compare_hists)
         canvas = PT.plot_objects(reference_hists + compare_hists, plot_config)
         canvas.SetName(plot_config.name.replace(' ', '_'))
 
@@ -639,7 +636,6 @@ class ComparisonPlotter(BasePlotter):
         ROOT.SetOwnership(canvas, False)
 
         if plot_config.enable_legend:
-            labels = {}
             FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio,
                                     labels=[x.label for x in reference_hists + compare_hists],
                                     plot_objects=[x.plot_object for x in reference_hists + compare_hists],

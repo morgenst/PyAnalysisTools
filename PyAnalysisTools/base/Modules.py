@@ -1,13 +1,13 @@
 from builtins import object
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
-from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
-from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
-from PyAnalysisTools.AnalysisTools.RegionSummaryModule import RegionSummaryModule
-from PyAnalysisTools.AnalysisTools.ExtrapolationModule import ExtrapolationModule, TopExtrapolationModule, \
-    QCDExtrapolationModule
+from PyAnalysisTools.AnalysisTools.FakeEstimator import MuonFakeEstimator  # noqa: F401
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder  # noqa: F401
+from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle  # noqa: F401
+from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter  # noqa: F401
+from PyAnalysisTools.AnalysisTools.RegionSummaryModule import RegionSummaryModule  # noqa: F401
+from PyAnalysisTools.AnalysisTools.ExtrapolationModule import ExtrapolationModule, TopExtrapolationModule  # noqa: F401
+from PyAnalysisTools.AnalysisTools.ExtrapolationModule import QCDExtrapolationModule  # noqa: F401
 
 
 class Module(object):

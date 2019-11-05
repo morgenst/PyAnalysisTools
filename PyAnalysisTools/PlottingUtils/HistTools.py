@@ -76,6 +76,7 @@ def _rebin_1d_hist(hist, factor):
     except (IndexError, KeyError):
         pass
     hist.GetYaxis().SetTitle(y_title)
+    ROOT.SetOwnership(hist, True)
     return hist.Rebin(factor)
 
 
@@ -128,7 +129,7 @@ def _merge_overflow_bins_1d(hist, x_max=None):
     for b in range(last_visible_bin+1, hist.GetNbinsX()+2):
         hist.SetBinContent(b, 0)
 
-    
+
 def _merge_overflow_bins_2d(hist, x_max=None, y_max=None):
     if x_max:
         last_visible_bin_x = hist.GetXaxis().FindBin(x_max)
@@ -139,11 +140,11 @@ def _merge_overflow_bins_2d(hist, x_max=None, y_max=None):
     else:
         last_visible_bin_y = hist.GetNbinsY()
     for i in range(hist.GetXaxis().GetNbins()):
-        hist.SetBinContent(i+1, last_visible_bin_y, hist.Integral(i+1, i+1, last_visible_bin_y, -1))
+        hist.SetBinContent(i+1, last_visible_bin_y, hist.Integral(i + 1, i + 1, last_visible_bin_y, -1))
     for i in range(hist.GetYaxis().GetNbins()):
-        hist.SetBinContent(last_visible_bin_x, i+1, hist.Integral(last_visible_bin_x, -1, i+1, i+1))
+        hist.SetBinContent(last_visible_bin_x, i + 1, hist.Integral(last_visible_bin_x, -1, i + 1, i + 1))
 
-        
+
 def merge_underflow_bins(hists, x_min=None):
     """
     Merge underflow bins
@@ -238,7 +239,7 @@ def has_asymmetric_binning(hist):
     :return: true/false on asymmetric binning
     :rtype: bool
     """
-    return set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX())]) > 1
+    return len(set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX())])) > 1
 
 
 def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
@@ -254,7 +255,7 @@ def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
     return hist
 
 
-def _normalise_2d_hist(hist, integration_range=[-1,-1], norm_scale=1.):
+def _normalise_2d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
     return hist
 
 
@@ -277,13 +278,13 @@ def get_colors(hists):
     :return: list of colors
     :rtype: list
     """
-    def get_color():
+    def get_color(hist):
         draw_option = hist.GetDrawOption()
         if isinstance(hist, ROOT.TEfficiency):
             return max(hist.GetPaintedGraph().GetLineColor(), hist.GetPaintedGraph().GetMarkerColor())
         if "hist" in draw_option.lower():
             return hist.GetLineColor()
-    return [get_color() for hist in hists]
+    return [get_color(hist) for hist in hists]
 
 
 def set_axis_labels(obj, plot_config):

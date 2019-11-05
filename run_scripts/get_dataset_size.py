@@ -9,7 +9,7 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 try:
     import pyAMI.client
-except Exception as e:
+except Exception:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
 
@@ -28,7 +28,8 @@ def main(argv):
 
     args = parser.parse_args()
     dataset_list = YAMLLoader.read_yaml(args.dataset_list)
-    size = sum([get_size(dataset_name) for dataset_name in list(itertools.chain.from_iterable(list(dataset_list.values())))])
+    size = sum([get_size(dataset_name) for dataset_name in
+                list(itertools.chain.from_iterable(list(dataset_list.values())))])
     print("Total size {:.2f} GB".format(size))
 
 

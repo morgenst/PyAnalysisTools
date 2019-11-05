@@ -23,10 +23,10 @@ class SetupHelper(object):
 
     @staticmethod
     def check_virtual_env():
-        try:
-            import virtualenv
-        except ImportError:
-            return False
+        # try:
+        #     import virtualenv
+        # except ImportError:
+        #     return False
         return True
 
     def setup_virtual_env(self):

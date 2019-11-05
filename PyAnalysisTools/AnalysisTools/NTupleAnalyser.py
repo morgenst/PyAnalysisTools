@@ -16,7 +16,7 @@ except ImportError:
     from tabulate import tabulate
 try:
     import pyAMI.client
-except ModuleNotFoundError as e:
+except ModuleNotFoundError:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
 
@@ -69,8 +69,9 @@ class NTupleAnalyser(object):
     def transform_dataset_list(self):
         self.datasets = [ds for campaign in list(self.datasets.values()) for ds in campaign]
         self.datasets = [[ds, ".".join([ds.split(".")[1], ds.split(".")[5]])] for ds in self.datasets]
-        #self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[2], ds.split(".")[3], ds.split(".")[4], ds.split(".")[5]])], self.datasets)
-        #self.datasets = map(lambda ds: [ds, ".".join(ds.split(".")[1:3])], self.datasets)
+        # self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[2],
+        # ds.split(".")[3], ds.split(".")[4], ds.split(".")[5]])], self.datasets)
+        # self.datasets = map(lambda ds: [ds, ".".join(ds.split(".")[1:3])], self.datasets)
 
     def add_path(self):
         """
@@ -97,7 +98,7 @@ class NTupleAnalyser(object):
             for rf in os.listdir(os.path.join(path, ds[2])):
                 n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2], rf),
                                                      switch_off_process_name_analysis=True).get_daod_events())
-        
+
         # for rf in os.listdir(os.path.join(self.input_path, ds[2])):
         #     n_processed_events += int(FileHandle(file_name=os.path.join(self.input_path, ds[2], rf),
         #                                          switch_off_process_name_analysis=True).get_daod_events())

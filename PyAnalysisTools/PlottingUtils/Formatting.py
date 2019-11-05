@@ -12,7 +12,6 @@ import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
-from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
 
 
 def load_atlas_style():
@@ -20,7 +19,7 @@ def load_atlas_style():
         base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
         ROOT.SetAtlasStyle()
-    except Exception as e:
+    except Exception:
         print(traceback.print_exc())
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
@@ -106,7 +105,8 @@ def decorate_canvas(canvas, plot_config, **kwargs):
                            size=kwargs['decor_text_size'])
 
     if plot_config.add_text is not None:
-        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]}, size=kwargs['add_text'][3])
+        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]},
+                           size=kwargs['add_text'][3])
 
 
 def check_valid_axis(axis):
@@ -273,8 +273,8 @@ def set_style_options(obj, style):
         if style_object.lower() not in allowed_attributes:
             continue
         if not isinstance(style_options, dict):
-            raise InvalidInputError("Invalid style option for " + style_object + ". Requires dict, but received " +
-                                    str(type(style_options)))
+            raise InvalidInputError("Invalid style option for " + style_object + ". Requires dict, but received "
+                                    + str(type(style_options)))
         for style_option, value in list(style_options.items()):
             getattr(obj, "Set" + style_object.capitalize() + style_option.capitalize())(value)
 
@@ -445,6 +445,7 @@ def set_minimum_x(graph_obj, minimum):
 
 def set_range_y(graph_obj, minimum, maximum):
     if minimum >= maximum:
+        print('minmax:', minimum, maximum)
         return
     if isinstance(graph_obj, ROOT.THStack):
         graph_obj.SetMinimum(minimum)
@@ -696,7 +697,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     if "labels" in kwargs:
         labels = kwargs["labels"]
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
-        if not "plot_objects" in kwargs:
+        if "plot_objects" not in kwargs:
             plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
             plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
             plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
@@ -714,7 +715,7 @@ def add_legend_to_canvas(canvas, **kwargs):
             labels[get_objects_from_canvas_by_name(canvas, hist_pattern)[0].GetName()] = lab
 
     stacked_objects = None
-    if len(stacks) is not 0:
+    if len(stacks) != 0:
         stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
 
@@ -746,7 +747,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     if isinstance(labels, list):
         legend = get_legend(len(plot_objects), len(max(labels, key=len)), **kwargs)
     else:
-        #TODO: For what is this needed?
+        # TODO: For what is this needed?
         legend = get_legend(len(plot_objects), labels, **kwargs)
 
     plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None

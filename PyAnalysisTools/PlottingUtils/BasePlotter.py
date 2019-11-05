@@ -70,7 +70,8 @@ class BasePlotter(object):
             input_files = self.input_file_list
         if not kwargs['skip_fh_reading']:
             self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
-                                            split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                            split_mc=self.split_mc_campaigns,
+                                            friend_directory=kwargs["friend_directory"],
                                             switch_off_process_name_analysis=False,
                                             friend_tree_names=kwargs["friend_tree_names"],
                                             friend_pattern=kwargs["friend_file_pattern"])
@@ -157,7 +158,7 @@ class BasePlotter(object):
         for file_handle in self.file_handles:
             process = file_handle.process
             if process is None:
-                _logger.warning("Could not parse process for file {:s}". format(file_handle.file_name))
+                _logger.warning("Could not parse process for file {:s}".format(file_handle.file_name))
                 continue
             if file_handle.process in self.event_yields:
                 self.event_yields[process] += file_handle.get_number_of_total_events()
@@ -169,7 +170,7 @@ class BasePlotter(object):
         if file_handle.process is None or file_handle.process.is_data and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
-        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
+        tmp.SetName(tmp.GetName().split('%%')[0] + tmp.GetName().split('%%')[-1])
         return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, data, systematic="Nominal"):
@@ -182,12 +183,12 @@ class BasePlotter(object):
                 tn = self.syst_tree_name
             hist = file_handle.get_object_by_name("{:s}/{:s}".format(tn, plot_config.dist), systematic)
         except ValueError:
-            #This happens if cut is not passed
+            _logger.debug('No event passed selection.')
             return [None, None, None]
         hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
         return plot_config, file_handle.process, hist
 
-    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal", factor_syst = ''):
+    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal", factor_syst=''):
         """
         Read data from ROOT file and build histogram according to definition in plot_config
 
@@ -206,7 +207,7 @@ class BasePlotter(object):
         file_handle.reset_friends()
         try:
             hist = get_histogram_definition(plot_config, systematic, factor_syst)
-        except ValueError as e:
+        except ValueError:
             _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
             range settings.".format(plot_config.name))
             print(traceback.print_exc())
@@ -217,7 +218,8 @@ class BasePlotter(object):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.process_weight is not None:
-                match = [k for k in list(plot_config.process_weight.keys()) if re.match(k.replace('re.', ''), file_handle.process)]
+                match = [k for k in list(plot_config.process_weight.keys()) if re.match(k.replace('re.', ''),
+                                                                                        file_handle.process)]
                 if len(match) > 0:
                     process_weight = plot_config.process_weight[match[0]]
                     if weight is not None:
@@ -233,11 +235,11 @@ class BasePlotter(object):
                 event_no_cuts = [cut for cut in plot_config.cuts if "file_handle." in cut]
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
-                    if not "data" in file_handle.process:
+                    if "data" not in file_handle.process:
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 for data_cut in data_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
-                    if self.process_configs[file_handle.process].type == "Data": #"data" in file_handle.process:
+                    if self.process_configs[file_handle.process].type == "Data":  # "data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 for evt_cut in event_no_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(evt_cut))
@@ -260,11 +262,11 @@ class BasePlotter(object):
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
 
-            except TypeError: #RuntimeError:
+            except TypeError:  # RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
-            except Exception as e:
+            except Exception:
                 _logger.error("Catched exception for process "
                               "{:s} and plot_config {:s}".format(file_handle, file_handle.process, plot_config.name))
                 print(traceback.print_exc())
@@ -277,7 +279,7 @@ class BasePlotter(object):
                 _logger.error("Could not find process config for {:s}".format(file_handle.process))
                 return None
 
-        except Exception as e:
+        except Exception:
             _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
                                                                                            plot_config.name))
             print(traceback.print_exc())

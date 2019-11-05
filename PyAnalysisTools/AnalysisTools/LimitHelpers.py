@@ -21,8 +21,9 @@ import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.HistTools as ht
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder#, NewRegionBuilder
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvider #parse_syst_config,
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder  # , NewRegionBuilder
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvider  # parse_syst_config,
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyserOld import parse_syst_config
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
@@ -130,15 +131,15 @@ class Yield(object):
 
     def stat_unc(self):
         stat_unc = 0.
-        try: #temporary fix while attribute not available in already processed yields
+        try:  # temporary fix while attribute not available in already processed yields
             if self.extrapolated:
                 return np.sqrt(np.sum(self.weights))
         except AttributeError:
             pass
         if len(self.original_weights) == 0:
-            return np.sqrt(np.sum(self.weights*self.weights))
+            return np.sqrt(np.sum(self.weights * self.weights))
         for i in range(len(self.original_weights)):
-            stat_unc += self.scale_factor[i]*self.scale_factor[i] * \
+            stat_unc += self.scale_factor[i] * self.scale_factor[i] * \
                         np.sum(self.original_weights[i] * self.original_weights[i])
         return np.sqrt(stat_unc)
 
@@ -247,24 +248,26 @@ class LimitArgs(object):
         def add_systematics(channel_id, process, systematics):
             sample = filter(lambda s: s['name'] == process, specs['channels'][channel_id]['samples'])[0]
             syst_strings = set([sn.split('__')[0] for sn in list(systematics.keys())])
-            for sys in syst_strings:
+            for syst in syst_strings:
                 try:
-                    down, up = sorted([s for s in iter(list(systematics.items())) if sys in s[0]], key=lambda i: i[0])
+                    down, up = sorted([s for s in iter(list(systematics.items())) if syst in s[0]], key=lambda i: i[0])
                     sample['modifiers'].append({"type": "histosys", "data": {"lo_data": [down[1] * sample['data'][0]],
                                                                              "hi_data": [up[1] * sample['data'][0]]},
-                                                'name': sys})
+                                                'name': syst})
                 except ValueError:
-                    variation = sorted([s for s in iter(list(systematics.items())) if sys in s[0]], key=lambda i: i[0])[0]
+                    variation = sorted([s for s in iter(list(systematics.items())) if syst in s[0]],
+                                       key=lambda i: i[0])[0]
                     if variation[1] > 1.:
                         sample['modifiers'].append({"type": "histosys",
                                                     "data": {"lo_data": [sample['data'][0]],
                                                              "hi_data": [variation[1] * sample['data'][0]]},
-                                                    'name': sys})
+                                                    'name': syst})
                     else:
                         sample['modifiers'].append({"type": "histosys",
                                                     "data": {"lo_data": [variation[1] * sample['data'][0]],
                                                              "hi_data": [sample['data'][0]]},
-                                                    'name': sys})
+                                                    'name': syst})
+
         specs = OrderedDict()
         specs['channels'] = [add_signal_region(sig_reg) for sig_reg in self.kwargs['sig_yield']]
         specs['data'] = OrderedDict()
@@ -410,6 +413,7 @@ class LimitAnalyserCL(object):
         :return: limit info object containing parsed UL
         :rtype: LimitInfo
         """
+
         def get_scale_factor(signal_scale):
             if signal_scale is None:
                 signal_scale = 1.
@@ -417,9 +421,11 @@ class LimitAnalyserCL(object):
             if fixed_signal is not None:
                 if isinstance(sig_yield, OrderedDict):
                     if isinstance(list(sig_yield.values())[0], numbers.Number):
-                        scale_factor = scale_factor * sum([old_div(fixed_signal, yld) for yld in list(sig_yield.values())])
+                        scale_factor = scale_factor * sum(
+                            [old_div(fixed_signal, yld) for yld in list(sig_yield.values())])
                     else:
-                        scale_factor = scale_factor * sum([old_div(fixed_signal, yld[0]) for yld in list(sig_yield.values())])
+                        scale_factor = scale_factor * sum(
+                            [old_div(fixed_signal, yld[0]) for yld in list(sig_yield.values())])
                 else:
                     scale_factor = old_div(scale_factor * fixed_signal, sig_yield)
             if pmg_xsec is not None:
@@ -543,7 +549,7 @@ class LimitPlotter(object):
     def make_limit_plot_plane(self, limits, plot_config, theory_xsec, sr_name):
         def find_excluded_lambda(mass, xsec, excl_limit):
             xsecs = [xs for xs in xsec if xs[0] == mass]
-            #xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
+            # xsecs = filter(lambda xs: xs[1] == 1.0, xsecs)
             try:
                 return sqrt(old_div(excl_limit, xsecs[0][-1]))
             except IndexError:
@@ -625,7 +631,7 @@ class XsecLimitAnalyser(object):
                 _logger.error("Could not find info for scan {:s}".format(scan))
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
-            mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
+            mass = float(re.findall(r'\d{3,4}', scan.kwargs['sig_name'])[0])
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -645,8 +651,7 @@ class XsecLimitAnalyser(object):
         else:
             chains = []
         if self.xsec_map is not None:
-
-             theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0] in chains])
+            theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0] in chains])
         self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.sig_reg_name)
 
         self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec,
@@ -714,7 +719,7 @@ class LimitScanAnalyser(object):
                 _logger.error("Could not find info for scan {:s}".format(scan))
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
-            mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
+            mass = float(re.findall(r'\d{3,4}', scan.kwargs['sig_name'])[0])
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -728,8 +733,7 @@ class LimitScanAnalyser(object):
 
         if self.xsec_map is not None:
             chains = ['LQmud', 'LQmus']
-            #chains = ['LQeb']
-            theory_xsec = OrderedDict()
+            # chains = ['LQeb']
             # TODO: needs proper implementation
             # for mode in chains:
             #     # self.plotter.make_limit_plot_plane(best_limits, self.plot_config, self.xsec_map[mode],
@@ -762,7 +766,7 @@ class LimitScanAnalyser(object):
                                'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
             print(tabulate(data, headers=headers, tablefmt='latex_raw'), file=f)
         print('wrote to file ', os.path.join(self.output_handle.output_dir,
-                               'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)))
+                                             'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -921,7 +925,7 @@ class LimitScanAnalyser(object):
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
 
         ROOT.gStyle.SetPalette(1)
-        #ROOT.gStyle.SetPaintTextFormat(".2g")
+        # ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
                         watermark='Internal', lumi=139.0)
@@ -1026,7 +1030,8 @@ class Sample(object):
             self.shape_uncerts[sr_name][cut] = {syst: yld for syst, yld in list(shape_uncerts.items())}
         self.scale_uncerts[sr_name][cut] = {syst: yld for syst, yld in list(nom_yields.items()) if not syst == 'weight'}
         self.theory_uncert_provider.calculate_envelop_count(self.scale_uncerts[sr_name][cut])
-        self.scale_uncerts[sr_name][cut] = dict([kv for kv in iter(list(self.scale_uncerts[sr_name][cut].items())) if 'pdf_uncert' not in kv[0]])
+        self.scale_uncerts[sr_name][cut] = dict(
+            [kv for kv in iter(list(self.scale_uncerts[sr_name][cut].items())) if 'pdf_uncert' not in kv[0]])
 
     def add_ctrl_region(self, region_name, nominal_evt_yields, shape_uncert_yields=None):
         for syst in list(nominal_evt_yields.keys()):
@@ -1037,7 +1042,8 @@ class Sample(object):
         self.ctrl_reg_scale_ylds[region_name] = {syst: yld for syst, yld in list(nominal_evt_yields.items()) if
                                                  not syst == 'weight'}
         self.theory_uncert_provider.calculate_envelop_count(self.ctrl_reg_scale_ylds[region_name])
-        self.ctrl_reg_scale_ylds[region_name] = dict([kv for kv in iter(list(self.ctrl_reg_scale_ylds[region_name].items())) if 'pdf_uncert' not in kv[0]])
+        self.ctrl_reg_scale_ylds[region_name] = dict(
+            [kv for kv in iter(list(self.ctrl_reg_scale_ylds[region_name].items())) if 'pdf_uncert' not in kv[0]])
         if shape_uncert_yields is not None:
             self.ctrl_reg_shape_ylds[region_name] = {syst: yld for syst, yld in
                                                      list(shape_uncert_yields.items())}
@@ -1061,8 +1067,10 @@ class Sample(object):
         self.shape_uncerts = {cut: dict([ylds for ylds in iter(list(syst.items())) if ylds[1] > 0.])
                               for cut, syst in list(self.shape_uncerts.items())}
         for region in list(self.ctrl_reg_scale_ylds.keys()):
-            self.ctrl_reg_scale_ylds[region] = dict([ylds for ylds in iter(list(self.ctrl_reg_scale_ylds[region].items())) if ylds[1] > 0.])
-            self.ctrl_reg_shape_ylds[region] = dict([ylds for ylds in iter(list(self.ctrl_reg_shape_ylds[region].items())) if ylds[1] > 0.])
+            self.ctrl_reg_scale_ylds[region] = dict(
+                [ylds for ylds in iter(list(self.ctrl_reg_scale_ylds[region].items())) if ylds[1] > 0.])
+            self.ctrl_reg_shape_ylds[region] = dict(
+                [ylds for ylds in iter(list(self.ctrl_reg_shape_ylds[region].items())) if ylds[1] > 0.])
 
     def calculate_relative_uncert(self):
         print("HEREEEEE")
@@ -1131,7 +1139,8 @@ class Sample(object):
                     except KeyError as ke:
                         _logger.error('Could not find control region systematic {:s} for region {:s}'.format(syst,
                                                                                                              region))
-                        _logger.error('Available systematics {:s}'.format(', '.join(list(self.ctrl_reg_shape_ylds[region].keys()))))
+                        _logger.error('Available systematics {:s}'.format(
+                            ', '.join(list(self.ctrl_reg_shape_ylds[region].keys()))))
 
                         raise ke
             except KeyError as ke:
@@ -1162,6 +1171,7 @@ class Sample(object):
         :return: nothing
         :rtype: None
         """
+
         def affects_signal_reg(syst_name, syst_yields):
             for ylds in list(syst_yields.values()):
                 if syst_name in ylds[cut]:
@@ -1176,10 +1186,12 @@ class Sample(object):
             for cut in list(self.shape_uncerts[region].keys()):
                 if shape_uncert is not None:
                     self.shape_uncerts[region][cut] = dict(
-                        [kv for kv in iter(list(self.shape_uncerts[region][cut].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in shape_uncert]])
+                        [kv for kv in iter(list(self.shape_uncerts[region][cut].items())) if
+                         convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in shape_uncert]])
                 if scale_uncert is not None:
                     self.scale_uncerts[region][cut] = dict(
-                            [kv for kv in iter(list(self.scale_uncerts[region][cut].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in scale_uncert]])
+                        [kv for kv in iter(list(self.scale_uncerts[region][cut].items())) if
+                         convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in scale_uncert]])
                 # self.shape_uncerts[region][cut] = dict(filter(lambda kv: abs(1. - kv[1]) > threshold,
                 #                                               self.shape_uncerts[region][cut].iteritems()))
                 # self.scale_uncerts[region][cut] = dict(filter(lambda kv: abs(1. - kv[1]) > threshold,
@@ -1193,10 +1205,12 @@ class Sample(object):
         for reg in list(self.ctrl_reg_shape_ylds.keys()):
             if shape_uncert is not None:
                 self.ctrl_reg_shape_ylds[reg] = dict(
-                    [kv for kv in iter(list(self.ctrl_reg_shape_ylds[reg].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in shape_uncert]])
+                    [kv for kv in iter(list(self.ctrl_reg_shape_ylds[reg].items())) if
+                     convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in shape_uncert]])
             if scale_uncert is not None:
                 self.ctrl_reg_scale_ylds[reg] = dict(
-                    [kv for kv in iter(list(self.ctrl_reg_scale_ylds[reg].items())) if convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in scale_uncert]])
+                    [kv for kv in iter(list(self.ctrl_reg_scale_ylds[reg].items())) if
+                     convert_name(kv[0]) in [i[0] if not isinstance(i, str) else i for i in scale_uncert]])
 
             # self.ctrl_reg_shape_ylds[reg] = dict(
             #     filter(lambda kv: abs(1. - kv[1]) > threshold or affects_signal_reg(kv[0], self.shape_uncerts),
@@ -1207,11 +1221,11 @@ class Sample(object):
 
     @staticmethod
     def yld_sum(syst):
-        return sum([s[0] for s in syst]), s[1]
+        return sum([s[0] for s in syst])  #, s[1]
 
     @staticmethod
     def product(syst, nom):
-        return [syst[0]*nom[0], nom[1]]
+        return [syst[0] * nom[0], nom[1]]
 
     def merge_child_processes(self, samples, has_syst=True):
         if isinstance(samples[0], dict) and len(samples[0].generated_ylds) > 0:
@@ -1234,13 +1248,15 @@ class Sample(object):
                         self.shape_uncerts[region] = {}
                     self.shape_uncerts[region][cut] = {}
                     for syst in list(samples[0].shape_uncerts[region][cut].keys()):
-                        self.shape_uncerts[region][cut][syst] = sum([s.shape_uncerts[region][cut][syst] for s in samples])
+                        self.shape_uncerts[region][cut][syst] = sum(
+                            [s.shape_uncerts[region][cut][syst] for s in samples])
                 for cut in list(samples[0].scale_uncerts[region].keys()):
                     if region not in self.scale_uncerts:
                         self.scale_uncerts[region] = {}
                     self.scale_uncerts[region][cut] = {}
                     for syst in list(samples[0].scale_uncerts[region][cut].keys()):
-                        self.scale_uncerts[region][cut][syst] = sum([s.scale_uncerts[region][cut][syst] for s in samples])
+                        self.scale_uncerts[region][cut][syst] = sum(
+                            [s.scale_uncerts[region][cut][syst] for s in samples])
 
         for region in samples[0].ctrl_region_yields:
             self.ctrl_region_yields[region] = sum([s.ctrl_region_yields[region] for s in samples])
@@ -1309,7 +1325,7 @@ class SampleStore(object):
 
     def apply_xsec_weight(self, signal_xsec=1.):
         for sample in self.samples:
-            if sample.is_data or sample.is_data_driven_bkg:
+            if sample.is_data:  # or sample.is_data_driven_bkg:
                 continue
             lumi = self.lumi
             if isinstance(self.lumi, OrderedDict):
@@ -1325,7 +1341,7 @@ class SampleStore(object):
         for sample in self.samples:
             if sample.is_data:
                 continue
-            if not '.mc16' in sample.name:
+            if '.mc16' not in sample.name:
                 continue
             if sample in samples_to_remove:
                 continue
@@ -1427,10 +1443,10 @@ class SampleStore(object):
     def retrieve_signal_names(self):
         return [s.name for s in [s for s in self.samples if s.is_signal]]
 
-    def retrieve_all_signal_ylds(self, cut, regions = None):
+    def retrieve_all_signal_ylds(self, cut, regions=None):
         signal_samples = [s for s in self.samples if s.is_signal]
         return {reg: {s.name: s.nominal_evt_yields[reg][cut]
-                for s in signal_samples} for reg in self.get_signal_region_names(regions)}
+                      for s in signal_samples} for reg in self.get_signal_region_names(regions)}
 
     def retrieve_bkg_ylds(self, cut, region):
         bkg_samples = [s for s in self.samples if not s.is_data and not s.is_signal]
@@ -1473,6 +1489,7 @@ class SampleStore(object):
         print(signal_samples[0].raw_nominal_evt_yields)
         return {s.name: s.raw_nominal_evt_yields[cut] for s in signal_samples}
 
+
 class LimitValidator(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('scan_info', None)
@@ -1506,7 +1523,8 @@ class LimitValidator(object):
         hists = fh.get_objects_by_type('TH1')
         scan_info = self.scan_info[5]
 
-        bkg_processes = dict([p for p in iter(list(scan_info.kwargs['process_configs'].items())) if p[1].type.lower() != 'signal' and p[1].type.lower() != 'data'])
+        bkg_processes = dict([p for p in iter(list(scan_info.kwargs['process_configs'].items())) if
+                              p[1].type.lower() != 'signal' and p[1].type.lower() != 'data'])
         bkg_hists = {p: get_hists_for_process(p.name) for p in list(bkg_processes.values())}
         sig_hists = get_hists_for_process(scan_info.kwargs['sig_name'])
         data_hists = get_hists_for_process('Data')
@@ -1628,7 +1646,7 @@ class LimitChecker(object):
     def run_fit_cross_checks(self):
         # self.run_conditional_asimov_fits()
         # self.run_unconditional_asimov_fits()
-        #self.make_pre_fit_plots()
+        # self.make_pre_fit_plots()
         self.make_post_fit_plots()
 
         cmd = 'hadd {:s} {:s}'.format(os.path.join(self.output_path, 'fit_cross_checks', 'FitCrossChecks.root'),
@@ -1642,8 +1660,10 @@ class LimitChecker(object):
 
     def run_unconditional_asimov_fits(self):
         algo = 'FitToAsimov'
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0, create_post_fit_asimov=1)
-        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1, create_post_fit_asimov=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
+                                 create_post_fit_asimov=1)
+        self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+                                 create_post_fit_asimov=1)
 
     def make_pre_fit_plots(self):
         algo = 'PlotHistosBeforeFit'
@@ -1656,7 +1676,7 @@ class LimitChecker(object):
         algo = 'PlotHistosAfterFitGlobal'
         # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=0,
         #                          create_post_fit_asimov=1, no_sigmas=1)
-        #self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
+        # self.run_fit_cross_check(algorithm=algo, dataset_name='asimovData', conditional=0, mu=1,
         #                          create_post_fit_asimov=1, no_sigmas=1)
         # self.run_fit_cross_check(algorithm=algo, dataset_name='obsData', conditional=1, mu=0,
         #                          create_post_fit_asimov=0, no_sigmas=1)
@@ -1687,21 +1707,23 @@ class LimitChecker(object):
         self.counter += 1
 
     def get_hf_tables(self, **kwargs):
-        tag=''
-        evalreg=''
-        fitreg=''
-        samples=''
-        args = '"\\"{:s}\\"","\\"{:s}\\"","\\{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"",kTrue,kTrue,{:s}'.format(self.workspace_file,
-                                                                                                      self.workspace,
-                                                                                                      'ModelConfig',
-                                                                                                      kwargs['dataset_name'],
-                                                                                                  tag,
-                                                                                                      outdir,
-                                                                                                              evalreg,
-                                                                                                              fitreg,
-                                                                                                                                                samples
-                                                                                                      )
-        #root -b -q getHFtables.C\(\"$WORKSPACEFILE\",\"$WORKSPACENAME\",\"$MODELCONFIGNAME\",\"$DATASETNAME\",
+        pass
+        # tag = ''
+        # evalreg = ''
+        # fitreg = ''
+        # samples = ''
+        # args = '"\\"{:s}\\"","\\"{:s}\\"","\\{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"","\\"{:s}\\"",kTrue,kTrue,{:s}'.format( # noqa: E501
+        #     self.workspace_file,
+        #     self.workspace,
+        #     'ModelConfig',
+        #     kwargs['dataset_name'],
+        #     tag,
+        #     outdir,
+        #     evalreg,
+        #     fitreg,
+        #     samples
+        #     )
+        # root -b -q getHFtables.C\(\"$WORKSPACEFILE\",\"$WORKSPACENAME\",\"$MODELCONFIGNAME\",\"$DATASETNAME\",
         # \"$WORKSPACETAG\",\"$OUTPUTFOLDER\",\"$EVALUATIONREGIONS\",\"$FITREGIONS\",kTRUE,kTRUE,\"$SAMPLES\",3\);
 
 
@@ -1715,7 +1737,7 @@ class LimitValidationPlotter(object):
         params = ['mu_Z', 'mu_top']
         g = ROOT.TGraphAsymmErrors()
         for i, param in enumerate(params):
-            g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i*2+1)
+            g.SetPoint(i, result.floatParsFinal().find(param).getVal(), i * 2 + 1)
             g.SetPointEXhigh(i, result.floatParsFinal().find(param).getErrorHi())
             g.SetPointEXlow(i, abs(result.floatParsFinal().find(param).getErrorLo()))
 
@@ -1726,7 +1748,7 @@ class LimitValidationPlotter(object):
         h_dummy.GetYaxis().SetLabelSize(0)
         h_dummy.Draw()
         h_dummy.GetYaxis().SetNdivisions(0)
-        xmax = 2#len(params)*2+1
+        xmax = 2  # len(params)*2+1
         l0 = ROOT.TLine(1, 0, 1, 4)
         l0.SetLineStyle(7)
         l0.SetLineColor(ROOT.kBlack)
@@ -1742,10 +1764,10 @@ class LimitValidationPlotter(object):
         fm.add_text_to_canvas(canvas, 'Post-Fit, bkg-only', pos={'x': 0.1, 'y': 0.7}, size=0.06)
         for i, param in enumerate(params):
             param_result = result.floatParsFinal().find(param)
-            systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\mu_{{{:s}}}'.format(param.replace('mu_', '')))
+            systs.DrawLatex(xmax * 0.6, 2 * i + 0.75, '\\mu_{{{:s}}}'.format(param.replace('mu_', '')))
             systs.DrawLatex(xmax * 0.7, 2 * i + 0.75, '{:.2f}^{{{:.2f}}}_{{{:.2f}}}'.format(param_result.getVal(),
-                                                                                        param_result.getErrorHi(),
-                                                                                        param_result.getErrorLo()))
+                                                                                            param_result.getErrorHi(),
+                                                                                            param_result.getErrorLo()))
 
         h_dummy.GetXaxis().SetLabelSize(h_dummy.GetXaxis().GetLabelSize() * 0.9)
         ROOT.gPad.RedrawAxis()
@@ -1778,9 +1800,9 @@ class LimitValidationPlotter(object):
         backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
         ratios = ['pre-fit', 'post-fit']
         tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
-                for bkg in backgrounds]
-        tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
-                           for fit in ratios]
+                     for bkg in backgrounds]
+        # tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
+        #                    for fit in ratios]
         for i, region in enumerate(bkg_regions):
             try:
                 hists, roo_hists = get_hists('{:s}_afterFit.root'.format(region))
@@ -1790,20 +1812,18 @@ class LimitValidationPlotter(object):
             hists = [h for h in hists if h.GetName() in backgrounds]
             for hist in hists:
                 if i == 0:
-                    hist.SetFillColor(i+hists.index(hist)+2)
+                    hist.SetFillColor(i + hists.index(hist) + 2)
                 process = hist.GetName()
                 tmp_hist = tmp_hists[backgrounds.index(process)]
-                tmp_hist.SetBinContent(i+1, hist.Integral())
-                tmp_hist.GetXaxis().SetBinLabel(i+1, region.split('_')[0])
-            tmp_hists[-1].SetBinContent(i+1, filter(lambda h: 'Data' in h.GetName(), roo_hists)[0].getFitRangeNEvt())
-            tmp_ratio_hists[-1].SetBinContent(i+1, filter(lambda h: 'ratio_h' in h.GetName(),
-                                                          roo_hists)[0].getFitRangeNEvt())
-            tmp_ratio_hists[-1].GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
-            _, roo_hists = get_hists('{:s}_beforeFit.root'.format(region))
-            tmp_ratio_hists[0].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
-                                                           roo_hists)[0].getFitRangeNEvt())
-
-
+                tmp_hist.SetBinContent(i + 1, hist.Integral())
+                tmp_hist.GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
+            tmp_hists[-1].SetBinContent(i + 1, filter(lambda h: 'Data' in h.GetName(), roo_hists)[0].getFitRangeNEvt())
+            # tmp_ratio_hists[-1].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
+            #                                                 roo_hists)[0].getFitRangeNEvt())
+            # tmp_ratio_hists[-1].GetXaxis().SetBinLabel(i + 1, region.split('_')[0])
+            # _, roo_hists = get_hists('{:s}_beforeFit.root'.format(region))
+            # tmp_ratio_hists[0].SetBinContent(i + 1, filter(lambda h: 'ratio_h' in h.GetName(),
+            #                                                roo_hists)[0].getFitRangeNEvt())
 
         stack = ROOT.THStack()
         list([stack.Add(h, 'hist') for h in tmp_hists[0:-1]])
@@ -1814,21 +1834,21 @@ class LimitValidationPlotter(object):
         for i, h in enumerate(tmp_hists[0:-1]):
             h.SetFillColor(get_default_color_scheme()[i])
         fm.set_minimum_y(stack, 0.1)
-        fm.set_maximum_y(stack, stack.GetMaximum()*1000.)
+        fm.set_maximum_y(stack, stack.GetMaximum() * 1000.)
         fm.set_axis_title(stack, 'Events', 'y')
         fm.set_axis_title(stack, 'Region', 'x')
         pt.add_data_to_stack(c, tmp_hists[-1])
-        fm.add_legend_to_canvas(c, labels=backgrounds, format=['F']*3+['p'], xl=0.7, yl=0.7, position=None,
+        fm.add_legend_to_canvas(c, labels=backgrounds, format=['F'] * 3 + ['p'], xl=0.7, yl=0.7, position=None,
                                 plot_objects=tmp_hists)
         pc = pt.get_default_plot_config(stack)
         c_ratio.cd()
-        tmp_ratio_hists[-1].Draw('p')
-        tmp_ratio_hists[0].Draw('psames')
-        tmp_ratio_hists[-1].SetMarkerColor(ROOT.kRed)
-        tmp_ratio_hists[-1].GetYaxis().SetRangeUser(0.9, 1.1)
-        fm.set_axis_title(tmp_ratio_hists[-1], 'Data/SM', 'y')
-        fm.add_legend_to_canvas(c_ratio, labels=ratios, format=['p'] * 2, xl=0.7, yl=0.7, position=None,
-                                plot_objects=tmp_ratio_hists)
+        # tmp_ratio_hists[-1].Draw('p')
+        # tmp_ratio_hists[0].Draw('psames')
+        # tmp_ratio_hists[-1].SetMarkerColor(ROOT.kRed)
+        # tmp_ratio_hists[-1].GetYaxis().SetRangeUser(0.9, 1.1)
+        # fm.set_axis_title(tmp_ratio_hists[-1], 'Data/SM', 'y')
+        # fm.add_legend_to_canvas(c_ratio, labels=ratios, format=['p'] * 2, xl=0.7, yl=0.7, position=None,
+        #                         plot_objects=tmp_ratio_hists)
         c.SetLogy()
         pc.lumi = 139.
         fm.decorate_canvas(c, pc)
@@ -1854,7 +1874,7 @@ class LimitValidationPlotter(object):
         pc.draw_option = 'COLZ'
         pc.ytitle = ''
         canvas = pt.plot_2d_hist(hist, pc)
-        for b in range(1, hist.GetNbinsX()+1):
+        for b in range(1, hist.GetNbinsX() + 1):
             x_label = transform_label(hist.GetXaxis().GetBinLabel(b))
             y_label = transform_label(hist.GetYaxis().GetBinLabel(b))
             hist.GetXaxis().SetBinLabel(b, x_label)
@@ -1952,6 +1972,7 @@ class CommonLimitOptimiser(BasePlotter):
         :return: nothing
         :rtype: None
         """
+
         def is_empty(file_handle, tree_name):
             """
             Retrieve entries from nominal tree
@@ -2067,11 +2088,13 @@ def run_fit(args, **kwargs):
     base_dir = os.path.abspath(os.path.join(os.path.basename(__file_path__), '../../../'))
     analysis_pkg_name = os.path.abspath(os.curdir).split('/')[-2]
     os.system("""echo 'source $HOME/.bashrc && cd {:s} && echo $PWD && source setup_python_ana.sh && cd {:s} && 
-        root -b -q runAsymptoticsCLs.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",0,{:.2f}\) ' | 
-        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),
+        root -b -q runAsymptoticsCLs.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",0,{:.2f}\) ' |
+        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: E501
                                                        os.path.join(base_dir, 'CommonStatTools'),
-                                                       os.path.join(args.base_output_dir, 'workspaces', str(args.job_id),
-                                                                    'results/{:s}/SPlusB_combined_NormalMeasurement_model.root'.format(kwargs['analysis_name'])),
+                                                       os.path.join(args.base_output_dir, 'workspaces',
+                                                                    str(args.job_id),
+                                                                    'results/{:s}/SPlusB_combined_NormalMeasurement_model.root'.format(
+                                                                        kwargs['analysis_name'])),
                                                        kwargs['ws_name'],
                                                        args.job_id,
                                                        'test',
@@ -2079,7 +2102,8 @@ def run_fit(args, **kwargs):
                                                        kwargs['cls'],
                                                        args.kwargs['queue'],
                                                        os.path.join(args.output_dir, 'limits', str(args.job_id), 'fit'),
-                                                       os.path.join(args.output_dir, 'limits', str(args.job_id), 'fit')))
+                                                       os.path.join(args.output_dir, 'limits', str(args.job_id),
+                                                                    'fit')))  # noqa: E501
 
 
 def build_workspace(args, **kwargs):
@@ -2099,7 +2123,6 @@ def build_workspace(args, **kwargs):
                   output_dir=os.path.join(args.output_dir, 'workspaces', str(args.job_id)), **kwargs)
     analyser.run(**args.kwargs)
 
-
 # def run_sig_fit(args, queue):
 #     """
 #     Submit limit fit using runAsymptoticsCLs.C script from exotics CommonStatTools
@@ -2113,9 +2136,9 @@ def build_workspace(args, **kwargs):
 #     make_dirs(os.path.join(args.output_dir, 'limits', str(args.job_id)))
 #     os.system("""echo 'source $HOME/.bashrc && cd /user/mmorgens/devarea/rel21/Multilepton/source/ELMultiLep/ &&
 #         source setup.sh && cd /user/mmorgens/devarea/rel21/Multilepton/source/CommonStatTools &&
-#         root -b -q runSig.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",1\) ' |
-#         qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(args.base_output_dir, 'workspaces', str(args.job_id),
-#                                                                     'results/LQAnalysis/SPlusB_combined_NormalMeasurement_model.root'),
+#         root -b -q runSig.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",1\) ' |  # noqa: E501
+#         qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(args.base_output_dir, 'workspaces', str(args.job_id),  # noqa: E501
+#                                                                     'results/LQAnalysis/SPlusB_combined_NormalMeasurement_model.root'),  # noqa: E501
 #                                                        'combined',
 #                                                        args.job_id,
 #                                                        'test',

@@ -8,7 +8,7 @@ from PyAnalysisTools.base.FileHandle import FileHandle
 
 try:
     import pyAMI.client
-except Exception as e:
+except Exception:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
 

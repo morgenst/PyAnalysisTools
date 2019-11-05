@@ -107,9 +107,9 @@ class OutputFileHandle(SysOutputHandle):
             file_tag = '.root' if '.root' not in self.output_file_name else ''
             if self.output_tag is not None:
                 self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir,
-                                                                '_'.join([self.output_file_name,
-                                                                          self.output_tag])
-                                                                + file_tag), "RECREATE")
+                                                                "{0}{1}".format('_'.join([self.output_file_name,
+                                                                                          self.output_tag]), file_tag)),
+                                                   "RECREATE")
             else:
                 self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + file_tag),
                                                    "RECREATE")
@@ -119,7 +119,7 @@ class OutputFileHandle(SysOutputHandle):
     def dump_canvas(self, canvas, name=None, tdir=None):
         if self.extension is None:
             return
-        #re-draw canvas to update internal reference in gPad
+        # re-draw canvas to update internal reference in gPad
         output_path = self.output_dir
         if tdir is not None:
             output_path = os.path.join(output_path, tdir)
@@ -149,17 +149,17 @@ class OutputFileHandle(SysOutputHandle):
                 continue
             c.SaveAs(os.path.join(output_path, name + self.extension))
 
-    #todo: quite fragile as assumptions on bucket size are explicitly taken
+    # todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
         n = self.n_plots_per_page
         nx = int(round(math.sqrt(n)))
-        ny = int(math.ceil(n/float(nx)))
+        ny = int(math.ceil(n / float(nx)))
         if nx < ny:
-           nx, ny = ny, nx
-        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", nx*800, ny*600)
+            nx, ny = ny, nx
+        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", nx * 800, ny * 600)
         plot_book_canvas.Divide(nx, ny)
         for i in range(len(bucket)):
-            plot_book_canvas.cd(i+1)
+            plot_book_canvas.cd(i + 1)
             if self.set_title_name:
                 bucket[i].SetTitle(bucket[i].GetName())
                 bucket[i].Update()
@@ -179,8 +179,8 @@ class OutputFileHandle(SysOutputHandle):
         self.dump_canvas([self._make_plot_book(plot_bucket, plots.index(plot_bucket)) for plot_bucket in plots],
                          self.plot_book_name)
         self.dump_canvas([self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket),
-                                               prefix=self.plot_book_name+"_ratio") for plot_bucket in ratio_plots],
-                         name=self.plot_book_name+"_ratio")
+                                               prefix=self.plot_book_name + "_ratio") for plot_bucket in ratio_plots],
+                         name=self.plot_book_name + "_ratio")
 
     def write_to_file(self, obj, tdir=None):
         if tdir is not None:

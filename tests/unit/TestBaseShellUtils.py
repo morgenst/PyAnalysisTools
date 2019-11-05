@@ -66,13 +66,6 @@ class TestShellUtils(unittest.TestCase):
         self.assertRaises(IOError, SU.copy, "non_exiting_file.txt", "dest.txt")
 
     @unittest.skip("Not implemented")
-    def test_move_file_fail_non_existing_dir(self):
-        file_name = "test_file_copy_fail.txt"
-        f = open(file_name, "w+")
-        f.close()
-        self.assertRaises(IOError, SU.copy, file_name, os.path.join(self.test_dir, "non_existing_dir/foo"))
-
-    @unittest.skip("Not implemented")
     def test_source(self):
         file_name = "test.sh"
         f = open(file_name, "w+")
@@ -138,4 +131,3 @@ class TestShellUtils(unittest.TestCase):
         link = os.path.join(self.test_dir, "test_link")
         os.symlink(self.test_dir, link)
         self.assertEqual(SU.resolve_path_from_symbolic_links(link, "../../../tests"), os.getcwd())
-

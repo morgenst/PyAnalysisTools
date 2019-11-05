@@ -4,11 +4,11 @@ from __future__ import print_function
 import json
 import os
 
-import matplotlib
 from builtins import map
 from builtins import object
 from builtins import range
 from builtins import str
+import sys
 from keras import metrics
 from keras.layers import Dense, Dropout
 from keras.models import Sequential, load_model
@@ -16,9 +16,6 @@ from keras.optimizers import SGD, Adagrad, Adam
 from keras.utils import plot_model
 from sklearn.metrics import roc_curve, auc, classification_report
 from sklearn.utils import class_weight
-
-matplotlib.use('Agg')
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from array import array
@@ -31,9 +28,12 @@ from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
+
 np.seterr(divide='ignore', invalid='ignore')
-import tensorflow as tf
-import sys
+import tensorflow as tf  # noqa: E402
+import matplotlib  # noqa: E402
+matplotlib.use('Agg')  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
 sys.setrecursionlimit(10000)
 
 
@@ -73,6 +73,7 @@ class NNConfig(object):
                 except (NameError, TypeError):
                     config[k] = v
             return config
+
         optimiser_type = list(optimiser_config.keys())[0]
         if optimiser_type == "sgd":
             return SGD(**convert_types(optimiser_config[optimiser_type]))
@@ -88,13 +89,13 @@ class NeuralNetwork(object):
         model.add(Dense(units=limit_config.neurons, input_dim=num_features, activation=limit_config.activation,
                         kernel_initializer='random_normal'))
         for i in range(limit_config.nlayers - 1):
-            model.add(Dense(limit_config.neurons, activation=limit_config.activation, kernel_initializer='random_normal'))
+            model.add(
+                Dense(limit_config.neurons, activation=limit_config.activation, kernel_initializer='random_normal'))
             if limit_config.dropout is not None:
                 model.add(Dropout(limit_config.dropout))
         model.add(Dense(1, activation=limit_config.final_activation))
-        model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser, metrics=[metrics.binary_accuracy,
-                                                                                             metrics.mean_absolute_percentage_error,
-                                                                                             'accuracy'])
+        model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser,
+                      metrics=[metrics.binary_accuracy, metrics.mean_absolute_percentage_error, 'accuracy'])
         self.kerasmodel = model
 
 
@@ -226,28 +227,23 @@ class NNTrainer(object):
                                                         len(self.label_train[self.label_train == 0])))
         print("eval signal: {:d} data: {:d}".format(len(self.label_eval[self.label_eval == 1]),
                                                     len(self.label_eval[self.label_eval == 0])))
-        class_weight_train = class_weight.compute_class_weight('balanced'
-                                                               , np.unique(self.label_train)
-                                                               , self.label_train)
-        class_weight_eval = class_weight.compute_class_weight('balanced'
-                                                              , np.unique(self.label_eval)
-                                                              , self.label_eval)
+        class_weight_train = class_weight.compute_class_weight('balanced', np.unique(self.label_train),
+                                                               self.label_train)
+        class_weight_eval = class_weight.compute_class_weight('balanced', np.unique(self.label_eval), self.label_eval)
         history_train = self.model_0.fit(self.npa_data_train, self.label_train,
                                          epochs=self.epochs, verbose=self.verbosity,
                                          batch_size=self.limit_config.batch_size, shuffle=True,
                                          validation_data=(self.npa_data_eval, self.label_eval),
-                                         class_weight=dict(enumerate(class_weight_train))) #sample_weight=self.weight_train,
+                                         class_weight=dict(enumerate(class_weight_train)))
         history_eval = self.model_1.fit(self.npa_data_eval, self.label_eval,
                                         epochs=self.epochs, verbose=self.verbosity,
                                         batch_size=self.limit_config.batch_size, shuffle=True,
                                         validation_data=(self.npa_data_train, self.label_train),
                                         class_weight=dict(enumerate(class_weight_eval)))
-        print('class weights train: ', class_weight.compute_class_weight('balanced'
-                                                                   , np.unique(self.label_train)
-                                                                   , self.label_train))
+        print('class weights train: ', class_weight.compute_class_weight('balanced', np.unique(self.label_train),
+                                                                         self.label_train))
         print('class weights eval: ', class_weight.compute_class_weight('balanced',
-                                                                        np.unique(self.label_eval)
-                                                                        , self.label_eval))
+                                                                        np.unique(self.label_eval), self.label_eval))
         if self.plot:
             self.plot_train_control(history_train, "train")
             self.plot_train_control(history_eval, "eval")
@@ -294,11 +290,11 @@ class NNTrainer(object):
         preds_bkg_eval = preds_eval[self.label_train == 0]
         make_plot(preds_sig_eval, preds_bkg_eval, "eval")
 
-        #preds_train = self.model_0.predict(self.npa_data_train)
+        # preds_train = self.model_0.predict(self.npa_data_train)
         predicted_classes = self.model_0.predict_classes(self.npa_data_eval)
 
         print(classification_report(self.label_eval, predicted_classes))
-        #print classification_report(self.label_train, predicted_classes)
+        # print classification_report(self.label_train, predicted_classes)
 
         self.make_roc_curve(self.label_train, preds_eval, "train")
         self.make_roc_curve(self.label_eval, preds_train, "eval")
@@ -330,7 +326,8 @@ class NNTrainer(object):
             if "/" in variable_name:
                 variable_name = "_".join(variable_name.split("/")).replace(" ", "")
             var_range = np.percentile(data, [2.5, 97.5])
-            plt.hist(list(map(float, signal.values)), 100, range=var_range, histtype='step', label='signal', density=True)
+            plt.hist(list(map(float, signal.values)), 100, range=var_range, histtype='step', label='signal',
+                     density=True)
             plt.hist(list(map(float, background.values)), 100, range=var_range, histtype='step', label='background',
                      density=True)
             if data.ptp() > 1000.:
@@ -432,7 +429,7 @@ class NNReader(object):
         self.npa_data_train, _ = self.scaler.apply_scaling(self.npa_data, None,
                                                            scaler=os.path.join(self.input_path, 'scalers/train.pkl'))
         self.npa_data_eval, _ = self.scaler.apply_scaling(self.npa_data, None,
-                                                           scaler=os.path.join(self.input_path, 'scalers/eval.pkl'))
+                                                          scaler=os.path.join(self.input_path, 'scalers/eval.pkl'))
 
     def make_control_plots(self, train_pred, eval_pred, label):
         _logger.debug("Consistency plots")
@@ -462,7 +459,7 @@ class NNReader(object):
             plt.close()
 
         for key, name in enumerate(self.variable_list):
-            make_plot("{}_{}".format("post_scaling", "train"), name, self.npa_data[:,key])
+            make_plot("{}_{}".format("post_scaling", "train"), name, self.npa_data[:, key])
 
     def attach_NN_output(self, file_handle):
         def get_event_numbers(tree, is_mc):
@@ -479,7 +476,8 @@ class NNReader(object):
             selection = 'object_n == 1 && HT>=0.'
         data_selected = self.converter.convert_to_array(tree, selection)
         if file_handle.process.is_data:
-            selected_event_numbers = pd.DataFrame(self.converter_selection_data.convert_to_array(tree, selection)).values
+            selected_event_numbers = pd.DataFrame(
+                self.converter_selection_data.convert_to_array(tree, selection)).values
         else:
             selected_event_numbers = pd.DataFrame(self.converter_selection_mc.convert_to_array(tree, selection)).values
         data_selected = pd.DataFrame(data_selected)
@@ -507,14 +505,15 @@ class NNReader(object):
             if not len(tree.object_pt) > 1 and (np.array(event_number) == selected_event_numbers).all(1).any():
                 processed_events += 1
                 if (tree.event_number, tree.run_number) in already_processed_events:
-                    _logger.error("already processed event with event no: {:d} and run number: {:d}".format(tree.event_number,
-                                                                                                            tree.run_number))
+                    _logger.error(
+                        "already processed event with event no: {:d} and run number: {:d}".format(tree.event_number,
+                                                                                                  tree.run_number))
                 try:
                     already_processed_events.append(tuple(event_number))
                     if not is_train:
-                        nn_prediction[0] = prediction1[entry-multiple_triplets]
+                        nn_prediction[0] = prediction1[entry - multiple_triplets]
                     else:
-                        nn_prediction[0] = prediction0[entry-multiple_triplets]
+                        nn_prediction[0] = prediction0[entry - multiple_triplets]
                 except Exception as e:
                     print("exception ", processed_events)
                     raise e
@@ -526,7 +525,7 @@ class NNReader(object):
             branch.Fill()
         try:
             file_handle_friend.get_object_by_name(self.nominal_dir)
-        except:
+        except Exception:
             if self.nominal_dir is not None:
                 file_handle_friend.tfile.mkdir(self.nominal_dir)
         tdir = file_handle_friend.get_directory(self.nominal_dir)

@@ -30,7 +30,6 @@ class RatioCalculator(object):
             return getattr(self, calc_func)(ref, comp)
 
         ratios = []
-        
         if isinstance(self.reference, list):
             for i, ref in enumerate(self.reference):
                 ratios.append(calc_ratio(self, ref, self.compare[i]))
@@ -73,7 +72,7 @@ class RatioCalculator(object):
 class RatioPlotter(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("plot_config", None)
-        if not "reference" in kwargs:
+        if "reference" not in kwargs:
             _logger.error("Missing reference")
             raise InvalidInputError("Missing reference")
         self.reference = kwargs["reference"]
@@ -119,8 +118,8 @@ class RatioPlotter(object):
         canvas = pt.plot_hist(hist[0], plot_config[0], index=0)
         if len(hist) > 1:
             for i, unc_hist in enumerate(hist[1:]):
-                pc = plot_config[old_div(i,n_systematics)]
-                pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i+1)#index=i - i/n_systematics * n_systematics)
+                pc = plot_config[old_div(i, n_systematics)]
+                pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i+1)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)
         for a in arrows:
             a.Draw()
@@ -128,7 +127,7 @@ class RatioPlotter(object):
 
     def decorate_ratio_canvas(self, canvas):
         if self.plot_config.enable_legend:
-            fm.add_legend_to_canvas(canvas,  **self.plot_config.__dict__)
+            fm.add_legend_to_canvas(canvas, **self.plot_config.__dict__)
 
     def make_ratio_tefficiency(self, ratios):
         c = ROOT.TCanvas("C", "C")
@@ -144,7 +143,7 @@ class RatioPlotter(object):
         else:
             self.reference.Draw("ap")
             self.plot_config.xtitle = self.reference.GetPaintedGraph().GetXaxis().GetTitle()
-                        
+
         self.plot_config.ytitle = "ratio"
         index = ROOT.gROOT.GetListOfCanvases().IndexOf(c)
         ROOT.gROOT.GetListOfCanvases().RemoveAt(index)
@@ -184,7 +183,7 @@ class RatioPlotter(object):
         canvas.Modified()
         canvas.Update()
         return canvas
-    
+
     @staticmethod
     def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, name=None, title=''):
         def scale_frame_text(fr, scale):
@@ -219,7 +218,7 @@ class RatioPlotter(object):
             supported_types = ["TH1F", "TH1D", "TGraph", "TGraphAsymmErrors", "TEfficiency"]
             try:
                 hratio = object_handle.get_objects_from_canvas_by_type(ratio, supported_types)[0]
-            except:
+            except IndexError:
                 _logger.error("Could not find any supported hist type in canvas {:s}".format(ratio.GetName()))
                 return canvas
         else:
@@ -247,7 +246,7 @@ class RatioPlotter(object):
             except IndexError:
                 try:
                     stack = object_handle.get_objects_from_canvas_by_type(canvas, "TH1")[0]
-                except:
+                except IndexError:
                     stack = object_handle.get_objects_from_canvas_by_type(canvas, "TGraph")[0]
         stack.GetXaxis().SetTitleSize(0)
         stack.GetXaxis().SetLabelSize(0)

@@ -102,13 +102,13 @@ class FileHandle(object):
     def __del__(self):
         if self.tfile is None:
             return
-        _logger.verbose("Delete file handle for {:s}".format(self.tfile.GetName()))
+        _logger.log(0, "Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
     def close(self):
         if self.tfile is None or not self.tfile.IsOpen():
             return
-        _logger.verbose("Closing file {:s}".format(self.tfile.GetName()))
+        _logger.log(0, "Closing file {:s}".format(self.tfile.GetName()))
         self.tfile.Close()
         if self.initial_file_name is not None:
             move(self.file_name, self.initial_file_name)
@@ -121,7 +121,7 @@ class FileHandle(object):
             try:
                 return self.tfile.Get(bytes(directory, encoding='utf8'))
             except TypeError:
-                #python3
+                # python3
                 return self.tfile.Get(directory)
         except Exception as e:
             print(str(e))
@@ -180,13 +180,11 @@ class FileHandle(object):
             # python2 w/ future
             obj = tdir.Get(bytes(obj_name, encoding='utf8'))
         except TypeError:
-            #python3
+            # python3
             obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
-            raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
-                                                                                                str(tdirectory),
-                                                                                                os.path.join(self.path,
-                                                                                                             self.file_name)))
+            raise ValueError("Object {:s} does not exist in directory {:s} "
+                             "in file {:s}".format(obj_name, str(tdirectory), os.path.join(self.path, self.file_name)))
         return obj
 
     def get_number_of_total_events(self, unweighted=False):
@@ -252,9 +250,8 @@ class FileHandle(object):
         base_file_name = self.file_name.split("/")[-1]
         for pattern in self.friend_pattern:
             try:
-                # friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
-                #                    available_files)[0]
-                friend_fn = [fn for fn in available_files if fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern)][0]
+                friend_fn = [fn for fn in available_files
+                             if fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern)][0]
                 self.friends.append(os.path.join(directory, friend_fn))
             except IndexError:
                 _logger.error("Could not find friend for {:s}".format(base_file_name))

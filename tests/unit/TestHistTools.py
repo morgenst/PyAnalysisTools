@@ -11,7 +11,8 @@ cwd = os.path.dirname(__file__)
 ROOT.gROOT.SetBatch(True)
 
 
-class PlotConfig(object): pass
+class PlotConfig(object):
+    pass
 
 
 class TestHistTools(unittest.TestCase):

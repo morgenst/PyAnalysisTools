@@ -148,10 +148,10 @@ class Process(object):
         """
         self.is_mc = True
         try:
-            self.dsid = re.search('\d{6,}', file_name).group(0)
+            self.dsid = re.search(r'\d{6,}', file_name).group(0)
         except AttributeError:
             pass
-        if re.search('\d{6,}', file_name):
+        if re.search(r'\d{6,}', file_name):
             self.parse_from_dsid()
         else:
             self.process_name = file_name

@@ -2,7 +2,6 @@ from __future__ import print_function
 import unittest
 import yaml
 import os
-import PyAnalysisTools
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as YL
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as YD
 from PyAnalysisTools.base import _logger

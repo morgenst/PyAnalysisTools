@@ -1,15 +1,15 @@
 from __future__ import division
-from builtins import str
-from past.utils import old_div
-from builtins import object
+
+import copy
 import glob
 import re
+from builtins import object
+from builtins import str
 from itertools import product
 
+from past.utils import old_div
+
 import ROOT
-import copy
-#required to get deepcopy working for compiled regex. Should be fixed in python 3.7
-copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
 
 import os
 from PyAnalysisTools.base.FileHandle import FileHandle
@@ -30,6 +30,9 @@ from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.AnalysisTools.FakeEstimator import ElectronFakeEstimator
 from PyAnalysisTools.base.Modules import load_modules
+
+# required to get deepcopy working for compiled regex. Should be fixed in python 3.7
+copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
 
 
 class PlotArgs(object):
@@ -75,7 +78,7 @@ class Plotter(BasePlotter):
             self.redraw_init(**kwargs)
             return
 
-        if "input_files" not in kwargs and not 'input_file_list' in kwargs:
+        if "input_files" not in kwargs and 'input_file_list' not in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("No input files")
         if "plot_config_files" not in kwargs:
@@ -118,7 +121,7 @@ class Plotter(BasePlotter):
             self.filter_empty_trees()
         self.modules = load_modules(kwargs['module_config_files'], self)
         self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
-        #self.modules.append(self.fake_estimator)
+        # self.modules.append(self.fake_estimator)
         self.init_modules()
         self.expand_plot_configs()
         if kwargs["enable_systematics"]:
@@ -206,9 +209,9 @@ class Plotter(BasePlotter):
                 new_config = copy.copy(process_config)
                 new_config.name += campaign
                 new_config.label += ' {:s}'.format(campaign)
-                #TODO fix proper calculation
-                if not '+' in new_config.color and not '-' in new_config.color:
-                    new_config.color = new_config.color + ' + {:d}'.format(3*pow(-1, i))
+                # TODO fix proper calculation
+                if '+' not in new_config.color and '-' not in new_config.color:
+                    new_config.color = new_config.color + ' + {:d}'.format(3 * pow(-1, i))
                 if hasattr(process_config, 'subprocesses'):
                     new_config.subprocesses = ['{:s}.{:s}'.format(sb, campaign) for sb in process_config.subprocesses]
                 self.process_configs['{:s}.{:s}'.format(process_config_name, campaign)] = new_config
@@ -218,7 +221,8 @@ class Plotter(BasePlotter):
     def filter_unavailable_processes(file_handles, process_configs):
         if process_configs is None:
             return file_handles
-        unavailable_process = [fh.process for fh in [fh for fh in file_handles if find_process_config(fh.process, process_configs) is None]]
+        unavailable_process = [fh.process for fh in
+                               [fh for fh in file_handles if find_process_config(fh.process, process_configs) is None]]
         for process in unavailable_process:
             _logger.debug("Unable to find merge process config for {:s}".format(str(process)))
         failed_file_handles = [fh for fh in file_handles if find_process_config(fh.process, process_configs) is None]
@@ -246,9 +250,9 @@ class Plotter(BasePlotter):
         self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.syst_tree_name)]
         list([fh.close() for fh in empty_files])
 
-    #todo: why is RatioPlotter not called?
+    # todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
-        if not "Data" in hists:
+        if "Data" not in hists:
             _logger.error("Ratio requested but no data found")
             raise InvalidInputError("Missing data")
         ratio = hists["Data"].Clone("ratio_%s" % plot_config.dist)
@@ -333,8 +337,9 @@ class Plotter(BasePlotter):
         signals = {}
         if self.process_configs is None:
             return signals
-        signal_process_configs = [pc for pc in iter(list(self.process_configs.items())) if isinstance(pc[1], ProcessConfig) and
-                                                   pc[1].type.lower() == "signal"]
+        signal_process_configs = [pc for pc in iter(list(self.process_configs.items())) if isinstance(pc[1],
+                                                                                                      ProcessConfig)
+                                  and pc[1].type.lower() == "signal"]
         if len(signal_process_configs) == 0:
             return signals
         for process in signal_process_configs:
@@ -346,10 +351,10 @@ class Plotter(BasePlotter):
 
     def scale_signals(self, signals, plot_config):
         for process, signal_hist in list(signals.items()):
-            #label_postfix = "(x {:.0f})".format(plot_config.signal_scale)
+            # label_postfix = "(x {:.0f})".format(plot_config.signal_scale)
             # if label_postfix not in self.process_configs[process].label:
             #     self.process_configs[process].label += label_postfix
-            #HT.scale(signal_hist, plot_config.signal_scale)
+            # HT.scale(signal_hist, plot_config.signal_scale)
             if hasattr(self.process_configs[process], 'signal_scale'):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
 
@@ -377,7 +382,7 @@ class Plotter(BasePlotter):
         signals = None
         if plot_config.signal_extraction:
             signals = self.get_signal_hists(data)
-        #todo: need proper fix for this
+        # todo: need proper fix for this
         if plot_config.signal_scale is not None and signals is not None:
             self.scale_signals(signals, plot_config)
         self.scale_process(data)
@@ -420,8 +425,9 @@ class Plotter(BasePlotter):
                 FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
         if plot_config.calcsig:
             # todo: "Background" should be an actual type
-            merged_process_configs = dict([pc for pc in iter(list(self.process_configs.items())) if hasattr(pc[1], "type")])
-            #signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
+            merged_process_configs = dict(
+                [pc for pc in iter(list(self.process_configs.items())) if hasattr(pc[1], "type")])
+            # signal_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Signal")
             signal_hist = list(signals.values())[0]
             background_hist = merge_objects_by_process_type(canvas, merged_process_configs, "Background")
             if hasattr(plot_config, "significance_config"):
@@ -497,18 +503,19 @@ class Plotter(BasePlotter):
                 plot_config_syst_unc_ratio.style = 3244
                 plot_config_syst_unc_ratio.draw = "E2"
                 plot_config_syst_unc_ratio.logy = False
-                syst_sm_total_up_categotised, syst_sm_total_down_categotised, \
-                colors = self.syst_analyser.get_relative_unc_on_SM_total(plot_config, data)
+                syst_sm_total_up_cat, syst_sm_total_down_cat, colors = \
+                    self.syst_analyser.get_relative_unc_on_SM_total(plot_config, data)
                 ratio_syst_up = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio,
-                                                                  syst_sm_total_up_categotised)
+                                                                  syst_sm_total_up_cat)
                 ratio_syst_down = ST.get_relative_systematics_ratio(mc_total, stat_unc_ratio,
-                                                                    syst_sm_total_down_categotised)
+                                                                    syst_sm_total_down_cat)
                 list([h.SetMarkerStyle(1) for h in ratio_syst_up])
                 list([h.SetMarkerStyle(1) for h in ratio_syst_down])
                 colors.append(ROOT.kBlack)
                 plot_config_syst_unc_ratio.color = colors
                 canvas_ratio = ratio_plotter.add_uncertainty_to_canvas(canvas_ratio,
-                                                                       ratio_syst_up + ratio_syst_down + [stat_unc_ratio],
+                                                                       ratio_syst_up + ratio_syst_down
+                                                                       + [stat_unc_ratio],
                                                                        [plot_config_syst_unc_ratio,
                                                                         plot_config_syst_unc_ratio,
                                                                         plot_config_stat_unc_ratio],
@@ -546,7 +553,7 @@ class Plotter(BasePlotter):
         return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
 
     def project_hists(self):
-        self.read_cutflows() #disabled in susy
+        self.read_cutflows()  # disabled in susy
         if self.syst_analyser is not None:
             self.syst_analyser.plot_configs = self.plot_configs
 
@@ -612,7 +619,7 @@ class Plotter(BasePlotter):
                 self.apply_lumi_weights(self.histograms)
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
-        #workaround due to missing worker node communication of regex process parsing
+        # workaround due to missing worker node communication of regex process parsing
 
         if self.process_configs is not None:
             self.merge_histograms()
@@ -634,11 +641,10 @@ class Plotter(BasePlotter):
                                 h.SetName(h.GetName() + '_' + syst_name)
                             self.output_handle.register_object(h)
             self.syst_analyser.calculate_total_systematics()
-            #For some reason need to transfer histograms
+            # For some reason need to transfer histograms
             if self.cluster_mode:
                 for tdir, obj in list(self.syst_analyser.output_handle.objects.items()):
                     self.output_handle.register_object(obj, tdir=tdir[0])
         for plot_config, data in list(self.histograms.items()):
             self.make_plot(plot_config, data)
         self.output_handle.write_and_close()
-

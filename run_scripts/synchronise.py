@@ -2,7 +2,6 @@ import argparse
 import os
 import sys
 
-from subprocess import call
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 
@@ -17,7 +16,8 @@ def main(argv):
     for data in config["content"]:
         cmd = ["rsync", "-ravu", os.path.join(args.path, data, "."), " %s@%s:%s" % (config["user"],
                                                                                     config["server"],
-                                                                                    os.path.join(config["destination"], data))]
+                                                                                    os.path.join(config["destination"],
+                                                                                                 data))]
         os.system(" ".join(cmd))
 
 

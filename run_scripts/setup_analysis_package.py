@@ -75,7 +75,8 @@ class ModuleCreator(object):
             print('\tvirtual ~MainSelectionModule(){}\n', file=f)
             print('\tvirtual void initialize();\n', file=f)
             print('\t//configurables', file=f)
-            print('\tstd::string someConfigurable = "I am a configurable variable to be set in module_config.yml";\n', file=f)
+            print('\tstd::string someConfigurable = "I am a configurable variable to be set in module_config.yml";\n',
+                  file=f)
             print('\tprivate:', file=f)
             print('// DO NOT FORGET TO DISABLE THE ROOT STREAMERS VIA //!', file=f)
             print('\tstd::shared_ptr<CP::someCPTool> m_myCPTool; //!', file=f)
@@ -108,7 +109,8 @@ class ModuleCreator(object):
             print('\tparser = RunManager.get_parser(\'{:s}\')'.format(self.name), file=f)
             print('\targs = parser.parse_args()', file=f)
             print('\tmanager = RunManager.RunManager("{:s}", abbrev="{:s}_", **vars(args))'.format(self.name,
-                                                                                                         self.short_name), file=f)
+                                                                                                   self.short_name),
+                  file=f)
             print('\tmanager.run()', file=f)
 
     def add_link_def(self):
@@ -160,8 +162,8 @@ class ModuleCreator(object):
             print('\t{:s}/*.h Root/*.cxx ${{{:s}LibCintDict}}'.format(self.name, self.name), file=f)
             print('\tPUBLIC_HEADERS {:s}'.format(self.name), file=f)
             print('\tINCLUDE_DIRS ${ROOT_INCLUDE_DIRS} ${BOOST_INCLUDE_DIRS}', file=f)
-            print('\tLINK_LIBRARIES ELCoreLib ELCommonLib LumiCalculatorLib ${ROOT_LIBRARIES} ${BOOST_LIBRARIES}' \
-                        '${extra_libs} )\n', file=f)
+            print('\tLINK_LIBRARIES ELCoreLib ELCommonLib LumiCalculatorLib ${ROOT_LIBRARIES} ${BOOST_LIBRARIES}'
+                  '${extra_libs} )\n', file=f)
             print('#Install files from the package:', file=f)
             print('atlas_install_data(data/*)', file=f)
 

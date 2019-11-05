@@ -21,7 +21,6 @@ def create_test_case(_, input_fn, reference_fn):
         def test_tree_and_branch_exist(self):
             for tree in self.reference.get_objects_by_type('TTree', 'Nominal'):
                 self.assertIsNotNone(self.input.get_object_by_name(tree.GetName(), 'Nominal'))
-                test_tree = self.input.get_object_by_name(tree.GetName(), 'Nominal')
                 test_branches = self.input.get_branch_names_from_tree(tree.GetName(), 'Nominal')
                 for branch in self.reference.get_branch_names_from_tree(tree.GetName(), 'Nominal'):
                     if branch in test_branches:

@@ -36,7 +36,8 @@ class TestCut(unittest.TestCase):
                          self.cut.__str__())
 
     def test_print_list(self):
-        self.assertEqual("[Cut object named {:s} and selection {:s}\n]".format(self.base_selection, self.base_selection),
+        self.assertEqual("[Cut object named {:s} and selection {:s}\n]".format(self.base_selection,
+                                                                               self.base_selection),
                          str([self.cut]))
 
     def test_named_cut(self):
@@ -140,12 +141,12 @@ class TestRegion(unittest.TestCase):
 
     def test_str(self):
         self.assertEqual('Region: testRegion \n'
-                         'n_lep=2 n_electron=-1 n_muon=2 n_tau=0 event_cuts=[\'jet_n > 1\', \'Sum$(jet_has_btag) == 2\'] '
-                         'norm_region=False val_region=False norm_backgrounds={} disable_leptons=False '
-                         'disable_taus=False disable_electrons=False disable_muons=False is_on_z=None '
-                         'operator=== muon_operator=== electron_operator=== label=#mu^{#pm}#mu^{#pm} label_position=None '
-                         'good_muon=None fake_muon=None inverted_muon=None good_electron=None inverted_electron=None '
-                         'split_mc_data=False common_selection=None weight=None binning=None '
+                         'n_lep=2 n_electron=-1 n_muon=2 n_tau=0 event_cuts=[\'jet_n > 1\', '
+                         '\'Sum$(jet_has_btag) == 2\'] norm_region=False val_region=False norm_backgrounds={} '
+                         'disable_leptons=False disable_taus=False disable_electrons=False disable_muons=False '
+                         'is_on_z=None operator=== muon_operator=== electron_operator=== label=#mu^{#pm}#mu^{#pm} '
+                         'label_position=None good_muon=None fake_muon=None inverted_muon=None good_electron=None '
+                         'inverted_electron=None split_mc_data=False common_selection=None weight=None binning=None '
                          'cut_list=[Cut object named jet_n > 1 and selection jet_n > 1\n, Cut object named '
                          'Sum$(jet_has_btag) == 2 and selection Sum$(jet_has_btag) == 2\n] ', str(self.region))
 
@@ -218,11 +219,11 @@ class TestRegionBuilder(unittest.TestCase):
         self.assertEqual(4, len(plot_configs))
         index_no_cut = plot_configs.index([pc for pc in plot_configs if 'no_cut' in pc.name][0])
         index_cut = plot_configs.index([pc for pc in plot_configs if 'no_cut' not in pc.name][0])
-        self.assertEqual(['1 ::: dummy_cut'] +
-                         [c.selection for c in self.reg_builder.regions[0].get_cut_list()],
+        self.assertEqual(['1 ::: dummy_cut']
+                         + [c.selection for c in self.reg_builder.regions[0].get_cut_list()],
                          plot_configs[index_cut].cuts)
-        self.assertEqual(['1 ::: dummy_cut'] +
-                         [c.selection for c in self.reg_builder.regions[1].get_cut_list()],
+        self.assertEqual(['1 ::: dummy_cut']
+                         + [c.selection for c in self.reg_builder.regions[1].get_cut_list()],
                          plot_configs[index_cut+2].cuts)
         self.assertEqual([c.selection for c in self.reg_builder.regions[0].get_cut_list()],
                          plot_configs[index_no_cut].cuts)

@@ -1,11 +1,11 @@
 from __future__ import print_function
+
+import os
 from builtins import input
 from builtins import map
-import ROOT
-import os
-from subprocess import check_call
 from functools import partial
 from multiprocessing import Pool
+
 from PyAnalysisTools.base.ShellUtils import move, remove_directory, make_dirs
 
 
@@ -18,11 +18,8 @@ def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, postf
             list([remove_directory(os.path.join(merge_dir, d)) for d in os.listdir(merge_dir)])
 
     pool = Pool(processes=min(ncpu, len(data)))
-    for item in list(data.items()):
-        parallel_merge_wrapper(item, output_path=output_path, prefix=prefix,
-                               merge_dir=merge_dir, force=force, postfix=postfix), list(data.items())
-    # pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
-    #                  merge_dir=merge_dir, force=force, postfix=postfix), data.items())
+    pool.map(partial(parallel_merge_wrapper, output_path=output_path, prefix=prefix,
+                     merge_dir=merge_dir, force=force, postfix=postfix), data.items())
 
 
 def parallel_merge_wrapper(dict_element, output_path, prefix, merge_dir=None, force=False, postfix=None):
@@ -65,10 +62,8 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
             else:
                 output_file_name = '{:s}_{:d}.root'.format(prefix, file_lists.index(file_list))
             merge_cmd += '%s %s' % (output_file_name, ' '.join(file_list))
-            #print merge_cmd
             if not force and os.path.exists(os.path.join(output_path, output_file_name)):
                 continue
-            #check_call(merge_cmd.split())
             os.system(merge_cmd)
             if not merge_dir == output_path:
                 move(output_file_name, os.path.join(output_path, output_file_name))
@@ -85,7 +80,7 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
 
     buckets = build_buckets(input_file_list)
     setup_paths(merge_dir)
-    #merge(buckets, prefix, output_path, merge_dir, force)
+    # merge(buckets, prefix, output_path, merge_dir, force)
     merge(buckets)
     if merge_dir is not None:
         remove_directory(os.path.abspath(merge_dir))

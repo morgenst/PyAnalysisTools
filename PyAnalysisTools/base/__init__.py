@@ -1,14 +1,18 @@
 from __future__ import absolute_import
-import ROOT
-ROOT.PyConfig.IgnoreCommandLineOptions = True
-from .Logger import Logger
+
 import argparse
+from .Logger import Logger
+import ROOT
+
+ROOT.PyConfig.IgnoreCommandLineOptions = True
 
 
 class InvalidInputError(ValueError):
     pass
 
+
 _logger = Logger().retrieve_logger()
+
 
 """
 Setting memory policy to avoid graphics objects getting deleted once drawn to canvas and canvas passing around.

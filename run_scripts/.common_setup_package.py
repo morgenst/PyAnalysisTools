@@ -1,3 +1,5 @@
+from __future__ import print_function
+from builtins import input
 import os
 import re
 import yaml
@@ -10,28 +12,27 @@ def expand_variables():
     data = yaml.load(f)
     f.close()
     f_setup = open(".set_env.sh", "w")
-    print >> f_setup, "#!/bin/bash"
-    for arg, val in data.iteritems():
-        print >> f_setup, "export {}={}".format(arg, val)
+    print("#!/bin/bash", file=f_setup)
+    for arg, val in list(data.items()):
+        print("export {}={}".format(arg, val), file=f_setup)
     f_setup.close()
 
 
 def initialise_yaml():
     data = {}
-    print
-    print
-    print "-" * 50
-    print "setting up PACKAGE_NAME"
+    print('\n\n')
+    print("-" * 50)
+    print("setting up PACKAGE_NAME")
     f = open(config_file_name, "w")
-    user_name = raw_input("Please enter grid user name: ")
+    user_name = eval(input("Please enter grid user name: "))
     if re.match(r"^[a-zA-Z]+$", user_name) is None:
-        print "Invalid user name: ", user_name, ". Must be string."
+        print("Invalid user name: ", user_name, ". Must be string.")
         f.close()
         os.remove(config_file_name)
         sys.exit(1)
-    nice_user_name = raw_input("Please enter your nice user name (aka cern user name): ")
+    nice_user_name = eval(input("Please enter your nice user name (aka cern user name): "))
     if re.match(r"^[a-zA-Z]+$", nice_user_name) is None:
-        print "Invalid user name: ", nice_user_name, ". Must be string."
+        print("Invalid user name: ", nice_user_name, ". Must be string.")
         f.close()
         os.remove(config_file_name)
         sys.exit(1)
@@ -39,7 +40,7 @@ def initialise_yaml():
     data["PACKAGE_NAME_ABBR_NICENAME"] = nice_user_name
     yaml.dump(data, f)
     f.close()
-    
+
 
 if __name__ == '__main__':
     if not os.path.exists(config_file_name):

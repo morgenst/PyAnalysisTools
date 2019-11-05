@@ -1,5 +1,4 @@
 import unittest
-import ROOT
 import os
 from PyAnalysisTools.base import OutputHandle
 
@@ -17,6 +16,7 @@ class TestOutputSysFileHandle(unittest.TestCase):
     def test_output_tag(self):
         h = OutputHandle.SysOutputHandle(output_tag='foo')
         self.assertTrue(h.output_dir.endswith('foo'))
+
 
 class TestOutputHandle(unittest.TestCase):
     def setUp(self):

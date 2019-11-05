@@ -28,9 +28,9 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 class TriggerFlattener(object):
     def __init__(self, **kwargs):
-        if not "input_file" in kwargs:
+        if "input_file" not in kwargs:
             raise InvalidInputError("No input file name provided")
-        if not "tree_name" in kwargs:
+        if "tree_name" not in kwargs:
             raise InvalidInputError("No tree name provided")
         kwargs.setdefault("additional_trees", [])
         kwargs.setdefault("tmp_dir", None)
@@ -72,35 +72,28 @@ class TriggerFlattener(object):
                     new_trigName = new_name
                     if skipAcceptance:
                         new_trigName = new_name.replace("_acceptance", "").replace("Acceptance", "")
-                    exec ("data_holder_{:s} = array(\'i\', [0])".format(new_name))
-                    exec ("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/I\")".format(new_name,
-                                                                                                          new_trigName,
-                                                                                                          new_name,
-                                                                                                          new_trigName))
+                    exec("data_holder_{:s} = array(\'i\', [0])".format(new_name))
+                    exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/I\")".format(new_name,
+                                                                                                         new_trigName,
+                                                                                                         new_name,
+                                                                                                         new_trigName))
                     for tn in self.additional_trees_names:
-                        exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/I\")".format(tn,
-                                                                                                                   new_name,
-                                                                                                                   tn,
-                                                                                                                   new_trigName,
-                                                                                                                   new_name,
-                                                                                                                   new_trigName))
+                        exec("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, "
+                             "\"{:s}/I\")".format(tn, new_name, tn, new_trigName, new_name, new_trigName))
                 else:
-                    exec ("data_holder_{:s} = array(\'f\', [0.])".format(new_name))
-                    exec ("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(
+                    exec("data_holder_{:s} = array(\'f\', [0.])".format(new_name))
+                    exec("branch_{:s} = self.tree.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(
                         *[new_name] * 4))
                     for tn in self.additional_trees_names:
-                        exec ("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, \"{:s}/F\")".format(tn,
-                                                                                                                   new_name,
-                                                                                                                   tn,
-                                                                                                                   *[
-                                                                                                                        new_name] * 3))
+                        exec("branch_{:s}_{:s} = self.{:s}.Branch(\"{:s}\", data_holder_{:s}, "
+                             "\"{:s}/F\")".format(tn, new_name, tn, *[new_name] * 3))
 
         for entry in range(self.tree.GetEntries()):
             self.tree.GetEntry(entry)
             for tree_name in self.additional_trees_names:
                 getattr(self, tree_name).GetEntry(entry)
             unprocessed_triggers = copy(self.trigger_list)
-            exec ("trig_list_branch = self.tree.{:s}".format(self.branch_name))
+            exec("trig_list_branch = self.tree.{:s}".format(self.branch_name))
             # for item in range(len(self.tree.trigger_list)):
             #     trig_name = self.tree.trigger_list[item].replace("-", "_")
             for item in range(len(self.tree.triggerList)):
@@ -113,14 +106,14 @@ class TriggerFlattener(object):
                 unprocessed_triggers.remove(trig_name)
                 for branch_name in branch_names:
                     new_name = branch_name.replace("trigger", trig_name)
-                    exec ("data_holder_{:s}[0] = self.tree.{:s}[item]".format(new_name, branch_name))
+                    exec("data_holder_{:s}[0] = self.tree.{:s}[item]".format(new_name, branch_name))
                     eval("branch_{:s}.Fill()".format(new_name))
                     for tn in self.additional_trees_names:
                         eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
             for missing_trigger in unprocessed_triggers:
                 for branch_name in branch_names:
                     new_name = branch_name.replace("trigger", missing_trigger)
-                    exec ("data_holder_{:s}[0] = -1111".format(new_name))
+                    exec("data_holder_{:s}[0] = -1111".format(new_name))
                     eval("branch_{:s}.Fill()".format(new_name))
                     for tn in self.additional_trees_names:
                         eval("branch_{:s}_{:s}.Fill()".format(tn, new_name))
@@ -216,9 +209,9 @@ class TriggerAcceptancePlotter(BasePlotter):
         for comb in trigger_combinations:
             if sum(trigger_data[comb[0]]) > 0. and sum(trigger_data[comb[1]]) > 0.:
                 overlap = sum(map(float, [d[0] == d[1] and d[0] == 1 for d in zip(trigger_data[comb[0]],
-                                                                                       trigger_data[comb[1]])]))
+                                                                                  trigger_data[comb[1]])]))
                 overlap /= sum(map(float, [d[0] == 1 or d[1] == 1 for d in zip(trigger_data[comb[0]],
-                                                                                    trigger_data[comb[1]])]))
+                                                                               trigger_data[comb[1]])]))
             else:
                 overlap = 0.
             trigger_overlap[comb] = overlap
@@ -230,10 +223,10 @@ class TriggerAcceptancePlotter(BasePlotter):
         for comb in trigger_combinations:
             if sum(trigger_data[comb[0]]) > 0. and sum(trigger_data[comb[1]]) > 0.:
                 overlap = sum(map(float, [d[0] == d[1] and d[0] == 1 for d in zip(trigger_data[comb[0]],
-                                                                                       trigger_data[comb[1]])]))
+                                                                                  trigger_data[comb[1]])]))
                 try:
                     overlap /= sum(map(float, [d[0] == 1 for d in zip(trigger_data[comb[0]],
-                                                                           trigger_data[comb[1]])]))
+                                                                      trigger_data[comb[1]])]))
                 except ZeroDivisionError:
                     overlap = 0.
             else:
@@ -242,16 +235,16 @@ class TriggerAcceptancePlotter(BasePlotter):
         return trigger_overlap
 
     def get_unique_rate(self, trigger_data):
-        trigger_unqiue_rate = {}
+        # trigger_unqiue_rate = {}
         print(trigger_data)
         exit(0)
-        for comb in trigger_combinations:
-            overlap = sum(map(float, [d[0] == d[1] and d[0] == 1 for d in zip(trigger_data[comb[0]],
-                                                                                   trigger_data[comb[1]])]))
-            overlap /= sum(map(float, [d[0] == 1 or d[1] == 1 for d in zip(trigger_data[comb[0]],
-                                                                                trigger_data[comb[1]])]))
-            trigger_overlap[comb] = overlap
-        return trigger_overlap
+        # for comb in trigger_combinations:
+        #     overlap = sum(map(float, [d[0] == d[1] and d[0] == 1 for d in zip(trigger_data[comb[0]],
+        #                                                                            trigger_data[comb[1]])]))
+        #     overlap /= sum(map(float, [d[0] == 1 or d[1] == 1 for d in zip(trigger_data[comb[0]],
+        #                                                                         trigger_data[comb[1]])]))
+        #     trigger_overlap[comb] = overlap
+        # return trigger_overlap
 
     def plot_trigger_correlation(self):
         process_dict = {}
@@ -379,7 +372,7 @@ class TriggerAcceptancePlotter(BasePlotter):
 
 class TriggerEfficiencyAnalyser(BasePlotter):
     def __init__(self, **kwargs):
-        if not "tree_name" in kwargs:
+        if "tree_name" not in kwargs:
             raise InvalidInputError("No tree name provided")
         self.file_list = kwargs["input_files"]
         self.tree_name = kwargs["tree_name"]
@@ -427,11 +420,12 @@ class TriggerEfficiencyAnalyser(BasePlotter):
             dependency = plot_config.name.split("_")[-1]
         else:
             dependency = "QetavsPt"
-        efficiencies = dict((process, self.calculator.calculate_efficiency(numerators[process],
-                                                                           denominators[process],
-                                                                           name="eff_{:s}_{:s}_{:s}".format(process,
-                                                                                                            trigger_name,
-                                                                                                            dependency)))
+        efficiencies = dict((process,
+                             self.calculator.calculate_efficiency(numerators[process],
+                                                                  denominators[process],
+                                                                  name="eff_{:s}_{:s}_{:s}".format(process,
+                                                                                                   trigger_name,
+                                                                                                   dependency)))
                             for process in list(numerators.keys()))
         if not isinstance(list(numerators.values())[0], ROOT.TH2F):
             canvas = PT.plot_objects(efficiencies, plot_config)

@@ -1,4 +1,3 @@
-from builtins import map
 from builtins import range
 import unittest
 import ROOT
@@ -36,46 +35,36 @@ class TestObjectHandle(unittest.TestCase):
         self.assertTrue(len(obj) > 0)
         self.assertEqual(obj[0], self.h)
 
-    def test_get_object_from_canvas_by_ype_th1_wrong_type(self):
+    def test_get_object_from_canvas_by_type_th1_wrong_type(self):
         obj = oh.get_objects_from_canvas_by_type(self.filled_canvas, "TH2")
         self.assertTrue(len(obj) == 0)
 
-    def test_get_object_from_canvas_by_ype_th1_list_success(self):
+    def test_get_object_from_canvas_by_type_th1_list_success(self):
         obj = oh.get_objects_from_canvas_by_type(self.filled_canvas, ["TH1"])
         self.assertTrue(len(obj) > 0)
         self.assertEqual(obj[0], self.h)
 
-    def test_get_object_from_canvas_by_ype_th1_list_wrong_type(self):
+    def test_get_object_from_canvas_by_type_th1_list_wrong_type(self):
         obj = oh.get_objects_from_canvas_by_type(self.filled_canvas, ["TH2"])
         self.assertTrue(len(obj) == 0)
 
-    def test_get_object_from_canvas_by_ype_th1_success(self):
-        obj = oh.get_objects_from_canvas_by_name(self.filled_canvas, "h")
-        self.assertTrue(len(obj) > 0)
-        self.assertEqual(obj[0], self.h)
-
-    def test_get_object_from_canvas_by_ype_th1_wrong_name(self):
+    def test_get_object_from_canvas_by_type_th1_wrong_name(self):
         self.assertIsNone(oh.get_objects_from_canvas_by_name(self.filled_canvas, "h2"))
 
-    def test_get_object_from_canvas_by_ype_th1_list_success(self):
-        obj = oh.get_objects_from_canvas_by_name(self.filled_canvas, ["h"])
-        self.assertTrue(len(obj) > 0)
-        self.assertEqual(obj[0], self.h)
-
-    def test_get_object_from_canvas_by_ype_th1_list_wrong_name(self):
+    def test_get_object_from_canvas_by_type_th1_list_wrong_name(self):
         self.assertIsNone(oh.get_objects_from_canvas_by_name(self.filled_canvas, ["h2"]))
 
     def test_find_branches_matching_pattern_none_found(self):
         tree = MagicMock()
         tree.get_list_of_branches = ['foo']
-        self.assertEquals(oh.find_branches_matching_pattern(tree, 'bar'), [])
+        self.assertEqual(oh.find_branches_matching_pattern(tree, 'bar'), [])
 
     def test_find_branches_matching_pattern_one_found(self):
         tree = MagicMock()
         branch = MagicMock('branch')
         branch.GetName = MagicMock(return_value='bar')
         tree.GetListOfBranches = MagicMock(return_value=[branch])
-        self.assertEquals(oh.find_branches_matching_pattern(tree, 'bar'), ['bar'])
+        self.assertEqual(oh.find_branches_matching_pattern(tree, 'bar'), ['bar'])
 
     def test_merge_objects_by_process_type_no_match(self):
         process_config = [MagicMock()]

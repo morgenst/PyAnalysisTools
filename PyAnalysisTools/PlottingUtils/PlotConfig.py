@@ -30,7 +30,7 @@ class PlotConfig(object):
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
         # kwargs.setdefault("cuts_l1", None)
-        if not "draw" in kwargs:
+        if "draw" not in kwargs:
             kwargs.setdefault("Draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
         py_ana_config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
@@ -172,9 +172,12 @@ class PlotConfig(object):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                dec = eval(input("Different settings for attribute {:s} in common configs."
-                                "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val), str(getattr(self, attr)),
-                                                                                   '[default = {:d}]'.format(previous_choice) if previous_choice is not None else '')))
+                default = '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''
+                arg = "Different settings for attribute {:s} in common configs." \
+                      "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val),
+                                                                         str(getattr(self, attr)),
+                                                                         default)
+                dec = eval(input(arg))
 
                 if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
@@ -210,33 +213,33 @@ def get_default_plot_config(hist):
 
 
 def get_default_color_scheme():
-    # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
-    #         ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+    # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2,
+    # ROOT.kRed+2, ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
 
-    return [ROOT.kGray+3,
-            ROOT.kRed+2,
-            ROOT.kAzure+4,
-            ROOT.kSpring-6,
-            ROOT.kOrange-3,
-            ROOT.kCyan-3,
-            ROOT.kPink-2,
-            ROOT.kSpring-9,
-            ROOT.kMagenta-5,
+    return [ROOT.kGray + 3,
+            ROOT.kRed + 2,
+            ROOT.kAzure + 4,
+            ROOT.kSpring - 6,
+            ROOT.kOrange - 3,
+            ROOT.kCyan - 3,
+            ROOT.kPink - 2,
+            ROOT.kSpring - 9,
+            ROOT.kMagenta - 5,
             ROOT.kOrange,
-            ROOT.kCyan+3,
-            ROOT.kPink+4,
-            ROOT.kGray+3,
-            ROOT.kRed+2,
-            ROOT.kAzure+4,
-            ROOT.kSpring-6,
-            ROOT.kOrange-3,
-            ROOT.kCyan-3,
-            ROOT.kPink-2,
-            ROOT.kSpring-9,
-            ROOT.kMagenta-5,
+            ROOT.kCyan + 3,
+            ROOT.kPink + 4,
+            ROOT.kGray + 3,
+            ROOT.kRed + 2,
+            ROOT.kAzure + 4,
+            ROOT.kSpring - 6,
+            ROOT.kOrange - 3,
+            ROOT.kCyan - 3,
+            ROOT.kPink - 2,
+            ROOT.kSpring - 9,
+            ROOT.kMagenta - 5,
             ROOT.kOrange,
-            ROOT.kCyan+3,
-            ROOT.kPink+4]
+            ROOT.kCyan + 3,
+            ROOT.kPink + 4]
 
 
 def parse_mc_campaign(process_name):
@@ -258,7 +261,7 @@ def expand_plot_config(plot_config):
     plot_configs = []
     if hasattr(plot_config, "cuts_ref"):
         if "dummy1" in plot_config.cuts_ref:
-            #for cuts in plot_config.cuts_ref.values():
+            # for cuts in plot_config.cuts_ref.values():
             for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
                 if item not in plot_config.cuts_ref:
                     continue
@@ -288,11 +291,11 @@ def parse_and_build_plot_config(config_file):
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
-        plot_configs = [PlotConfig(name=k, **v) for k, v in list(parsed_config.items()) if not k=="common"]
+        plot_configs = [PlotConfig(name=k, **v) for k, v in list(parsed_config.items()) if not k == "common"]
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
-        raise
+        raise e
 
 
 def parse_and_build_process_config(process_config_files):
@@ -346,6 +349,7 @@ def propagate_common_config(common_config, plot_configs):
     :return: Nothing
     :rtype: None
     """
+
     def integrate(plot_config, attr, value):
         if attr == "cuts":
             if plot_config.cuts is not None and value is not None:
@@ -410,7 +414,7 @@ def transform_color(color, index=None):
             return transform_color(color[index])
         except IndexError:
             _logger.error("Requested {:d}th color, but only provided {:d} colors in config. "
-                          "Returning black".format(index+1, len(color)))
+                          "Returning black".format(index + 1, len(color)))
             return ROOT.kBlack
     return color
 
@@ -445,11 +449,11 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
             except AttributeError:
                 _logger.error('Problem getting style from format ')
         elif style_attr:
-            #TODO: needs fix
-            #style_setter = 'Line'
+            # TODO: needs fix
+            # style_setter = 'Line'
             style_setter = "Fill"
         else:
-            #style_setter = ["Line", "Marker", "Fill"]
+            # style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror" or draw_option.lower() == 'pLX':
         style_setter = ["Marker", 'Line']
@@ -500,7 +504,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
             logxmax = log10(plot_config.xmax)
             binwidth = old_div((logxmax - logxmin), plot_config.bins)
             xbins = []
-            for i in range(0, plot_config.bins+1):
+            for i in range(0, plot_config.bins + 1):
                 xbins.append(pow(10, logxmin + i * binwidth))
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, array('d', xbins))
     elif dimension == 1:
@@ -526,7 +530,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     return hist
 
 
-#todo: remove if not needed anymore
+# todo: remove if not needed anymore
 # def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
 #     new_config = deepcopy(process_config)
 #     for index, sub_process in enumerate(process_config.subprocesses):
@@ -559,6 +563,7 @@ def find_process_config(process, process_configs):
     :return:
     :rtype:
     """
+
     def is_sub_process(config):
         if process.match(config.name):
             return True
@@ -595,6 +600,7 @@ def find_process_config_str(process_name, process_configs):
     :return:
     :rtype:
     """
+
     def is_sub_process(config):
         if process_name == config.name:
             return True

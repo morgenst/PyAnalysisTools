@@ -25,6 +25,7 @@ class MLConfig(object):
     """
     Class containing configration of ML classifier
     """
+
     def __init__(self, **kwargs):
         kwargs.setdefault('scaler', None)
         self.score_name = kwargs['branch_name']
@@ -87,6 +88,7 @@ class MLConfigHandle(object):
     """
     Handle to create and add ML configuration to summary file in friend directory
     """
+
     def __init__(self, **kwargs):
         self.config = MLConfig(**kwargs)
         self.output_path = kwargs['output_path']
@@ -182,7 +184,8 @@ class TrainingReader(object):
         self.bkg_tree_names = kwargs["bkg_tree_names"]
 
     def get_trees(self):
-        signal_train_tree_names, bkg_train_tree_names, signal_eval_tree_names, bkg_eval_tree_names = self.parse_tree_names()
+        signal_train_tree_names, bkg_train_tree_names, signal_eval_tree_names, bkg_eval_tree_names = \
+            self.parse_tree_names()
         signal_train_trees = self.read_tree(signal_train_tree_names)
         signal_eval_trees = self.read_tree(signal_eval_tree_names)
         bkg_train_trees = self.read_tree(bkg_train_tree_names)
@@ -199,11 +202,11 @@ class TrainingReader(object):
             self.expand_tree_names(self.bkg_tree_names)
         signal_train_tree_names = ["train_{:s}".format(signal_tree_name) for signal_tree_name in self.signal_tree_names]
         background_train_tree_names = ["train_{:s}".format(background_tree_name) for background_tree_name in
-                                           self.bkg_tree_names]
+                                       self.bkg_tree_names]
         signal_eval_tree_names = ["eval_{:s}".format(signal_tree_name) for signal_tree_name in
-                                       self.signal_tree_names]
+                                  self.signal_tree_names]
         background_eval_tree_names = ["eval_{:s}".format(background_tree_name) for background_tree_name in
-                                           self.bkg_tree_names]
+                                      self.bkg_tree_names]
         return signal_train_tree_names, background_train_tree_names, signal_eval_tree_names, background_eval_tree_names
 
     def expand_tree_names(self, tree_names):
@@ -213,7 +216,9 @@ class TrainingReader(object):
             if not tree_name.startswith("re."):
                 continue
             pattern = "train_" + tree_name.replace("re.", "").replace("*", ".*")
-            expanded_tree_names += list(set([str.replace(name, "train_", "") for name in [obj.GetName() for obj in self.input_file.get_objects_by_pattern(pattern)]]))
+            expanded_tree_names += list(set([str.replace(name, "train_", "")
+                                             for name in [obj.GetName()
+                                                          for obj in self.input_file.get_objects_by_pattern(pattern)]]))
             tree_names_to_remove.append(tree_name)
         for tree_name in tree_names_to_remove:
             tree_names.remove(tree_name)
@@ -241,7 +246,8 @@ class MLAnalyser(object):
 
     def read_score(self, selection=None):
         trees = {fh.process: fh.get_object_by_name(self.tree_name, "Nominal") for fh in self.file_handles}
-        arrays = {process: self.converter.convert_to_array(tree, selection=selection) for process, tree in list(trees.items())}
+        arrays = {process: self.converter.convert_to_array(tree, selection=selection) for process, tree in
+                  list(trees.items())}
         signals = []
         backgrounds = []
 

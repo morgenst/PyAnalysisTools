@@ -12,7 +12,6 @@ except ImportError:
     print("yaml has been replaced by oyaml to provide support for ordered dictionaries read from configuration")
     print("Please install via: \033[91m pip install oyaml --user.\033[0m")
     _ = input("Acknowledge by hitting enter (running with yaml for now. Note this might cause crashes)")
-    #import yaml
     pass
 from . import _logger
 
@@ -71,7 +70,7 @@ class YAMLLoader(object):
                 with open(file_name, 'r') as config_file:
                     config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)
             except TypeError:
-                #workaround for existing yaml files written with py2 loader
+                # workaround for existing yaml files written with py2 loader
                 with open(file_name, 'r') as config_file:
                     setattr(yaml.pyyaml.Loader, 'yaml_constructors', default_ctor)
                     config = yaml.load(config_file, Loader=yaml.pyyaml.Loader)

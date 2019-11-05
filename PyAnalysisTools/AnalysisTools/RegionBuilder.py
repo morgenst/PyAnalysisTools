@@ -213,15 +213,15 @@ class Region(object):
         :return: None
         :rtype: None
         """
-        found_particle_cut = False
+        # found_particle_cut = False
         if self.good_muon or self.common_selection and "good_muon" in self.common_selection:
             self.cut_list.append(self.build_particle_cut(self.good_muon, "good_muon", self.muon_operator,
                                                          'muon_n', self.n_muon))
-            found_particle_cut = True
+            # found_particle_cut = True
         if self.good_electron or self.common_selection and "good_electron" in self.common_selection:
             self.cut_list.append(self.build_particle_cut(self.good_electron, "good_electron", self.electron_operator,
                                                          'electron_n', self.n_electron))
-            found_particle_cut = True
+            # found_particle_cut = True
         if self.fake_muon:
             self.inverted_muon_cut_string = self.convert_cut_list_to_string(self.inverted_muon)
         # if not found_particle_cut and self.n_electron > 0 or self.n_muon > 0:

@@ -8,8 +8,7 @@ from operator import itemgetter
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values, \
-    PlotConfig
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, find_process_config
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
@@ -64,11 +63,12 @@ def project_hist(tree, hist, var_name, cut_string='', weight=None, is_data=False
                                                                                        var_name,
                                                                                        cut_string))
     if n_selected_events != hist.GetEntries():
-        _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been " +
+        _logger.error("No of selected events does not match histogram entries. Probably FileHandle has been "
                       "initialised after histogram definition has been received")
         raise RuntimeError("Inconsistency in TTree::Project")
     if n_selected_events == -1:
-        _logger.error("Unable to project {:s} from tree {:s} with cut {:s}".format(var_name, tree.GetName(), cut_string))
+        _logger.error("Unable to project {:s} from tree {:s} with cut {:s}".format(var_name, tree.GetName(),
+                                                                                   cut_string))
         raise RuntimeError("TTree::Project failed")
     return hist
 
@@ -130,7 +130,7 @@ def add_object_to_canvas(canvas, obj, plot_config, process_config=None, index=No
 
 def plot_hist(hist, plot_config, **kwargs):
     kwargs.setdefault("y_max", plot_config.yscale * hist.GetMaximum())
-    #kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum()) - sm dev
+    # kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum()) - sm dev
     kwargs.setdefault("index", None)
     canvas = retrieve_new_canvas(plot_config.name, "")
     canvas.cd()
@@ -152,7 +152,7 @@ def plot_hist(hist, plot_config, **kwargs):
         if hist.GetMinimum() == 0.:
             hist.SetMinimum(0.9)
         if plot_config.normalise:
-            #hist.SetMinimum(0.000001)
+            # hist.SetMinimum(0.000001)
             hist.SetMinimum(0.)
             fm.set_minimum_y(hist, plot_config.ymin)
         canvas.SetLogy()
@@ -358,8 +358,8 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     max_y = None
     if isinstance(hists, dict):
         hist_defs = list(hists.items())
-        import re
-        #hist_defs.sort(key=lambda s: int(re.findall('\d+', s[0])[0]))
+        # import re
+        # hist_defs.sort(key=lambda s: int(re.findall('\d+', s[0])[0]))
     elif isinstance(hists, list):
         hist_defs = list(zip([None] * len(hists), hists))
 
@@ -373,7 +373,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
 
         for process, hist in hist_defs:
             hist.plot_object = format_hist(hist.plot_object, plot_config)
-            process_config = find_process_config(process, process_configs) #fetch_process_config(process, process_configs)
+            process_config = find_process_config(process, process_configs)
             if not (plot_config.is_set_to_value("ignore_style", True)) and \
                     plot_config.is_set_to_value("ignore_style", False):
                 setattr(plot_config, 'draw', hist.draw_option)
@@ -383,8 +383,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             if not is_first and "same" not in draw_option:
                 draw_option += "sames"
             hist.plot_object.Draw(draw_option)
-            if plot_config.ignore_style:
-                style_setter = "Line"
             fm.apply_style_plotableObject(hist)
 
             if is_first:
@@ -454,7 +452,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 canvas.SetRightMargin(0.15)
             format_hist(hist, plot_config)
             if plot_config.ymax:
-                 fm.set_maximum_y(hist, plot_config.ymax)#hist.SetMaximum(plot_config.ymax)
+                fm.set_maximum_y(hist, plot_config.ymax)  # hist.SetMaximum(plot_config.ymax)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.2)
             if plot_config.ymin:
@@ -489,7 +487,7 @@ def add_fit_to_canvas(canvas, fit_result, pdf=None, frame=None):
     else:
         for i in range(len(fit_result.floatParsFinal()) - 1):
             var = fit_result.floatParsFinal()[i]
-            var_string = "{:s} = {:.2f} \pm {:.2f}".format(var.GetName(), var.getValV(), var.getError())
+            var_string = "{:s} = {:.2f} \\pm {:.2f}".format(var.GetName(), var.getValV(), var.getError())
             fm.add_text_to_canvas(canvas, var_string, pos={'x': 0.15, 'y': 0.9 - i * 0.05}, size=0.04, color=None)
     canvas.Update()
 
@@ -626,7 +624,7 @@ def plot_stack(hists, plot_config, **kwargs):
         process, hist = histograms
         try:
             if "data" in process.lower():
-                #todo: problem if two distinct data sets
+                # todo: problem if two distinct data sets
                 data = (process, hist)
                 continue
         except AttributeError:
@@ -704,4 +702,4 @@ def add_signal_to_stack(canvas, signal, signal_strength=1., overlay=False, stack
 
 def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, name=None, title=''):
     _logger.error('add_ratio_to_canvas moved to RatioPlotter. Please update your code')
-    return None #RatioPlotter.add_ratio_to_canvas(canvas, ratio, y_min, y_max, y_title, name, title)
+    return None  # RatioPlotter.add_ratio_to_canvas(canvas, ratio, y_min, y_max, y_title, name, title)

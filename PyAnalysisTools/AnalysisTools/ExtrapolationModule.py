@@ -1,6 +1,4 @@
 from __future__ import division
-from builtins import map
-from builtins import filter
 from builtins import str
 from builtins import range
 from builtins import object
@@ -115,7 +113,7 @@ class ExtrapolationModule(object):
             if top_hist.GetBinLowEdge(i) > 1699.:
                 uncert_sum += bin_content[1]
             if systematics_handle is not None:
-                #need to modify all tail of the systematics histograms:
+                # need to modify all tail of the systematics histograms:
                 for unc in list(systematics_handle.systematic_variations.keys()):
                     if 'ttbar' not in systematics_handle.systematic_variations[unc][plot_config]:
                         continue
@@ -126,7 +124,7 @@ class ExtrapolationModule(object):
                             _logger.error("Somehow ttbar unc is None for {:s}".format(unc))
                         continue
                     systematics_handle.systematic_variations[unc][plot_config]['ttbar'].SetBinContent(i, bin_content[0])
-            #TODO: Need some way for relative and abs uncertainty
+            # TODO: Need some way for relative and abs uncertainty
             top_uncert_up.SetBinContent(i, bin_content[0] + bin_content[1])
             top_uncert_down.SetBinContent(i, bin_content[0] - bin_content[1])
         output_handle.register_object(top_hist)

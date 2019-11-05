@@ -6,10 +6,10 @@ from copy import deepcopy
 from itertools import combinations
 from operator import itemgetter
 
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, parse_and_build_plot_config, get_histogram_definition, parse_and_build_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, parse_and_build_plot_config, get_histogram_definition,\
+    parse_and_build_process_config
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
@@ -24,10 +24,10 @@ class CorrelationPlotter(object):
         :param kwargs: named arguments
         :type kwargs: dict
         """
-        if not "input_files" in kwargs:
+        if "input_files" not in kwargs:
             _logger.error("No input file provided")
             InvalidInputError("Missing input file")
-        if not "tree_name" in kwargs:
+        if "tree_name" not in kwargs:
             _logger.error("No tree name provided")
             InvalidInputError("Missing tree name")
         kwargs.setdefault("xs_config_file", None)
@@ -107,8 +107,9 @@ class CorrelationPlotter(object):
             if not hasattr(process_config, "subprocesses"):
                 continue
             for sub_process in process_config.subprocesses:
-                #TODO: this is a ridiculously stupid implementation
-                if sub_process not in list(histograms.keys()) and sub_process + ".mc16a" not in list(histograms.keys()) and sub_process + ".mc16d" not in list(histograms.keys()):
+                # TODO: this is a ridiculously stupid implementation
+                if sub_process not in list(histograms.keys()) and sub_process + ".mc16a" not in list(
+                        histograms.keys()) and sub_process + ".mc16d" not in list(histograms.keys()):
                     continue
                 for extension in ["", ".mc16a", ".mc16c", ".mc16d"]:
                     tmp_sub_process = sub_process + extension
@@ -119,7 +120,7 @@ class CorrelationPlotter(object):
                             new_hist_name = hist.GetName().replace(tmp_sub_process, process)
                             try:
                                 histograms[process].append(hist.Clone(new_hist_name))
-                            except:
+                            except Exception:
                                 histograms[process] = [hist.Clone(new_hist_name)]
                     else:
                         if tmp_sub_process not in list(histograms.keys()):
@@ -131,6 +132,7 @@ class CorrelationPlotter(object):
     def make_correlation_plots(self):
         def get_plot_config(hist):
             return filter(lambda pc: pc.name in hist.GetName(), self.corr_plot_configs)[0]
+
         for fh in self.file_handles:
             if fh.process_with_mc_campaign not in self.correlation_coeff_hists:
                 self.prepare_correlation_coefficient_hist(self.variable_list, fh.process_with_mc_campaign)
@@ -182,6 +184,7 @@ class CorrelationPlotter(object):
                                      draw_option="COLZ", xtitle=pc_var_x.xtitle, ytitle=pc_var_y.xtitle,
                                      watermark="Internal", ztitle="Entries")
             return plot_config
+
         self.variable_combinations = list(combinations(self.variable_pcs, 2))
         self.variable_list = [pc.dist for pc in self.variable_pcs]
         self.corr_plot_configs = [build_correlation_plot_config(comb) for comb in self.variable_combinations]
@@ -202,15 +205,16 @@ class CorrelationPlotter(object):
                 base_process = process.replace(mc_campaign_pattern, "")
                 self.process_configs[process] = deepcopy(self.process_configs[base_process])
                 self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(3)
-                self.process_configs[process].label = self.process_configs[process].label + " ({:s})".format(mc_campaign_pattern.replace(".", ""))
+                self.process_configs[process].label = self.process_configs[process].label + \
+                                                      " ({:s})".format(mc_campaign_pattern.replace(".", ""))
             return self.process_configs[process].color
 
         profiles = {}
         for process, hists in list(self.correlation_hists.items()):
             for hist in hists:
                 hist_base_name = "_".join(hist.GetName().split("_")[1:-1])
-                profileX = hist.ProfileX(hist_base_name+"_profileX_{:s}".format(process))
-                profileY = hist.ProfileY(hist_base_name+"_profileY_{:s}".format(process))
+                profileX = hist.ProfileX(hist_base_name + "_profileX_{:s}".format(process))
+                profileY = hist.ProfileY(hist_base_name + "_profileY_{:s}".format(process))
                 if process not in profiles:
                     profiles[process] = [profileX]
                     profiles[process].append(profileY)
@@ -243,12 +247,11 @@ class CorrelationPlotter(object):
                 hist_base_name = pc.name
                 if hist_base_name not in profile_plots:
                     canvas = pt.plot_hist(hist, pc, index=index)
-                    p = get_objects_from_canvas_by_type(canvas, "TProfile")[0]
                     pc.lumi = self.lumi
                     fm.decorate_canvas(canvas, plot_config=pc)
                     profile_plots[hist_base_name] = canvas
                 else:
                     pt.add_object_to_canvas(profile_plots[hist_base_name], hist, pc, index=index)
-        p = get_objects_from_canvas_by_type(list(profile_plots.values())[0], "TProfile")[0]
-        list([fm.add_legend_to_canvas(c, ratio=False, process_configs=self.process_configs, format="marker") for c in list(profile_plots.values())])
+        list([fm.add_legend_to_canvas(c, ratio=False, process_configs=self.process_configs, format="marker")
+              for c in list(profile_plots.values())])
         list([self.output_handle.register_object(c) for c in list(profile_plots.values())])

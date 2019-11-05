@@ -8,7 +8,7 @@ class TestFileHandle(unittest.TestCase):
     def setUp(self):
         self.file_name = os.path.join(os.path.dirname(__file__), 'fixtures/files/ntuple-311331_0.MC16d.root')
         self.file_handle = FileHandle(file_name=self.file_name)
-        
+
     def tearDown(self):
         del self.file_handle
 
@@ -23,16 +23,16 @@ class TestFileHandle(unittest.TestCase):
 
     def testFileGetObjects(self):
         self.file_handle.open()
-        l = self.file_handle.get_objects()
-        self.assertGreater(len(l), 1)
+        objects = self.file_handle.get_objects()
+        self.assertGreater(len(objects), 1)
 
     def testFileGetObjectsByTypeCanvas(self):
-        l = self.file_handle.get_objects_by_type("TCanvas")
-        self.assertEqual(len(l), 0)
+        objects = self.file_handle.get_objects_by_type("TCanvas")
+        self.assertEqual(len(objects), 0)
 
     def testFileGetObjectByTypeHist(self):
-        l = self.file_handle.get_objects_by_type("TH1D")
-        self.assertGreater(len(l), 1)
+        objects = self.file_handle.get_objects_by_type("TH1D")
+        self.assertGreater(len(objects), 1)
 
     def testFileGetObjectByNameExisting(self):
         obj = self.file_handle.get_object_by_name("Nominal")
@@ -51,24 +51,24 @@ class TestFileHandle(unittest.TestCase):
             self.file_handle.get_object_by_name('BaseSelection_lq_tree_syst_Final', "Nominal2")
 
     def test_branch_names(self):
-        l = self.file_handle.get_branch_names_from_tree('BaseSelection_lq_tree_syst_Final', 'Nominal')
-        self.assertGreater(len(l), 1)
+        objects = self.file_handle.get_branch_names_from_tree('BaseSelection_lq_tree_syst_Final', 'Nominal')
+        self.assertGreater(len(objects), 1)
 
     def test_get_objects_by_pattern(self):
-        l = self.file_handle.get_objects_by_pattern('JET_')
-        self.assertGreater(len(l), 1)
+        objects = self.file_handle.get_objects_by_pattern('JET_')
+        self.assertGreater(len(objects), 1)
 
     def test_get_objects_by_pattern_inexisting(self):
-        l = self.file_handle.get_objects_by_pattern('BJET_')
-        self.assertEqual(len(l), 0)
+        objects = self.file_handle.get_objects_by_pattern('BJET_')
+        self.assertEqual(len(objects), 0)
 
     def test_branch_names_pattern(self):
-        l = self.file_handle.get_branch_names_from_tree('BaseSelection_lq_tree_syst_Final', 'Nominal', 'muon_n')
-        self.assertEqual(len(l), 1)
+        objects = self.file_handle.get_branch_names_from_tree('BaseSelection_lq_tree_syst_Final', 'Nominal', 'muon_n')
+        self.assertEqual(len(objects), 1)
 
     def test_branch_names_pattern_inexisting(self):
-        l = self.file_handle.get_branch_names_from_tree('BaseSelection_lq_tree_syst_Final', 'Nominal', 'muon_n2')
-        self.assertEqual(len(l), 0)
+        objects = self.file_handle.get_branch_names_from_tree('BaseSelection_lq_tree_syst_Final', 'Nominal', 'muon_n2')
+        self.assertEqual(len(objects), 0)
 
     def test_branch_names_pattern_inexisting_tree(self):
         with self.assertRaises(ValueError):

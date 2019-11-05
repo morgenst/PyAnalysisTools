@@ -13,7 +13,7 @@ import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import parse_syst_config, TheoryUncertaintyProvider
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyserOld import parse_syst_config, TheoryUncertaintyProvider
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
@@ -409,10 +409,14 @@ class LimitAnalyserCL(object):
             if fixed_signal is not None:
                 if isinstance(sig_yield, OrderedDict):
                     if isinstance(sig_yield.values()[0], numbers.Number):
+                        print 'Calc SF ', scale_factor, fixed_signal, sum([yld for yld in sig_yield.values()])
                         scale_factor = scale_factor * sum([fixed_signal / yld for yld in sig_yield.values()])
                     else:
+                        print 'Calc SF[0] ', scale_factor, fixed_signal, sum([yld[0] for yld in sig_yield.values()])
                         scale_factor = scale_factor * sum([fixed_signal / yld[0] for yld in sig_yield.values()])
                 else:
+                    print 'Calc SF with sig)yield ', scale_factor, fixed_signal, sig_yield
+
                     scale_factor = scale_factor * fixed_signal / sig_yield
             if pmg_xsec is not None:
                 scale_factor = 1000.
@@ -425,6 +429,7 @@ class LimitAnalyserCL(object):
             data = self.converter.convert_to_array(tree=tree)
             fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
             scale_factor = get_scale_factor(signal_scale)
+            print "Analysing ", self.input_path, scale_factor, data['exp_upperlimit'], signal_scale, fixed_signal
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
             self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
                                      exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
@@ -487,6 +492,7 @@ class LimitPlotter(object):
         graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
         graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
         for i, limit in sorted(enumerate(limits)):
+            print "Set Point: ", limit.mass, limit.exp_limit
             graph.SetPoint(i, limit.mass, limit.exp_limit)
             graph_1sigma.SetPoint(i, limit.mass, limit.exp_limit)
             graph_2sigma.SetPoint(i, limit.mass, limit.exp_limit)
@@ -617,7 +623,7 @@ class XsecLimitAnalyser(object):
                 _logger.error("Could not find info for scan {:s}".format(scan))
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
-            mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
+            mass = float(re.findall(r'\d{3,4}', scan.kwargs['sig_name'])[0])
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -704,7 +710,7 @@ class LimitScanAnalyser(object):
                 _logger.error("Could not find info for scan {:s}".format(scan))
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
-            mass = float(re.findall('\d{3,4}', scan.kwargs['sig_name'])[0])
+            mass = float(re.findall(r'\d{3,4}', scan.kwargs['sig_name'])[0])
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
@@ -767,8 +773,8 @@ class LimitScanAnalyser(object):
         masses = set(map(lambda li: li.mass, limits))
         best_limits = []
         for mass in masses:
-            if mass == 500:
-                limits = filter(lambda li: li.mass_cut < 1000., limits)
+            # if mass == 500:
+            #     limits = filter(lambda li: li.mass_cut < 1000., limits)
             mass_limits = filter(lambda li: li.mass == mass, limits)
             best_limits.append(min(mass_limits, key=lambda li: li.exp_limit))
             print "FOUND ", mass, best_limits[-1]
@@ -1322,7 +1328,7 @@ class SampleStore(object):
         for sample in self.samples:
             if sample.is_data:
                 continue
-            if not '.mc16' in sample.name:
+            if '.mc16' not in sample.name:
                 continue
             if sample in samples_to_remove:
                 continue
@@ -1566,14 +1572,14 @@ def run_fit_pyhf(args):
 
 
 def write_config(args):
-    nice_labels = {'SR_mu_btag': 'SR \mu b-tag',
-                   'SR_mu_bveto': 'SR \mu b-veto',
+    nice_labels = {'SR_mu_btag': 'SR \\mu b-tag',
+                   'SR_mu_bveto': 'SR \\mu b-veto',
                    'SR_el_btag': 'SR el b-tag',
                    'SR_el_bveto': 'SR el b-veto',
                    'ZCR_el_bveto': 'ZCR el b-veto',
                    'ZCR_el_btag': 'ZCR el b-tag',
-                   'ZCR_mu_bveto': 'ZCR \mu b-veto',
-                   'ZCR_mu_btag': 'ZCR \mu b-tag',
+                   'ZCR_mu_bveto': 'ZCR \\mu b-veto',
+                   'ZCR_mu_btag': 'ZCR \\mu b-tag',
                    }
 
     kwargs = args.kwargs
@@ -1887,7 +1893,7 @@ def dump2rootfile(hist_path, directory, name, hists):
 
 
 def dump_yld2hist(nominal_yields, systematics_yields, sig_names, fixed_signal, ctrl_reg_yields, ctrl_reg_syst,
-                      output_dir):
+                  output_dir):
     def symmetrise(syst_name, scale):
         if '__1up' in syst_name and scale < 1.:
             scale = 2. - scale
@@ -2000,9 +2006,9 @@ def run_fit(args, **kwargs):
     cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
     trf_cmd = '&& '.join(map(lambda o: 'trex-fitter {:s} {:s}'.format(o, cfg_file), kwargs['options']))
     os.system("""echo 'source $HOME/.bashrc && cd {:s} && source setup_python_ana.sh &&
-        source /user/mmorgens/workarea/devarea/rel21/TRExFitter/setup.sh && {:s} 
+        source /user/mmorgens/workarea/devarea/rel21/TRExFitter/setup.sh && {:s}  
         ' | 
-        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),
+        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: E501, W291
                                                        trf_cmd,
                                                        args.kwargs['queue'],
                                                        os.path.join(args.output_dir, str(args.job_id), 'fit'),

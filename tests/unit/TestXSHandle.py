@@ -43,7 +43,7 @@ class TestXSHandle(unittest.TestCase):
         self.assertEqual(10000000., self.xs_handle.get_lumi_scale_factor('TBsLQee500l1', 100., 1., 0.1))
 
     def test_cross_section_get_ds_info(self):
-        self.assertEqual('$\mathrm{LQ}\\rightarrow se (m_{\mathrmLQ}} = 500~\GeV)$',
+        self.assertEqual('$\\mathrm{LQ}\\rightarrow se (m_{\\mathrmLQ}} = 500~\\GeV)$',
                          self.xs_handle.get_ds_info('TBsLQee500l1', 'latex_label'))
 
     def test_cross_section_get_ds_info_invalid_process(self):
