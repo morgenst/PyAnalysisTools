@@ -17,7 +17,7 @@ build_docs:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
-    - pip install sphinx mock --user
+    - pip install sphinx mock future --user
     - export PATH=/home/atlas/.local/bin:$PATH
   script:
     - ls
