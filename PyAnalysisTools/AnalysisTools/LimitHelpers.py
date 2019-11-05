@@ -139,8 +139,8 @@ class Yield(object):
         if len(self.original_weights) == 0:
             return np.sqrt(np.sum(self.weights * self.weights))
         for i in range(len(self.original_weights)):
-            stat_unc += self.scale_factor[i] * self.scale_factor[i] * \
-                        np.sum(self.original_weights[i] * self.original_weights[i])
+            stat_unc += self.scale_factor[i] * self.scale_factor[i] * np.sum(self.original_weights[i]
+                                                                             * self.original_weights[i])
         return np.sqrt(stat_unc)
 
     def is_null(self):
@@ -1221,7 +1221,7 @@ class Sample(object):
 
     @staticmethod
     def yld_sum(syst):
-        return sum([s[0] for s in syst])  #, s[1]
+        return sum([s[0] for s in syst])  # , s[1]
 
     @staticmethod
     def product(syst, nom):
@@ -1597,7 +1597,7 @@ class LimitChecker(object):
             self.output_path,
             '.pdf')
 
-        cmd = 'root -b -q getCorrMatrix.C\({:s}\)'.format(args)
+        cmd = 'root -b -q getCorrMatrix.C\({:s}\)'.format(args)  # noqa:W605
         os.system(cmd)
 
     def make_pull_plots(self):
@@ -1635,9 +1635,9 @@ class LimitChecker(object):
         os.chdir(os.path.join(self.stat_tools_path, 'StatisticsTools'))
         rndm = int(100000. * random.random())
         tmp_output_dir = 'tmp_{:d}'.format(rndm)
-        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi {:f} --postfit on --prefit on --rank on --label Run-2 ' \
-              '--correlation on --folder {:s} --scale_theta {:f}'.format(input_dir, self.poi, scale_poi,
-                                                                         tmp_output_dir, scale_theta)
+        cmd = 'bin/plot_pulls.exe --input {:s} --poi {:s} --scale_poi {:f} --postfit on --prefit on --rank on ' \
+              '--label Run-2 --correlation on --folder {:s} --scale_theta {:f}'.format(input_dir, self.poi, scale_poi,
+                                                                                       tmp_output_dir, scale_theta)
         os.system(cmd)
         output_dir = os.path.join(self.output_path, 'pull_plots')
         make_dirs(output_dir)
@@ -1798,7 +1798,7 @@ class LimitValidationPlotter(object):
         ws_cfg = info_file[index]
         bkg_regions = [rn + '_yield' for rn in list(ws_cfg.kwargs['ctrl_config'].keys())]
         backgrounds = ['Others', 'Zjets', 'ttbar', 'data']
-        ratios = ['pre-fit', 'post-fit']
+        # ratios = ['pre-fit', 'post-fit']
         tmp_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
                      for bkg in backgrounds]
         # tmp_ratio_hists = [ROOT.TH1F('yield_summary_{:s}'.format(bkg), '', len(bkg_regions), 0., len(bkg_regions))
@@ -2089,12 +2089,12 @@ def run_fit(args, **kwargs):
     analysis_pkg_name = os.path.abspath(os.curdir).split('/')[-2]
     os.system("""echo 'source $HOME/.bashrc && cd {:s} && echo $PWD && source setup_python_ana.sh && cd {:s} && 
         root -b -q runAsymptoticsCLs.C\("\\"{:s}\\"","\\"{:s}\\"","\\"ModelConfig\\"","\\"obsData\\"","\\"mass\\"",{:s},"\\"{:s}\\"","\\"{:s}\\"",0,{:.2f}\) ' |
-        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: E501
+        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: E501,W291
                                                        os.path.join(base_dir, 'CommonStatTools'),
                                                        os.path.join(args.base_output_dir, 'workspaces',
                                                                     str(args.job_id),
-                                                                    'results/{:s}/SPlusB_combined_NormalMeasurement_model.root'.format(
-                                                                        kwargs['analysis_name'])),
+                                                                    'results/{:s}/SPlusB_combined_NormalMeasurement_model.root'.format(  # noqa: E501
+                                                                        kwargs['analysis_name'])),  # noqa: E501
                                                        kwargs['ws_name'],
                                                        args.job_id,
                                                        'test',

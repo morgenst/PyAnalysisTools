@@ -4,7 +4,7 @@ from builtins import object
 from builtins import range
 from random import random as rndm
 
-import nosedep
+# import nosedep
 from mock import MagicMock
 
 import ROOT

@@ -2,6 +2,7 @@ from __future__ import division
 from builtins import str
 from builtins import range
 from builtins import object
+
 from past.utils import old_div
 import ROOT
 from PyAnalysisTools.AnalysisTools.LimitHelpers import Yield
@@ -150,6 +151,7 @@ class ExtrapolationModule(object):
             if bin_content is None:
                 continue
             h_qcd.SetBinContent(i, bin_content[0])
+            h_qcd.SetBinError(i, 0.)
             qcd_uncert_up.SetBinContent(i, bin_content[0] + abs(bin_content[1]))
             qcd_uncert_down.SetBinContent(i, bin_content[0] - abs(bin_content[1]))
         output_handle.register_object(h_qcd)

@@ -380,8 +380,8 @@ class EventComparisonPlotter(BasePlotter):
             index = i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))
             marker_style_index = i - (int(old_div(i, len(PO.marker_style_palette_filled)))
                                       * len(PO.marker_style_palette_filled))
-            index_homogen = i - (
-                        int(old_div(i, len(PO.line_style_palette_homogen))) * len(PO.line_style_palette_homogen))
+            index_homogen = i - (int(old_div(i, len(PO.line_style_palette_homogen)))
+                                 * len(PO.line_style_palette_homogen))
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
                 setattr(ref, 'marker_color', PO.color_palette[index])
                 setattr(ref, 'marker_style', PO.marker_style_palette_filled[marker_style_index])

@@ -1,4 +1,5 @@
 from __future__ import division
+from __future__ import print_function
 import numbers
 import pickle
 from copy import deepcopy
@@ -101,7 +102,7 @@ class Yield(object):
         init = len(self.weights)
         self.weights = self.weights[abs(self.weights) < 40.]
         if init != len(self.weights):
-            print 'removed weight'
+            print('removed weight')
 
     def append(self, other):
         if isinstance(other, self.__class__):
@@ -128,8 +129,8 @@ class Yield(object):
         if len(self.original_weights) == 0:
             return np.sqrt(np.sum(self.weights * self.weights))
         for i in range(len(self.original_weights)):
-            stat_unc += self.scale_factor[i] * self.scale_factor[i] * \
-                        np.sum(self.original_weights[i] * self.original_weights[i])
+            stat_unc += self.scale_factor[i] * self.scale_factor[i] * np.sum(self.original_weights[i]
+                                                                             * self.original_weights[i])
         return np.sqrt(stat_unc)
 
     def is_null(self):
@@ -237,24 +238,24 @@ class LimitArgs(object):
         def add_systematics(channel_id, process, systematics):
             sample = filter(lambda s: s['name'] == process, specs['channels'][channel_id]['samples'])[0]
             syst_strings = set(map(lambda sn: sn.split('__')[0], systematics.keys()))
-            for sys in syst_strings:
+            for syst in syst_strings:
                 try:
-                    down, up = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])
+                    down, up = sorted(filter(lambda s: syst in s[0], systematics.iteritems()), key=lambda i: i[0])
                     sample['modifiers'].append({"type": "histosys", "data": {"lo_data": [down[1] * sample['data'][0]],
                                                                              "hi_data": [up[1] * sample['data'][0]]},
-                                                'name': sys})
+                                                'name': syst})
                 except ValueError:
-                    variation = sorted(filter(lambda s: sys in s[0], systematics.iteritems()), key=lambda i: i[0])[0]
+                    variation = sorted(filter(lambda s: syst in s[0], systematics.iteritems()), key=lambda i: i[0])[0]
                     if variation[1] > 1.:
                         sample['modifiers'].append({"type": "histosys",
                                                     "data": {"lo_data": [sample['data'][0]],
                                                              "hi_data": [variation[1] * sample['data'][0]]},
-                                                    'name': sys})
+                                                    'name': syst})
                     else:
                         sample['modifiers'].append({"type": "histosys",
                                                     "data": {"lo_data": [variation[1] * sample['data'][0]],
                                                              "hi_data": [sample['data'][0]]},
-                                                    'name': sys})
+                                                    'name': syst})
 
         specs = OrderedDict()
         specs['channels'] = [add_signal_region(sig_reg) for sig_reg in self.kwargs['sig_yield']]
@@ -409,13 +410,13 @@ class LimitAnalyserCL(object):
             if fixed_signal is not None:
                 if isinstance(sig_yield, OrderedDict):
                     if isinstance(sig_yield.values()[0], numbers.Number):
-                        print 'Calc SF ', scale_factor, fixed_signal, sum([yld for yld in sig_yield.values()])
+                        print('Calc SF ', scale_factor, fixed_signal, sum([yld for yld in sig_yield.values()]))
                         scale_factor = scale_factor * sum([fixed_signal / yld for yld in sig_yield.values()])
                     else:
-                        print 'Calc SF[0] ', scale_factor, fixed_signal, sum([yld[0] for yld in sig_yield.values()])
+                        print('Calc SF[0] ', scale_factor, fixed_signal, sum([yld[0] for yld in sig_yield.values()]))
                         scale_factor = scale_factor * sum([fixed_signal / yld[0] for yld in sig_yield.values()])
                 else:
-                    print 'Calc SF with sig)yield ', scale_factor, fixed_signal, sig_yield
+                    print('Calc SF with sig)yield ', scale_factor, fixed_signal, sig_yield)
 
                     scale_factor = scale_factor * fixed_signal / sig_yield
             if pmg_xsec is not None:
@@ -429,7 +430,7 @@ class LimitAnalyserCL(object):
             data = self.converter.convert_to_array(tree=tree)
             fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
             scale_factor = get_scale_factor(signal_scale)
-            print "Analysing ", self.input_path, scale_factor, data['exp_upperlimit'], signal_scale, fixed_signal
+            print("Analysing ", self.input_path, scale_factor, data['exp_upperlimit'], signal_scale, fixed_signal)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
             self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
                                      exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
@@ -492,7 +493,7 @@ class LimitPlotter(object):
         graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
         graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
         for i, limit in sorted(enumerate(limits)):
-            print "Set Point: ", limit.mass, limit.exp_limit
+            print("Set Point: ", limit.mass, limit.exp_limit)
             graph.SetPoint(i, limit.mass, limit.exp_limit)
             graph_1sigma.SetPoint(i, limit.mass, limit.exp_limit)
             graph_2sigma.SetPoint(i, limit.mass, limit.exp_limit)
@@ -752,12 +753,12 @@ class LimitScanAnalyser(object):
                 data_mass_point.append("{:.2f} $\\pm$ {:.2f}".format(*prefit_ylds_bkg[process]))
             data.append(data_mass_point)
         headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [\\GeV{}]', 'UL [pb]', 'Signal'] + ordering
-        print tabulate(data, headers=headers, tablefmt='latex_raw')
+        print(tabulate(data, headers=headers, tablefmt='latex_raw'))
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
-            print >> f, tabulate(data, headers=headers, tablefmt='latex_raw')
-        print 'wrote to file ', os.path.join(self.output_handle.output_dir,
-                                             'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name))
+            print(tabulate(data, headers=headers, tablefmt='latex_raw'), file=f)
+        print('wrote to file ', os.path.join(self.output_handle.output_dir,
+                                             'limit_scan_table_best_{:s}.tex'.format(self.sig_reg_name)))
         self.dump_best_limits_to_yaml(limits)
 
     def dump_best_limits_to_yaml(self, best_limits):
@@ -777,7 +778,7 @@ class LimitScanAnalyser(object):
             #     limits = filter(lambda li: li.mass_cut < 1000., limits)
             mass_limits = filter(lambda li: li.mass == mass, limits)
             best_limits.append(min(mass_limits, key=lambda li: li.exp_limit))
-            print "FOUND ", mass, best_limits[-1]
+            print("FOUND ", mass, best_limits[-1])
         return best_limits
 
     @staticmethod
@@ -827,7 +828,7 @@ class LimitScanAnalyser(object):
                     hist_vs_cut.Fill(mass, yields[process].GetBinContent(1))
                 except KeyError:
                     hist_vs_cut.Fill(mass, 0.)
-                    print "Did not fine yields for {:s} and LQ mass {:.0f} and cut {:.0f}".format(process, mass, cut)
+                    print("Did not fine yields for {:s} and LQ mass {:.0f} and cut {:.0f}".format(process, mass, cut))
                 hist_vs_mass = yields_single_mass_hists[(mass, process)]
                 try:
                     hist_vs_mass.Fill(cut, yields[process].GetBinContent(1))
@@ -945,7 +946,7 @@ class LimitScanAnalyser(object):
         limit_scan_table = [['{:.0f}'.format(i[0])] + i[1] for i in limit_scan_table.items()]
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
-            print >> f, tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw')
+            print(tabulate(limit_scan_table, headers=['LQ mass'] + mass_points, tablefmt='latex_raw'), file=f)
 
 
 class Sample(object):
@@ -1067,8 +1068,8 @@ class Sample(object):
                     self.shape_uncerts[region][cut][syst] = yld / nominal
                 for syst, yld in self.scale_uncerts[region][cut].iteritems():
                     if 'theory' in syst and cut == 900.:
-                        print "THEO yields ", yld.weights, nominal.weights
-                        print "THEO yields sum", np.sum(yld.weights), np.sum(nominal.weights), yld / nominal
+                        print("THEO yields ", yld.weights, nominal.weights)
+                        print("THEO yields sum", np.sum(yld.weights), np.sum(nominal.weights), yld / nominal)
                     self.scale_uncerts[region][cut][syst] = yld / nominal
         for region in self.ctrl_region_yields.keys():
             ctrl_nom_ylds = self.ctrl_region_yields[region]
@@ -1211,7 +1212,7 @@ class Sample(object):
 
     @staticmethod
     def yld_sum(syst):
-        return sum([s[0] for s in syst]), s[1]
+        return sum([s[0] for s in syst]),  # s[1]
 
     @staticmethod
     def product(syst, nom):
@@ -1572,15 +1573,15 @@ def run_fit_pyhf(args):
 
 
 def write_config(args):
-    nice_labels = {'SR_mu_btag': 'SR \\mu b-tag',
-                   'SR_mu_bveto': 'SR \\mu b-veto',
-                   'SR_el_btag': 'SR el b-tag',
-                   'SR_el_bveto': 'SR el b-veto',
-                   'ZCR_el_bveto': 'ZCR el b-veto',
-                   'ZCR_el_btag': 'ZCR el b-tag',
-                   'ZCR_mu_bveto': 'ZCR \\mu b-veto',
-                   'ZCR_mu_btag': 'ZCR \\mu b-tag',
-                   }
+    # nice_labels = {'SR_mu_btag': 'SR \\mu b-tag',
+    #                'SR_mu_bveto': 'SR \\mu b-veto',
+    #                'SR_el_btag': 'SR el b-tag',
+    #                'SR_el_bveto': 'SR el b-veto',
+    #                'ZCR_el_bveto': 'ZCR el b-veto',
+    #                'ZCR_el_btag': 'ZCR el b-tag',
+    #                'ZCR_mu_bveto': 'ZCR \\mu b-veto',
+    #                'ZCR_mu_btag': 'ZCR \\mu b-tag',
+    #                }
 
     kwargs = args.kwargs
     kwargs.setdefault('disable_plots', False)
@@ -1590,90 +1591,90 @@ def write_config(args):
     hist_path = os.path.join(args.output_dir, 'hists')
     make_dirs(hist_path)
     with open(config_name, 'w') as f:
-        print >> f, '% --------------- %'
-        print >> f, '% ---  JOB - -- %'
-        print >> f, '% --------------- %'
-        print >> f, '\n'
+        print('% --------------- %', file=f)
+        print('% ---  JOB - -- %', file=f)
+        print('% --------------- %', file=f)
+        print('\n', file=f)
 
-        print >> f, 'Job: {:s}'.format('LQAnalysis')
-        print >> f, '\tCmeLabel: "13 TeV"'
-        print >> f, '\tPOI: "mu_Sig"'
-        print >> f, '\tReadFrom: HIST'
-        print >> f, '\tHistoPath: {:s}'.format(os.path.join(hist_path, 'Nominal'))
-        print >> f, '\tLabel: "LQAnalysis"'
-        print >> f, '\tLumiLabel: "139 fb^{-1}"'
-        print >> f, '\tPlotOptions: OVERSIG, NOXERR, NOENDERR'
-        print >> f, '\tSystErrorBars: {:s}'.format(make_plots)
-        print >> f, '\tSystControlPlots: {:s}'.format(make_plots)
-        print >> f, '\tCorrelationThreshold: 0.1'
-        print >> f, '\tAtlasLabel: Internal'
-        print >> f, '\tDebugLevel: 1'
-        print >> f, '\tHistoChecks: NOCRASH'
-        print >> f, '\tImageFormat: "pdf"'
-        print >> f, '\tRankingPlot: all'
-        print >> f, '\tKeepPruning: {:s}'.format(make_plots)
-        print >> f, '\tSystCategoryTables: {:s}'.format(make_plots)
-        print >> f, '\tSystControlPlots: {:s}'.format(make_plots)
-        print >> f, '\tDoSummaryPlot: {:s}'.format(make_plots)
-        print >> f, '\tDoTables: {:s}'.format(make_plots)
-        print >> f, '\tDoSignalRegionsPlot: {:s}'.format(make_plots)
-        print >> f, '\tDoPieChartPlot: {:s}'.format(make_plots)
-        print >> f, '\tMergeUnderOverFlow: {:s}'.format(make_plots)
+        print('Job: {:s}'.format('LQAnalysis'), file=f)
+        print('\tCmeLabel: "13 TeV"', file=f)
+        print('\tPOI: "mu_Sig"', file=f)
+        print('\tReadFrom: HIST', file=f)
+        print('\tHistoPath: {:s}'.format(os.path.join(hist_path, 'Nominal')), file=f)
+        print('\tLabel: "LQAnalysis"', file=f)
+        print('\tLumiLabel: "139 fb^{-1}"', file=f)
+        print('\tPlotOptions: OVERSIG, NOXERR, NOENDERR', file=f)
+        print('\tSystErrorBars: {:s}'.format(make_plots), file=f)
+        print('\tSystControlPlots: {:s}'.format(make_plots), file=f)
+        print('\tCorrelationThreshold: 0.1', file=f)
+        print('\tAtlasLabel: Internal', file=f)
+        print('\tDebugLevel: 1', file=f)
+        print('\tHistoChecks: NOCRASH', file=f)
+        print('\tImageFormat: "pdf"', file=f)
+        print('\tRankingPlot: all', file=f)
+        print('\tKeepPruning: {:s}'.format(make_plots), file=f)
+        print('\tSystCategoryTables: {:s}'.format(make_plots), file=f)
+        print('\tSystControlPlots: {:s}'.format(make_plots), file=f)
+        print('\tDoSummaryPlot: {:s}'.format(make_plots), file=f)
+        print('\tDoTables: {:s}'.format(make_plots), file=f)
+        print('\tDoSignalRegionsPlot: {:s}'.format(make_plots), file=f)
+        print('\tDoPieChartPlot: {:s}'.format(make_plots), file=f)
+        print('\tMergeUnderOverFlow: {:s}'.format(make_plots), file=f)
         # print >> f, '\tSystPruningShape: 0.005'
         # print >> f, '\tSystPruningNorm: 0.005'
-        print >> f, '\tUseATLASRounding: TRUE'
-        print >> f, '\tTableOptions: !STANDALONE'
+        print('\tUseATLASRounding: TRUE', file=f)
+        print('\tTableOptions: !STANDALONE', file=f)
         if kwargs['stat_only']:
-            print >> f, '\tStatOnly: TRUE'
-        print >> f, '\tOutputDir: {:s}'.format(os.path.join(args.output_dir, str(args.job_id)))
-        print >> f, '\n'
-        print >> f, '% --------------- %'
-        print >> f, '% ---  FIT - -- %'
-        print >> f, '% --------------- %'
-        print >> f, '\n'
+            print('\tStatOnly: TRUE', file=f)
+        print('\tOutputDir: {:s}'.format(os.path.join(args.output_dir, str(args.job_id))), file=f)
+        print('\n', file=f)
+        print('% --------------- %', file=f)
+        print('% ---  FIT - -- %', file=f)
+        print('% --------------- %', file=f)
+        print('\n', file=f)
 
-        print >> f, 'Fit: "fit"'
-        print >> f, '\tFitType: BONLY'
-        print >> f, '\tFitRegion: CRONLY'
-        print >> f, '\tUseMinos: mu_Sig'
-        print >> f, '\n'
-        print >> f, '% --------------- %'
-        print >> f, '% ---  LIMIT - -- %'
-        print >> f, '% --------------- %'
-        print >> f, '\n'
-        print >> f, 'Limit: "limit"'
-        print >> f, '\tLimitType: ASYMPTOTIC'
-        print >> f, '\tLimitBlind: FALSE'
-        print >> f, '\t% POIAsimov: 1'
-        print >> f, '\n'
+        print('Fit: "fit"', file=f)
+        print('\tFitType: BONLY', file=f)
+        print('\tFitRegion: CRONLY', file=f)
+        print('\tUseMinos: mu_Sig', file=f)
+        print('\n', file=f)
+        print('% --------------- %', file=f)
+        print('% ---  LIMIT - -- %', file=f)
+        print('% --------------- %', file=f)
+        print('\n', file=f)
+        print('Limit: "limit"', file=f)
+        print('\tLimitType: ASYMPTOTIC', file=f)
+        print('\tLimitBlind: FALSE', file=f)
+        print('\t% POIAsimov: 1', file=f)
+        print('\n', file=f)
 
-        print >> f, '% --------------- %'
-        print >> f, '% --- REGIONS - -- %'
-        print >> f, '% --------------- %'
-        print >> f, '\n'
+        print('% --------------- %', file=f)
+        print('% --- REGIONS - -- %', file=f)
+        print('% --------------- %', file=f)
+        print('\n', file=f)
         for reg in kwargs['sig_yield'].keys():
-            print >> f, 'Region: "{:s}"'.format(reg)
-            print >> f, '\tType: SIGNAL'
-            print >> f, '\tVariableTitle: "m_{LQ} [GeV]"'
-            print >> f, '\tLabel: "{:s}"'.format(reg)
-            print >> f, '\tShortLabel: "{:s}"'.format(reg)
-            print >> f, '\tHistoName: h_{:s}_{:.0f}'.format(reg, kwargs['mass_cut'])
-            print >> f, '\tDataType: ASIMOV'
-            print >> f, '\n'
+            print('Region: "{:s}"'.format(reg), file=f)
+            print('\tType: SIGNAL', file=f)
+            print('\tVariableTitle: "m_{LQ} [GeV]"', file=f)
+            print('\tLabel: "{:s}"'.format(reg), file=f)
+            print('\tShortLabel: "{:s}"'.format(reg), file=f)
+            print('\tHistoName: h_{:s}_{:.0f}'.format(reg, kwargs['mass_cut']), file=f)
+            print('\tDataType: ASIMOV', file=f)
+            print('\n', file=f)
             # print >> f,'Binning: 1000, 14000'
 
         norm_factors = []
         for reg, ctrl_reg_cfg in kwargs["ctrl_config"].iteritems():
-            print >> f, 'Region: "{:s}"'.format(reg)
+            print('Region: "{:s}"'.format(reg), file=f)
             if ctrl_reg_cfg['is_norm_region']:
-                print >> f, '\tType: CONTROL'
+                print('\tType: CONTROL', file=f)
             elif ctrl_reg_cfg['is_val_region']:
-                print >> f, '\tType: VALIDATION'
-            print >> f, '\tVariableTitle: "m_{LQ} [GeV]"'
-            print >> f, '\tLabel: "{:s}"'.format(reg)
-            print >> f, '\tShortLabel: "{:s}"'.format(reg)
-            print >> f, '\tHistoName: "h_{:s}"'.format(reg)
-            print >> f, ''
+                print('\tType: VALIDATION', file=f)
+            print('\tVariableTitle: "m_{LQ} [GeV]"', file=f)
+            print('\tLabel: "{:s}"'.format(reg), file=f)
+            print('\tShortLabel: "{:s}"'.format(reg), file=f)
+            print('\tHistoName: "h_{:s}"'.format(reg), file=f)
+            print('', file=f)
             # print >> f,'Binning: 130, 150, 170, 190, 210, 230, 250'
             for bkg, norm_param in ctrl_reg_cfg['bgk_to_normalise'].iteritems():
                 if 'norm_factor' not in norm_param:
@@ -1681,71 +1682,71 @@ def write_config(args):
                 norm_factors.append((norm_param['norm_factor'], bkg))
         norm_factors = set(norm_factors)
 
-        print >> f, '% --------------- %'
-        print >> f, '% --- SAMPLES - -- %'
-        print >> f, '% --------------- %'
+        print('% --------------- %', file=f)
+        print('% --- SAMPLES - -- %', file=f)
+        print('% --------------- %', file=f)
 
-        print >> f, '% Normal samples'
+        print('% Normal samples', file=f)
 
-        print >> f, 'Sample: "Data"'
-        print >> f, '\tTitle: "Data"'
-        print >> f, '\tType: DATA'
-        print >> f, '\tHistoFile: "data"'
-        print >> f, '\n'
+        print('Sample: "Data"', file=f)
+        print('\tTitle: "Data"', file=f)
+        print('\tType: DATA', file=f)
+        print('\tHistoFile: "data"', file=f)
+        print('\n', file=f)
 
-        print >> f, 'Sample: "{:s}"'.format(kwargs['sig_name'])
-        print >> f, '\tType: SIGNAL'
-        print >> f, '\tTitle: "{:s}"'.format(kwargs['sig_name'])
-        print >> f, '\tTexTitle: "$LQ$"'
-        print >> f, '\tFillColor: 0'  # TODO
-        print >> f, '\tLineColor: 2'  # TODO
-        print >> f, '\tHistoFile: "{:s}"'.format(kwargs['sig_name'])
-        print >> f, '\tNormFactor: "mu_Sig", 1, 0, 100'
-        print >> f, '\tUseMCstat: TRUE'
-        print >> f, '\n'
+        print('Sample: "{:s}"'.format(kwargs['sig_name']), file=f)
+        print('\tType: SIGNAL', file=f)
+        print('\tTitle: "{:s}"'.format(kwargs['sig_name']), file=f)
+        print('\tTexTitle: "$LQ$"', file=f)
+        print('\tFillColor: 0', file=f)  # TODO
+        print('\tLineColor: 2', file=f)  # TODO
+        print('\tHistoFile: "{:s}"'.format(kwargs['sig_name']), file=f)
+        print('\tNormFactor: "mu_Sig", 1, 0, 100', file=f)
+        print('\tUseMCstat: TRUE', file=f)
+        print('\n', file=f)
 
         for bkg in kwargs["bkg_yields"].values()[0].keys():
-            print >> f, 'Sample: "{:s}"'.format(bkg)
-            print >> f, '\tType: BACKGROUND'
-            print >> f, '\tTitle: "{:s}"'.format(bkg)
-            print >> f, '\tTexTitle: "{:s}"'.format(bkg)
-            print >> f, '\tFillColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color))
-            print >> f, '\tLineColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color))
-            print >> f, '\tHistoFile: "{:s}";'.format(bkg)
-            print >> f, '\tSmooth: TRUE'
-            print >> f, '\tUseMCstat: TRUE'
-            print >> f, '\n'
+            print('Sample: "{:s}"'.format(bkg), file=f)
+            print('\tType: BACKGROUND', file=f)
+            print('\tTitle: "{:s}"'.format(bkg), file=f)
+            print('\tTexTitle: "{:s}"'.format(bkg), file=f)
+            print('\tFillColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
+            print('\tLineColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
+            print('\tHistoFile: "{:s}";'.format(bkg), file=f)
+            print('\tSmooth: TRUE', file=f)
+            print('\tUseMCstat: TRUE', file=f)
+            print('\n', file=f)
 
-        print >> f, '% --------------- %'
-        print >> f, '% - NORMFACTORS - %'
-        print >> f, '% --------------- %'
+        print('% --------------- %', file=f)
+        print('% - NORMFACTORS - %', file=f)
+        print('% --------------- %', file=f)
 
         for norm_fac in norm_factors:
-            print >> f, 'NormFactor: "{:s}"'.format(norm_fac[0])
-            print >> f, '\tTitle: "{:s}"'.format(norm_fac[0])
-            print >> f, '\tNominal: 1'
-            print >> f, '\tMin: 0'
-            print >> f, '\tMax: 4'
-            print >> f, '\tSamples: {:s}'.format(norm_fac[1])
-            print >> f, '\n'
+            print('NormFactor: "{:s}"'.format(norm_fac[0]), file=f)
+            print('\tTitle: "{:s}"'.format(norm_fac[0]), file=f)
+            print('\tNominal: 1', file=f)
+            print('\tMin: 0', file=f)
+            print('\tMax: 4', file=f)
+            print('\tSamples: {:s}'.format(norm_fac[1]), file=f)
+            print('\n', file=f)
 
-        print >> f, '% --------------- %'
-        print >> f, '% - SYSTEMATICS - %'
-        print >> f, '% --------------- %'
+        print('% --------------- %', file=f)
+        print('% - SYSTEMATICS - %', file=f)
+        print('% --------------- %', file=f)
 
-        print >> f, '% Normalization only'
+        print('% Normalization only', file=f)
 
-        print >> f, 'Systematic: "lumi"'
-        print >> f, '\tTitle: "Luminosity"'
-        print >> f, '\tType: OVERALL'
-        print >> f, '\tOverallUp: 0.017'
-        print >> f, '\tOverallDown: -0.017'
-        print >> f, '\tSamples: Zjets, ttbar, Others, {:s}'.format(kwargs['sig_name'])
-        print >> f, '\tSymmetrisation: TwoSided'
-        print >> f, '\tSmoothing: 40'
-        print >> f, '\n'
+        print('Systematic: "lumi"', file=f)
+        print('\tTitle: "Luminosity"', file=f)
+        print('\tType: OVERALL', file=f)
+        print('\tOverallUp: 0.017', file=f)
+        print('\tOverallDown: -0.017', file=f)
+        print('\tSamples: Zjets, ttbar, Others, {:s}'.format(kwargs['sig_name']), file=f)
+        print('\tSymmetrisation: TwoSided', file=f)
+        print('\tSmoothing: 40', file=f)
+        print('\n', file=f)
 
-        print >> f, '% Weight systematics'
+        print('% Weight systematics', file=f)
 
         paired_systematics = {}
         for reg in kwargs['sr_syst'].keys():
@@ -1767,10 +1768,10 @@ def write_config(args):
                                 paired_systematics[(syst, True)] = [process]
                             continue
                         else:
-                            print 'WEIRDD: ', syst, process, reg
-                            print syst.replace('__1up', ''), syst.replace('up', 'down'), syst.replace('up', 'down') in \
-                                                                                         kwargs['sr_syst'][reg][process]
-                            print kwargs['sr_syst'][reg][process].keys()
+                            print('WEIRDD: ', syst, process, reg)
+                            print(syst.replace('__1up', ''), syst.replace('up', 'down'),
+                                  syst.replace('up', 'down') in kwargs['sr_syst'][reg][process])
+                            print(kwargs['sr_syst'][reg][process].keys())
                     if (syst, up_down) not in paired_systematics:
                         paired_systematics[(syst, up_down)] = [process]
                         continue
@@ -1780,18 +1781,18 @@ def write_config(args):
 
         for syst, processes in paired_systematics.iteritems():
             syst_name, up_down = syst
-            print >> f, 'Systematic: "{:s}"'.format(syst_name)
-            print >> f, '\tTitle: "{:s}"'.format(syst_name)
-            print >> f, '\tType: HISTO'
-            print >> f, '\tSamples: {:s}'.format(','.join(processes))
-            print >> f, '\tRegions: all'
+            print('Systematic: "{:s}"'.format(syst_name), file=f)
+            print('\tTitle: "{:s}"'.format(syst_name), file=f)
+            print('\tType: HISTO', file=f)
+            print('\tSamples: {:s}'.format(','.join(processes)), file=f)
+            print('\tRegions: all', file=f)
             if up_down:
-                print >> f, '\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, syst_name + '__1up'))
-                print >> f, '\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, syst_name + '__1down'))
+                print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, syst_name + '__1up')), file=f)
+                print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, syst_name + '__1down')), file=f)
             else:
-                print "SYST NOT UP DOWN: ", syst_name
-            print >> f, '\n'
-    print 'Wrote config to ', config_name
+                print("SYST NOT UP DOWN: ", syst_name)
+            print('\n', file=f)
+    print('Wrote config to ', config_name)
 
 
 def get_hist(name, yld, unc):

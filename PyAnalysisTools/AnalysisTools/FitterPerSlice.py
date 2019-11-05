@@ -4,12 +4,12 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader as YL
 from PyAnalysisTools.AnalysisTools.Fitter import Fitter
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Formatting import add_text_to_canvas
-from PyAnalysisTools.ROOTUtils.ObjectHandle import *
 
 
 class FitterPerSlice(object):
 
-    def get_list_variables(self, variable_dict):
+    @staticmethod
+    def get_list_variables(variable_dict):
         list_of_variables = []
         variable_dict.pop("common")
         for key in variable_dict:
@@ -17,7 +17,8 @@ class FitterPerSlice(object):
             list_of_variables.append(variable_dict[key])
         return list_of_variables
 
-    def get_list_of_slices(self, slicing_variable):
+    @staticmethod
+    def get_list_of_slices(slicing_variable):
         variable_name = slicing_variable["dist"]
         n_bin = slicing_variable["bins"]
         variable_min = slicing_variable["xmin"]
@@ -38,7 +39,8 @@ class FitterPerSlice(object):
                     [bin_lower + "<=" + variable_name + "&&" + variable_name + "<" + bin_upper, bin_center])
         return list_of_slices
 
-    def format_and_draw_hists(self, hist_list, variable_config):
+    @staticmethod
+    def format_and_draw_hists(hist_list, variable_config):
         canvas = ROOT.TCanvas(variable_config["key"], "", 800, 600)
         ROOT.SetOwnership(canvas, False)
         for hist in hist_list:
@@ -47,7 +49,8 @@ class FitterPerSlice(object):
             hist.Draw("histsame")
         return canvas
 
-    def fill_parameter_collection(self, model, parameter_collection):
+    @staticmethod
+    def fill_parameter_collection(model, parameter_collection):
         it = model.getVariables().createIterator()
         for parameter in iter(it.Next, None):
             if parameter.GetName() not in parameter_collection.keys():
@@ -55,7 +58,8 @@ class FitterPerSlice(object):
             val_and_error = {'val': parameter.getVal(), 'error': parameter.getError()}
             parameter_collection[parameter.GetName()].append(val_and_error)
 
-    def make_parameter_plots(self, parameter_collection, variable_config):
+    @staticmethod
+    def make_parameter_plots(parameter_collection, variable_config):
         hists_parameters = []
         for key in parameter_collection:
             hist = ROOT.TH1F(variable_config["key"] + "_" + key, "",

@@ -562,9 +562,9 @@ class TheoryUncertaintyProvider(object):
                     envelop_up = hist.Clone(new_hist_name + '__1up')
                     envelop_down = hist.Clone(new_hist_name + '__1down')
                     for b in range(envelop_up.GetNbinsX() + 1):
-                        unc_max = max([analyser.systematic_hists[sys.replace('weight_', '')][
-                                           get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)][
-                                           process].GetBinContent(b) - nominal_hist.GetBinContent(b)
+                        unc_max = max([analyser.systematic_hists[sys.replace('weight_', '')]
+                                       [get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)]
+                                       [process].GetBinContent(b) - nominal_hist.GetBinContent(b)
                                        for sys in self.sherpa_pdf_uncert])
                         nom = nominal_hist.GetBinContent(b)
                         if unc_max > 0:

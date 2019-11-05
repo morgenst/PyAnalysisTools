@@ -205,8 +205,8 @@ class CorrelationPlotter(object):
                 base_process = process.replace(mc_campaign_pattern, "")
                 self.process_configs[process] = deepcopy(self.process_configs[base_process])
                 self.process_configs[process].color = self.process_configs[process].color + " + {:d}".format(3)
-                self.process_configs[process].label = self.process_configs[process].label + \
-                                                      " ({:s})".format(mc_campaign_pattern.replace(".", ""))
+                self.process_configs[process].label = "{:s} ({:s})".format(self.process_configs[process].label,
+                                                                           mc_campaign_pattern.replace(".", ""))
             return self.process_configs[process].color
 
         profiles = {}

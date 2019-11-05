@@ -588,13 +588,10 @@ class LQTruthAnalyser(object):
         def run_schannel():
             self.is_schan = True
             self.histograms[process_id]["event_yields"].Fill(1)
-            leptons = [particle for particle in truth_particles if abs(particle.pdgId()) == 11
-                       or abs(particle.pdgId()) == 13 or abs(particle.pdgId()) == 15]
-            stable_leptons = [p for p in leptons if p.status() == 1]
             resonance1_vertex = LQ[-1].decayVtxLink().outgoingParticleLinks()
             try:
                 lepton_1 = filter(lambda particle: abs(particle.pdgId()) == 11 or abs(particle.pdgId()) == 13
-                                                   or abs(particle.pdgId()) == 15, resonance1_vertex)[0]
+                                                   or abs(particle.pdgId()) == 15, resonance1_vertex)[0]  # noqa:E127
                 quark_1 = filter(lambda particle: abs(particle.pdgId()) in range(1, 6), resonance1_vertex)[0]
                 self.histograms[process_id]["lepton1_e"].Fill(lepton_1.e() / 1000.)
                 self.histograms[process_id]["lepton1_eta"].Fill(lepton_1.eta())

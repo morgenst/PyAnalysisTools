@@ -12,7 +12,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 
 try:
-    import configManager
+    import configManager  # noqa: F401
 except ImportError:
     print("HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now.")
     exit(1)
@@ -147,7 +147,7 @@ class HistFitterWrapper(object):
 
     def reset_config_mgr(self):
         try:
-            import configManager
+            import configManager  # noqa: F811
         except ImportError:
             print("HistFitter not set up. Please run setup.sh in HistFitter directory. Giving up now.")
             exit(1)

@@ -424,7 +424,7 @@ class MultiFileMultiRefReader(ComparisonReader):
             for k_comp, v_comp in list(compare.items()):
                 if len(reference) == len(compare):
                     ref_id = ((list(compare.keys()).index(k_comp) + 1) * 100) + (
-                            (list(compare.keys()).index(k_comp) + 1) * 10) + list(cuts.keys()).index(k_cuts)
+                            (list(compare.keys()).index(k_comp) + 1) * 10) + list(cuts.keys()).index(k_cuts)  # noqa: E126, E501
                 else:
                     ref_id = ((0 + 1) * 100) + ((0 + 1) * 10) + list(cuts.keys()).index(k_cuts)
                 v_comp.SetDirectory(0)
@@ -564,8 +564,8 @@ class ComparisonPlotter(BasePlotter):
         reference_hists = [x for x in data if x.is_ref]
         compare_hists = [x for x in data if not x.is_ref]
 
-        offset = len(reference_hists) if (
-                len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) else 0
+        offset = len(reference_hists) if (len(reference_hists) != len(compare_hists) or len(reference_hists) == 1) \
+            else 0
         for i, ref in enumerate(reference_hists):
             setattr(ref, 'draw_option', plot_config.draw)
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
@@ -597,14 +597,14 @@ class ComparisonPlotter(BasePlotter):
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
                 setattr(comp, 'marker_color', PO.color_palette[index])
                 setattr(comp, 'marker_style', PO.marker_style_palette_empty[(i + offset) - (
-                        int(old_div((i + offset), len(PO.marker_style_palette_empty))) *
-                        len(PO.marker_style_palette_empty))])
+                        int(old_div((i + offset), len(PO.marker_style_palette_empty)))
+                        * len(PO.marker_style_palette_empty))])
                 setattr(comp, 'line_color', PO.color_palette[index])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
                 setattr(comp, 'line_color', PO.color_palette[index])
                 setattr(comp, 'line_style', PO.line_style_palette_heterogen[(i + offset) - (
-                        int(old_div((i + offset), len(PO.line_style_palette_heterogen))) * len(
-                    PO.line_style_palette_heterogen))])
+                        int(old_div((i + offset), len(PO.line_style_palette_heterogen)))
+                        * len(PO.line_style_palette_heterogen))])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
                 setattr(comp, 'fill_color', PO.color_palette[index])
                 setattr(comp, 'fill_style', PO.fill_style_palette_right[index])
