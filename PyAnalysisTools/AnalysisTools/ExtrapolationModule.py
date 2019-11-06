@@ -141,7 +141,11 @@ class ExtrapolationModule(object):
                 output_handle.register_object(systematics_handle.systematic_variations[unc][plot_config]['ttbar'])
 
     def execute_qcd(self, histograms, output_handle):
-        region = [r for r in list(self.stich_points.keys()) if r in list(histograms.values())[0].GetName()][0]
+        try:
+            region = [r for r in list(self.stich_points.keys()) if r in list(histograms.values())[0].GetName()][0]
+        except IndexError:
+            _logger.error('Requested qcd but could not find corresponding region')
+            return 
         h_qcd = list(histograms.values())[0].Clone(region + "_lq_mass_max_QCD")
         qcd_uncert_up = h_qcd.Clone('{:s}_lq_mass_max_QCD_extrapol_unc__1up'.format(region))
         qcd_uncert_down = h_qcd.Clone('{:s}_lq_mass_max_QCD_extrapol_unc__1down'.format(region))
