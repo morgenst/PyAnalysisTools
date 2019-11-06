@@ -380,7 +380,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                     d = {process: cutflow_tmp['yield']}
                 else:
                     d = {process: cutflow_tmp['yield_raw']}
-                print(d)
                 cutflow_tables[region] = cutflow_tables[region].assign(**d)
                 if self.enable_eff:
                     cutflow_tables[region] = self.calculate_cut_efficiencies(cutflow_tables[region], cutflow_tmp,
