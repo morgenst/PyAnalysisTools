@@ -923,13 +923,13 @@ class LimitScanAnalyser(object):
         # ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
-                        watermark='Internal', lumi=139.0)
+                        watermark='Internal', lumi=plot_config['lumi'])
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=139.0)
+                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=plot_config['lumi'])
         pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                     xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                                    ztitle="fit cov quality", watermark='Internal', lumi=139.0)
+                                    ztitle="fit cov quality", watermark='Internal', lumi=plot_config['lumi'])
         canvas = pt.plot_obj(hist, pc)
         if best_limits is not None:
             pc_best = PlotConfig(draw_option="BOX")
