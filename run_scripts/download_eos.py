@@ -1,9 +1,12 @@
+from __future__ import print_function
+
 import argparse
-import sys
 import os
+import sys
+from subprocess import check_call
+
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs
-from subprocess import check_call
 
 
 def generate_file_list(**kwargs):
@@ -17,12 +20,11 @@ def generate_file_list(**kwargs):
     def clean_mount():
         return [file_name.replace('/afs/cern.ch/user/m/morgens/eos_atlas/', '') for file_name in file_list]
 
-
     output_file = None
-    if not "inputs" in kwargs:
+    if "inputs" not in kwargs:
         _logger.error("No inputs provided, but generation of file list requested.")
         exit(1)
-    if not "output_file" in kwargs:
+    if "output_file" not in kwargs:
         _logger.warning("No output file provided")
     else:
         output_file = open(kwargs["output_file"], "w")
@@ -32,7 +34,7 @@ def generate_file_list(**kwargs):
         expand(f)
     file_list = clean_mount()
     for file_name in file_list:
-        print >> output_file, file_name
+        print(file_name, file=output_file)
 
 
 def copy(**kwargs):
@@ -47,9 +49,8 @@ def copy(**kwargs):
             if recursive_level > 0:
                 sub_dir = file.split("/")[-(recursive_level+1):-1][0]
                 make_dirs(os.path.join(output_path, sub_dir))
-            cmd = "xrdcp root://eosatlas.cern.ch//eos/%s %s" %(file, os.path.join(output_path, sub_dir))
+            cmd = "xrdcp root://eosatlas.cern.ch//eos/{:s} {:s}".format(file, os.path.join(output_path, sub_dir))
             check_call(cmd.split())
-
 
 
 def main(argv):
@@ -67,6 +68,7 @@ def main(argv):
         copy(**vars(args))
     else:
         generate_file_list(**vars(args))
+
 
 if __name__ == '__main__':
     main(sys.argv[1:])

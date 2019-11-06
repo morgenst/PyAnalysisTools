@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+from __future__ import print_function
 from PyAnalysisTools.base import get_default_argparser, default_init
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.AnalysisTools.XSHandle import Dataset
@@ -23,12 +24,12 @@ if __name__ == '__main__':
                     ds_id, _, xsec, filter_eff, kfactor, _, _, _ = line.split()
                 except ValueError:
                     continue
-            if int(ds_id) not in dataset_decoration.keys():
+            if int(ds_id) not in list(dataset_decoration.keys()):
                 continue
             ds_id = int(ds_id)
             decoration = dataset_decoration[ds_id]
             if 'process_name' not in decoration:
-                print ds_id
+                print(ds_id)
                 continue
             dataset_info = {"is_mc": True,
                             "cross_section": float(xsec) / 1000.,

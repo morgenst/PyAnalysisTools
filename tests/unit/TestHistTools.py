@@ -1,3 +1,6 @@
+from builtins import map
+from builtins import range
+from builtins import object
 import unittest
 import ROOT
 import os
@@ -8,7 +11,8 @@ cwd = os.path.dirname(__file__)
 ROOT.gROOT.SetBatch(True)
 
 
-class PlotConfig(): pass
+class PlotConfig(object):
+    pass
 
 
 class TestHistTools(unittest.TestCase):
@@ -53,7 +57,7 @@ class TestHistTools(unittest.TestCase):
         self.assertEqual(ht.set_axis_labels(self.hist, self.plot_config), None)
 
     def test_set_axis_labels(self):
-        self.plot_config.axis_labels = map(str, range(self.hist.GetNbinsX()))
+        self.plot_config.axis_labels = list(map(str, list(range(self.hist.GetNbinsX()))))
         self.assertEqual(ht.set_axis_labels(self.hist, self.plot_config), None)
         self.assertEqual(self.hist.GetXaxis().GetBinLabel(5), '4')
 

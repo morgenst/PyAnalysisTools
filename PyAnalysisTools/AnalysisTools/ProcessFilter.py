@@ -1,3 +1,6 @@
+from builtins import object
+
+
 class ProcessFilter(object):
     def __init__(self, **kwargs):
         self.processes = kwargs["processes"]
@@ -5,7 +8,7 @@ class ProcessFilter(object):
 
     def execute(self, histograms):
         filtered_histograms = {}
-        for key, hist in histograms.iteritems():
+        for key, hist in list(histograms.items()):
             if isinstance(key, str):
                 process = key
             else:

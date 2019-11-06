@@ -1,8 +1,14 @@
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
-from PyAnalysisTools.base import _logger
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.AnalysisTools.LimitHelpers import Yield
+from __future__ import division
+from builtins import str
+from builtins import range
+from builtins import object
+
+from past.utils import old_div
 import ROOT
+from PyAnalysisTools.AnalysisTools.LimitHelpers import Yield
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.FileHandle import FileHandle
+from PyAnalysisTools.base import _logger
 
 
 class ExtrapolationModule(object):
@@ -28,10 +34,10 @@ class ExtrapolationModule(object):
                 fcts[0] = fcts[0].replace('[{:d}]'.format(i), str(param[0]))
                 fcts[1] = fcts[1].replace('[{:d}]'.format(i), str(param[0] - param[1]))
                 fcts[2] = fcts[2].replace('[{:d}]'.format(i), str(param[0] + param[1]))
-            return map(lambda f: ROOT.TF1("", f), fcts)
+            return [ROOT.TF1("", f) for f in fcts]
 
         self.functions = {}
-        for reg_name, cfg in kwargs.iteritems():
+        for reg_name, cfg in list(kwargs.items()):
             if reg_name == 'functions':
                 continue
             self.functions[reg_name] = build_fct(cfg['func'], cfg['params'])
@@ -50,7 +56,7 @@ class ExtrapolationModule(object):
             if 'uncert' in h.GetName():
                 continue
             self.stich_points[h.GetName()] = max(300., find_stitch_point())
-        map(lambda h: h.SetDirectory(0), self.histograms)
+        list([h.SetDirectory(0) for h in self.histograms])
 
     def get_stitch_point(self, region):
         return self.stich_points[region]
@@ -62,38 +68,42 @@ class ExtrapolationModule(object):
         if xmin < self.stich_points[region]:
             return None
         if region in self.functions:
+            exit()
             new_yield = self.functions[region][0][0].Integral(xmin, xmax)
         elif len(self.histograms) > 0:
-            h = filter(lambda h: h.GetName() == region, self.histograms)[0]
-            new_yield = h.Integral(h.FindBin(xmin), -1)
-            huncert = filter(lambda h: h.GetName() == region + '_uncert', self.histograms)[0].Clone()
-            huncert.Multiply(h)
-            uncert = huncert.Integral(huncert.FindBin(xmin), -1)
+            h_nom = [htmp for htmp in self.histograms if htmp.GetName() == region][0]
+            max_bin = -1
+            if xmax is not None:
+                max_bin = h_nom.FindBin(xmax) - 1
+            new_yield = h_nom.Integral(h_nom.FindBin(xmin), max_bin)
+            huncert = [htmp for htmp in self.histograms if htmp.GetName() == region + '_uncert'][0].Clone()
+            huncert.Multiply(h_nom)
+            max_bin = -1
+            if xmax is not None:
+                max_bin = huncert.FindBin(xmax) - 1
+            uncert = huncert.Integral(huncert.FindBin(xmin), max_bin)
         else:
             _logger.error('Could not find information to extrapolate top')
             exit(-1)
         new_yield *= lumi
-        _logger.debug('RESET bin content: {:.1f} {:.1f} {:.1f} {:.1f}'.format(xmin, xmax, new_yield, uncert))
+        uncert *= lumi
+        _logger.debug('RESET bin content: {:.1f} {:.1f} {:.1f} {:.5f} based on {:s} and {:s}'.format(xmin, xmax,
+                                                                                                     new_yield,
+                                                                                                     uncert,
+                                                                                                     h_nom.GetName(),
+                                                                                                     huncert.GetName()))
         return new_yield, uncert
 
-    # def execute(self, histograms):
-    #     top_hist = histograms['ttbar']
-    #     region = [r for r in self.functions.keys() if r in top_hist.GetName()][0]
-    #     _logger.debug('Running top extrapolation in region {:s}'.format(region))
-    #     for i in range(top_hist.GetNbinsX() + 1):
-    #         bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
-    #                                                         top_hist.GetXaxis().GetBinUpEdge(i), 139.)
-    #         _logger.debug("old yield: {:.2f} new yield: {:.2f}".format(top_hist.GetBinContent(i), bin_content))
-    #         if bin_content is None:
-    #             continue
-    #         top_hist.SetBinContent(i, bin_content)
-
-    def execute_top(self, histograms, output_handle):
+    def execute_top(self, histograms, output_handle, plot_config, systematics_handle):
+        if 'ttbar' not in histograms:
+            _logger.warn("Requested top extrapolation, but could not find ttbar in histograms.")
+            return
         top_hist = histograms['ttbar']
-        #top_uncert_hist_down = top_hist.Clone('top_extrapol_unc__1down')
-        region = [r for r in self.stich_points.keys() if r in top_hist.GetName()][0]
-        top_uncert = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc'.format(region))
+        region = [r for r in list(self.stich_points.keys()) if r in top_hist.GetName()][0]
+        top_uncert_up = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1up'.format(region))
+        top_uncert_down = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1down'.format(region))
         _logger.debug('Running top extrapolation in region {:s}'.format(region))
+        uncert_sum = 0.
         for i in range(top_hist.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, top_hist.GetXaxis().GetBinLowEdge(i),
                                                             top_hist.GetXaxis().GetBinUpEdge(i), 139.)
@@ -101,26 +111,60 @@ class ExtrapolationModule(object):
                 continue
             _logger.debug("old yield: {:.2f} new yield: {:.2f}".format(top_hist.GetBinContent(i), bin_content[0]))
             top_hist.SetBinContent(i, bin_content[0])
-            top_uncert.SetBinContent(i, bin_content[1])
-        output_handle.register_object(top_uncert)
+            if top_hist.GetBinLowEdge(i) > 1699.:
+                uncert_sum += bin_content[1]
+            if systematics_handle is not None:
+                # need to modify all tail of the systematics histograms:
+                for unc in list(systematics_handle.systematic_variations.keys()):
+                    if 'ttbar' not in systematics_handle.systematic_variations[unc][plot_config]:
+                        continue
+                    if 'theory_envelop' in unc:
+                        continue
+                    if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None:
+                        if 'pdf_uncert_MU' not in unc:
+                            _logger.error("Somehow ttbar unc is None for {:s}".format(unc))
+                        continue
+                    systematics_handle.systematic_variations[unc][plot_config]['ttbar'].SetBinContent(i, bin_content[0])
+            # TODO: Need some way for relative and abs uncertainty
+            top_uncert_up.SetBinContent(i, bin_content[0] + bin_content[1])
+            top_uncert_down.SetBinContent(i, bin_content[0] - bin_content[1])
+        output_handle.register_object(top_hist)
+        output_handle.register_object(top_uncert_up)
+        output_handle.register_object(top_uncert_down)
+        if systematics_handle is not None:
+            for unc in list(systematics_handle.systematic_variations.keys()):
+                if 'ttbar' not in systematics_handle.systematic_variations[unc][plot_config]:
+                    continue
+                if systematics_handle.systematic_variations[unc][plot_config]['ttbar'] is None:
+                    _logger.error("Somehow hist is None. Something likely went wrong")
+                    continue
+                output_handle.register_object(systematics_handle.systematic_variations[unc][plot_config]['ttbar'])
 
     def execute_qcd(self, histograms, output_handle):
-        region = [r for r in self.stich_points.keys() if r in histograms.values()[0].GetName()][0]
-        h_qcd = histograms.values()[0].Clone(region + "_lq_mass_max_QCD")
+        try:
+            region = [r for r in list(self.stich_points.keys()) if r in list(histograms.values())[0].GetName()][0]
+        except IndexError:
+            _logger.error('Requested qcd but could not find corresponding region')
+            return 
+        h_qcd = list(histograms.values())[0].Clone(region + "_lq_mass_max_QCD")
+        qcd_uncert_up = h_qcd.Clone('{:s}_lq_mass_max_QCD_extrapol_unc__1up'.format(region))
+        qcd_uncert_down = h_qcd.Clone('{:s}_lq_mass_max_QCD_extrapol_unc__1down'.format(region))
         for i in range(h_qcd.GetNbinsX() + 1):
             bin_content = self.get_extrapolated_bin_content(region, h_qcd.GetXaxis().GetBinLowEdge(i),
                                                             h_qcd.GetXaxis().GetBinUpEdge(i), 1.)
             if bin_content is None:
                 continue
             h_qcd.SetBinContent(i, bin_content[0])
-        h_unc = filter(lambda h: h.GetName() == region + '_uncert', self.histograms)[0].Clone()
-        h_unc.SetName('{:s}_lq_mass_max_QCD_qcd_uncert'.format(region))
+            h_qcd.SetBinError(i, 0.)
+            qcd_uncert_up.SetBinContent(i, bin_content[0] + abs(bin_content[1]))
+            qcd_uncert_down.SetBinContent(i, bin_content[0] - abs(bin_content[1]))
         output_handle.register_object(h_qcd)
-        output_handle.register_object(h_unc)
+        output_handle.register_object(qcd_uncert_up)
+        output_handle.register_object(qcd_uncert_down)
 
-    def execute(self, histograms, output_handle):
+    def execute(self, histograms, output_handle, plot_config=None, systematics_handle=None):
         if not self.qcd_mode:
-            self.execute_top(histograms, output_handle)
+            self.execute_top(histograms, output_handle, plot_config, systematics_handle)
         else:
             self.execute_qcd(histograms, output_handle)
 
@@ -135,23 +179,23 @@ class ExtrapolationModule(object):
 
     def add_extrapolated_yields(self, sample, lumi=139.):
         uncert_name = '{:s}_extrapol'.format(self.tag)
-        for region in sample.ctrl_region_yields.keys():
+        for region in list(sample.ctrl_region_yields.keys()):
             yld, uncert = self.get_extrapolated_bin_content(region,
                                                             self.stich_points[region],
                                                             lumi=lumi)
             if not self.qcd_mode:
                 sample.ctrl_region_yields[region] += yld
-                uncert = uncert / sample.ctrl_region_yields[region].sum()
+                uncert = old_div(uncert, sample.ctrl_region_yields[region].sum())
             else:
                 sample.ctrl_region_yields[region] = Yield(yld)
-                uncert = uncert / yld
+                uncert = old_div(uncert, yld)
             sample.ctrl_region_yields[region].extrapolated = True
             sample.ctrl_reg_shape_ylds[region]['{:s}__1down'.format(uncert_name)] = 1. - uncert
             sample.ctrl_reg_shape_ylds[region]['{:s}__1up'.format(uncert_name)] = 1. + uncert
 
-        for region in sample.nominal_evt_yields.keys():
+        for region in list(sample.nominal_evt_yields.keys()):
             stitch_point = self.get_stitch_point(region)
-            for cut in sample.nominal_evt_yields[region].keys():
+            for cut in list(sample.nominal_evt_yields[region].keys()):
                 if cut < stitch_point:
                     yld, uncert = self.get_extrapolated_bin_content(region, stitch_point, lumi=lumi)
                     sample.nominal_evt_yields[region][cut] += yld
@@ -164,7 +208,7 @@ class ExtrapolationModule(object):
                         sample.nominal_evt_yields[region][cut] = Yield(yld)
 
                 sample.nominal_evt_yields[region][cut].extrapolated = True
-                uncert = uncert / sample.nominal_evt_yields[region][cut].sum()
+                uncert = old_div(uncert, sample.nominal_evt_yields[region][cut].sum())
                 sample.shape_uncerts[region][cut]['{:s}__1down'.format(uncert_name)] = 1. - uncert
                 sample.shape_uncerts[region][cut]['{:s}__1up'.format(uncert_name)] = 1. + uncert
 

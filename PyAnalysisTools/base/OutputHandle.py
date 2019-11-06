@@ -1,3 +1,5 @@
+from builtins import range
+from builtins import object
 import os
 import re
 import time
@@ -52,7 +54,7 @@ class SysOutputHandle(object):
         latest_link_path = os.path.join(self.base_output_dir, "latest")
         self._set_latest_link(latest_link_path)
         if overload:
-            latest_link_path_overload = os.path.join(self.base_output_dir, "latest_%s" % overload)
+            latest_link_path_overload = os.path.join(self.base_output_dir, 'latest_{:s}'.format(overload))
             self._set_latest_link(latest_link_path_overload)
 
 
@@ -74,7 +76,7 @@ class OutputHandle(SysOutputHandle):
                 _, file_name = os.path.split(abs_file_name)
                 ShellUtils.move(abs_file_name, os.path.join(self.output_dir, file_name))
             except IOError:
-                _logger.error("Unable to move %s to %s" % (abs_file_name, self.output_dir))
+                _logger.error("Unable to move {:s} to {:s}".format(abs_file_name, self.output_dir))
                 raise
         self.set_latest_link(overload)
 
@@ -105,20 +107,19 @@ class OutputFileHandle(SysOutputHandle):
             file_tag = '.root' if '.root' not in self.output_file_name else ''
             if self.output_tag is not None:
                 self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir,
-                                                                '_'.join([self.output_file_name,
-                                                                          self.output_tag])
-                                                                + file_tag), "RECREATE")
+                                                                "{0}{1}".format('_'.join([self.output_file_name,
+                                                                                          self.output_tag]), file_tag)),
+                                                   "RECREATE")
             else:
                 self.output_file = ROOT.TFile.Open(os.path.join(self.output_dir, self.output_file_name + file_tag),
                                                    "RECREATE")
             self.output_file.cd()
             self.attached = True
-        self.output_file.ls()
 
     def dump_canvas(self, canvas, name=None, tdir=None):
         if self.extension is None:
             return
-        #re-draw canvas to update internal reference in gPad
+        # re-draw canvas to update internal reference in gPad
         output_path = self.output_dir
         if tdir is not None:
             output_path = os.path.join(output_path, tdir)
@@ -148,17 +149,17 @@ class OutputFileHandle(SysOutputHandle):
                 continue
             c.SaveAs(os.path.join(output_path, name + self.extension))
 
-    #todo: quite fragile as assumptions on bucket size are explicitly taken
+    # todo: quite fragile as assumptions on bucket size are explicitly taken
     def _make_plot_book(self, bucket, counter, prefix="plot_book"):
         n = self.n_plots_per_page
         nx = int(round(math.sqrt(n)))
-        ny = int(math.ceil(n/float(nx)))
+        ny = int(math.ceil(n / float(nx)))
         if nx < ny:
-           nx, ny = ny, nx
-        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", nx*800, ny*600)
+            nx, ny = ny, nx
+        plot_book_canvas = retrieve_new_canvas("{:s}_{:d}".format(prefix, counter), "", nx * 800, ny * 600)
         plot_book_canvas.Divide(nx, ny)
         for i in range(len(bucket)):
-            plot_book_canvas.cd(i+1)
+            plot_book_canvas.cd(i + 1)
             if self.set_title_name:
                 bucket[i].SetTitle(bucket[i].GetName())
                 bucket[i].Update()
@@ -167,8 +168,8 @@ class OutputFileHandle(SysOutputHandle):
         return plot_book_canvas
 
     def make_plot_book(self):
-        all_canvases = filter(lambda obj: isinstance(obj, ROOT.TCanvas), self.objects.values())
-        ratio_plots = filter(lambda c: "ratio" in c.GetName(), all_canvases)
+        all_canvases = [obj for obj in list(self.objects.values()) if isinstance(obj, ROOT.TCanvas)]
+        ratio_plots = [c for c in all_canvases if "ratio" in c.GetName()]
         plots = list(set(all_canvases) - set(ratio_plots))
         plots.sort(key=lambda i: i.GetName())
         ratio_plots.sort(key=lambda i: i.GetName())
@@ -178,8 +179,8 @@ class OutputFileHandle(SysOutputHandle):
         self.dump_canvas([self._make_plot_book(plot_bucket, plots.index(plot_bucket)) for plot_bucket in plots],
                          self.plot_book_name)
         self.dump_canvas([self._make_plot_book(plot_bucket, ratio_plots.index(plot_bucket),
-                                               prefix=self.plot_book_name+"_ratio") for plot_bucket in ratio_plots],
-                         name=self.plot_book_name+"_ratio")
+                                               prefix=self.plot_book_name + "_ratio") for plot_bucket in ratio_plots],
+                         name=self.plot_book_name + "_ratio")
 
     def write_to_file(self, obj, tdir=None):
         if tdir is not None:
@@ -195,17 +196,17 @@ class OutputFileHandle(SysOutputHandle):
         if self.enable_make_plot_book:
             self.make_plot_book()
         self.attach_file()
-        for tdir, obj in self.objects.iteritems():
+        for tdir, obj in list(self.objects.items()):
             if isinstance(obj, ROOT.TCanvas) and not self.enable_make_plot_book:
                 self.dump_canvas(obj, tdir=tdir[0])
             self.write_to_file(obj, tdir[0])
         self.output_file.Write("0", ROOT.TObject.kOverwrite)
         self.output_file.Close()
-        _logger.info("Written file %s" % self.output_file.GetName())
+        _logger.info("Written file {:s}".format(self.output_file.GetName()))
         self.output_root_file_path = self.output_file.GetName()
 
     def register_object(self, obj, tdir=None, disable_clone=False):
-        _logger.debug("Adding object %s" % obj.GetName())
+        _logger.debug("Adding object {:s}".format(obj.GetName()))
         if tdir is not None and not tdir.endswith("/"):
             tdir += "/"
         if isinstance(obj, ROOT.TTree):

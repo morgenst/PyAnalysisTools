@@ -1,8 +1,7 @@
+from __future__ import print_function
 import unittest
 import yaml
 import os
-import PyAnalysisTools
-print PyAnalysisTools.__path__
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as YL
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as YD
 from PyAnalysisTools.base import _logger
@@ -26,7 +25,7 @@ class TestYAMLLoader(unittest.TestCase):
 
     def test_invalid_input_file(self):
         test_file = open("invalid_yaml_file.yml", "w+")
-        print >> test_file, "foo:--:\nsome invalid input"
+        print("foo:--:\nsome invalid input", file=test_file)
         test_file.close()
         self.assertRaises(Exception, YL.read_yaml, "invalid_yaml_file.yml")
 

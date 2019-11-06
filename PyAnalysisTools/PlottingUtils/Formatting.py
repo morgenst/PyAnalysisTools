@@ -1,3 +1,9 @@
+from __future__ import print_function
+from __future__ import division
+from builtins import zip
+from builtins import str
+from builtins import filter
+from past.utils import old_div
 import re
 import traceback
 
@@ -6,7 +12,6 @@ import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
-from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
 
 
 def load_atlas_style():
@@ -14,8 +19,8 @@ def load_atlas_style():
         base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
         ROOT.SetAtlasStyle()
-    except Exception as e:
-        print traceback.print_exc()
+    except Exception:
+        print(traceback.print_exc())
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
@@ -100,7 +105,8 @@ def decorate_canvas(canvas, plot_config, **kwargs):
                            size=kwargs['decor_text_size'])
 
     if plot_config.add_text is not None:
-        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]}, size=kwargs['add_text'][3])
+        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]},
+                           size=kwargs['add_text'][3])
 
 
 def check_valid_axis(axis):
@@ -263,13 +269,13 @@ def set_style_options(obj, style):
     allowed_attributes = ["marker", "line"]
     if not isinstance(style, dict):
         raise InvalidInputError("Invalid style config. Needs to be dictionary")
-    for style_object, style_options in style.items():
+    for style_object, style_options in list(style.items()):
         if style_object.lower() not in allowed_attributes:
             continue
         if not isinstance(style_options, dict):
-            raise InvalidInputError("Invalid style option for " + style_object + ". Requires dict, but received " +
-                                    str(type(style_options)))
-        for style_option, value in style_options.items():
+            raise InvalidInputError("Invalid style option for " + style_object + ". Requires dict, but received "
+                                    + str(type(style_options)))
+        for style_option, value in list(style_options.items()):
             getattr(obj, "Set" + style_object.capitalize() + style_option.capitalize())(value)
 
 
@@ -438,21 +444,44 @@ def set_minimum_x(graph_obj, minimum):
 
 
 def set_range_y(graph_obj, minimum, maximum):
+    if minimum >= maximum:
+        print('minmax:', minimum, maximum)
+        return
     if isinstance(graph_obj, ROOT.THStack):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
     elif isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.TGraph):
         if not isinstance(graph_obj, ROOT.TH2):
             graph_obj.SetMaximum(maximum)
+            graph_obj.SetMinimum(minimum)
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
-def set_range_z(graph_obj, minimum, maximum):
-    if isinstance(graph_obj, ROOT.TH1):
-        graph_obj.SetMaximum(maximum)
-        graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
+def set_range_z(graph_obj, minimum=None, maximum=None):
+    """
+    Set z-axis range for given plot object. If min/max is None take the current min/max of the axis
+    :param graph_obj: plottable object with z-axis
+    :type graph_obj: TH2
+    :param minimum: z-axis minimum (default: None)
+    :type minimum: float
+    :param maximum: z-axis maximum
+    :type maximum: float
+    :return: nothing
+    :rtype: None
+    """
+    if not isinstance(graph_obj, ROOT.TH1):
+        return
+    if minimum is None:
+        minimum = graph_obj.GetMinimum()
+    if maximum is None:
+        maximum = graph_obj.GetMaximum()
+
+    graph_obj.SetMinimum(minimum)
+    graph_obj.SetMaximum(maximum)
+    graph_obj.GetZaxis().SetLimits(minimum, maximum)
+    graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
 
 
 def set_range_x(graph_obj, minimum, maximum):
@@ -500,13 +529,13 @@ def get_min_max_y(canvas, plot_config):
     if plot_config.logy:
         y_scale_offset = plot_config.yscale_log
     plotted_obj = get_objects_from_canvas_by_type(canvas, ['TH1', 'TH2', 'THStack', 'TGraph'])
-    max_y = max(map(lambda o: get_max_y(o), plotted_obj))
+    max_y = max([get_max_y(o) for o in plotted_obj])
     if plot_config.ymax is not None:
         tmp_max = max_y
         if isinstance(plot_config.ymax, str):
             tmp_max = eval(plot_config.ymax)
         max_y = max(max_y, tmp_max)
-    min_y = max(map(lambda o: get_min_y(o), plotted_obj))
+    min_y = max([get_min_y(o) for o in plotted_obj])
     if plot_config.ymin is not None:
         min_y = plot_config.ymin
     if plot_config.logy:
@@ -534,8 +563,8 @@ def get_legend(lines, max_length_label, **kwargs):
     position = kwargs['position']
     if kwargs['ratio'] is True:
         scale = 0.0625
-        if lines > 9 or max_length_label > (25 / columns) or columns > 3:
-            if lines > 9 or max_length_label > (30 / columns) or columns > 3:
+        if lines > 9 or max_length_label > (old_div(25, columns)) or columns > 3:
+            if lines > 9 or max_length_label > (old_div(30, columns)) or columns > 3:
                 text_size = 0.04
                 x_min = 0.55
             else:
@@ -546,8 +575,8 @@ def get_legend(lines, max_length_label, **kwargs):
             x_min = 0.6
     else:
         scale = 0.04687
-        if lines > 9 or max_length_label > (25 / columns) or columns > 3:
-            if lines > 9 or max_length_label > (30 / columns) or columns > 3:
+        if lines > 9 or max_length_label > (old_div(25, columns)) or columns > 3:
+            if lines > 9 or max_length_label > (old_div(30, columns)) or columns > 3:
                 text_size = 0.03
                 x_min = 0.55
             else:
@@ -558,9 +587,9 @@ def get_legend(lines, max_length_label, **kwargs):
             x_min = 0.6
     if position == 0 or position == 'c':
         leg_x = (max(0.3, 0.5 - columns * 0.1), min(0.7, 0.5 + columns * 0.1))
-        leg_y = (max(0.3, 0.5 - lines * scale / 2), min(0.7, 0.5 + lines * scale / 2))
+        leg_y = (max(0.3, 0.5 - old_div(lines * scale, 2)), min(0.7, 0.5 + old_div(lines * scale, 2)))
     elif position == 1 or position == 'ur':
-        if max_length_label > (25 / columns) or columns > 2:
+        if max_length_label > (old_div(25, columns)) or columns > 2:
             leg_x = (x_min, 0.72)
         else:
             leg_x = (max(x_min, 0.72 - columns * 0.1), min(0.92, 0.72 + columns * 0.1))
@@ -568,13 +597,13 @@ def get_legend(lines, max_length_label, **kwargs):
         # leg_y = (max(0.52, 0.72 - lines * 0.0625 / 2), min(0.92, 0.72 + lines * 0.0625 / 2))
     elif position == 2 or position == 'ul':  # upper left
         leg_x = (max(0.08, 0.28 - columns * 0.1), min(0.48, 0.28 + columns * 0.1))
-        leg_y = (max(0.52, 0.72 - lines * scale / 2), min(0.92, 0.72 + lines * scale / 2))
+        leg_y = (max(0.52, 0.72 - old_div(lines * scale, 2)), min(0.92, 0.72 + old_div(lines * scale, 2)))
     elif position == 3 or position == 'll':
         leg_x = (max(0.08, 0.28 - columns * 0.1), min(0.48, 0.28 + columns * 0.1))
-        leg_y = (max(0.08, 0.28 - lines * scale / 2), min(0.48, 0.28 + lines * scale / 2))
+        leg_y = (max(0.08, 0.28 - old_div(lines * scale, 2)), min(0.48, 0.28 + old_div(lines * scale, 2)))
     elif position == 4 or position == 'lr':
         leg_x = (max(0.52, 0.72 - columns * 0.1), min(0.92, 0.72 + columns * 0.1))
-        leg_y = (max(0.08, 0.28 - lines * scale / 2), min(0.48, 0.28 + lines * scale / 2))
+        leg_y = (max(0.08, 0.28 - old_div(lines * scale, 2)), min(0.48, 0.28 + old_div(lines * scale, 2)))
     else:
         leg_x = (kwargs["xl"], kwargs["xh"])
         leg_y = (kwargs["yl"], kwargs["yh"])
@@ -668,7 +697,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     if "labels" in kwargs:
         labels = kwargs["labels"]
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
-        if not "plot_objects" in kwargs:
+        if "plot_objects" not in kwargs:
             plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
             plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
             plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
@@ -681,12 +710,12 @@ def add_legend_to_canvas(canvas, **kwargs):
     else:
         labels = {}
         plot_objects = []
-        for hist_pattern, lab in kwargs["labels"].iteritems():
+        for hist_pattern, lab in list(kwargs["labels"].items()):
             plot_objects.append(get_objects_from_canvas_by_name(canvas, hist_pattern)[0])
             labels[get_objects_from_canvas_by_name(canvas, hist_pattern)[0].GetName()] = lab
 
     stacked_objects = None
-    if len(stacks) is not 0:
+    if len(stacks) != 0:
         stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
 
@@ -700,11 +729,13 @@ def add_legend_to_canvas(canvas, **kwargs):
             try:
                 process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
                 if process_config is None:
-                    process_config = filter(lambda pn: pn[0] in plot_obj.GetName(), kwargs['process_configs'].iteritems())[0][1]
+                    process_config = sorted([pn for pn in kwargs['process_configs'] if pn[0] in plot_obj.GetName()],
+                                            key=lambda i: len(i[0]))[-1][1]
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
-                print 'Could not find process label for ', plot_obj.GetName().split("_")[-1]
+                _logger.error('Could not find process label for object {:s} with parsed '
+                              'name {:s}'.format(plot_obj.GetName(), plot_obj.GetName().split("_")[-1]))
                 pass
             if label is None:
                 continue
@@ -716,7 +747,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     if isinstance(labels, list):
         legend = get_legend(len(plot_objects), len(max(labels, key=len)), **kwargs)
     else:
-        #TODO: For what is this needed?
+        # TODO: For what is this needed?
         legend = get_legend(len(plot_objects), labels, **kwargs)
 
     plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
@@ -751,7 +782,7 @@ def format_canvas(canvas, **kwargs):
     :type margin: dict
     """
     if "margin" in kwargs:
-        for side, margin in kwargs["margin"].iteritems():
+        for side, margin in list(kwargs["margin"].items()):
             getattr(canvas, "Set{:s}Margin".format(side.capitalize()))(margin)
     canvas.Modified()
     canvas.Update()

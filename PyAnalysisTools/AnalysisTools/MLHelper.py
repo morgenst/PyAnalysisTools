@@ -1,24 +1,31 @@
-import root_numpy
-import numpy as np
-import pandas as pd
-import pickle
-import ROOT
+from __future__ import division
+
 import os
-from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
-import PyAnalysisTools.PlottingUtils.PlottingTools as pt
-import PyAnalysisTools.PlottingUtils.Formatting as fm
-from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils import set_batch_mode
+import pickle
+
+import numpy as np
+import root_numpy
+from builtins import object
+from builtins import range
+from past.utils import old_div
 from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
+
+import PyAnalysisTools.PlottingUtils.Formatting as fm
+import PyAnalysisTools.PlottingUtils.PlottingTools as pt
+import ROOT
+from PyAnalysisTools.PlottingUtils import set_batch_mode
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
+from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
+from PyAnalysisTools.base.FileHandle import FileHandle
+from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
 
 class MLConfig(object):
     """
     Class containing configration of ML classifier
     """
+
     def __init__(self, **kwargs):
         kwargs.setdefault('scaler', None)
         self.score_name = kwargs['branch_name']
@@ -54,7 +61,7 @@ class MLConfig(object):
         :rtype: boolean
         """
         if isinstance(self, other.__class__):
-            for k, v in self.__dict__.iteritems():
+            for k, v in list(self.__dict__.items()):
                 if k not in other.__dict__:
                     return False
                 if k == 'scaler':
@@ -81,6 +88,7 @@ class MLConfigHandle(object):
     """
     Handle to create and add ML configuration to summary file in friend directory
     """
+
     def __init__(self, **kwargs):
         self.config = MLConfig(**kwargs)
         self.output_path = kwargs['output_path']
@@ -176,7 +184,8 @@ class TrainingReader(object):
         self.bkg_tree_names = kwargs["bkg_tree_names"]
 
     def get_trees(self):
-        signal_train_tree_names, bkg_train_tree_names, signal_eval_tree_names, bkg_eval_tree_names = self.parse_tree_names()
+        signal_train_tree_names, bkg_train_tree_names, signal_eval_tree_names, bkg_eval_tree_names = \
+            self.parse_tree_names()
         signal_train_trees = self.read_tree(signal_train_tree_names)
         signal_eval_trees = self.read_tree(signal_eval_tree_names)
         bkg_train_trees = self.read_tree(bkg_train_tree_names)
@@ -193,11 +202,11 @@ class TrainingReader(object):
             self.expand_tree_names(self.bkg_tree_names)
         signal_train_tree_names = ["train_{:s}".format(signal_tree_name) for signal_tree_name in self.signal_tree_names]
         background_train_tree_names = ["train_{:s}".format(background_tree_name) for background_tree_name in
-                                           self.bkg_tree_names]
+                                       self.bkg_tree_names]
         signal_eval_tree_names = ["eval_{:s}".format(signal_tree_name) for signal_tree_name in
-                                       self.signal_tree_names]
+                                  self.signal_tree_names]
         background_eval_tree_names = ["eval_{:s}".format(background_tree_name) for background_tree_name in
-                                           self.bkg_tree_names]
+                                      self.bkg_tree_names]
         return signal_train_tree_names, background_train_tree_names, signal_eval_tree_names, background_eval_tree_names
 
     def expand_tree_names(self, tree_names):
@@ -207,8 +216,9 @@ class TrainingReader(object):
             if not tree_name.startswith("re."):
                 continue
             pattern = "train_" + tree_name.replace("re.", "").replace("*", ".*")
-            expanded_tree_names += list(set(map(lambda name: str.replace(name, "train_", ""),
-                                       map(lambda obj: obj.GetName(), self.input_file.get_objects_by_pattern(pattern)))))
+            expanded_tree_names += list(set([str.replace(name, "train_", "")
+                                             for name in [obj.GetName()
+                                                          for obj in self.input_file.get_objects_by_pattern(pattern)]]))
             tree_names_to_remove.append(tree_name)
         for tree_name in tree_names_to_remove:
             tree_names.remove(tree_name)
@@ -236,17 +246,18 @@ class MLAnalyser(object):
 
     def read_score(self, selection=None):
         trees = {fh.process: fh.get_object_by_name(self.tree_name, "Nominal") for fh in self.file_handles}
-        arrays = {process: self.converter.convert_to_array(tree, selection=selection) for process, tree in trees.iteritems()}
+        arrays = {process: self.converter.convert_to_array(tree, selection=selection) for process, tree in
+                  list(trees.items())}
         signals = []
         backgrounds = []
 
-        for process_name in trees.keys():
+        for process_name in list(trees.keys()):
             _ = find_process_config(process_name, self.process_configs)
-        for process, process_config in self.process_configs.iteritems():
+        for process, process_config in list(self.process_configs.items()):
             if not hasattr(process_config, "subprocesses"):
                 continue
             for sub_process in process_config.subprocesses:
-                if sub_process not in arrays.keys():
+                if sub_process not in list(arrays.keys()):
                     continue
                 if process_config.type.lower() == "signal":
                     signals.append(arrays[sub_process])
@@ -268,10 +279,10 @@ class MLAnalyser(object):
                                                                            np.percentile(signal, 100. - eff)))
         cuts = [np.percentile(signal, 100. - eff) for eff in efficiencies]
         signal_total = sum(signal)
-        signal_eff = [np.sum(signal[signal < cut] / signal_total) for cut in cuts]
+        signal_eff = [np.sum(old_div(signal[signal < cut], signal_total)) for cut in cuts]
 
         bkg_total = sum(background)
-        bkg_rej = [1. - np.sum(background[background < cut] / bkg_total) for cut in cuts]
+        bkg_rej = [1. - np.sum(old_div(background[background < cut], bkg_total)) for cut in cuts]
         curve = ROOT.TGraph(len(efficiencies))
         curve.SetName("roc_curve")
         for b in range(len(efficiencies)):

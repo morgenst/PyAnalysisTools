@@ -1,14 +1,22 @@
+from __future__ import unicode_literals
+
+from builtins import str
+from builtins import map
+from builtins import object
+from future.utils import python_2_unicode_compatible
 import re
 from PyAnalysisTools.base import _logger
 
 data_streams = ['physics_Late', 'physics_Main']
 
 
+@python_2_unicode_compatible
 class Process(object):
     """
     Class defining a physics process
     """
-    def __init__(self, file_name, dataset_info, process_name=None):
+
+    def __init__(self, file_name, dataset_info, process_name=None, tags=[], cut=None):
         """
         Constructor
         :param file_name: name of input file
@@ -17,13 +25,16 @@ class Process(object):
         :type dataset_info: dict
         """
         self.dataset_info = dataset_info
+        self.file_name = file_name
         self.stream = None
         self.is_mc = False
         self.is_data = False
         self.dsid = None
         self.mc_campaign = None
+        self.cut = cut
+        self.tags = re.compile('-?|'.join(map(re.escape, ['hist', 'ntuple'] + tags + [''])))
         if file_name is not None:
-            self.base_name = file_name.replace('hist-', '').replace('ntuple-', '').replace('.root', '')
+            self.base_name = self.tags.sub('', file_name).lstrip('-').replace('.root', '')
         else:
             self.base_name = None
         self.year = None
@@ -31,6 +42,8 @@ class Process(object):
         self.process_name = process_name
         if file_name is not None:
             self.parse_file_name(self.base_name.split('/')[-1])
+        if self.cut is not None:
+            self.process_name += self.cut
 
     def __str__(self):
         """
@@ -39,8 +52,26 @@ class Process(object):
         :rtype: str
         """
         obj_str = str(self.process_name)
-        obj_str += ' parsed from file name {:s}'.format(self.base_name)
+        obj_str += ' parsed from file name {:s}'.format(self.file_name)
         return obj_str
+
+    def __unicode__(self):
+        """
+        Overloaded unicode str operator. Get's called if object is printed
+        :return: formatted string with name and attributes
+        :rtype: str
+        """
+        obj_str = str(self.process_name)
+        obj_str += ' parsed from file name {:s}'.format(self.file_name)
+        return obj_str
+
+    def __format__(self, format_spec):
+        """
+        Overloaded format operated called when formatted string output is requested.
+        :param format_spec:
+        :return: unicode str
+        """
+        return self.__unicode__()
 
     def __eq__(self, other):
         """
@@ -51,10 +82,10 @@ class Process(object):
         :rtype: boolean
         """
         if isinstance(self, other.__class__):
-            for k, v in self.__dict__.iteritems():
+            for k, v in list(self.__dict__.items()):
                 if k not in other.__dict__:
                     return False
-                if k in ['base_name', 'dataset_info']:
+                if k in ['base_name', 'dataset_info', 'file_name', 'tags']:
                     continue
                 if self.__dict__[k] != other.__dict__[k]:
                     return False
@@ -88,7 +119,7 @@ class Process(object):
         elif re.match(r'\d{6}', file_name):
             self.set_mc_name(file_name)
         else:
-            _logger.warning("No dedicated parsing found. Assume MC and run simplified")
+            _logger.debug("No dedicated parsing found. Assume MC and run simplified")
             self.set_mc_name(file_name)
 
     def set_data_name(self, file_name):
@@ -117,11 +148,10 @@ class Process(object):
         """
         self.is_mc = True
         try:
-            self.dsid = re.match('\d{6}', file_name).group(0)
+            self.dsid = re.search(r'\d{6,}', file_name).group(0)
         except AttributeError:
-
             pass
-        if re.match('\d{6}', file_name):
+        if re.search(r'\d{6,}', file_name):
             self.parse_from_dsid()
         else:
             self.process_name = file_name
@@ -134,10 +164,10 @@ class Process(object):
         :rtype: None
         """
         if self.dataset_info is None:
-            self.process_name = dsid
+            self.process_name = self.dsid
             return
         try:
-            tmp = filter(lambda l: l.dsid == int(self.dsid), self.dataset_info.values())
+            tmp = [l for l in list(self.dataset_info.values()) if l.dsid == int(self.dsid)]
         except ValueError:
             _logger.error("Could not find {:d}".format(self.dsid))
         if len(tmp) == 1:
@@ -184,9 +214,9 @@ class ProcessConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
-        self.transform_type()
+        self.is_data, self.is_mc = self.transform_type()
 
     def __str__(self):
         """
@@ -195,7 +225,7 @@ class ProcessConfig(object):
         :rtype: str
         """
         obj_str = "Process config: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             obj_str += '{}={} \n'.format(attribute, value)
         return obj_str
 
@@ -208,23 +238,39 @@ class ProcessConfig(object):
         return self.__str__() + '\n'
 
     def transform_type(self):
+        """
+        Initialise MC or data type
+        :return: pair of TRUE/FALSE for is_data and is_mc
+        :rtype: (bool, bool)
+        """
         if "data" in self.type.lower():
-            self.is_data = True
-            self.is_mc = False
+            return True, False
         else:
-            self.is_data = False
-            self.is_mc = True
+            return False, True
 
     def retrieve_subprocess_config(self):
+        """
+        Retrieve all sub-process configurations
+        :return: sub-process configs
+        :rtype: dict
+        """
         tmp = {}
         if not hasattr(self, "subprocesses"):
             return tmp
         for sub_process in self.subprocesses:
-            tmp[sub_process] = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+            tmp[sub_process] = ProcessConfig(
+                **dict((k, v) for (k, v) in list(self.__dict__.items()) if not k == "subprocesses"))
         return tmp
 
     def add_subprocess(self, subprocess_name):
+        """
+        Add a sub-process to process and propagate config to it
+        :param subprocess_name: name of sub-process
+        :type subprocess_name: str
+        :return:
+        :rtype:
+        """
         self.subprocesses.append(subprocess_name)
-        pc = ProcessConfig(**dict((k, v) for (k, v) in self.__dict__.iteritems() if not k == "subprocesses"))
+        pc = ProcessConfig(**dict((k, v) for (k, v) in list(self.__dict__.items()) if not k == "subprocesses"))
         pc.parent_process = self.name
         return pc

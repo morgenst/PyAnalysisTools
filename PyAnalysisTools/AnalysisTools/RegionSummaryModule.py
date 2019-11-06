@@ -14,7 +14,7 @@ class RegionSummaryModule(object):
         self.hist = self.build_hist()
         self.plot_config = kwargs["plot_configs"][0]
         self.type = "HistFetching"
-        self.pc = PlotConfig(name="weighted_yield", dist="weight > 0", weight="weight",  bins=1, xmin=0, xmax=100000)
+        self.pc = PlotConfig(name="weighted_yield", dist="weight > 0", weight="weight", bins=1, xmin=0, xmax=100000)
         self.plotter = BasePlotter(input_files=[], plot_config_files=[], **kwargs)
 
     def build_hist(self):

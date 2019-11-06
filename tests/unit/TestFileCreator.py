@@ -1,6 +1,4 @@
-__author__ = 'marcusmorgenstern'
-__mail__ = ''
-
+from builtins import object
 import ROOT
 import sys
 import argparse

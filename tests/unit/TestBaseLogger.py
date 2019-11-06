@@ -25,4 +25,3 @@ class TestLogger(unittest.TestCase):
     def test_get_help_message(self):
         msg = "Log level. Options: [info, warning, error, debug]"
         self.assertEqual(Logger.get_help_msg(), msg)
-

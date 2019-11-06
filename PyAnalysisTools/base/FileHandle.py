@@ -1,37 +1,20 @@
+from __future__ import print_function
+from __future__ import unicode_literals
+from builtins import bytes
+from builtins import object
 import os
 import re
 import time
 from ROOT import TFile
-from PyAnalysisTools.base import _logger, InvalidInputError
+from builtins import str
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
-from PyAnalysisTools.AnalysisTools.XSHandle import DataSetStore
+try:
+    from PyAnalysisTools.AnalysisTools.DataStorePy3 import DataSetStore
+except SyntaxError:
+    from PyAnalysisTools.AnalysisTools.DataStorePy2 import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
-
-_memoized = {}
-
-
-def get_id_tuple(f, args, kwargs, mark=object()):
-    l = [hash(f)]
-    for arg in args:
-        l.append(hash(arg))
-    l.append(id(mark))
-    for k, v in kwargs.iteritems():
-        l.append(k)
-        l.append(id(v))
-    return tuple(l)
-
-
-def memoize(f):
-    """
-    Some basic memoizer
-    """
-    def memoized(*args, **kwargs):
-        key = get_id_tuple(f, args, kwargs)
-        if key not in _memoized:
-            _memoized[key] = f(*args, **kwargs)
-        return _memoized[key]
-    return memoized
 
 
 class FileHandle(object):
@@ -41,7 +24,7 @@ class FileHandle(object):
         kwargs.setdefault("open_option", "READ")
         kwargs.setdefault("run_dir", None)
         kwargs.setdefault("switch_off_process_name_analysis", False)
-        kwargs.setdefault("friend_directory", None)
+        kwargs.setdefault('friend_directory', None)
         kwargs.setdefault("friend_pattern", None)
         kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("split_mc", False)
@@ -49,15 +32,16 @@ class FileHandle(object):
         self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
         self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
         self.absFName = os.path.join(self.path, self.file_name)
-        #todo: inefficient as each file handle holds dataset_info. should be retrieved from linked store
         self.dataset_info = None
         if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
-            self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
+            if isinstance(kwargs['dataset_info'], dict):
+                self.dataset_info = kwargs['dataset_info']
+            else:
+                self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
         self.open_option = kwargs["open_option"]
         self.tfile = None
         self.initial_file_name = None
         self.run_dir = kwargs["run_dir"]
-        self.open()
         self.year = None
         self.period = None
         self.is_data = False
@@ -81,7 +65,6 @@ class FileHandle(object):
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
             self.friend_pattern = [self.friend_pattern]
         if "ignore_process_name" not in kwargs:
-            #self.process = self.parse_process()
             self.process = Process(self.file_name, self.dataset_info)
             if self.process is not None:
                 if self.mc16a:
@@ -97,12 +80,12 @@ class FileHandle(object):
         self.trees_with_friends = None
 
     def open(self, file_name=None):
+        if self.tfile is not None and self.tfile.IsOpen():
+            return
         if file_name is not None:
             return TFile.Open(file_name, "READ")
         if not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
-        if self.tfile is not None and self.tfile.IsOpen():
-            return
         if self.open_option.lower() == "update" and self.run_dir is not None:
             self.initial_file_name = self.file_name
             copy_dir = os.path.join(self.run_dir, self.file_name.split("/")[-2])
@@ -117,111 +100,46 @@ class FileHandle(object):
         self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
 
     def __del__(self):
-        #_logger.debug("Delete file handle for {:s}".format(self.tfile.GetName()))
+        if self.tfile is None:
+            return
+        _logger.log(0, "Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
     def close(self):
         if self.tfile is None or not self.tfile.IsOpen():
             return
-        _logger.debug("Closing file {:s}".format(self.tfile.GetName()))
+        _logger.log(0, "Closing file {:s}".format(self.tfile.GetName()))
         self.tfile.Close()
         if self.initial_file_name is not None:
             move(self.file_name, self.initial_file_name)
 
-    def parse_process(self):
-        def analyse_process_name():
-            print 'NOW ANALYSIS PROCESS NAME'
-            if "user.shanisch" in process_name:
-                self.year = process_name.split(".")[2]
-                self.period = "periodB"
-                return ".".join([self.year, self.period])    
-            if "data" in process_name:
-                try:
-                    self.year, _, self.period = process_name.split("_")[0:3]
-                    self.is_data = True
-                    return ".".join([self.year, self.period])
-                except ValueError:
-                    tmp_name = process_name
-                    tmp_name.replace('ntuple-', '').replace('hist-', '')
-                    _logger.warning("Unable to parse year and period from sample name {:s}".format(process_name))
-                    return "Data"
-            if self.dataset_info is not None:
-                try:
-                    tmp = filter(lambda l: l.dsid == int(process_name), self.dataset_info.values())
-                except ValueError:
-                    tmp = filter(lambda l: hasattr(l, "process_name") and l.process_name == process_name,
-                                 self.dataset_info.values())
-                if len(tmp) == 1:
-                    self.is_mc = True
-                    return tmp[0].process_name
-            if process_name.isdigit():
-                print "Could not find config for ", process_name
-                return None
-                # self.is_data = True
-                # return "Data"
-
-        def simple_process_analysis(file_name):
-            return file_name.replace('hist-', '').replace('ntuple-', '').replace('.root')
-
-        if "mc16a" in self.file_name.lower():
-            self.mc16a = True
-            self.mc_campaign = 'mc16a'
-        if "mc16c" in self.file_name.lower():
-            self.mc16c = True
-            self.mc_campaign = 'mc16c'
-        if "mc16d" in self.file_name.lower():
-            self.mc16d = True
-            self.mc_campaign = 'mc16d'
-        if "mc16e" in self.file_name.lower():
-            self.mc16e = True
-            self.mc_campaign = 'mc16e'
-        process_name = self.file_name.split("-")[-1].split(".")[0]
-        if 'physics_Late' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Late')
-        if 'physics_CosmicCalo' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_CosmicCalo')
-        if 'physics_Background' in self.file_name and 'TeV.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_data = True
-            return "{:s}_{:s}_{:s}".format(process_name, file_name.split(".")[-2], 'physics_Background')
-        if "physics_Main" in self.file_name and '_cos.' in self.file_name:
-            file_name = self.file_name.split("/")[-1]
-            self.is_cosmics = True
-            return simple_process_analysis(file_name)
-            return "{:s}_{:s}".format(process_name, file_name.split(".")[-2])
-        if self.switch_off_process_name_analysis:
-            return process_name
-        process_name = re.sub(r"(\_\d+)$", "", process_name)
-        analysed_process_name = analyse_process_name()
-        if analysed_process_name is None:
-            process_name = self.file_name.split("/")[-2]
-            analysed_process_name = analyse_process_name()
-        return analysed_process_name
-
     def get_directory(self, directory):
+        self.open()
         if directory is None:
             return self.tfile
         try:
-            return self.tfile.Get(directory)
+            try:
+                return self.tfile.Get(bytes(directory, encoding='utf8'))
+            except TypeError:
+                # python3
+                return self.tfile.Get(directory)
         except Exception as e:
-            print e.msg()
+            print(str(e))
+            raise e
 
     def get_objects(self, tdirectory=None):
+        self.open()
         objects = []
         tdir = self.tfile
         if tdirectory is not None:
             tdir = self.get_directory(tdirectory)
         for obj in tdir.GetListOfKeys():
-            objects.append(tdir.Get(obj.GetName()))
+            objects.append(tdir.Get(obj.GetName()))  # , encoding='utf8'
         return objects
 
     def get_objects_by_type(self, typename, tdirectory=None):
         obj = self.get_objects(tdirectory)
-        obj = filter(lambda t: t.InheritsFrom(typename), obj)
+        obj = [t for t in obj if t.InheritsFrom(typename)]
         return obj
 
     def get_objects_by_pattern(self, pattern, tdirectory=None):
@@ -258,17 +176,20 @@ class FileHandle(object):
                     tdir = self.get_object_by_name(tdirectory)
             except ValueError as e:
                 raise e
-        obj = tdir.Get(obj_name)
+        try:
+            # python2 w/ future
+            obj = tdir.Get(bytes(obj_name, encoding='utf8'))
+        except TypeError:
+            # python3
+            obj = tdir.Get(obj_name)
         if not obj.__nonzero__():
-            raise ValueError("Object {:s} does not exist in directory {:s} in file {:s}".format(obj_name,
-                                                                                                tdirectory,
-                                                                                                os.path.join(self.path,
-                                                                                                             self.file_name)))
+            raise ValueError("Object {:s} does not exist in directory {:s} "
+                             "in file {:s}".format(obj_name, str(tdirectory), os.path.join(self.path, self.file_name)))
         return obj
 
     def get_number_of_total_events(self, unweighted=False):
         try:
-            cutflow_hist = self.get_object_by_name("Nominal/cutflow_DxAOD")
+            cutflow_hist = self.get_object_by_name('cutflow_DxAOD', tdirectory='Nominal')
             if unweighted:
                 return cutflow_hist.GetBinContent(1)
             return cutflow_hist.GetBinContent(2)
@@ -299,8 +220,9 @@ class FileHandle(object):
             _logger.error("No friend tree names provided, but requested to link them.")
             return
         for friend_file in self.friend_files:
-            friend_trees = filter(lambda t: t is not None,
-                                  [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names])
+            friend_trees = [t for t in
+                            [self.get_object_by_name(tn, tdirectory, friend_file) for tn in self.friend_tree_names] if
+                            t is not None]
             if self.trees_with_friends is None:
                 self.trees_with_friends = []
             for tree in friend_trees:
@@ -328,11 +250,11 @@ class FileHandle(object):
         base_file_name = self.file_name.split("/")[-1]
         for pattern in self.friend_pattern:
             try:
-                friend_fn = filter(lambda fn: fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern),
-                                  available_files)[0]
+                friend_fn = [fn for fn in available_files
+                             if fn == base_file_name.replace("ntuple", pattern).replace("hist", pattern)][0]
                 self.friends.append(os.path.join(directory, friend_fn))
             except IndexError:
-                _logger.error("Could not find friend for ", base_file_name)
+                _logger.error("Could not find friend for {:s}".format(base_file_name))
 
     @staticmethod
     def release_object_from_file(obj):

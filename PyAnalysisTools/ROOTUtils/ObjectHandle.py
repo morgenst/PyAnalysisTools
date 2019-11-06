@@ -1,3 +1,4 @@
+from builtins import map
 import re
 from PyAnalysisTools.base import _logger
 
@@ -12,7 +13,7 @@ def get_objects_from_canvas(canvas):
     """
 
     if len(canvas.GetListOfPrimitives()) == 0:
-        _logger.warn('Provided empty canvas')
+        _logger.warning('Provided empty canvas')
         return []
     obj = [canvas.GetPrimitive(key.GetName()) for key in canvas.GetListOfPrimitives()]
     return obj
@@ -28,13 +29,13 @@ def get_objects_from_canvas_by_type(canvas, typename):
     :return: objects of type typename in canvas
     :rtype: list[typename]
     """
-    
+
     obj = get_objects_from_canvas(canvas)
-    obj = filter(lambda o: o is not None, obj)
+    obj = [o for o in obj if o is not None]
     if isinstance(typename, list):
-        obj = filter(lambda o: any(o.InheritsFrom(t) for t in typename), obj)
+        obj = [o for o in obj if any(o.InheritsFrom(t) for t in typename)]
     else:
-        obj = filter(lambda o: o.InheritsFrom(typename), obj)
+        obj = [o for o in obj if o.InheritsFrom(typename)]
     return obj
 
 
@@ -52,8 +53,8 @@ def get_objects_from_canvas_by_name(canvas, name):
     objects = get_objects_from_canvas(canvas)
     if not isinstance(name, list):
         name = [name]
-    patterns = map(re.compile, name)
-    objects = filter(lambda obj: any(re.search(pattern, obj.GetName()) for pattern in patterns), objects)
+    patterns = list(map(re.compile, name))
+    objects = [obj for obj in objects if any(re.search(pattern, obj.GetName()) for pattern in patterns)]
     if len(objects) == 0:
         return None
     return objects

@@ -1,4 +1,7 @@
-import pickle
+from __future__ import print_function
+
+import sys
+from builtins import object
 import re
 from collections import OrderedDict
 
@@ -7,8 +10,10 @@ import traceback
 from copy import deepcopy
 from functools import partial
 from itertools import product
+
+from PyAnalysisTools.AnalysisTools.XSHandle import get_xsec_weight
 from PyAnalysisTools.base import _logger
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
@@ -22,7 +27,6 @@ class BasePlotter(object):
         self.plot_configs = None
         self.lumi = None
         kwargs.setdefault("batch", True)
-        #kwargs.setdefault("process_config_file", None) #deprecated, for now kept for backwards compatibility
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("xs_config_file", None)
         kwargs.setdefault("read_hist", False)
@@ -46,12 +50,12 @@ class BasePlotter(object):
             self.file_handles = []
             return
 
-        for attr, value in kwargs.iteritems():
+        for attr, value in list(kwargs.items()):
             setattr(self, attr.lower(), value)
         if not isinstance(self.plot_config_files, list):
             self.plot_config_files = [self.plot_config_files]
         set_batch_mode(kwargs["batch"])
-        self.process_configs = self.parse_process_config()
+        self.process_configs = parse_and_build_process_config(self.process_config_files)
         self.parse_plot_config()
         self.split_mc_campaigns = False
         if self.plot_configs is not None and any([not pc.merge_mc_campaigns for pc in self.plot_configs]) \
@@ -66,7 +70,8 @@ class BasePlotter(object):
             input_files = self.input_file_list
         if not kwargs['skip_fh_reading']:
             self.file_handles = [FileHandle(file_name=input_file, dataset_info=kwargs["xs_config_file"],
-                                            split_mc=self.split_mc_campaigns, friend_directory=kwargs["friend_directory"],
+                                            split_mc=self.split_mc_campaigns,
+                                            friend_directory=kwargs["friend_directory"],
                                             switch_off_process_name_analysis=False,
                                             friend_tree_names=kwargs["friend_tree_names"],
                                             friend_pattern=kwargs["friend_file_pattern"])
@@ -75,23 +80,6 @@ class BasePlotter(object):
 
     def cluster_setup(self, config):
         self.file_handles = [FileHandle(file_name=config.file_name, dataset_info=config.extra_args["xs_config_file"])]
-
-    def parse_process_config(self):
-        """
-        Parse process config file and build process configs
-        :return: list of build process configs from config file
-        :rtype: list
-        """
-        if self.process_config_files is None: # and self.process_config_file is None:
-            return None
-        # if self.process_config_file is not None:
-        #     _logger.error("Single Process configs are deprecated. Please update you argument parser to "
-        #                   "process_config_files (NOTE the additional s).")
-        # if self.process_config_files is None:
-        #     process_config = parse_and_build_process_config(self.process_config_file)
-        # else:
-        process_config = parse_and_build_process_config(self.process_config_files)
-        return process_config
 
     def parse_plot_config(self):
         _logger.debug("Try to parse plot config file")
@@ -121,7 +109,7 @@ class BasePlotter(object):
 
         if not load_friend:
             return
-        self.file_handles = filter(lambda fh: len(fh.friends) > 0 or fh.is_data, self.file_handles)
+        self.file_handles = [fh for fh in self.file_handles if len(fh.friends) > 0 or fh.is_data]
 
     @staticmethod
     def load_atlas_style():
@@ -144,30 +132,20 @@ class BasePlotter(object):
         :rtype: None
         """
         provided_wrong_info = False
-        for plot_config, hist_set in histograms.iteritems():
-            for process, hist in hist_set.iteritems():
+        for plot_config, hist_set in list(histograms.items()):
+            for process, hist in list(hist_set.items()):
                 if hist is None:
                     _logger.error("Histogram for process {:s} is None".format(process))
                     continue
                 if process.is_data:
                     continue
-
-                lumi = self.lumi
+                cross_section_weight = get_xsec_weight(self.lumi, process, self.xs_handle, self.event_yields)
                 if isinstance(self.lumi, OrderedDict):
                     if re.search('mc16[acde]$', process.mc_campaign) is None:
                         if provided_wrong_info is False:
-                            _logger.error('Could not find MC campaign information, but lumi was provided per MC '
-                                          'campaing. Not clear what to do. It will be assumed that you meant to scale '
-                                          'to total lumi. Please update and acknowledge once.')
-                            raw_input('Hit enter to continue or Ctrl+c to quit...')
-                            provided_wrong_info = True
-                            plot_config.used_mc_campaigns = self.lumi.keys()
-                        lumi = sum(self.lumi.values())
+                            plot_config.used_mc_campaigns = list(self.lumi.keys())
                     else:
-                        lumi = self.lumi[process.mc_campaign]
                         plot_config.used_mc_campaigns.append(process.mc_campaign)
-                cross_section_weight = self.xs_handle.get_lumi_scale_factor(process.process_name, lumi,
-                                                                            self.event_yields[process])
                 ht.scale(hist, cross_section_weight)
 
     def read_cutflows(self):
@@ -180,37 +158,19 @@ class BasePlotter(object):
         for file_handle in self.file_handles:
             process = file_handle.process
             if process is None:
-                _logger.warning("Could not parse process for file {:s}". format(file_handle.file_name))
+                _logger.warning("Could not parse process for file {:s}".format(file_handle.file_name))
                 continue
             if file_handle.process in self.event_yields:
                 self.event_yields[process] += file_handle.get_number_of_total_events()
             else:
                 self.event_yields[process] = file_handle.get_number_of_total_events()
-        #temporary patch due to missing
-        # with open('/user/mmorgens/workarea/devarea/rel21/Multilepton/source/ELMultiLep/macros/LQ_v25.pkl', 'r') as f:
-        #     old_yields = pickle.load(f)
-        # for k, v in old_yields.iteritems():
-        #     if k not in self.event_yields:
-        #         continue
-        #     if self.event_yields[k] < v:
-        #         self.event_yields[k] = v
-
-    def fetch_histograms(self, data, systematic="Nominal"):
-        file_handle, plot_config = data
-        if file_handle.process is None or "data" in file_handle.process.lower() and plot_config.no_data:
-            return [None, None, None]
-        tmp = self.retrieve_histogram(file_handle, plot_config, systematic)
-        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
-        if not plot_config.merge_mc_campaigns:
-            return plot_config, file_handle.process, tmp
-        return plot_config, file_handle.process, tmp
 
     def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
         file_handle, plot_config = data
         if file_handle.process is None or file_handle.process.is_data and plot_config.no_data:
             return [None, None, None]
         tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
-        tmp.SetName(tmp.GetName().split('%%')[0]+tmp.GetName().split('%%')[-1])
+        tmp.SetName(tmp.GetName().split('%%')[0] + tmp.GetName().split('%%')[-1])
         return plot_config, file_handle.process, tmp
 
     def fetch_plain_histograms(self, data, systematic="Nominal"):
@@ -223,12 +183,12 @@ class BasePlotter(object):
                 tn = self.syst_tree_name
             hist = file_handle.get_object_by_name("{:s}/{:s}".format(tn, plot_config.dist), systematic)
         except ValueError:
-            #This happens if cut is not passed
+            _logger.debug('No event passed selection.')
             return [None, None, None]
         hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
         return plot_config, file_handle.process, hist
 
-    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal", factor_syst = ''):
+    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal", factor_syst=''):
         """
         Read data from ROOT file and build histogram according to definition in plot_config
 
@@ -238,6 +198,8 @@ class BasePlotter(object):
         :type plot_config: PlotConfig
         :param systematic:
         :type systematic: str
+        :param factor_syst:
+        :type factor_syst:
         :return: filled histogram - dimension depends on request in plot config
         :rtype: THX
         """
@@ -245,10 +207,10 @@ class BasePlotter(object):
         file_handle.reset_friends()
         try:
             hist = get_histogram_definition(plot_config, systematic, factor_syst)
-        except ValueError as e:
+        except ValueError:
             _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
             range settings.".format(plot_config.name))
-            print traceback.print_exc()
+            print(traceback.print_exc())
             return None
         try:
             weight = None
@@ -256,8 +218,8 @@ class BasePlotter(object):
             if plot_config.weight is not None:
                 weight = plot_config.weight
             if plot_config.process_weight is not None:
-                match = filter(lambda k: re.match(k.replace('re.', ''), file_handle.process),
-                               plot_config.process_weight.keys())
+                match = [k for k in list(plot_config.process_weight.keys()) if re.match(k.replace('re.', ''),
+                                                                                        file_handle.process)]
                 if len(match) > 0:
                     process_weight = plot_config.process_weight[match[0]]
                     if weight is not None:
@@ -268,16 +230,22 @@ class BasePlotter(object):
                 plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
-                mc_cuts = filter(lambda cut: "MC:" in cut, plot_config.cuts)
-                data_cuts = filter(lambda cut: "DATA:" in cut, plot_config.cuts)
+                mc_cuts = [cut for cut in plot_config.cuts if "MC:" in cut]
+                data_cuts = [cut for cut in plot_config.cuts if "DATA:" in cut]
+                event_no_cuts = [cut for cut in plot_config.cuts if "file_handle." in cut]
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
-                    if not "data" in file_handle.process:
+                    if "data" not in file_handle.process:
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 for data_cut in data_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
-                    if self.process_configs[file_handle.process].type == "Data": #"data" in file_handle.process:
+                    if self.process_configs[file_handle.process].type == "Data":  # "data" in file_handle.process:
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
+                for evt_cut in event_no_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(evt_cut))
+                    dsid = evt_cut.split(':')[0].split('.')[-1]
+                    if file_handle.process.dsid == dsid:
+                        selection_cuts += "event_number != {:s} && ".format(evt_cut.split(':')[-1])
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and find_process_config(file_handle.process, self.process_configs).type == "Data":
@@ -294,16 +262,15 @@ class BasePlotter(object):
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=systematic, weight=weight)
 
-            except TypeError: #RuntimeError:
+            except TypeError:  # RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
                 _logger.error("Dist: {:s} and cuts: {:s}.".format(plot_config.dist, selection_cuts))
                 return None
-            except Exception as e:
+            except Exception:
                 _logger.error("Catched exception for process "
                               "{:s} and plot_config {:s}".format(file_handle, file_handle.process, plot_config.name))
-                print traceback.print_exc()
+                print(traceback.print_exc())
                 return None
-            #hist.SetName(hist.GetName() + "_" + file_handle.process)
             _logger.debug("try to access config for process {:s}".format(file_handle.process))
             if self.process_configs is None:
                 return hist
@@ -312,17 +279,17 @@ class BasePlotter(object):
                 _logger.error("Could not find process config for {:s}".format(file_handle.process))
                 return None
 
-        except Exception as e:
-            _logger.error("Catched exception for "
-                          "process {:s} and plot_config {:s}".format(file_handle.process, plot_config.name))
-            print traceback.print_exc()
+        except Exception:
+            _logger.error("Catched exception for process {:s} and plot_config {:s}".format(file_handle.process,
+                                                                                           plot_config.name))
+            print(traceback.print_exc())
             return None
         return hist
 
     def read_histograms(self, file_handles, plot_configs, systematic="Nominal", factor_syst=''):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
-        if cpus > 0:
+        if cpus > 0 and sys.version_info[0] != 3:
             pool = mp.ProcessPool(nodes=cpus)
             histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
         else:
@@ -330,7 +297,6 @@ class BasePlotter(object):
             for i in comb:
                 hist = self.fetch_histograms_new(i, systematic=systematic, factor_syst=factor_syst)
                 histograms.append(hist)
-                #histograms.append(self.fetch_histograms(i, systematic=systematic))
         return histograms
 
     def read_histograms_plain(self, file_handle, plot_configs, systematic="Nominal"):
@@ -352,7 +318,7 @@ class BasePlotter(object):
                 _logger.warning("hist for process {:s} is None".format(process))
                 continue
             try:
-                if process not in self.histograms[plot_config].keys():
+                if process not in list(self.histograms[plot_config].keys()):
                     self.histograms[plot_config][process] = hist
                 else:
                     self.histograms[plot_config][process].Add(hist)
@@ -361,9 +327,9 @@ class BasePlotter(object):
 
     @staticmethod
     def merge(histograms, process_configs):
-        for process in histograms.keys():
+        for process in list(histograms.keys()):
             parent_process = find_process_config(process, process_configs).name
-            if parent_process not in histograms.keys():
+            if parent_process not in list(histograms.keys()):
                 new_hist_name = histograms[process].GetName().replace(process.process_name, parent_process)
                 histograms[parent_process] = histograms[process].Clone(new_hist_name)
             else:
@@ -371,6 +337,6 @@ class BasePlotter(object):
             histograms.pop(process)
 
     def merge_histograms(self):
-        for plot_config, histograms in self.histograms.iteritems():
+        for plot_config, histograms in list(self.histograms.items()):
             if plot_config.merge:
                 self.merge(histograms, self.process_configs)

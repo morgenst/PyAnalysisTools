@@ -2,7 +2,6 @@ import glob
 import os
 import shutil
 import unittest
-from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
@@ -27,4 +26,3 @@ class TestBasePlotter(unittest.TestCase):
         plotter.make_plots()
         output_path = plotter.output_handle.output_dir
         self.assertTrue(os.path.exists(os.path.join(output_path, 'SR_muon_pt.pdf')))
-

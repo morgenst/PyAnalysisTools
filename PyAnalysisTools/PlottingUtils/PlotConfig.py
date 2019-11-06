@@ -1,15 +1,25 @@
-import ROOT
-import math
-import re
+from __future__ import division
+from __future__ import print_function
+
 import os
-from math import log10
+import re
 from array import array
+from collections import OrderedDict
 from copy import copy, deepcopy
+from math import log10
+
+from builtins import input
+from builtins import object
+from builtins import range
+from builtins import str
+from past.utils import old_div
+
+import ROOT
+from PyAnalysisTools.PlottingUtils.HistTools import check_name
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig, Process
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
-from collections import OrderedDict
 from PyAnalysisTools.base.ShellUtils import find_file
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 
 class PlotConfig(object):
@@ -20,7 +30,7 @@ class PlotConfig(object):
             _logger.debug("Plot config does not contain distribution. Add dist key")
         kwargs.setdefault("cuts", None)
         # kwargs.setdefault("cuts_l1", None)
-        if not "draw" in kwargs:
+        if "draw" not in kwargs:
             kwargs.setdefault("Draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
         py_ana_config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
@@ -30,7 +40,7 @@ class PlotConfig(object):
             config_file_name = user_config
             usr_defaults = yl.read_yaml(config_file_name)
 
-        for key, attr in defaults_py_ana.iteritems():
+        for key, attr in list(defaults_py_ana.items()):
             if key in usr_defaults:
                 attr = usr_defaults[key]
             if isinstance(attr, str):
@@ -41,7 +51,7 @@ class PlotConfig(object):
             else:
                 kwargs.setdefault(key, attr)
 
-        for k, v in kwargs.iteritems():
+        for k, v in list(kwargs.items()):
             if v == "None":
                 v = None
             if k == "ratio_config" and v is not None:
@@ -60,6 +70,10 @@ class PlotConfig(object):
                 setattr(self, k.lower(), eval(v))
                 continue
             setattr(self, k.lower(), v)
+        if self.calcsig and self.ratio:
+            _logger.error('Requested both significance calculation and ratio plotting which is currently not supported.'
+                          'This requires an implementation of at least two ratio pads. Thus disabling calcsig')
+            self.calcsig = False
         self.is_multidimensional = False
         self.auto_decorate()
         self.used_mc_campaigns = []
@@ -93,7 +107,7 @@ class PlotConfig(object):
         :rtype: str
         """
         obj_str = "Plot config: {:s} \n".format(self.name)
-        for attribute, value in self.__dict__.items():
+        for attribute, value in list(self.__dict__.items()):
             obj_str += '{}={} '.format(attribute, value)
         return obj_str
 
@@ -153,14 +167,17 @@ class PlotConfig(object):
         previous_choice = None
         if other is None:
             return
-        for attr, val in other.__dict__.iteritems():
+        for attr, val in list(other.__dict__.items()):
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
             if getattr(self, attr) != val:
-                dec = raw_input("Different settings for attribute {:s} in common configs."
-                                "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val), str(getattr(self, attr)),
-                                                                                   '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''))
+                default = '[default = {:d}]'.format(previous_choice) if previous_choice is not None else ''
+                arg = "Different settings for attribute {:s} in common configs." \
+                      "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val),
+                                                                         str(getattr(self, attr)),
+                                                                         default)
+                dec = eval(input(arg))
 
                 if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
@@ -196,33 +213,33 @@ def get_default_plot_config(hist):
 
 
 def get_default_color_scheme():
-    # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2, ROOT.kRed+2,
-    #         ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
+    # return [ROOT.kBlack,  ROOT.kBlue-6, ROOT.kGreen+2, ROOT.kRed, ROOT.kGray, ROOT.kYellow-3, ROOT.kTeal - 2,
+    # ROOT.kRed+2, ROOT.kCyan,  ROOT.kBlue, ROOT.kSpring-8]
 
-    return [ROOT.kGray+3,
-            ROOT.kRed+2,
-            ROOT.kAzure+4,
-            ROOT.kSpring-6,
-            ROOT.kOrange-3,
-            ROOT.kCyan-3,
-            ROOT.kPink-2,
-            ROOT.kSpring-9,
-            ROOT.kMagenta-5,
+    return [ROOT.kGray + 3,
+            ROOT.kRed + 2,
+            ROOT.kAzure + 4,
+            ROOT.kSpring - 6,
+            ROOT.kOrange - 3,
+            ROOT.kCyan - 3,
+            ROOT.kPink - 2,
+            ROOT.kSpring - 9,
+            ROOT.kMagenta - 5,
             ROOT.kOrange,
-            ROOT.kCyan+3,
-            ROOT.kPink+4,
-            ROOT.kGray+3,
-            ROOT.kRed+2,
-            ROOT.kAzure+4,
-            ROOT.kSpring-6,
-            ROOT.kOrange-3,
-            ROOT.kCyan-3,
-            ROOT.kPink-2,
-            ROOT.kSpring-9,
-            ROOT.kMagenta-5,
+            ROOT.kCyan + 3,
+            ROOT.kPink + 4,
+            ROOT.kGray + 3,
+            ROOT.kRed + 2,
+            ROOT.kAzure + 4,
+            ROOT.kSpring - 6,
+            ROOT.kOrange - 3,
+            ROOT.kCyan - 3,
+            ROOT.kPink - 2,
+            ROOT.kSpring - 9,
+            ROOT.kMagenta - 5,
             ROOT.kOrange,
-            ROOT.kCyan+3,
-            ROOT.kPink+4]
+            ROOT.kCyan + 3,
+            ROOT.kPink + 4]
 
 
 def parse_mc_campaign(process_name):
@@ -244,7 +261,7 @@ def expand_plot_config(plot_config):
     plot_configs = []
     if hasattr(plot_config, "cuts_ref"):
         if "dummy1" in plot_config.cuts_ref:
-            #for cuts in plot_config.cuts_ref.values():
+            # for cuts in plot_config.cuts_ref.values():
             for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
                 if item not in plot_config.cuts_ref:
                     continue
@@ -253,7 +270,7 @@ def expand_plot_config(plot_config):
                 tmp_config.cuts = cuts
                 plot_configs.append(tmp_config)
         else:
-            for cut_name, cut in plot_config.cuts_ref.iteritems():
+            for cut_name, cut in list(plot_config.cuts_ref.items()):
                 cuts = plot_config.cuts_ref[cut_name]
                 tmp_config = copy(plot_config)
                 tmp_config.cuts = plot_config.cuts + cuts
@@ -274,11 +291,11 @@ def parse_and_build_plot_config(config_file):
         common_plot_config = None
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
-        plot_configs = [PlotConfig(name=k, **v) for k, v in parsed_config.iteritems() if not k=="common"]
+        plot_configs = [PlotConfig(name=k, **v) for k, v in list(parsed_config.items()) if not k == "common"]
         _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
         return plot_configs, common_plot_config
     except Exception as e:
-        raise
+        raise e
 
 
 def parse_and_build_process_config(process_config_files):
@@ -295,11 +312,11 @@ def parse_and_build_process_config(process_config_files):
         _logger.debug("Parsing process configs")
         if not isinstance(process_config_files, list):
             parsed_process_config = yl.read_yaml(process_config_files)
-            process_configs = {k: ProcessConfig(name=k, **v) for k, v in parsed_process_config.iteritems()}
+            process_configs = {k: ProcessConfig(name=k, **v) for k, v in list(parsed_process_config.items())}
         else:
             parsed_process_configs = [yl.read_yaml(pcf) for pcf in process_config_files]
             process_configs = {k: ProcessConfig(name=k, **v) for parsed_config in parsed_process_configs
-                               for k, v in parsed_config.iteritems()}
+                               for k, v in list(parsed_config.items())}
         _logger.debug("Successfully parsed %i process items." % len(process_configs))
         return process_configs
     except Exception as e:
@@ -332,6 +349,7 @@ def propagate_common_config(common_config, plot_configs):
     :return: Nothing
     :rtype: None
     """
+
     def integrate(plot_config, attr, value):
         if attr == "cuts":
             if plot_config.cuts is not None and value is not None:
@@ -352,7 +370,7 @@ def propagate_common_config(common_config, plot_configs):
             return
         setattr(plot_config, attr, value)
 
-    for attr, value in common_config.__dict__.iteritems():
+    for attr, value in list(common_config.__dict__.items()):
         for plot_config in plot_configs:
             integrate(plot_config, attr, value)
 
@@ -396,7 +414,7 @@ def transform_color(color, index=None):
             return transform_color(color[index])
         except IndexError:
             _logger.error("Requested {:d}th color, but only provided {:d} colors in config. "
-                          "Returning black".format(index+1, len(color)))
+                          "Returning black".format(index + 1, len(color)))
             return ROOT.kBlack
     return color
 
@@ -430,13 +448,12 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
                 style_setter = process_config.format.capitalize()
             except AttributeError:
                 _logger.error('Problem getting style from format ')
-                print process_config.format
         elif style_attr:
-            #TODO: needs fix
-            #style_setter = 'Line'
+            # TODO: needs fix
+            # style_setter = 'Line'
             style_setter = "Fill"
         else:
-            #style_setter = ["Line", "Marker", "Fill"]
+            # style_setter = ["Line", "Marker", "Fill"]
             style_setter = ["Line"]
     elif draw_option.lower() == "marker" or draw_option.lower() == "markererror" or draw_option.lower() == 'pLX':
         style_setter = ["Marker", 'Line']
@@ -444,16 +461,19 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         style_setter = "Line"
     if hasattr(plot_config, "style_setter"):
         style_setter = plot_config.style_setter
-    if plot_config.color is not None and index is not None:
-        if isinstance(plot_config.color, list) and index > len(plot_config.color):
+    if plot_config.color is not None:
+        if index is None:
+            index = 0
+        elif isinstance(plot_config.color, list) and index > len(plot_config.color):
             index = index % len(plot_config.color)
             style_attr = 10
         color = transform_color(plot_config.color, index)
+
     # else:
     #     style_attr = None
     if not isinstance(style_setter, list):
         style_setter = [style_setter]
-    _logger.debug("Parsed style setter {:s} from draw option {:s}".format(style_setter, draw_option))
+    _logger.debug("Parsed style setter {:s} from draw option {:s}".format(str(style_setter), str(draw_option)))
     return style_setter, style_attr, color
 
 
@@ -463,6 +483,10 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     distribution is provided by default a one dimension histogram will be created
     :param plot_config: plot configuration with binning and name
     :type plot_config: PlotConfig
+    :param systematics: name of systematic uncertainty (default: Nominal)
+    :type systematics: str
+    :param factor_syst: scale factor systematic uncertainty name
+    :type factor_syst:  str
     :return: histogram
     :rtype: ROOT.THXF
     """
@@ -471,16 +495,16 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     else:
         dimension = 0
     hist = None
-    hist_name = '{:s}%%{:s}_{:s}%%'.format(plot_config.name, systematics, factor_syst)
+    hist_name = check_name('{:s}%%{:s}_{:s}%%'.format(plot_config.name, systematics, factor_syst))
     if dimension == 0:
         if not plot_config.logx:
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
         else:
             logxmin = log10(plot_config.xmin)
             logxmax = log10(plot_config.xmax)
-            binwidth = (logxmax - logxmin) / plot_config.bins
+            binwidth = old_div((logxmax - logxmin), plot_config.bins)
             xbins = []
-            for i in range(0, plot_config.bins+1):
+            for i in range(0, plot_config.bins + 1):
                 xbins.append(pow(10, logxmin + i * binwidth))
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, array('d', xbins))
     elif dimension == 1:
@@ -506,7 +530,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     return hist
 
 
-#todo: remove if not needed anymore
+# todo: remove if not needed anymore
 # def add_campaign_specific_merge_process(process_config, process_configs, campaign_tag):
 #     new_config = deepcopy(process_config)
 #     for index, sub_process in enumerate(process_config.subprocesses):
@@ -539,6 +563,7 @@ def find_process_config(process, process_configs):
     :return:
     :rtype:
     """
+
     def is_sub_process(config):
         if process.match(config.name):
             return True
@@ -552,13 +577,13 @@ def find_process_config(process, process_configs):
         return find_process_config_str(process, process_configs)
     if process_configs is None or process is None:
         return None
-    match = process.matches_any(process_configs.keys())
+    match = process.matches_any(list(process_configs.keys()))
     if match is not None:
         return process_configs[match]
-    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
-            print 'SOMEHOW matched to multiple configs'
+            print('SOMEHOW matched to multiple configs')
         return None
     return matched_process_cfg[0]
 
@@ -575,6 +600,7 @@ def find_process_config_str(process_name, process_configs):
     :return:
     :rtype:
     """
+
     def is_sub_process(config):
         if process_name == config.name:
             return True
@@ -590,9 +616,9 @@ def find_process_config_str(process_name, process_configs):
         return None
     if process_name in process_configs:
         return process_configs[process_name]
-    matched_process_cfg = filter(lambda pc: is_sub_process(pc), process_configs.values())
+    matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
-            print 'SOMEHOW matched to multiple configs'
+            print('SOMEHOW matched to multiple configs')
         return None
     return matched_process_cfg[0]

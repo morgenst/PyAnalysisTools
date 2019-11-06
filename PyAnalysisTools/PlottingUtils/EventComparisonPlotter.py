@@ -1,25 +1,30 @@
+from __future__ import print_function
+from __future__ import division
+
+from builtins import next
+from builtins import str
+from past.utils import old_div
+from builtins import object
 import collections
 from copy import copy
-import ROOT
+
 import pandas as pd
+
+import PyAnalysisTools.PlottingUtils.Formatting as FM
+import PyAnalysisTools.PlottingUtils.PlotableObject as PO
+import PyAnalysisTools.PlottingUtils.PlottingTools as PT
+import ROOT
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
-from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
-from PyAnalysisTools.AnalysisTools.SubtractionHandle import SubtractionHandle
+from PyAnalysisTools.PlottingUtils import HistTools as HT
+from PyAnalysisTools.PlottingUtils import set_batch_mode
+from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
+    parse_and_build_process_config, find_process_config
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.JSONHandle import JSONHandle
 from PyAnalysisTools.base.Modules import load_modules
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-import PyAnalysisTools.PlottingUtils.Formatting as FM
-from PyAnalysisTools.PlottingUtils import HistTools as HT
-import PyAnalysisTools.PlottingUtils.PlottingTools as PT
-from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name, get_objects_from_canvas_by_type, get_objects_from_canvas
-import PyAnalysisTools.PlottingUtils.PlotableObject as PO
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
-    expand_plot_config, parse_and_build_process_config, find_process_config, ProcessConfig
-from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
 
 
 class EventComparisonReader(object):
@@ -31,15 +36,13 @@ class EventComparisonReader(object):
         self.input_files = kwargs['input_files']
         self.compare_files = kwargs['compare_files']
         self.tree_name = kwargs['tree_name']
-        for opt, val in kwargs.iteritems():
+        for opt, val in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, val)
 
-                
     def get_instance(self, plot_config):
         return Reader(plot_config=plot_config, **self.__dict__)
 
-    
     def get_data(self):
         data = {}
         for plot_config in self.plot_configs:
@@ -47,11 +50,10 @@ class EventComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    
     def make_hist(self, file_handle, compare_file_handle, plot_config, cut_name, cut_string, tree_name=None):
         hist = get_histogram_definition(plot_config)
-        print file_handle.process
-        print cut_name
+        print(file_handle.process)
+        print(cut_name)
         hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
@@ -62,15 +64,14 @@ class EventComparisonReader(object):
         # t1 = file_handle.Get(tree_name)
         # t2 = compare_file_handle.Get(tree_name)
 
-        
         if isinstance(hist, ROOT.TH1F):
             var = plot_config.dist
         else:
             var = plot_config.dist.split(":")[0]
-            print var
-            print plot_config.dist
-            print plot_config
-            
+            print(var)
+            print(plot_config.dist)
+            print(plot_config)
+
         branch_list = ['eventNumber', var]
 
         # cut_string = 'jet_n > 0 && jet_pt[0] > 60000. && MET_calo > 80000.'
@@ -86,10 +87,13 @@ class EventComparisonReader(object):
         #     branch_list.append('HLT_noalg_cosmiccalo_L1J30_EMPTYAcceptance')
         #     branch_list.append('HLT_j0_L1J12_EMPTYAcceptance')
         #     branch_list.append('HLT_ht0_L1J12_EMPTYAcceptance')
-        #     cut_string += ' && (HLT_noalg_cosmiccalo_L1EM3_EMPTYAcceptance==1 || HLT_noalg_cosmiccalo_L1RD1_EMPTYAcceptance==1 || HLT_noalg_cosmiccalo_L1J12_EMPTYAcceptance==1 || HLT_noalg_cosmiccalo_L1J30_EMPTYAcceptance==1 || HLT_j0_L1J12_EMPTYAcceptance==1 || HLT_ht0_L1J12_EMPTYAcceptance==1)'
+        #     cut_string += ' && (HLT_noalg_cosmiccalo_L1EM3_EMPTYAcceptance==1 ||
+        #     HLT_noalg_cosmiccalo_L1RD1_EMPTYAcceptance==1 || HLT_noalg_cosmiccalo_L1J12_EMPTYAcceptance==1 ||
+        #     HLT_noalg_cosmiccalo_L1J30_EMPTYAcceptance==1 || HLT_j0_L1J12_EMPTYAcceptance==1 ||
+        #     HLT_ht0_L1J12_EMPTYAcceptance==1)'
 
         converter = Root2NumpyConverter(branch_list)
-        
+
         data1 = pd.DataFrame(converter.convert_to_array(t1, cut_string))
         data2 = pd.DataFrame(converter.convert_to_array(t2, cut_string))
         if var.endswith('_n'):
@@ -101,7 +105,7 @@ class EventComparisonReader(object):
         # else:
         #     hist = ROOT.TH1D(var, '', 100, -100, 100.)
 
-        print type(hist)
+        print(type(hist))
         if isinstance(hist, ROOT.TH1F):
             for _, i in data1.iterrows():
                 e2 = data2[data2['eventNumber'] == i['eventNumber']]
@@ -132,7 +136,7 @@ class EventComparisonReader(object):
             return hist
 
         if isinstance(hist, ROOT.TH2F):
-            print 'starting 2D'
+            print('starting 2D')
             for _, i in data1.iterrows():
                 e_cos = data2[data2['eventNumber'] == i['eventNumber']]
                 # print 'Start new'
@@ -142,8 +146,8 @@ class EventComparisonReader(object):
                 # print i[var], "\n"
                 # print len(e_cos[var])
                 # print len(i[var])
-                value_data1=i[var]
-                value_data2=e_cos[var]
+                value_data1 = i[var]
+                value_data2 = e_cos[var]
                 try:
                     if len(value_data1) == 0 or len(value_data2) == 0:
                         hist.Fill(-99999., -99999.)
@@ -154,14 +158,14 @@ class EventComparisonReader(object):
                     #     continue
                     hist.Fill(value_data1, value_data2)
                 except TypeError:
-                    #print 'Filling: ', value_data1, len(value_data1)
+                    # print 'Filling: ', value_data1, len(value_data1)
                     if len(value_data2) == 0:
                         hist.Fill(-99999., -99999.)
                         continue
                     # print 'val 1: ', value_data1
                     # print 'val 2: ', value_data2
                     hist.Fill(value_data1, value_data2)
-                    #pass
+                    # pass
                 # print 'FOO'
                 # print type(value_data1), value_data1
                 # exit()
@@ -174,10 +178,10 @@ class EventComparisonReader(object):
                 #     hist.Fill(-99999., -99999.)
                 #     continue
                 # print (li_col[0]/1000.), (le_cos[0][0]/1000.), (li_col[0] - le_cos[0][0])
-                #hist.Fill(li_col[0], le_cos[0][0])
+                # hist.Fill(li_col[0], le_cos[0][0])
             hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
             return hist
-        
+
     def make_hists(self, file_handles, compare_file_handles, plot_config, cut_name, cut_string, tree_name=None):
         result = None
         for fh in file_handles:
@@ -187,29 +191,29 @@ class EventComparisonReader(object):
                 continue
             result.Add(hist)
         return result
-    
+
     @staticmethod
     def merge_histograms(histograms, process_configs):
         def expand():
             if process_configs is not None:
-                for process_name in histograms.keys():
+                for process_name in list(histograms.keys()):
                     _ = find_process_config(process_name, process_configs)
 
         expand()
-        for process, process_config in process_configs.iteritems():
+        for process, process_config in list(process_configs.items()):
             if not hasattr(process_config, 'subprocesses'):
                 continue
             for sub_process in process_config.subprocesses:
-                if sub_process not in histograms.keys():
+                if sub_process not in list(histograms.keys()):
                     continue
-                if process not in histograms.keys():
+                if process not in list(histograms.keys()):
                     new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
                     histograms[process] = histograms[sub_process].Clone(new_hist_name)
                 else:
                     histograms[process].Add(histograms[sub_process])
                 histograms.pop(sub_process)
 
-        for process in histograms.keys():
+        for process in list(histograms.keys()):
             histograms[find_process_config(process, process_configs)] = histograms.pop(process)
 
 
@@ -218,23 +222,25 @@ class Reader(EventComparisonReader):
         self.process_configs = kwargs['process_configs']
         input_files = kwargs['input_files']
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
-        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)        
+        self.file_handles = self.merge_file_handles(self.file_handles, self.process_configs)
         # if hasattr(plot_config, 'compare_files'):
         compare_files = kwargs['compare_files']
-        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in compare_files]
+        self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
+                                     compare_files]
         self.compare_file_handles = self.merge_file_handles(self.compare_file_handles, self.process_configs)
         self.plot_config = kwargs['plot_config']
         self.tree_name = kwargs['tree_name']
-        for opt, value in kwargs.iteritems():
+        for opt, value in list(kwargs.items()):
             if not hasattr(self, opt):
                 setattr(self, opt, value)
 
     @staticmethod
     def merge_file_handles(file_handles, process_configs):
         def find_parent_process(process):
-            parent_process = filter(lambda c: hasattr(c[1], 'subprocesses') and process in c[1].subprocesses, process_configs.iteritems())
+            parent_process = [c for c in iter(list(process_configs.items())) if
+                              hasattr(c[1], 'subprocesses') and process in c[1].subprocesses]
             return parent_process[0][0]
-        
+
         def expand():
             if process_configs is not None:
                 for fh in file_handles:
@@ -250,36 +256,37 @@ class Reader(EventComparisonReader):
             tmp_file_handles[parent_process].append(fh)
         return tmp_file_handles
 
-                
     def get_data(self):
         plotable_objects = []
 
-        cut_string = '&&'.join(map(lambda v : str(v), self.plot_config.cuts))
-        print cut_string
-        
+        cut_string = '&&'.join([str(v) for v in self.plot_config.cuts])
+        print(cut_string)
+
         reference = collections.OrderedDict()
-        for process, file_handles in self.file_handles.iteritems():
+        for process, file_handles in list(self.file_handles.items()):
             # compare_file_handle = self.compare_file_handles['collisionRun_cosmicsReco_standardOFCs'][0]
             # compare_file_handle = self.compare_file_handles['cosmicRun_cosmicsReco_standardOFCs'][0]
             # compare_file_handle = self.compare_file_handles['collisionRun_cosmicsReco_iterativeOFCs'][0]
             # print self.compare_file_handles['cosmicRun_cosmicsReco_iterativeOFCs'][0]
-            compare_file_handle = self.compare_file_handles.items()[0][1][0]
-            reference[process] = self.make_hists(file_handles, compare_file_handle, self.plot_config, '', cut_string, self.tree_name)
-            
-        for k_ref, v_ref in reference.iteritems():
+            compare_file_handle = list(self.compare_file_handles.items())[0][1][0]
+            reference[process] = self.make_hists(file_handles, compare_file_handle, self.plot_config, '', cut_string,
+                                                 self.tree_name)
+
+        for k_ref, v_ref in list(reference.items()):
             v_ref.SetDirectory(0)
             plotable_objects.append(PO.PlotableObject(plot_object=v_ref, label='', process=k_ref))
         return plotable_objects
 
+
 class EventComparisonPlotter(BasePlotter):
     def __init__(self, **kwargs):
-        if not 'input_files' in kwargs:
+        if 'input_files' not in kwargs:
             _logger.error("No input files provided")
             raise InvalidInputError("Missing input files")
-        if not 'plot_config_files' in kwargs:
+        if 'plot_config_files' not in kwargs:
             _logger.error("No config file provided")
             raise InvalidInputError("Missing config")
-        if not 'output_dir' in kwargs:
+        if 'output_dir' not in kwargs:
             _logger.warning("No output directory given. Using ./")
         kwargs.setdefault('batch', True)
         kwargs.setdefault('tree_name', None)
@@ -303,28 +310,28 @@ class EventComparisonPlotter(BasePlotter):
         super(EventComparisonPlotter, self).__init__(**kwargs)
         self.input_files = kwargs['input_files']
         self.output_handle = OutputFileHandle(overload='eventComparison', output_file_name='EventCompare.root',
-                                              extension=kwargs['file_extension'],  **kwargs)
-        for attr, value in kwargs.iteritems():
+                                              extension=kwargs['file_extension'], **kwargs)
+        for attr, value in list(kwargs.items()):
             if not hasattr(self, attr):
                 setattr(self, attr, value)
         # if self.systematics is None:
         #     self.systematics = 'Nominal'
-            
+
         if 'process_config_files' in kwargs:
             self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
             self.expand_process_configs()
-            
+
         self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
         self.modules = load_modules(kwargs['module_config_file'], self)
         self.modules_data_providers = [m for m in self.modules if m.type == 'DataProvider']
         self.module_filters = [m for m in self.modules if m.type == 'Filter']
         self.analyse_plot_config()
         # self.update_color_palette()
-        self.getter = EventComparisonReader(plot_configs=self.plot_configs, process_configs=self.process_configs, **kwargs)
+        self.getter = EventComparisonReader(plot_configs=self.plot_configs, process_configs=self.process_configs,
+                                            **kwargs)
         if not kwargs['json']:
             JSONHandle(kwargs['output_dir'], **kwargs).dump()
 
-            
     def analyse_plot_config(self):
         if self.plot_configs is None:
             return None
@@ -344,13 +351,11 @@ class EventComparisonPlotter(BasePlotter):
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
 
-
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
                 _ = find_process_config(fh.process, self.process_configs)
 
-                
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
             self.color_palette = [getattr(ROOT, 'k' + color.capitalize()) for color in self.common_config.colors]
@@ -359,14 +364,12 @@ class EventComparisonPlotter(BasePlotter):
         else:
             _logger.warning("Unsuppored type %s for colors in common_config" % type(self.common_config.colors[0]))
 
-            
     def make_comparison_plots(self):
         data = self.getter.get_data()
-        for k, v in data.iteritems():
+        for k, v in list(data.items()):
             self.make_comparison_plot(k, v)
         self.output_handle.write_and_close()
 
-        
     def make_comparison_plot(self, plot_config, data):
         for i in data:
             HT.merge_overflow_bins(i.plot_object)
@@ -374,40 +377,46 @@ class EventComparisonPlotter(BasePlotter):
 
         for i, ref in enumerate(data):
             setattr(ref, 'draw_option', plot_config.draw)
+            index = i - (int(old_div(i, len(PO.color_palette))) * len(PO.color_palette))
+            marker_style_index = i - (int(old_div(i, len(PO.marker_style_palette_filled)))
+                                      * len(PO.marker_style_palette_filled))
+            index_homogen = i - (int(old_div(i, len(PO.line_style_palette_homogen)))
+                                 * len(PO.line_style_palette_homogen))
             if plot_config.draw in ['Marker', 'marker', 'P', 'p']:
-                setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'marker_style', PO.marker_style_palette_filled[i-(int(i/len(PO.marker_style_palette_filled))*len(PO.marker_style_palette_filled))])
-                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'marker_color', PO.color_palette[index])
+                setattr(ref, 'marker_style', PO.marker_style_palette_filled[marker_style_index])
+                setattr(ref, 'line_color', PO.color_palette[index])
             elif plot_config.draw in ['Line', 'line', 'L', 'l']:
-                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'line_style', PO.line_style_palette_homogen[i-(int(i/len(PO.line_style_palette_homogen))*len(PO.line_style_palette_homogen))])
+                setattr(ref, 'line_color', PO.color_palette[index])
+                setattr(ref, 'line_style', PO.line_style_palette_homogen[index_homogen])
             elif plot_config.draw in ['Hist', 'hist', 'H', 'h']:
-                setattr(ref, 'fill_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                # setattr(ref, 'fill_style', PO.fill_style_palette_left[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
+                setattr(ref, 'fill_color', PO.color_palette[index])
+                # setattr(ref, 'fill_style', PO.fill_style_palette_left[index])
                 setattr(ref, 'fill_style', 0)
-                setattr(ref, 'line_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                setattr(ref, 'marker_color', PO.color_palette[i-(int(i/len(PO.color_palette))*len(PO.color_palette))])
-                
-        # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists), plot_config, plotable_objects=reference_hists+compare_hists)
+                setattr(ref, 'line_color', PO.color_palette[index])
+                setattr(ref, 'marker_color', PO.color_palette[index])
+
+        # canvas = PT.plot_objects(map(lambda x : x.plot_object, reference_hists+compare_hists),
+        # plot_config, plotable_objects=reference_hists+compare_hists)
         canvas = PT.plot_objects(data, plot_config)
         canvas.SetName(plot_config.name.replace(' ', '_'))
-
 
         if self.process_configs:
             for ref in data:
                 if hasattr(plot_config, 'ignore_process_labels') and plot_config.ignore_process_labels:
                     ref.label = '{:s}'.format(ref.label)
                 else:
-                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label, ref.label)
-            
+                    ref.label = '{:s} {:s}'.format(find_process_config(ref.process, self.process_configs).label,
+                                                   ref.label)
+
         ROOT.SetOwnership(canvas, False)
 
         if plot_config.enable_legend:
-            labels = {}
-            FM.add_legend_to_canvas(canvas, plot_config.ratio, labels=map(lambda x : x.label, data), plot_objects=map(lambda x : x.plot_object, data), **plot_config.legend_options)
+            FM.add_legend_to_canvas(canvas, plot_config.ratio, labels=[x.label for x in data],
+                                    plot_objects=[x.plot_object for x in data], **plot_config.legend_options)
         if plot_config.lumi:
             FM.decorate_canvas(canvas, plot_config)
-            
+
         if plot_config.stat_box:
             FM.add_stat_box_to_canvas(canvas)
 

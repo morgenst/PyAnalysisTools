@@ -2,16 +2,16 @@ import ROOT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
-from PyAnalysisTools.base import _logger, InvalidInputError
+from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as PC
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_KS
 
 
 class BDTAnalyser(object):
     def __init__(self, **kwargs):
-        if not "input_files" in kwargs:
+        if "input_files" not in kwargs:
             raise InvalidInputError("No input files provided")
         kwargs.setdefault("output_path", "./")
         self.file_handles = [FileHandle(file_name=file_name) for file_name in kwargs["input_files"]]
@@ -47,6 +47,7 @@ class BDTAnalyser(object):
             for background_hist in background_hists:
                 variables[background_hist.GetName().replace("__Background", "")].append(background_hist)
             return variables
+
         signal_hists = file_handle.get_objects_by_pattern("[A-z]*__Signal",
                                                           "dataset/Method_BDTG/BDTG")
         background_hists = file_handle.get_objects_by_pattern("[A-z]*__Background",
@@ -123,7 +124,7 @@ class BDTAnalyser(object):
             plot_config_corr.name = "corr_" + "_".join(variable_info) + "_signal_{:d}".format(index)
             split_index = variable_info.index("vs")
             variable_x = "_".join(variable_info[:split_index])
-            variable_y = "_".join(variable_info[split_index+1:])
+            variable_y = "_".join(variable_info[split_index + 1:])
             plot_config_corr.xtitle = variable_x
             plot_config_corr.ytitle = variable_y
             plot_config_corr.ztitle = "Entries"
@@ -131,7 +132,8 @@ class BDTAnalyser(object):
             FM.decorate_canvas(canvas, plot_config_corr)
             self.output_handle.register_object(canvas)
         for hist in correlation_hists_background:
-            plot_config_corr.name = "corr_" + "_".join(hist.GetName().split("_")[1:-2]) + "_background_{:d}".format(index)
+            plot_config_corr.name = "corr_" + "_".join(hist.GetName().split("_")[1:-2]) + "_background_{:d}".format(
+                index)
             canvas = PT.plot_obj(hist, plot_config_corr)
             FM.decorate_canvas(canvas, plot_config_corr)
             self.output_handle.register_object(canvas)
@@ -152,10 +154,10 @@ class BDTAnalyser(object):
                         ytitle="Background efficiency", xtitle="Signal efficiency")
         make_plot("MVA_BDTG_effBvsS", pc_roc_eff)
         pc_roc_inveff = PC(name="roc_inveff_vs_eff_{:d}".format(index), dist=None, draw_option="Line", logy=True,
-                        ytitle="Inverse Background efficiency", xtitle="Signal efficiency")
+                           ytitle="Inverse Background efficiency", xtitle="Signal efficiency")
         make_plot("MVA_BDTG_invBeffvsSeff", pc_roc_inveff)
         pc_roc_rejeff = PC(name="roc_rej_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
-                        ytitle="Background rejection", xtitle="Signal efficiency")
+                           ytitle="Background rejection", xtitle="Signal efficiency")
         make_plot("MVA_BDTG_rejBvsS", pc_roc_rejeff)
 
     def fit_score(self):
@@ -171,9 +173,9 @@ class BDTAnalyser(object):
         norm = ROOT.RooRealVar("norm", "norm", chain.GetEntries(), 0., chain.GetEntries() * 2)
         mass = ROOT.RooRealVar("object_m", "object_m", 0., 100000.)
         genpdf = ROOT.RooGenericPdf("genpdf", "genpdf",
-                                    "norm * (p0 + p1 * exp(({:s} + 1.) *p2)  + p3 * abs({:s})^(({:s} + 1.)*p4))".format(self.branch_name,
-                                                                                                         self.branch_name,
-                                                                                                         self.branch_name),
+                                    "norm * (p0 + p1 * exp(({:s} + 1.) *p2)  + "
+                                    "p3 * abs({:s})^(({:s} + 1.)*p4))".format(self.branch_name, self.branch_name,
+                                                                              self.branch_name),
                                     ROOT.RooArgList(bdt_score, p0, p1, p2, p3, p4, norm))
         data = ROOT.RooDataSet("data", "BDT_170526", chain, ROOT.RooArgSet(bdt_score, mass),
                                "object_m/1000. < 1713. || object_m/1000. > 1841.")

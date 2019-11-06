@@ -4,17 +4,20 @@ import os
 import subprocess
 import sys
 from contextlib import contextmanager
+from threading import Lock
 from PyAnalysisTools.base import _logger
 
 
 def make_dirs(path):
     """
-    Create (nested) directories
+    Create (nested) directories (thread-safe)
     :param path: directory
     :type path: str
     :return: Nothing
     :rtype: None
     """
+    lock = Lock()
+    lock.acquire()
     path = os.path.expanduser(path)
     if os.path.exists(path):
         return
@@ -23,6 +26,8 @@ def make_dirs(path):
     except OSError:
         _logger.error('Unable to create directory {:s}'.format(path))
         raise OSError
+    finally:
+        lock.release()
 
 
 def resolve_path_from_symbolic_links(symbolic_link, relative_path):
@@ -84,8 +89,8 @@ def copy(src, dest):
         shutil.copy(src, dest)
     except IOError:
         shutil.copytree(src, dest)
-    except:
-        raise
+    except Exception as e:
+        raise e
 
 
 def remove_directory(path, safe=False):
@@ -137,7 +142,7 @@ def fileno(file_or_fd):
 @contextmanager
 def std_stream_redirected(dest=os.devnull, stream=sys.stdout, std_stream=None):
     if std_stream is None:
-       std_stream = stream
+        std_stream = stream
 
     std_stream_fd = fileno(std_stream)
 
@@ -164,3 +169,18 @@ def find_file(file_name, subdirectory=''):
         if file_name in names:
             return os.path.join(root, file_name)
     return None
+
+
+@contextmanager
+def change_dir(path):
+    """
+    Custom change dir. Changes to path, executes and returns to old path
+    :param path:
+    :return:
+    """
+    oldpwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(oldpwd)

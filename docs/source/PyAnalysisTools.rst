@@ -5,11 +5,13 @@ Subpackages
 -----------
 
 .. toctree::
+    :titlesonly:
 
     PyAnalysisTools.AnalysisTools
     PyAnalysisTools.PlottingUtils
     PyAnalysisTools.ROOTUtils
     PyAnalysisTools.base
+
 
 Module contents
 ---------------
@@ -18,3 +20,4 @@ Module contents
     :members:
     :undoc-members:
     :show-inheritance:
+    :titlesonly:
