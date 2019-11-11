@@ -3,6 +3,7 @@ variables:
   PACKAGE_NAME: PyAnalysisTools
   CI_WEBSITE_DIR: "docs/build"
   DFS_WEBSITE_NAME: "pyanalysistoolsdocs"
+  DFS_WEBSITE_USERNAME: morgens
 
 stages:
   - test
