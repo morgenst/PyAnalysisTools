@@ -1263,7 +1263,8 @@ def write_config(args):
     print('Wrote config to ', config_name)
 
 
-def convert_hists(input_hist_file, process_configs, regions, fixed_signal, output_dir, thresholds, systematics):
+def convert_hists(input_hist_file, process_configs, regions, fixed_signal, output_dir, thresholds, systematics,
+                  dummy_signal=None):
     def parse_hist_name(hist_name):
         try:
             region = list(filter(lambda r: r in hist_name, region_names))[0]
@@ -1307,6 +1308,17 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
         #     h.SetBinError(b, 0.)
         data[unc][process][region] = deepcopy(h)
 
+    if dummy_signal is not None:
+        #take last process
+        data['Nominal'][dummy_signal] = {}
+        for reg in region_names:
+            data['Nominal'][dummy_signal][reg] = deepcopy(data['Nominal'][process][reg])
+            #simplified for now
+            if reg.startswith('SR'):
+                data['Nominal'][dummy_signal][reg].SetBinContent(1, fixed_signal)
+            else:
+                data['Nominal'][dummy_signal][reg].SetBinContent(1, 0.)
+
     theory_thrs = []
     if 'theory_envelop' in [s.name for s in systematics]:
         sherpa_uncerts = [s.replace('weight_', '') for s in TheoryUncertaintyProvider.get_sherpa_uncerts()]
@@ -1328,8 +1340,14 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
                         try:
                             hist = rebin(hist, list(map(float, list(binnings[reg].split(',')))))
                         except KeyError:
-                            if reg not in set([i[0] for i in sr_thresholds]):
-                                raise KeyError
+                            try:
+                                if reg not in set([i[0] for i in sr_thresholds]):
+                                    raise KeyError
+                            except TypeError:
+                                _logger.error('Unable to parse any binning for region {:s}. Like the reason is a '
+                                              'model independent signal and no threshold configuration provided. If'
+                                              'this is the case the binning info should be in the SR configuration'
+                                              'file'.format(reg))
                         if process not in theory_uncerts[reg]:
                             theory_uncerts[reg][process] = []
                         theory_uncerts[reg][process].append(hist)
@@ -1379,7 +1397,7 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
             if 'theory_envelop__1down' in data:
                 data.pop('theory_envelop__1down')
                 data.pop('theory_envelop__1up')
-    if fixed_signal:
+    if fixed_signal and dummy_signal is None:
         scale_factors = {}
         for process in data['Nominal'].keys():
             if [pc for pc in process_configs.items() if pc[0] == process][0][1].type.lower() != "signal":
