@@ -59,9 +59,21 @@ unittest:
     - pip install nosedep --user
     - pip install mock --user
     - pip install pathos --user
+    - pip install future --user
+    - pip install pandas --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.unit --with-coverage
+    #- echo $SERVICE_PASS | kinit $CERN_USER
+    - echo Mois2104! | kinit morgens
+    - mkdir -p tests/unit/fixtures/files/
+    - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/analysis_files/fixtues/ntuple-311331_0.MC16d.root tests/unit/fixtures/files/
+    - ls tests/unit/fixtures/files/
+    - pwd
+    - ls
+    - ls /builds/project-0/tests/unit
+    - ls /builds/project-0/tests/unit/fixtures
+    - ls /builds/project-0/tests/unit/fixtures/files
+    - nosetests -w tests/unit --with-coverage
 
 style_check:
   image: atlas/analysisbase:latest
