@@ -57,7 +57,7 @@ extensions = [
 ]
 
 autodoc_mock_imports = ["ROOT", "numpy", "sklearn", "pathos", "tensorflow", "tabulate", "root_numpy", "pyAMI", "pandas",
-                        'mock', "matplotlib", "keras"]
+                        'mock', "matplotlib", "keras", 'MagicMock', 'imblearn']
 
 
 class Mock(MagicMock):

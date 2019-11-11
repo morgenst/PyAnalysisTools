@@ -8,7 +8,6 @@ stages:
   - test
   - build
   - deploy
-  
 
 build_docs:
   image: atlas/analysisbase:latest
@@ -17,7 +16,7 @@ build_docs:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
-    - pip install sphinx mock future --user
+    - pip install sphinx mock future oyaml dill --user
     - export PATH=/home/atlas/.local/bin:$PATH
   script:
     - ls
@@ -39,8 +38,8 @@ build_docs:
 deploy_production:
   variables:
   <<: *deploy_definition
-  only:
-    - master
+  #  only:
+  #    - master
   environment:
     name: production
     url: https://cern.ch/PyAnalysisToolsDocs
