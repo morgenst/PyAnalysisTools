@@ -53,27 +53,24 @@ unittest:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
+    - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
     - pip install nose --user
     - pip install oyaml --user
+    - pip install sklearn --user
+    - pip install tabulate --user
     - pip install coverage --user
     - pip install nosedep --user
     - pip install mock --user
     - pip install pathos --user
     - pip install future --user
     - pip install pandas --user
+    - pip install root_numpy --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    #- echo $SERVICE_PASS | kinit $CERN_USER
-    - echo Mois2104! | kinit morgens
+    - echo $SERVICE_PASS | kinit $CERN_USER
     - mkdir -p tests/unit/fixtures/files/
     - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/analysis_files/fixtues/ntuple-311331_0.MC16d.root tests/unit/fixtures/files/
-    - ls tests/unit/fixtures/files/
-    - pwd
-    - ls
-    - ls /builds/project-0/tests/unit
-    - ls /builds/project-0/tests/unit/fixtures
-    - ls /builds/project-0/tests/unit/fixtures/files
-    - nosetests -w tests/unit --with-coverage
+    - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
 
 style_check:
   image: atlas/analysisbase:latest
