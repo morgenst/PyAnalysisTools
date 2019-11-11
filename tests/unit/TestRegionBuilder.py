@@ -203,7 +203,8 @@ class TestRegion(unittest.TestCase):
 class TestRegionBuilder(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        cfg = yl.read_yaml('fixtures/module_config.yml')
+        print('TRY: ', os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures/module_config.yml'))
+        cfg = yl.read_yaml(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'fixtures/module_config.yml'))
         self.reg_builder = RegionBuilder(**cfg['RegionBuilder'])
 
     def test_defaults(self):
@@ -214,7 +215,8 @@ class TestRegionBuilder(unittest.TestCase):
         self.assertEqual(2, len(self.reg_builder.regions))
 
     def test_plot_cfg_modification_cut(self):
-        plot_configs, _ = parse_and_build_plot_config('fixtures/plot_config.yml')
+        plot_configs, _ = parse_and_build_plot_config(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                   'fixtures/plot_config.yml'))
         plot_configs = self.reg_builder.execute(plot_configs)
         self.assertEqual(4, len(plot_configs))
         index_no_cut = plot_configs.index([pc for pc in plot_configs if 'no_cut' in pc.name][0])
@@ -231,7 +233,8 @@ class TestRegionBuilder(unittest.TestCase):
                          plot_configs[index_no_cut+2].cuts)
 
     def test_plot_cfg_modification_weight(self):
-        plot_configs, _ = parse_and_build_plot_config('fixtures/plot_config.yml')
+        plot_configs, _ = parse_and_build_plot_config(os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                                                   'fixtures/plot_config.yml'))
         self.reg_builder.regions[0].weight = 'dummy_weight'
         self.reg_builder.regions[1].weight = None
         plot_configs = self.reg_builder.execute(plot_configs)
