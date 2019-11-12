@@ -1284,7 +1284,7 @@ def write_config(args):
 
 
 def convert_hists(input_hist_file, process_configs, regions, fixed_signal, output_dir, thresholds, systematics,
-                  dummy_signal=None):
+                  dummy_signal=None, cut_off=None):
     def parse_hist_name(hist_name):
         try:
             region = list(filter(lambda r: r in hist_name, region_names))[0]
@@ -1320,12 +1320,12 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
             continue
         if process not in data[unc]:
             data[unc][process] = {}
-
-        # for b in range(h.GetNbinsX()):
-        #     if h.GetBinCenter(b) > 300.:
-        #         break
-        #     h.SetBinContent(b, 0.)
-        #     h.SetBinError(b, 0.)
+        if cut_off is not None:
+            for b in range(h.GetNbinsX()):
+                if h.GetBinCenter(b) > cut_off:
+                    break
+                h.SetBinContent(b, 0.)
+                h.SetBinError(b, 0.)
         data[unc][process][region] = deepcopy(h)
 
     if dummy_signal is not None:
