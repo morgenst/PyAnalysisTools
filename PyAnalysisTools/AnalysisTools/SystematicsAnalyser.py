@@ -54,6 +54,8 @@ class Systematic(object):
         kwargs.setdefault('samples', None)
         kwargs.setdefault('group', None)
         kwargs.setdefault('title', None)
+        kwargs.setdefault('expand', None)
+        kwargs.setdefault('hist_name', None)
         self.name = name
         for k, v in list(kwargs.items()):
             setattr(self, k, v)
@@ -534,6 +536,9 @@ class TheoryUncertaintyProvider(object):
         else:
             file_handles = analyser.file_handles
         analyser.get_fixed_scale_uncertainties(file_handles, self.top_unc, dump_hist_path, True)
+
+    def get_top_uncert_names(self):
+        return self.top_unc.keys()
 
     def calculate_envelop(self, analyser):
         def get_pc(hists, plot_config):

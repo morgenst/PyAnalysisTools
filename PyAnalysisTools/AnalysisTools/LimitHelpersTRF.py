@@ -1202,6 +1202,20 @@ def write_config(args):
                 new_unc.symmetrise_option = 'ABSMEAN'
                 kwargs['systematics'].append(new_unc)
             kwargs['systematics'].remove(theory_unc[0])
+        custom_syst = [syst for syst in kwargs['systematics'] if syst.type == 'custom']
+        for syst in custom_syst:
+            if syst.expand is None:
+                continue
+            for unc_name in eval(syst.expand):
+                new_unc = deepcopy(syst)
+                if 'alpha' in unc_name:
+                    new_unc.name = unc_name.replace('alpha', 'a_s')
+                    new_unc.hist_name = unc_name
+                else:
+                    new_unc.name = unc_name
+                kwargs['systematics'].append(new_unc)
+            kwargs['systematics'].remove(syst)
+
         for syst in kwargs['systematics']:
             syst_name = syst.name
             affected_regions = 'all'
@@ -1240,8 +1254,11 @@ def write_config(args):
                 print('\tSubCategory: {:s}'.format(syst.group), file=f)
             if syst.type != 'fixed':
                 if syst.variation == 'updown' or syst.symmetrise:
-                    print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, syst_name + '__1up')), file=f)
-                    print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, syst_name + '__1down')), file=f)
+                    hist_name = syst_name
+                    if syst.hist_name is not None:
+                        hist_name = syst.hist_name
+                    print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name + '__1up')), file=f)
+                    print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name + '__1down')), file=f)
                 elif 'theory_envelop' in syst_name:
                     print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path,
                                                                       syst_name + '_{:.0f}'.format(
@@ -1249,8 +1266,11 @@ def write_config(args):
                           file=f)
                     print('\tSymmetrisation: {:s}'.format('ABSMEAN'), file=f)
                 elif syst.variation == 'custom':
-                    print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, syst_name)), file=f)
-                    print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, syst_name)), file=f)
+                    hist_name = syst_name
+                    if syst.hist_name is not None:
+                        hist_name = syst.hist_name
+                    print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
+                    print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
                 else:
                     print("SYST NOT UP DOWN: ", syst_name)
             else:
@@ -1309,11 +1329,11 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
         data[unc][process][region] = deepcopy(h)
 
     if dummy_signal is not None:
-        #take last process
+        # take last process
         data['Nominal'][dummy_signal] = {}
         for reg in region_names:
             data['Nominal'][dummy_signal][reg] = deepcopy(data['Nominal'][process][reg])
-            #simplified for now
+            # simplified for now
             if reg.startswith('SR'):
                 data['Nominal'][dummy_signal][reg].SetBinContent(1, fixed_signal)
             else:
