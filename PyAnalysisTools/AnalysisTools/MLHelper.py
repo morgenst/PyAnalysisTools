@@ -1,15 +1,17 @@
 from __future__ import division
+from __future__ import print_function
 
 import os
 import pickle
 
 import numpy as np
+import pandas as pd
 import root_numpy
 from builtins import object
 from builtins import range
 from past.utils import old_div
 from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
-
+from sklearn.metrics import classification_report
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import ROOT
@@ -19,6 +21,76 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
+from PyAnalysisTools.base.ShellUtils import make_dirs
+import matplotlib
+matplotlib.use('Agg')  # noqa: E402
+import matplotlib.pyplot as plt  # noqa: E402
+
+
+def explode(df, lst_cols, fill_value=''):
+    # make sure `lst_cols` is a list
+    if lst_cols and not isinstance(lst_cols, list):
+        lst_cols = [lst_cols]
+    # all columns except `lst_cols`
+    idx_cols = df.columns.difference(lst_cols)
+
+    # calculate lengths of lists
+    lens = df[lst_cols[0]].str.len()
+
+    if (lens > 0).all():
+        # ALL lists in cells aren't empty
+        return pd.DataFrame({col: np.repeat(df[col].values, df[lst_cols[0]].str.len())
+                             for col in idx_cols}).assign(
+            **{col: np.concatenate(df[col].values) for col in lst_cols}).loc[:, df.columns]
+    else:
+        # at least one list in cells is empty
+        return pd.DataFrame({col: np.repeat(df[col].values, df[lst_cols[0]].str.len())
+                             for col in idx_cols}).assign(
+            **{col: np.concatenate(df[col].values)
+               for col in lst_cols}).append(df.loc[lens == 0, idx_cols]).fillna(fill_value).loc[:, df.columns]
+
+
+def print_classification(model, X, y, Xeval, yeval, output_path=None):
+    class_preds_train = model.predict_classes(X)
+    class_preds_eval = model.predict_classes(Xeval)
+
+    report_train = classification_report(class_preds_train, y)
+    print('########## on same dataset (bias) ##########')
+    print(report_train)
+
+    report_unbiased = classification_report(class_preds_eval, yeval)
+    print('\n\n########## on independent dataset (unbiased) ##########')
+    print(report_unbiased)
+
+    if output_path is not None:
+        store = os.path.join(output_path, 'classification_reports')
+        make_dirs(store)
+        with open(os.path.join(store, 'training_set.txt'), 'w') as f:
+            print(report_train, file=f)
+        with open(os.path.join(store, 'test_set.txt'), 'w') as f:
+            print(report_unbiased, file=f)
+
+
+def plot_scoring(history, name, scorers, output_path):
+    """
+    Make scoring plots for each epoch, i.e. loss, accuracy etc
+    :param history: training history
+    :param name: output name
+    :param scorers: scorings to be plotted
+    :param output_path: output path
+    :return:
+    """
+    for scorer in scorers:
+        plt.plot(history.history[scorer])
+        plt.plot(history.history['val_{:s}'.format(scorer)])
+    plt.legend([i for x in [(scorer, "valid {:s}".format(scorer)) for scorer in scorers] for i in x])
+    plt.xlabel('epoch')
+    plt.ylabel('scoring')
+    store = os.path.join(output_path, 'plots')
+    make_dirs(store)
+    plt.savefig(os.path.join(store, '{:s}.png'.format(name)))
+    plt.savefig(os.path.join(store, '{:s}.pdf'.format(name)))
+    plt.close()
 
 
 class MLConfig(object):
@@ -121,7 +193,7 @@ class DataScaler(object):
 
     def apply_scaling(self, X, y, dump=None, scaler=None):
         if scaler is not None:
-            with open(scaler, "r") as fn:
+            with open(scaler, 'rb') as fn:
                 return pickle.load(fn).transform(X), y
 
         le = LabelEncoder()
@@ -151,7 +223,8 @@ class DataScaler(object):
     def apply_scaler(scaler, X, dump=None):
         scaler.fit(X)
         if dump is not None:
-            with open(dump, "w") as fn:
+            _logger.debug('Store scaler to: {:s}'.format(dump))
+            with open(dump, "wb") as fn:
                 pickle.dump(scaler, fn)
         return scaler.transform(X)
 
@@ -161,8 +234,8 @@ class Root2NumpyConverter(object):
         self.branches = branches
 
     def convert_to_array(self, tree, selection="", max_events=None):
-        data = root_numpy.tree2array(tree, branches=self.branches,
-                                     selection=selection, start=0)
+        selection = "1"
+        data = root_numpy.tree2array(tree, branches=self.branches, selection=None, start=0)
         return data
 
     def merge(self, signals, bkgs):
@@ -175,13 +248,26 @@ class Root2NumpyConverter(object):
 
 class TrainingReader(object):
     def __init__(self, **kwargs):
+        def check_file_type(postfix):
+            return all([i.endswith(postfix) for i in kwargs['input_file_list']])
+
+        self.mode = ''
         self.numpy_input = False
-        if len(kwargs["input_file"]) > 1 and kwargs["input_file"][0].endswith(".npy"):
-            self.numpy_input = True
-            return
-        self.input_file = FileHandle(file_name=kwargs["input_file"][0])
-        self.signal_tree_names = kwargs["signal_tree_names"]
-        self.bkg_tree_names = kwargs["bkg_tree_names"]
+        if 'input_file' in kwargs:
+            if len(kwargs["input_file"]) > 1 and kwargs["input_file"][0].endswith(".npy"):
+                self.numpy_input = True
+                return
+            self.input_file = FileHandle(file_name=kwargs["input_file"][0])
+            self.signal_tree_names = kwargs["signal_tree_names"]
+            self.bkg_tree_names = kwargs["bkg_tree_names"]
+
+        if 'input_file_list' in kwargs:
+            if check_file_type('.json'):
+                self.mode = 'pandas'
+                self.data = {}
+                for fn in kwargs['input_file_list']:
+                    with open(fn) as f:
+                        self.data[fn.split('/')[-1]] = pd.read_json(f)
 
     def get_trees(self):
         signal_train_tree_names, bkg_train_tree_names, signal_eval_tree_names, bkg_eval_tree_names = \

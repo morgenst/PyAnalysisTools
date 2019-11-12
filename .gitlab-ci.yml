@@ -66,6 +66,7 @@ unittest:
     - pip install future --user
     - pip install pandas --user
     - pip install root_numpy --user
+    - pip install matplotlib --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - echo $SERVICE_PASS | kinit $CERN_USER
