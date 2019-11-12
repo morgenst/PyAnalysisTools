@@ -3,12 +3,12 @@ variables:
   PACKAGE_NAME: PyAnalysisTools
   CI_WEBSITE_DIR: "docs/build"
   DFS_WEBSITE_NAME: "pyanalysistoolsdocs"
+  DFS_WEBSITE_USERNAME: morgens
 
 stages:
   - test
   - build
   - deploy
-  
 
 build_docs:
   image: atlas/analysisbase:latest
@@ -17,7 +17,7 @@ build_docs:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
-    - pip install sphinx mock future --user
+    - pip install sphinx mock future oyaml dill --user
     - export PATH=/home/atlas/.local/bin:$PATH
   script:
     - ls
@@ -39,8 +39,8 @@ build_docs:
 deploy_production:
   variables:
   <<: *deploy_definition
-  only:
-    - master
+  #  only:
+  #    - master
   environment:
     name: production
     url: https://cern.ch/PyAnalysisToolsDocs
@@ -54,16 +54,24 @@ unittest:
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
+    - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
     - pip install nose --user
     - pip install oyaml --user
+    - pip install sklearn --user
+    - pip install tabulate --user
     - pip install coverage --user
     - pip install nosedep --user
     - pip install mock --user
     - pip install pathos --user
     - pip install future --user
+    - pip install pandas --user
+    - pip install root_numpy --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.unit --with-coverage
+    - echo $SERVICE_PASS | kinit $CERN_USER
+    - mkdir -p tests/unit/fixtures/files/
+    - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/analysis_files/fixtues/ntuple-311331_0.MC16d.root tests/unit/fixtures/files/
+    - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
 
 style_check:
   image: atlas/analysisbase:latest
