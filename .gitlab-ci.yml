@@ -13,7 +13,7 @@ stages:
 
 build_latest_image:
   stage: docker
-  image: atlas/analysisbase:latest
+  image: atlas/analysisbase:21.2.98
   before_script:
     - git submodule sync --recursive
     - git submodule update --init --recursive
