@@ -13,22 +13,25 @@ stages:
 
 build_latest_image:
   stage: build
-  image: atlas/analysisbase:latest
-  before_script:
-    - git submodule sync --recursive
-    - git submodule update --init --recursive
-    - source /home/atlas/release_setup.sh
-    - which python
-    - which pip
-    - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
-    - pip install --user -r requirements.txt
-    - export PATH=$PATH:/home/atlas/.local/bin
+#  image: atlas/analysisbase:latest
+#  before_script:
+#    - git submodule sync --recursive
+#    - git submodule update --init --recursive
+#    - source /home/atlas/release_setup.sh
+#    - which python
+#    - which pip
+#    - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
+#    - pip install --user -r requirements.txt
+#    - export PATH=$PATH:/home/atlas/.local/bin
   variables:
     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    DOCKER_FILE: Dockerfile
   except:
     - tags
+  tags:
+    - docker-image-build
   script:
-    - ls #ignore
+    - ignore
 
 
 build_docs:
