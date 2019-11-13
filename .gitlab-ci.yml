@@ -6,19 +6,43 @@ variables:
   DFS_WEBSITE_USERNAME: morgens
 
 stages:
+  - docker
   - test
-  - build
+  - docs
   - deploy
 
-build_docs:
+build_latest_image:
+  stage: docker
   image: atlas/analysisbase:latest
-  stage: build
   before_script:
+    - git submodule sync --recursive
+    - git submodule update --init --recursive
     - source /home/atlas/release_setup.sh
     - which python
     - which pip
-    - pip install sphinx mock future oyaml dill --user
-    - export PATH=/home/atlas/.local/bin:$PATH
+    - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
+    - pip install --user -r requirements.txt
+    - export PATH=$PATH:/home/atlas/.local/bin
+  variables:
+    TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  except:
+    - tags
+  tags:
+    - docker-image-build
+  script:
+    - ls #ignore
+
+
+build_docs:
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  #image: atlas/analysisbase:latest
+  stage: docs
+  before_script:
+    - source /home/atlas/release_setup.sh
+    #- which python
+    #- which pip
+    #- pip install sphinx mock future oyaml dill --user
+    #- export PATH=/home/atlas/.local/bin:$PATH
   script:
     - ls
     - sphinx-build docs/source/ docs/build/
@@ -39,34 +63,35 @@ build_docs:
 deploy_production:
   variables:
   <<: *deploy_definition
-  #  only:
-  #    - master
+  only:
+    - master
   environment:
     name: production
     url: https://cern.ch/PyAnalysisToolsDocs
 
     
 unittest:
-  image: atlas/analysisbase:latest
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  #image: atlas/analysisbase:latest
   stage: test
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
   before_script:
     - source /home/atlas/release_setup.sh
-    - which python
-    - which pip
+#    - which python
+#    - which pip
     - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
-    - pip install nose --user
-    - pip install oyaml --user
-    - pip install sklearn --user
-    - pip install tabulate --user
-    - pip install coverage --user
-    - pip install nosedep --user
-    - pip install mock --user
-    - pip install pathos --user
-    - pip install future --user
-    - pip install pandas --user
-    - pip install root_numpy --user
-    - pip install matplotlib --user
+#    - pip install nose --user
+#    - pip install oyaml --user
+#    - pip install sklearn --user
+#    - pip install tabulate --user
+#    - pip install coverage --user
+#    - pip install nosedep --user
+#    - pip install mock --user
+#    - pip install pathos --user
+#    - pip install future --user
+#    - pip install pandas --user
+#    - pip install root_numpy --user
+#    - pip install matplotlib --user
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - echo $SERVICE_PASS | kinit $CERN_USER
@@ -75,13 +100,14 @@ unittest:
     - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
 
 style_check:
-  image: atlas/analysisbase:latest
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  #image: atlas/analysisbase:latest
   stage: test
   before_script:
     - source /home/atlas/release_setup.sh
-    - which python
-    - which pip
-    - pip install --user flake8==3.5.0
+#    - which python
+#    - which pip
+#    - pip install --user flake8==3.5.0
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
     - flake8 .
