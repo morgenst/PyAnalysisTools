@@ -27,8 +27,6 @@ build_latest_image:
     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
   except:
     - tags
-  tags:
-    - docker-image-build
   script:
     - ls #ignore
 
