@@ -6,14 +6,14 @@ variables:
   DFS_WEBSITE_USERNAME: morgens
 
 stages:
-  - docker
+  - build
   - test
   - docs
   - deploy
 
 build_latest_image:
-  stage: docker
-  image: atlas/analysisbase:21.2.98
+  stage: build
+  image: atlas/analysisbase:latest
   before_script:
     - git submodule sync --recursive
     - git submodule update --init --recursive
