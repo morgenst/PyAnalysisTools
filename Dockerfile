@@ -7,4 +7,5 @@ RUN /bin/bash -c "whoami && \
     	      	  ls && \
     	      	  pwd && \
     	      	  ls requirements.txt && \
-    	      	  pip install --user -r requirements.txt"
+    	      	  pip install --user -r requirements.txt && \
+    	      	  export PATH=/home/atlas/.local/bin:$PATH"

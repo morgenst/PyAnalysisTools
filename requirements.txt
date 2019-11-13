@@ -10,6 +10,6 @@ mock
 future
 numpy >= 1.13.0
 root_numpy
-#matplotlib
+matplotlib
 flake8==3.5.0
 impbalance;python_version>"3.0"
