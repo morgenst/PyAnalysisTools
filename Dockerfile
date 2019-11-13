@@ -1,6 +1,6 @@
 FROM atlas/analysisbase:latest
 
-ADD ./src /analysis/src
+ADD . /analysis/src
 WORKDIR /analysis/src
 RUN /bin/bash -c "whoami && \
     	      	  source /home/atlas/release_setup.sh && \
