@@ -8,7 +8,7 @@ coverage
 nosedep
 mock
 future
-root_numpy
-matplotlib
 numpy >= 1.13.0
+root_numpy
+#matplotlib
 impbalance;python_version>"3.0"
