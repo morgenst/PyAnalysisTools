@@ -28,6 +28,7 @@ build_docs:
   stage: docs
   before_script:
     - source /home/atlas/release_setup.sh
+    - export PATH=/home/atlas/.local/bin:$PATH
     - pip install sphinx --user
   script:
     - ls
