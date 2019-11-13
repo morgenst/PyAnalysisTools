@@ -2,6 +2,13 @@ nose
 oyaml
 pandas
 pathos
+sklearn
+tabulate
+coverage
+nosedep
+mock
+future
+root_numpy
+matplotlib
 numpy >= 1.13.0
-root-numpy >= 4.6.0;python_version<"3.0"
-#pyhf
+impbalance;python_version>"3.0"
