@@ -35,7 +35,7 @@ class TestUtilities(unittest.TestCase):
     def test_check_required_args_missing(self):
         self.assertEqual('arg', Utilities.check_required_args('arg', foo=1))
 
-    @unittest.skip("Need MMPP-1814")
+    @unittest.skip("Need MMPP-1841")
     def test_cleaner_check_lifetime(self):
         self.fs.create_file('/foo/bar.txt')
         self.assertTrue(Utilities.Cleaner.check_lifetime(100, 'foo', ['bar.txt']))
