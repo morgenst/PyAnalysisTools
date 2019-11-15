@@ -49,7 +49,7 @@ class TestUtilities(unittest.TestCase):
     def test_cleaner_default_ctor(self):
         cleaner = Utilities.Cleaner(base_path='foo')
         self.assertTrue(cleaner.safe)
-        self.assertEqual('/foo', cleaner.base_path)
+        self.assertEqual('foo', cleaner.base_path)
         self.assertEqual([".git", ".keep", ".svn", "InstallArea", "RootCoreBin", "WorkArea"], cleaner.keep_pattern)
         self.assertEqual([], cleaner.deletion_list)
         self.assertEqual(14., cleaner.touch_threshold_days)
