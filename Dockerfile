@@ -8,4 +8,5 @@ RUN /bin/bash -c "whoami && \
     	      	  pwd && \
     	      	  ls requirements.txt && \
     	      	  pip install --user -r requirements.txt && \
+    	      	  pip install --user pyfakefs && \
     	      	  export PATH=/home/atlas/.local/bin:$PATH"
