@@ -2,21 +2,32 @@ import os
 import calendar
 import time
 import fnmatch
+from collections import OrderedDict
+
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 from PyAnalysisTools.base import ShellUtils
 
 
 def merge_dictionaries(*dicts):
+    """
+    Merge N dictionaries into a single one
+    :param dicts: dictionaries
+    :return: merged dictionary
+    """
     result = {}
     for dictionary in dicts:
+        if not isinstance(dictionary, dict) and not isinstance(dictionary, OrderedDict):
+            _logger.error("Passed invalid object of type {:s} to dictionary merge. Ignoring.".format(str(
+                type(dictionary))))
+            continue
         result.update(dictionary)
     return result
 
 
 def flatten(dictionary, left_key="", separator="/"):
     flatten_list = []
-    for key, value in dictionary.iteritems():
+    for key, value in list(dictionary.items()):
         if isinstance(value, dict):
             flatten_list += flatten(value, key)
         elif isinstance(value, list):
@@ -25,10 +36,6 @@ def flatten(dictionary, left_key="", separator="/"):
         elif value is None:
             flatten_list.append(separator.join([left_key, key]))
     return flatten_list
-
-
-def parse_dataset_list_from_file(file_name):
-    return YAMLLoader.read_yaml(file_name)
 
 
 def recursive_glob(path, pattern):
@@ -53,12 +60,16 @@ class Cleaner(object):
             raise InvalidInputError("No path provided.")
 
         kwargs.setdefault("safe", True)
+        kwargs.setdefault('trash_path', None)
         self.base_path = os.path.abspath(kwargs["base_path"])
         self.safe = kwargs["safe"]
         self.keep_pattern = [".git", ".keep", ".svn", "InstallArea", "RootCoreBin", "WorkArea"]
         self.deletion_list = []
         self.touch_threshold_days = 14.
-        self.trash_path = os.path.expanduser(kwargs["trash_path"])
+        if kwargs['trash_path'] is None:
+            self.trash_path = None
+        else:
+            self.trash_path = os.path.expanduser(kwargs["trash_path"])
 
     def setup_temporary_trash(self):
         if not self.safe:
