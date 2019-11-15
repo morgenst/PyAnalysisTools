@@ -62,6 +62,6 @@ class TestUtilities(unittest.TestCase):
     def test_cleaner_default_ctor_missing_arg(self):
         self.assertRaises(InvalidInputError, Utilities.Cleaner)
 
-    def test_cleaner_default_ctor_trash(self):
+    def test_cleaner_default_setup_trash(self):
         cleaner = Utilities.Cleaner(base_path='foo', safe=False)
         self.assertIsNone(cleaner.setup_temporary_trash())
