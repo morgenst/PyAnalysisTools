@@ -46,6 +46,7 @@ class TestUtilities(unittest.TestCase):
     def test_flatten_more_elements(self):
         self.assertEqual(['foo/bar/1', 'foo/bar/2'], Utilities.flatten({'foo': {'bar': ["1", "2"]}}))
 
+    @unittest.skip("Requires fake fs")
     def test_cleaner_default_ctor(self):
         cleaner = Utilities.Cleaner(base_path='foo')
         self.assertTrue(cleaner.safe)
@@ -55,6 +56,7 @@ class TestUtilities(unittest.TestCase):
         self.assertEqual(14., cleaner.touch_threshold_days)
         self.assertEqual(None, cleaner.trash_path)
 
+    @unittest.skip("Requires fake fs")
     def test_cleaner_default_ctor_trash(self):
         cleaner = Utilities.Cleaner(base_path='foo', trash_path='bar')
         self.assertEqual('bar', cleaner.trash_path)
