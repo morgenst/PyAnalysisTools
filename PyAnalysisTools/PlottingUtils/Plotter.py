@@ -89,7 +89,7 @@ class Plotter(BasePlotter):
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
-        kwargs.setdefault("systematics", "Nominal")
+        kwargs.setdefault("tree_dir_name", "Nominal")
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("process_config_file", None)
         kwargs.setdefault("xs_config_file", None)
@@ -106,6 +106,8 @@ class Plotter(BasePlotter):
                 continue
             setattr(self, k, v)
 
+        if self.tree_dir_name == "" or self.tree_dir_name.lower() == 'none':
+            self.tree_dir_name = None
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
@@ -244,7 +246,7 @@ class Plotter(BasePlotter):
             tn = tree_name
             if syst_tree_name is not None and file_handle.is_mc:
                 tn = syst_tree_name
-            return file_handle.get_object_by_name(tn, "Nominal").GetEntries() > 0
+            return file_handle.get_object_by_name(tn, self.tree_dir_name).GetEntries() > 0
 
         empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.syst_tree_name)]
         self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.syst_tree_name)]
@@ -292,7 +294,7 @@ class Plotter(BasePlotter):
     def make_multidimensional_plot(self, plot_config, data):
         for process, histogram in list(data.items()):
             canvas = pt.plot_obj(histogram, plot_config)
-            canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
+            canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process.process_name))
             canvas.SetRightMargin(0.2)
             FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas)
@@ -360,9 +362,13 @@ class Plotter(BasePlotter):
 
     def scale_process(self, data):
         for process, hist in list(data.items()):
-            if self.process_configs[process].scale_factor is None:
+            try:
+                cfg = self.process_configs[process]
+            except KeyError:
+                cfg = self.process_configs[process.process_name]
+            if cfg.scale_factor is None:
                 continue
-            HT.scale(hist, self.process_configs[process].scale_factor)
+            HT.scale(hist, cfg.scale_factor)
 
     def make_plot(self, plot_config, data):
         _logger.debug("Making single plot")
@@ -386,7 +392,6 @@ class Plotter(BasePlotter):
         if plot_config.signal_scale is not None and signals is not None:
             self.scale_signals(signals, plot_config)
         self.scale_process(data)
-
         signal_only = False
         if signals is not None and len(signals) > 0 and len(data) == 0:
             signal_only = True
@@ -417,6 +422,7 @@ class Plotter(BasePlotter):
                 for signal in list(signals.items()):
                     pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
+
         if not plot_config.disable_legend or plot_config.enable_legend:
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
@@ -560,12 +566,14 @@ class Plotter(BasePlotter):
         if not self.read_hist:
             if len(self.modules_hist_fetching) == 0:
                 fetched_histograms = self.read_histograms(file_handles=self.file_handles,
-                                                          plot_configs=self.plot_configs)
+                                                          plot_configs=self.plot_configs,
+                                                          tree_dir_name=self.tree_dir_name)
             else:
                 fetched_histograms = self.modules_hist_fetching[0].fetch()
         else:
             fetched_histograms = self.read_histograms_plain(file_handle=self.file_handles,
-                                                            plot_configs=self.plot_configs)
+                                                            plot_configs=self.plot_configs,
+                                                            tree_dir_name=self.tree_dir_name)
 
         return [hist_set for hist_set in fetched_histograms if all(hist_set)]
 

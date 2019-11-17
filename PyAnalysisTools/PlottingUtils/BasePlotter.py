@@ -39,6 +39,7 @@ class BasePlotter(object):
         kwargs.setdefault('cluster_config', None)
         kwargs.setdefault('redraw', False)
         kwargs.setdefault('skip_fh_reading', False)
+        kwargs.setdefault('disable_cutflow_reading', False)
 
         self.event_yields = {}
         set_batch_mode(kwargs["batch"])
@@ -131,6 +132,9 @@ class BasePlotter(object):
         :return: nothing
         :rtype: None
         """
+        if self.disable_cutflow_reading:
+            _logger.debug("Cutflow reading disabled. Cannot apply lumi weights")
+            return
         provided_wrong_info = False
         for plot_config, hist_set in list(histograms.items()):
             for process, hist in list(hist_set.items()):
@@ -155,6 +159,8 @@ class BasePlotter(object):
         :return: None
         :rtype: None
         """
+        if self.disable_cutflow_reading:
+            return
         for file_handle in self.file_handles:
             process = file_handle.process
             if process is None:
@@ -165,15 +171,15 @@ class BasePlotter(object):
             else:
                 self.event_yields[process] = file_handle.get_number_of_total_events()
 
-    def fetch_histograms_new(self, data, systematic="Nominal", factor_syst=''):
+    def fetch_histograms_new(self, data, tree_dir_name="Nominal", factor_syst=''):
         file_handle, plot_config = data
         if file_handle.process is None or file_handle.process.is_data and plot_config.no_data:
             return [None, None, None]
-        tmp = self.retrieve_histogram(file_handle, plot_config, systematic, factor_syst)
+        tmp = self.retrieve_histogram(file_handle, plot_config, tree_dir_name, factor_syst)
         tmp.SetName(tmp.GetName().split('%%')[0] + tmp.GetName().split('%%')[-1])
         return plot_config, file_handle.process, tmp
 
-    def fetch_plain_histograms(self, data, systematic="Nominal"):
+    def fetch_plain_histograms(self, data, tree_dir_name="Nominal"):
         file_handle, plot_config = data
         if "data" in file_handle.process.lower() and plot_config.no_data:
             return
@@ -181,14 +187,14 @@ class BasePlotter(object):
             tn = self.tree_name
             if self.syst_tree_name is not None and file_handle.is_mc:
                 tn = self.syst_tree_name
-            hist = file_handle.get_object_by_name("{:s}/{:s}".format(tn, plot_config.dist), systematic)
+            hist = file_handle.get_object_by_name("{:s}/{:s}".format(tn, plot_config.dist), tree_dir_name)
         except ValueError:
             _logger.debug('No event passed selection.')
             return [None, None, None]
         hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process))
         return plot_config, file_handle.process, hist
 
-    def retrieve_histogram(self, file_handle, plot_config, systematic="Nominal", factor_syst=''):
+    def retrieve_histogram(self, file_handle, plot_config, tree_dir_name="Nominal", factor_syst=''):
         """
         Read data from ROOT file and build histogram according to definition in plot_config
 
@@ -196,8 +202,8 @@ class BasePlotter(object):
         :type file_handle: FileHandle
         :param plot_config: plot configuration including distribution and axis definitions
         :type plot_config: PlotConfig
-        :param systematic:
-        :type systematic: str
+        :param tree_dir_name:
+        :type tree_dir_name: str
         :param factor_syst:
         :type factor_syst:
         :return: filled histogram - dimension depends on request in plot config
@@ -206,7 +212,7 @@ class BasePlotter(object):
         file_handle.open()
         file_handle.reset_friends()
         try:
-            hist = get_histogram_definition(plot_config, systematic, factor_syst)
+            hist = get_histogram_definition(plot_config, tree_dir_name, factor_syst)
         except ValueError:
             _logger.error("Could not build histogram for {:s}. Likely issue with log-scale and \
             range settings.".format(plot_config.name))
@@ -260,7 +266,7 @@ class BasePlotter(object):
                 if self.syst_tree_name is not None and file_handle.is_mc:
                     tn = self.syst_tree_name
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
-                                                        tdirectory=systematic, weight=weight)
+                                                        tdirectory=tree_dir_name, weight=weight)
 
             except TypeError:  # RuntimeError:
                 _logger.error("Unable to retrieve hist {:s} for {:s}.".format(hist.GetName(), file_handle.file_name))
@@ -286,29 +292,29 @@ class BasePlotter(object):
             return None
         return hist
 
-    def read_histograms(self, file_handles, plot_configs, systematic="Nominal", factor_syst=''):
+    def read_histograms(self, file_handles, plot_configs, tree_dir_name="Nominal", factor_syst=''):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
         if cpus > 0 and sys.version_info[0] != 3:
             pool = mp.ProcessPool(nodes=cpus)
-            histograms = pool.map(partial(self.fetch_histograms_new, systematic=systematic), comb)
+            histograms = pool.map(partial(self.fetch_histograms_new, tree_dir_name=tree_dir_name), comb)
         else:
             histograms = []
             for i in comb:
-                hist = self.fetch_histograms_new(i, systematic=systematic, factor_syst=factor_syst)
+                hist = self.fetch_histograms_new(i, tree_dir_name=tree_dir_name, factor_syst=factor_syst)
                 histograms.append(hist)
         return histograms
 
-    def read_histograms_plain(self, file_handle, plot_configs, systematic="Nominal"):
+    def read_histograms_plain(self, file_handle, plot_configs, tree_dir_name="Nominal"):
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
         comb = product(file_handle, plot_configs)
         if cpus > 1:
             pool = mp.ProcessPool(nodes=cpus)
-            histograms = pool.map(partial(self.fetch_plain_histograms, systematic=systematic), comb)
+            histograms = pool.map(partial(self.fetch_plain_histograms, tree_dir_name=tree_dir_name), comb)
         else:
             histograms = []
             for i in comb:
-                histograms.append(self.fetch_plain_histograms(i, systematic=systematic))
+                histograms.append(self.fetch_plain_histograms(i, tree_dir_name=tree_dir_name))
         return histograms
 
     def categorise_histograms(self, histograms):

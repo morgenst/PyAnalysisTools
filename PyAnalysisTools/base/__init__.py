@@ -60,17 +60,19 @@ def add_output_args(parser):
     parser.add_argument("--output_dir", "-o", default=None, help="output directory")
 
 
-def add_input_args(parser):
+def add_input_args(parser, disable_tree=False):
     """
     add default arguments for input
     :param parser: argument parser
     :type parser: argparse.ArgumentParser
+    :param disable_tree: disable adding tree name parser argument (default: False)
     :return: nothing
     :rtype: None
     """
 
     parser.add_argument("input_file_list", nargs="+", type=str, help="input file list")
-    parser.add_argument('--tree_name', '-tn', default=None, help="tree name (required for extended CA")
+    if not disable_tree:
+        parser.add_argument('--tree_name', '-tn', default=None, help="tree name (required for extended CA")
 
 
 def add_selection_args(parser):

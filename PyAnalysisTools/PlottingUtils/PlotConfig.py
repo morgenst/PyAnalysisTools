@@ -6,6 +6,7 @@ import re
 from array import array
 from collections import OrderedDict
 from copy import copy, deepcopy
+import math
 from math import log10
 
 from builtins import input
@@ -495,7 +496,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     else:
         dimension = 0
     hist = None
-    hist_name = check_name('{:s}%%{:s}_{:s}%%'.format(plot_config.name, systematics, factor_syst))
+    hist_name = check_name('{:s}%%{:s}_{:s}%%'.format(plot_config.name, str(systematics), factor_syst))
     if dimension == 0:
         if not plot_config.logx:
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)

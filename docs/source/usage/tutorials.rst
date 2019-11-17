@@ -142,7 +142,27 @@ one needs to set draw_option: "e0" in the ratio_config.
 To make plots several steering script are provided (not all have been moved to the run_scripts directory, yet, and thus
 are not always provided as binaries - meaning one has to use an existing script or write one on its own). The "standard"
 plots can be produced by either the *run_plotting.py* or the *run_plotting_cluster.py* scripts (at some point they'll be
-merged into a single script - see ELB-). Both are wrappers to configure and execute the sequence implemented in the Plotter
+merged into a single script - see ELB-).
+All arguments are explained by calling the help. The important options are:
+
+Positional arguments:
+
+* input_file_list : list of input files
+
+Optional arguments:
+
+* systematics: name of input directory in input files (default: Nominal)
+* tree_name: name of input tree if custom selection
+* plot_config_files: plot configuration files (see above for further details)
+* tree_dir_name: name of the directory in the root file which contains TTree (default: Nominal)
+* enable_systematics: Enable plotting of systematic uncertainties
+* systematics_config: Configuration of systematics
+* module_config_files: yaml files containing configuration of additional lazy-loaded modules
+* xs_config_file: yaml file containing mapping b/w dsid and dataset info (see above)
+* process_config_files: yaml files containing information on how processes are to be merged
+* output_dir: output directory to store acceptance plots (for each cut) if they are requested
+
+Both are wrappers to configure and execute the sequence implemented in the Plotter
 class with the only difference being that the run_plotting_cluster.py script runs in cluster-mode. This is meant to speed
 up the plot making which can depending on the input file size and the number of requested histograms run for several hours
 which of course is far from ideal. If the user has access to a computing cluster - currently only qsub systems are supported,
@@ -153,6 +173,16 @@ and make the final plot. This last step is very fast as the input files are smal
 much of a concern, but once systematics are considered the amount of histograms to fetch exceeds 10k very easily.
 In general re-making all plots in an analysis including systematics (ignoring limits) should not take more than a few
 minutes (provided that the cluster availability is high).
+
+.. note::
+
+    By default the tools assume that the input trees are stored in directories (Nominal, systematic shape variation)
+    which is the default output when running the ELBrain framework. In case you want to process a tree in a specific
+    directory or if no such structure exist in the input files, i.e. trees are simply stored in the root directory of the
+    file, the option *--tree_dir_name* can be used to specify the directory name. For the latter case you can either pass
+    an empty string or None.
+    In case no Nominal directory is available the automatic parsing of the initial MC stats will not be possible and thus
+    the user has to disable the luminosity scaling via the *--disable_cutflow_reading* option.
 
 Printing cutflows
 -----------------
