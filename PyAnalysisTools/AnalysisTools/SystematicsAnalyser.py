@@ -189,7 +189,7 @@ class SystematicsAnalyser(BasePlotter):
         for syst in systematic.get_variations():
             if dumped_hist_path is None:
                 fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=self.plot_configs,
-                                                          systematic=syst)
+                                                          tree_dir_name=syst)
             else:
                 fetched_histograms = self.load_dumped_hists(file_handles, self.plot_configs, syst)
             if self.dump_hists:
@@ -215,7 +215,7 @@ class SystematicsAnalyser(BasePlotter):
                     pc.weight = pc.weight.replace('weight', '({:s})'.format(new_weight))
             if dumped_hist_path is None:
                 fetched_histograms = self.read_histograms(file_handles=file_handles, plot_configs=plot_configs,
-                                                          systematic="Nominal", factor_syst=weight)
+                                                          tree_dir_name="Nominal", factor_syst=weight)
             else:
                 fetched_histograms = self.load_dumped_hists(file_handles, self.plot_configs, weight)
 
@@ -231,7 +231,7 @@ class SystematicsAnalyser(BasePlotter):
         for unc_name, data in list(scale_unc.items()):
             if dumped_hist_path is None:
                 nominal_hists = self.read_histograms(file_handles=file_handles, plot_configs=self.plot_configs,
-                                                     systematic="Nominal", factor_syst='fixed_scale')
+                                                     tree_dir_name="Nominal", factor_syst='fixed_scale')
                 fetched_histograms = []
                 for pc, process_cfg, h in nominal_hists:
                     htmp_up = h.Clone('{:s}_{:s}_{:s}__1up'.format(pc.name, process_cfg.process_name, unc_name))
