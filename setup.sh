@@ -7,6 +7,8 @@ export PYTHONPATH=${CWD}:${PYTHONPATH}
 
 chmod -R 755 ${CWD}/run_scripts/*.py
 
+export PATH=${PATH}:${CWD}/run_scripts/
+
 if [[ "$1" != "disable_dep_check" ]]; then
     python ${CWD}/.check_dependencies.py
 fi
