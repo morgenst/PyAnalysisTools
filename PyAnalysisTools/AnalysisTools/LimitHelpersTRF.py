@@ -338,23 +338,6 @@ def get_expected_limit(file_name, name='hypo_Sig'):
         return -1., 0., 0.
 
 
-class LimitAnalyser(object):
-    def __init__(self, input_path, analysis_name):
-        self.input_path = input_path
-        self.limit_fname = os.path.join(input_path, 'results/{:s}_Output_upperlimit.root'.format(analysis_name))
-        self.fit_fname = os.path.join(input_path, 'results', analysis_name,
-                                      'SPlusB_combined_NormalMeasurement_model_afterFit.root')
-        self.limit_info = LimitInfo()
-
-    def analyse_limit(self, sig_name="Sig"):
-        fit_status, fit_cov_quality = get_fit_quality(self.fit_fname)
-        self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=fit_cov_quality)
-        exp_limit, exp_limit_up, exp_limit_low = get_expected_limit(self.limit_fname,
-                                                                    "hypo_{:s}".format(sig_name))
-        self.limit_info.add_info(exp_limit=exp_limit, exp_limit_up=exp_limit_up, exp_limit_low=exp_limit_low)
-        return self.limit_info
-
-
 class LimitAnalyserCL(object):
     def __init__(self, input_path):
         self.input_path = input_path
@@ -362,7 +345,7 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self, signal_scale=1., fixed_signal=None, sig_yield=None, pmg_xsec=None, fixed_sig_sf=None):
+    def analyse_limit(self, signal_scale=1., pmg_xsec=None, fixed_sig_sf=None, enable_debug_plot=False):
         """
 
         :param signal_scale: signal scale factor applied on top of 1 pb fixed xsec in limit setting
@@ -378,17 +361,9 @@ class LimitAnalyserCL(object):
         def get_scale_factor(signal_scale):
             if signal_scale is None:
                 signal_scale = 1.
-            # scale_factor = 1000. * signal_scale
             scale_factor = 1.
             if fixed_sig_sf is not None:
-                # if isinstance(sig_yield, OrderedDict):
-                #     if isinstance(list(sig_yield.values())[0], numbers.Number):
-                #         scale_factor = scale_factor * sum([fixed_signal / yld for yld in list(sig_yield.values())])
-                #     else:
-                #         scale_factor = scale_factor * sum([fixed_signal / yld[0] for yld in list(sig_yield.values())])
-                # else:
-                print("Apply sf: ", fixed_sig_sf, ' scale factor before ', scale_factor)
-                # scale_factor = scale_factor * fixed_signal / fixed_sig_sf / pmg_xsec / 1e15
+                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}".format(fixed_sig_sf, scale_factor))
                 scale_factor = fixed_sig_sf * 1000. * pmg_xsec
             elif pmg_xsec is not None:
                 scale_factor = 1000. * pmg_xsec
@@ -399,14 +374,20 @@ class LimitAnalyserCL(object):
                             switch_off_process_name_analysis=True)
             tree = fh.get_object_by_name('stats')
             data = self.converter.convert_to_array(tree=tree)
-            fit_status = data['fit_status']  # , fit_cov_quality = get_fit_quality(self.fit_fname)
+            fit_status = data['fit_status']
             scale_factor = get_scale_factor(signal_scale)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
-            print("limits for ", self.input_path, ' exp upper limit: ', data['exp_upperlimit'],
-                  'scale factor: ', scale_factor, 'exp upper limit: * SF: ', data['exp_upperlimit'] * scale_factor)
+            _logger.debug("limits for {:s} exp upper limit: {:f} scale factor: {:f} exp upper limit: * "
+                          "SF: {:f}".format(self.input_path, data['exp_upperlimit'][0], scale_factor,
+                                            data['exp_upperlimit'][0] * scale_factor))
             self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
                                      exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
                                      exp_limit_low=data['exp_upperlimit_minus1'] * scale_factor)
+            if enable_debug_plot:
+                self.limit_info.add_info(scale_factor=scale_factor,
+                                         signal_strength=data['exp_upperlimit'],
+                                         signal_strength_up=data['exp_upperlimit_plus1'],
+                                         signal_strength_low=data['exp_upperlimit_minus1'])
 
         except ValueError:
             try:
@@ -417,7 +398,7 @@ class LimitAnalyserCL(object):
                                          exp_limit_up=data['CLs_exp'][3] * scale_factor,
                                          exp_limit_low=data['CLs_exp'][1] * scale_factor)
             except (ZeroDivisionError, IOError):
-                print("Could not find limit in path ", self.input_path)
+                _logger.error("Could not find limit in path {:s}".format(self.input_path))
                 self.limit_info.add_info(fit_status=-1, fit_cov_quality=-1, exp_limit=-1, exp_limit_up=-1,
                                          exp_limit_low=-1)
         return self.limit_info
@@ -427,7 +408,8 @@ class LimitPlotter(object):
     def __init__(self, output_handle):
         self.output_handle = output_handle
 
-    def make_cross_section_limit_plot(self, limits, plot_config, theory_xsec=None, sig_reg_name=None):
+    def make_cross_section_limit_plot(self, limits, plot_config, theory_xsec=None, model_par='mass',
+                                      value_par='exp_limit', disable_bands=False):
         """
         make cross section limit plot based on expected limits as function of mass hypothesis
 
@@ -442,17 +424,14 @@ class LimitPlotter(object):
         :return: None
         :rtype: None
         """
-        if sig_reg_name is not None:
-            if not sig_reg_name.startswith('_'):
-                sig_reg_name = '_{:s}'.format(sig_reg_name)
-        else:
-            sig_reg_name = ''
-        limits.sort(key=lambda li: li.mass)
-        ytitle = "95% CL U.L on #sigma [pb]"
-        pc = PlotConfig(name='xsec_limit{:s}'.format(sig_reg_name), ytitle=ytitle, xtitle=plot_config['xtitle'],
-                        draw='pLX', logy=True,
-                        lumi=plot_config['lumi'], watermark=plot_config['watermark'], ymin=float(1e-6),
-                        ymax=float(1.), )
+        plot_config.setdefault('logy', True)
+        plot_config.setdefault('ymin', 1e-6)
+        plot_config.setdefault('ymax', 1.)
+
+        limits.sort(key=lambda li: getattr(li, model_par))
+        pc = PlotConfig(name=plot_config['name'], ytitle=plot_config['ytitle'], xtitle=plot_config['xtitle'],
+                        draw='pLX', logy=plot_config['logy'], lumi=plot_config['lumi'], watermark=plot_config['watermark'],
+                        ymin=float(plot_config['ymin']), ymax=float(plot_config['ymax']), )
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
         pc_1sigma.color = ROOT.kGreen
@@ -463,37 +442,47 @@ class LimitPlotter(object):
         pc_2sigma.style_setter = "Fill"
 
         graph = ROOT.TGraph(len(limits))
-        graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
-        graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
+        if not disable_bands:
+            graph_1sigma = ROOT.TGraphAsymmErrors(len(limits))
+            graph_2sigma = ROOT.TGraphAsymmErrors(len(limits))
         for i, limit in sorted(enumerate(limits)):
-            graph.SetPoint(i, limit.mass, limit.exp_limit)
-            graph_1sigma.SetPoint(i, limit.mass, limit.exp_limit)
-            graph_2sigma.SetPoint(i, limit.mass, limit.exp_limit)
-            graph_1sigma.SetPointEYhigh(i, limit.exp_limit_up - limit.exp_limit)
-            graph_1sigma.SetPointEYlow(i, limit.exp_limit - limit.exp_limit_low)
-            graph_2sigma.SetPointEYhigh(i, 2. * (limit.exp_limit_up - limit.exp_limit))
-            graph_2sigma.SetPointEYlow(i, 2. * (limit.exp_limit - limit.exp_limit_low))
+            graph.SetPoint(i, getattr(limit, model_par), getattr(limit, value_par))
+            if not disable_bands:
+                graph_1sigma.SetPoint(i, getattr(limit, model_par), getattr(limit, value_par))
+                graph_2sigma.SetPoint(i, getattr(limit, model_par), getattr(limit, value_par))
+                graph_1sigma.SetPointEYhigh(i, getattr(limit, value_par+'_up') - getattr(limit, value_par))
+                graph_1sigma.SetPointEYlow(i, getattr(limit, value_par) - getattr(limit, value_par+'_low'))
+                graph_2sigma.SetPointEYhigh(i, 2. * (getattr(limit, value_par+'_up') - getattr(limit, value_par)))
+                graph_2sigma.SetPointEYlow(i, 2. * (getattr(limit, value_par) - getattr(limit, value_par+'_low')))
         if theory_xsec is not None:
             graph_theory = []
-            processed_mass_points = sorted([li.mass for li in limits])
+            processed_model_pars = sorted([getattr(li, model_par) for li in limits])
             processes = set([n.split('_')[0] for n in theory_xsec.keys()])
 
             for process in processes:
-                graph_theory.append(ROOT.TGraphAsymmErrors(len(processed_mass_points)))
-                for i, mass in enumerate(processed_mass_points):
-                    xsec, unc_up, unc_down = theory_xsec['{:s}_{:.0f}'.format(process, mass)]
-                    graph_theory[-1].SetPoint(i, mass, xsec)
+                graph_theory.append(ROOT.TGraphAsymmErrors(len(processed_model_pars)))
+                for i, par in enumerate(processed_model_pars):
+                    xsec, unc_up, unc_down = theory_xsec['{:s}_{:.0f}'.format(process, par)]
+                    graph_theory[-1].SetPoint(i, par, xsec)
                     graph_theory[-1].SetPointEYhigh(i, unc_up - xsec)
                     graph_theory[-1].SetPointEYlow(i, xsec - unc_down)
                 graph_theory[-1].SetName('Theory_prediction_{:s}'.format(process))
 
-        graph_2sigma.SetName('xsec_limit{:s}'.format(sig_reg_name))
-        canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
-        pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
-        pt.add_graph_to_canvas(canvas, graph, pc)
-        labels = ['expected limit', '#pm 1#sigma', '#pm 2#sigma']
-        legend_format = ['PL', 'F', 'F']
-        plot_objects = [graph, graph_1sigma, graph_2sigma]
+        if not disable_bands:
+            graph_2sigma.SetName(pc.name)
+            canvas = pt.plot_obj(graph_2sigma, pc_2sigma)
+            pt.add_graph_to_canvas(canvas, graph_1sigma, pc_1sigma)
+            pt.add_graph_to_canvas(canvas, graph, pc)
+            labels = ['expected limit', '#pm 1#sigma', '#pm 2#sigma']
+            legend_format = ['PL', 'F', 'F']
+            plot_objects = [graph, graph_1sigma, graph_2sigma]
+        else:
+            graph.SetName(pc.name)
+            canvas = pt.plot_obj(graph, pc)
+            labels = ['expected']
+            plot_objects = [graph]
+            legend_format = ['PL']
+
         if theory_xsec is not None:
             pc_theory = deepcopy(pc)
             pc_theory.draw_option = 'l3'
@@ -558,6 +547,7 @@ class XsecLimitAnalyser(object):
         """
         kwargs.setdefault('scan_info', None)
         kwargs.setdefault('xsec_map', None)
+        kwargs.setdefault('enable_debug_plot', False)
         self.input_path = kwargs['input_path']
         self.output_handle = OutputFileHandle(output_dir=kwargs['output_dir'])
         self.plotter = LimitPlotter(self.output_handle)
@@ -567,7 +557,8 @@ class XsecLimitAnalyser(object):
         self.prefit_yields = {}
         self.scanned_mass_cuts = None
         self.scanned_sig_masses = None
-        self.lumi = self.plot_config['lumi']
+        #self.lumi = self.plot_config['lumi']
+        self.enable_debug_plot = kwargs['enable_debug_plot']
         self.analysis_name = self.plot_config['analysis_name']
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
@@ -594,19 +585,16 @@ class XsecLimitAnalyser(object):
                 scale_factor = None
                 if self.scale_factors is not None:
                     scale_factor = self.scale_factors[scan.kwargs['sig_name']]
-                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
-                                                    None,
-                                                    pmg_xsec=self.xsec_handle.get_xs_scale_factor(
-                                                        scan.kwargs['sig_name']),
-                                                    fixed_sig_sf=scale_factor)  # scan.kwargs['sig_yield'])
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'],
+                                                    self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
+                                                    fixed_sig_sf=scale_factor, enable_debug_plot=self.enable_debug_plot)
             except ReferenceError:
                 _logger.error("Could not find info for scan {:s}".format(scan))
                 continue
             limit_info.sig_name = scan.kwargs['sig_name']
             mass = float(re.findall(r'\d{3,4}', scan.kwargs['sig_name'])[0])
             self.theory_xsec[mass] = None
-            limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
-                                mass=mass)
+            limit_info.add_info(mass_cut=scan.kwargs["mass_cut"], mass=mass)
             parsed_data.append(limit_info)
         limits = LimitScanAnalyser.find_best_limit(parsed_data)
         theory_xsec = None
@@ -623,8 +611,26 @@ class XsecLimitAnalyser(object):
         if self.xsec_map is not None:
             theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0].split('_')[0] in chains])
         # self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.sig_reg_name)
-        self.plotter.make_cross_section_limit_plot(limits, self.plot_config, theory_xsec,
-                                                   sig_reg_name=scan.sig_reg_name)
+
+        pc = deepcopy(self.plot_config)
+        pc['name'] = 'xsec_limit{:s}'.format(scan.sig_reg_name)
+        self.plotter.make_cross_section_limit_plot(limits, pc, theory_xsec)
+        if self.enable_debug_plot:
+            pc = deepcopy(self.plot_config)
+            pc['name'] = 'signal_stength_limit_{:s}'.format(scan.sig_reg_name)
+            pc['ytitle'] = 'Upper limit on signal strength'
+            self.plotter.make_cross_section_limit_plot(limits, pc, None, value_par='signal_strength')
+            pc = deepcopy(self.plot_config)
+            pc['name'] = 'scale_factor_{:s}'.format(scan.sig_reg_name)
+            pc['ytitle'] = 'Signal scale factor'
+            self.plotter.make_cross_section_limit_plot(limits, pc, None, value_par='scale_factor', disable_bands=True)
+            pc = deepcopy(self.plot_config)
+            pc['name'] = 'fit_status_{:s}'.format(scan.sig_reg_name)
+            pc['ytitle'] = 'Fit status'
+            pc['logy'] = False
+            pc['ymin'] = -0.5
+            pc['ymax'] = 2.5
+            self.plotter.make_cross_section_limit_plot(limits, pc, None, value_par='fit_status', disable_bands=True)
 
     def save(self):
         self.output_handle.write_and_close()
@@ -1065,10 +1071,10 @@ def write_config(args):
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
         print('\tDataType: ASIMOV', file=f)
         if 'signal_region' in limit_config and 'binning' in limit_config['signal_region']:
+            print('HERE')
             print('\tBinning: {:s}'.format(convert_binning(limit_config['signal_region']['binning'])), file=f)
         else:
             print('\tBinning: {:f}, 8000.'.format(kwargs['mass_cut']), file=f)
-
         print('\n', file=f)
 
         if 'spectators' in limit_config['general']:

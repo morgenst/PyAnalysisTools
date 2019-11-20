@@ -15,6 +15,10 @@ try:
 except ImportError:
     from tabulate import tabulate
 try:
+    ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+try:
     import pyAMI.client
 except ModuleNotFoundError:
     _logger.error("pyAMI not loaded")
