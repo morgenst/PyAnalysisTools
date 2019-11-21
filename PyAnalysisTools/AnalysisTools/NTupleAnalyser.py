@@ -63,8 +63,8 @@ class NTupleAnalyser(object):
         except CalledProcessError:
             _logger.error("voms not setup. Please run voms-proxy-init -voms atlas. Giving up now...")
             exit(-1)
-        time_left = list(map(int, filter(lambda e: e[0].startswith("timeleft"),
-                                         [tag.split(":") for tag in info.split("\n")])[0][1:]))
+        time_left = list(map(int, list(filter(lambda e: e[0].startswith("timeleft"),
+                                              [tag.split(":") for tag in info.split("\n")]))[0][1:]))
         if not all([i == 0 for i in time_left]):
             return
         _logger.error("No valid proxy found. Please run voms-proxy-init -voms atlas. Giving up now...")
@@ -113,7 +113,7 @@ class NTupleAnalyser(object):
             n_expected_events = int(client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
                                                    format="dict_object").get_rows()[0]["totalEvents"])
         except pyAMI.exception.Error:
-            _logger.error("Could not find dataset: ", ds[0])
+            _logger.error("Could not find dataset: {:s}".format(ds[0]))
             return
         ds.append(n_expected_events)
 
