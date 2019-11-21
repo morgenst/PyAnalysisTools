@@ -116,3 +116,11 @@ class TestProcess(unittest.TestCase):
         self.assertNotEqual(process1, process2)
         self.assertNotEqual(process1.process_name, process2.process_name)
         self.assertEqual(process1.dsid, process2.dsid)
+
+    def test_process_file_name_data(self):
+        process = Process('v21/ntuple-mc16_311570_MC16e.root', self.data_set_info, tags=['foo'])
+        self.assertTrue(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertEqual('TBbLQmumu1300l1', process.process_name)
+        self.assertEqual('311570', process.dsid)
+        self.assertEqual('mc16e', process.mc_campaign)
