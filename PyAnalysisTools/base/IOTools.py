@@ -12,8 +12,10 @@ from PyAnalysisTools.base.ShellUtils import move, remove_directory, make_dirs
 def parallel_merge(data, output_path, prefix, merge_dir=None, force=False, postfix=None, ncpu=10):
     make_dirs(output_path)
     make_dirs(merge_dir)
+    if merge_dir is None:
+        merge_dir = output_path
     if len(os.listdir(merge_dir)) > 0:
-        do_delete = eval(input("Merge directory contains already files. Shall I delete those?: [y|n]"))
+        do_delete = input("Merge directory contains already files. Shall I delete those?: [y|n]")
         if do_delete.lower() == "y" or do_delete.lower() == "yes":
             list([remove_directory(os.path.join(merge_dir, d)) for d in os.listdir(merge_dir)])
 
