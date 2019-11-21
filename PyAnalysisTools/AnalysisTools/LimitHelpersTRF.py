@@ -153,6 +153,7 @@ class LimitArgs(object):
         kwargs.setdefault("base_output_dir", output_dir)
         kwargs.setdefault("fixed_xsec", None)
         kwargs.setdefault("run_pyhf", False)
+        kwargs.setdefault("ranking", False)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
@@ -981,14 +982,20 @@ def run_fit_pyhf(args):
     os.system('pyhf cls {:s} --output-file {:s}'.format(ws, ws.replace('workspace', 'limit')))
 
 
-def write_config(args):
+def write_config(args, ranking=False):
+    if args.kwargs['ranking'] and not ranking:
+        write_config(deepcopy(args), True)
     kwargs = args.kwargs
     kwargs.setdefault('stat_only', False)
     kwargs.setdefault('disable_plots', False)
+
+    hist_path = os.path.join(args.output_dir, 'hists')
+    if ranking:
+        args.output_dir = os.path.join(args.output_dir, 'ranking')
+        kwargs['disable_plots'] = True
     make_dirs(os.path.join(args.output_dir, str(args.job_id)))
     make_plots = "FALSE" if kwargs['disable_plots'] else "TRUE"
     config_name = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-    hist_path = os.path.join(args.output_dir, 'hists')
     make_dirs(hist_path)
     limit_config = yl.read_yaml(kwargs['limit_config'])
     limit_config['general'].setdefault('lumi_uncert', 0.017)
@@ -1034,6 +1041,8 @@ def write_config(args):
         # print >> f, '\tSystPruningNorm: 0.005'
         print('\tUseATLASRounding: TRUE', file=f)
         print('\tTableOptions: !STANDALONE', file=f)
+        if ranking:
+            print('\tRankingMaxNP: 25', file=f)
         if kwargs['stat_only']:
             print('\tStatOnly: TRUE', file=f)
         print('\tOutputDir: {:s}'.format(os.path.join(args.output_dir, str(args.job_id))), file=f)
@@ -1044,8 +1053,13 @@ def write_config(args):
         print('\n', file=f)
 
         print('Fit: "fit"', file=f)
-        print('\tFitType: BONLY', file=f)
-        print('\tFitRegion: CRONLY', file=f)
+        if not ranking:
+            print('\tFitType: BONLY', file=f)
+            print('\tFitRegion: CRONLY', file=f)
+        else:
+            print('\tFitType: SPLUSB', file=f)
+            print('\tFitRegion: CRSR', file=f)
+            print('\tPOIAsimov: 5.', file=f)
         print('\tUseMinos: mu_Sig', file=f)
         print('\n', file=f)
         print('% --------------- %', file=f)
@@ -1071,7 +1085,6 @@ def write_config(args):
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
         print('\tDataType: ASIMOV', file=f)
         if 'signal_region' in limit_config and 'binning' in limit_config['signal_region']:
-            print('HERE')
             print('\tBinning: {:s}'.format(convert_binning(limit_config['signal_region']['binning'])), file=f)
         else:
             print('\tBinning: {:f}, 8000.'.format(kwargs['mass_cut']), file=f)
@@ -1491,18 +1504,25 @@ def run_fit(args, **kwargs):
     :rtype: None
     """
 
+    def execute(options):
+        trf_cmd = '&& '.join(['trex-fitter {:s} {:s}'.format(o, cfg_file) for o in options])
+        os.system("""echo 'source $HOME/.bashrc && cd {:s} && source setup_python_ana.sh &&
+            source /user/mmorgens/workarea/devarea/rel21/TRExFitter/setup.sh && {:s} 
+            ' | 
+            qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: W291
+                                                           trf_cmd,
+                                                           args.kwargs['queue'],
+                                                           os.path.join(args.output_dir, str(args.job_id), 'fit'),
+                                                           os.path.join(args.output_dir, str(args.job_id), 'fit')))
+
     write_config(args)
     kwargs.setdefault('options', 'hwdflp')
     base_dir = os.path.abspath(os.path.join(os.path.basename(__file_path__), '../../../'))
     analysis_pkg_name = os.path.abspath(os.curdir).split('/')[-2]
 
     cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-    trf_cmd = '&& '.join(['trex-fitter {:s} {:s}'.format(o, cfg_file) for o in kwargs['options']])
-    os.system("""echo 'source $HOME/.bashrc && cd {:s} && source setup_python_ana.sh &&
-        source /user/mmorgens/workarea/devarea/rel21/TRExFitter/setup.sh && {:s} 
-        ' | 
-        qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: W291
-                                                       trf_cmd,
-                                                       args.kwargs['queue'],
-                                                       os.path.join(args.output_dir, str(args.job_id), 'fit'),
-                                                       os.path.join(args.output_dir, str(args.job_id), 'fit')))
+    execute(kwargs['options'])
+    if args.kwargs['ranking']:
+        args.output_dir = os.path.join(args.output_dir, 'ranking')
+        cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
+        execute('hwfr')

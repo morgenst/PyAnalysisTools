@@ -18,7 +18,7 @@ if __name__ == '__main__':
     with open(args.input_file, 'r') as input_file:
         for line in input_file.readlines():
             try:
-                ds_id, _, xsec, filter_eff, kfactor, _, _ = line.split()
+                ds_id, _, xsec, filter_eff, kfactor, _, _, _, _ = line.split()
             except ValueError:
                 try:
                     ds_id, _, xsec, filter_eff, kfactor, _, _, _ = line.split()
@@ -29,7 +29,6 @@ if __name__ == '__main__':
             ds_id = int(ds_id)
             decoration = dataset_decoration[ds_id]
             if 'process_name' not in decoration:
-                print(ds_id)
                 continue
             dataset_info = {"is_mc": True,
                             "cross_section": float(xsec) / 1000.,
