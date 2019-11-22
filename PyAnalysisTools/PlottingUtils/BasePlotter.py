@@ -43,7 +43,6 @@ class BasePlotter(object):
 
         self.event_yields = {}
         set_batch_mode(kwargs["batch"])
-
         if kwargs['cluster_config'] is not None:
             self.cluster_setup(kwargs['cluster_config'])
             return
