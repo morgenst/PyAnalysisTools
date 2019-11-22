@@ -17,7 +17,7 @@ class BatchHandle(object):
     """
     def __init__(self, job):
         self.system = 'qsub'
-        self.queue = 'short7'
+        self.queue = job.queue
         self.is_master = False
         self.log_level = job.log_level
         self.local = job.local

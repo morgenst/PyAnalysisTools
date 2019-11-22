@@ -37,6 +37,7 @@ copy._deepcopy_dispatch[type(re.compile(''))] = lambda r, _: r
 
 class PlotArgs(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('queue', 'short7')
         for attr, val in list(kwargs.items()):
             setattr(self, attr, val)
 
@@ -108,6 +109,7 @@ class Plotter(BasePlotter):
 
         if self.tree_dir_name == "" or self.tree_dir_name.lower() == 'none':
             self.tree_dir_name = None
+
         self.xs_handle = XSHandle(kwargs["xs_config_file"])
         self.stat_unc_hist = None
         self.histograms = {}
