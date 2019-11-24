@@ -79,3 +79,33 @@ the defaults will be taken from there. Of course the user only needs to specify 
 while if any attribute is not provided by neither the users default and plot config the package's default config is used.
 
 * enable_range_arrows (bool): enable/disable arrows in ratio if ratio is out of range
+
+
+Check ntuple production completeness
+------------------------------------
+
+Typically you run your ntuple production on the grid and want to make sure that all your dataset have been processed
+completely. An easy check is to compare the number of processed events to the number of generated events and in case
+some jobs failed resubmit them. This can be done with the *analyse_ntuples.py* tool which is shipped as an executable.
+It reads in your dataset list (the one you used for submission), checks your downloaded ntuples against it and compares
+the number of processed events against AMI (Note: you need to load the pyAMI library to get the client). If a dataset
+is missing, i.e. not processed at all, or if it is incomplete, i.e. you have processed not all events e.g. due to
+failing grid jobs, it will be reported and a new dataset list will be rewritten containing only the failed datasets. In
+the new dataset list you will find two tags, *missing* and *incomplete*. Incomplete dataset you will want to resubmit
+with the same version tag to re-run only the failed jobs, while the missing ones you might want to resubmit as a new
+version due to *broken* states etc.
+
+.. code-block:: python
+
+     analyse_ntuples.py /storage/hepgrp/morgens/LQ/ntuples/v29/ -ds run/configs/leptoquarks/datasets.yml -r
+
+
+Positional arguments:
+
+* input_path : path containing downloaded ntuples
+
+Optional arguments:
+
+* dataset_list: file containing datasets submitted for ntuple production
+* resubmit: boolean argument to enable writing of resubmit dataset list file - stored in the same directory as the input with the same name, but *_resubmit* suffix
+* filter: pattern used to ignore keys in input dataset file (stored as dictionary)
