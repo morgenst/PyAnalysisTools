@@ -1,15 +1,20 @@
 from __future__ import print_function
-from builtins import map
-from builtins import filter
-from builtins import object
+
 import os
-import sys
-from subprocess import check_output, CalledProcessError
-from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
-from PyAnalysisTools.base.FileHandle import FileHandle
-import pathos.multiprocessing as mp
 import re
+import sys
+from builtins import filter
+from builtins import map
+from builtins import object
+from copy import copy
+from subprocess import check_output, CalledProcessError
+
+import pathos.multiprocessing as mp
+
+from PyAnalysisTools.base import InvalidInputError, _logger
+from PyAnalysisTools.base.FileHandle import FileHandle
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
+
 try:
     from tabulate.tabulate import tabulate
 except ImportError:
@@ -86,12 +91,12 @@ class NTupleAnalyser(object):
         processed_datasets = []
         for path in self.input_path:
             processed_datasets += os.listdir(path)
+
         for ds in self.datasets:
-            match = [ds[1] in pds for pds in processed_datasets]
-            try:
-                index = match.index(True)
-                ds.append(processed_datasets[index])
-            except ValueError:
+            matches = [pds for pds in processed_datasets if ds[1] in pds]
+            if len(matches) > 0:
+                ds.append(matches)
+            else:
                 ds.append(None)
 
     def get_events(self, ds):
@@ -99,14 +104,10 @@ class NTupleAnalyser(object):
         processed_datasets = []
         for path in self.input_path:
             processed_datasets += os.listdir(path)
-            for rf in os.listdir(os.path.join(path, ds[2])):
-                n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2], rf),
+            for rf in os.listdir(os.path.join(path, ds[2][0])):
+                n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2][0], rf),
                                                      switch_off_process_name_analysis=True).get_daod_events())
 
-        # for rf in os.listdir(os.path.join(self.input_path, ds[2])):
-        #     n_processed_events += int(FileHandle(file_name=os.path.join(self.input_path, ds[2], rf),
-        #                                          switch_off_process_name_analysis=True).get_daod_events())
-        #
         ds.append(n_processed_events)
         client = pyAMI.client.Client('atlas')
         try:
@@ -118,7 +119,7 @@ class NTupleAnalyser(object):
         ds.append(n_expected_events)
 
     @staticmethod
-    def print_summary(missing, incomplete):
+    def print_summary(missing, incomplete, duplicated):
         """
         Print summary of missing and incomplete datasets
         Values: dataset, events processed, events expected, missing fraction, complete fraction
@@ -127,19 +128,27 @@ class NTupleAnalyser(object):
         :type missing: list
         :param incomplete: incomplete datasets including expected and processed events
         :type incomplete: list(tuples)
+        :param duplicated: duplicated datasets
+        :type incomplete: list(tuples)
         :return: None
         :rtype: None
         """
+        def calc_fractions(dataset):
+            data = []
+            for ds in dataset:
+                missing_fraction = float(ds[-2]) / float(ds[-1]) * 100.
+                data.append((ds[2][0], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction))
+            return data
         print("--------------- Missing datasets ---------------")
         print(tabulate([[ds[0]] for ds in missing], tablefmt='rst'))
+        print("--------------- Duplicated datasets ---------------")
+        print(tabulate(calc_fractions(duplicated), tablefmt='rst', floatfmt='.2f',
+                       headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
+                                "missing fraction [%]"]))
         print("------------------------------------------------")
         print('\n\n\n')
         print("--------------- Incomplete datasets ---------------")
-        data = []
-        for ds in incomplete:
-            missing_fraction = float(ds[-2])/float(ds[-1]) * 100.
-            data.append((ds[2], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction))
-        print(tabulate(data, tablefmt='rst', floatfmt='.2f',
+        print(tabulate(calc_fractions(incomplete), tablefmt='rst', floatfmt='.2f',
                        headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
                                 "missing fraction [%]"]))
 
@@ -170,8 +179,16 @@ class NTupleAnalyser(object):
         self.add_path()
         missing_datasets = [ds for ds in self.datasets if ds[2] is None]
         self.datasets = [ds for ds in self.datasets if ds not in missing_datasets]
+        duplicated_tmp = [ds for ds in self.datasets if len(ds[-1]) > 1]
+        self.datasets = [ds for ds in self.datasets if ds not in duplicated_tmp]
+        duplicated_datasets = []
+        for i in duplicated_tmp:
+            for j in i[-1]:
+                duplicated_datasets.append(copy(i))
+                duplicated_datasets[-1][-1] = [j]
         mp.ThreadPool(10).map(self.get_events, self.datasets)
+        mp.ThreadPool(10).map(self.get_events, duplicated_datasets)
         incomplete_datasets = [ds for ds in self.datasets if not ds[-2] == ds[-1]]
-        self.print_summary(missing_datasets, incomplete_datasets)
+        self.print_summary(missing_datasets, incomplete_datasets, duplicated_datasets)
         if self.resubmit:
             self.prepare_resubmit(incomplete_datasets, missing_datasets)
