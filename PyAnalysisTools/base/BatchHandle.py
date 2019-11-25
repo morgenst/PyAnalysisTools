@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import glob
 import os
 import time
@@ -49,12 +51,19 @@ class BatchHandle(object):
             if 'AnaPySetup' not in os.environ:
                 _logger.error('Cannot find env AnaPySetup and thus not determine setup script. Exiting')
                 exit(9)
-            os.system('echo "source $HOME/.bashrc && cd {:s} && source {:s} && cd macros '
-                      '&& python {:s} -mtcf {:s} -id {:d} -log {:s}" | {:s} -q {:s} '
-                      '-o {:s}.txt -e {:s}.err'.format(base_path, os.environ['AnaPySetup'], exec_script, cfg_file_name,
-                                                       job_id, self.log_level, self.system, self.queue,
-                                                       os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id)),
-                                                       os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id))))
+            bash_script = os.path.join(os.path.join(output_dir, 'submit_{:d}.sh'.format(job_id)))
+            with open(bash_script, 'wb') as f:
+                print('#!/usr/bin/env bash', file=f)
+                print('source $HOME/.bashrc && cd {:s} && source {:s} && cd macros && python {:s} -mtcf {:s} -id {:d} '
+                      '-log {:s}'.format(base_path, os.environ['AnaPySetup'], exec_script, cfg_file_name, job_id,
+                                         self.log_level), file=f)
+            try:
+                os.chmod(bash_script, 0744)
+            except SyntaxError:
+                os.chmod(bash_script, 0o744)
+            log_file_name = os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id))
+            os.system('{:s} {:s} -q {:s} -o {:s}.txt -e {:s}.err'.format(self.system, bash_script, self.queue,
+                                                                         log_file_name, log_file_name))
             time.sleep(2)
         while len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root')))) < n_jobs:
             time.sleep(10)
@@ -67,9 +76,12 @@ class BatchHandle(object):
         try:
             with change_dir(self.output_dir):
                 os.system('tar -cf {:s} log*.txt log*.err &> /dev/null'.format('logs.tar'))
+                os.system('tar -cf {:s} submit*.sh &> /dev/null'.format('scripts.tar'))
                 for fn in glob.glob('log*.txt'):
                     remove_file(fn)
                 for fn in glob.glob('log*.err'):
+                    remove_file(fn)
+                for fn in glob.glob('submit*.sh'):
                     remove_file(fn)
         except AttributeError:
             _logger.error('Something went wrong in processing. Could not clean up. Check carefully')
