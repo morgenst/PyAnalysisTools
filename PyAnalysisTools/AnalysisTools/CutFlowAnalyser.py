@@ -627,7 +627,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         for systematic in self.systematics:
             self.cutflows[systematic] = dict()
             for process in list(self.cutflow_hists.keys()):
-                self.cutflows[systematic][process] = dict()
+                self.cutflows[systematic][bytes(process)] = dict()
                 for k, v in list(self.cutflow_hists[process][systematic].items()):
                     if k.endswith('_raw'):
                         continue
@@ -753,9 +753,9 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
     def stringify(self, cutflow):
         def format_yield(value, uncertainty):
             if value > 10000.:
-                return '{:.{:d}e}'.format(value, self.precision)
+                return bytes('{:.{:d}e}'.format(value, self.precision))
             else:
-                return '{:.{:d}f}'.format(value, self.precision)
+                return bytes('{:.{:d}f}'.format(value, self.precision))
             # if value > 10000.:
             #     return "{:.3e} +- {:.3e}".format(value, uncertainty)
             # else:
