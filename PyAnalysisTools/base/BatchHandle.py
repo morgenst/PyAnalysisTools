@@ -28,16 +28,18 @@ class BatchHandle(object):
     def execute(self):
         _logger.debug("Executing batch job")
         if self.is_master:
-            self.job.prepare()
-            self.output_dir = self.submit_childs(*self.job.submit_args)
+            job_ids = self.job.prepare()
+            self.output_dir = self.submit_childs(*self.job.submit_args, job_ids=job_ids)
             self.job.finish()
         else:
             self.job.run(self.job.cluster_cfg_file, self.job.job_id)
 
-    def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir):
+    def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir, job_ids = None):
         base_path = os.path.join('/', *os.path.abspath(exec_script).split("/")[1:-2])
 
         for job_id in range(n_jobs):
+            if job_ids is not None and job_id not in job_ids:
+                continue
             if self.local:
                 log_fn = 'log_plotting_{:d}.txt'.format(job_id)
                 os.system('python {:s} -mtcf {:s} -id {:d} -log {:s} > {:s}'.format(exec_script, cfg_file_name, job_id,
@@ -53,7 +55,7 @@ class BatchHandle(object):
                                                        job_id, self.log_level, self.system, self.queue,
                                                        os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id)),
                                                        os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id))))
-
+            time.sleep(2)
         while len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root')))) < n_jobs:
             time.sleep(10)
         return output_dir
