@@ -4,7 +4,6 @@ import unittest
 from collections import OrderedDict
 
 import ROOT
-from unittest.mock import patch
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 import PyAnalysisTools.PlottingUtils.PlotConfig as pcm
 from PyAnalysisTools.base import InvalidInputError
