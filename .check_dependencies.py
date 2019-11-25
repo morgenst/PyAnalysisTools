@@ -16,5 +16,5 @@ if __name__ == '__main__':
             try:
                 pkg_resources.require(requirement)
             except pkg_resources.VersionConflict:
-                print("Could not find {:s}. Consider running pip install -u {:s}".format(requirement,
-                                                                                         requirement.split(' ')[0]))
+                print("Could not find {:s}. Consider running pip install --user {:s}".format(requirement,
+                                                                                             requirement.split(' ')[0]))
