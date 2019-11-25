@@ -29,6 +29,9 @@ class PlotConfig(object):
         kwargs.setdefault('name', 'default_plot_config')
         if "dist" not in kwargs and "is_common" not in kwargs:
             _logger.debug("Plot config does not contain distribution. Add dist key")
+        if 'Lumi' in kwargs:
+            _logger.error('Support for Lumi is dropped. Please use lumi keyword instead (small).')
+            kwargs['lumi'] = kwargs['Lumi']
         kwargs.setdefault("cuts", None)
         # kwargs.setdefault("cuts_l1", None)
         if "draw" not in kwargs:
@@ -187,10 +190,10 @@ class PlotConfig(object):
                     previous_choice = 2
                     continue
                 else:
-                    _logger.warn("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
+                    _logger.warning("Invalid choice {:s}. Take {:s}".format(str(dec), str(getattr(self, attr))))
 
     def get_lumi(self):
-        if not isinstance(self.lumi, OrderedDict):
+        if not isinstance(self.lumi, OrderedDict) and not isinstance(self.lumi, dict):
             return self.lumi
         if self.total_lumi is not None:
             return self.total_lumi
@@ -254,36 +257,33 @@ def parse_mc_campaign(process_name):
         return 'mc16e'
     return None
 
-
-def expand_plot_config(plot_config):
-    # if not isinstance(plot_config.dist, list):
-    #     _logger.debug("tried to expand plot config with single distribution")
-    #     return [plot_config]
-    plot_configs = []
-    if hasattr(plot_config, "cuts_ref"):
-        if "dummy1" in plot_config.cuts_ref:
-            # for cuts in plot_config.cuts_ref.values():
-            for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
-                if item not in plot_config.cuts_ref:
-                    continue
-                cuts = plot_config.cuts_ref[item]
-                tmp_config = copy(plot_config)
-                tmp_config.cuts = cuts
-                plot_configs.append(tmp_config)
-        else:
-            for cut_name, cut in list(plot_config.cuts_ref.items()):
-                cuts = plot_config.cuts_ref[cut_name]
-                tmp_config = copy(plot_config)
-                tmp_config.cuts = plot_config.cuts + cuts
-                tmp_config.enable_cut_ref_merge = True
-                tmp_config.name += "_{:s}_".format(cut_name)
-                plot_configs.append(tmp_config)
-    else:
-        for dist in plot_config.dist:
-            tmp_config = copy(plot_config)
-            tmp_config.dist = dist
-            plot_configs.append(tmp_config)
-    return plot_configs
+# obsolete?
+# def expand_plot_config(plot_config):
+#     plot_configs = []
+#     if hasattr(plot_config, "cuts_ref"):
+#         if "dummy1" in plot_config.cuts_ref:
+#             # for cuts in plot_config.cuts_ref.values():
+#             for item in ["dummy1", "dummy2", "dummy3", "dummy4", "dummy5", "dummy6", "dummy7", "dummy8"]:
+#                 if item not in plot_config.cuts_ref:
+#                     continue
+#                 cuts = plot_config.cuts_ref[item]
+#                 tmp_config = copy(plot_config)
+#                 tmp_config.cuts = cuts
+#                 plot_configs.append(tmp_config)
+#         else:
+#             for cut_name, cut in list(plot_config.cuts_ref.items()):
+#                 cuts = plot_config.cuts_ref[cut_name]
+#                 tmp_config = copy(plot_config)
+#                 tmp_config.cuts = plot_config.cuts + cuts
+#                 tmp_config.enable_cut_ref_merge = True
+#                 tmp_config.name += "_{:s}_".format(cut_name)
+#                 plot_configs.append(tmp_config)
+#     else:
+#         for dist in plot_config.dist:
+#             tmp_config = copy(plot_config)
+#             tmp_config.dist = dist
+#             plot_configs.append(tmp_config)
+#     return plot_configs
 
 
 def parse_and_build_plot_config(config_file):
@@ -293,7 +293,7 @@ def parse_and_build_plot_config(config_file):
         if "common" in parsed_config:
             common_plot_config = PlotConfig(name="common", is_common=True, **(parsed_config["common"]))
         plot_configs = [PlotConfig(name=k, **v) for k, v in list(parsed_config.items()) if not k == "common"]
-        _logger.debug("Successfully parsed %i plot configurations." % len(plot_configs))
+        _logger.debug("Successfully parsed {:d} plot configurations.".format(len(plot_configs)))
         return plot_configs, common_plot_config
     except Exception as e:
         raise e
@@ -401,14 +401,14 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
 
 
 def transform_color(color, index=None):
-    if isinstance(color, str):
+    if isinstance(color, "".__class__):
         offset = 0
         if "+" in color:
             color, offset = color.split("+")
         if "-" in color:
             color, offset = color.split("-")
             offset = "-" + offset
-        color = getattr(ROOT, color.rstrip()) + int(offset)
+        color = getattr(ROOT, color.rstrip().replace('ROOT.', '')) + int(str(offset).replace(' ', ''))
 
     if isinstance(color, list):
         try:
@@ -494,7 +494,7 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
     if plot_config.dist is not None:
         dimension = plot_config.dist.replace("::", "").count(":")
     else:
-        dimension = 0
+        dimension = -1
     hist = None
     hist_name = check_name('{:s}%%{:s}_{:s}%%'.format(plot_config.name, str(systematics), factor_syst))
     if dimension == 0:

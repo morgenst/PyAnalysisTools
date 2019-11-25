@@ -34,7 +34,7 @@ logy: False
 logx: False
 logz: False
 signal_scale: None
-Lumi: 1.
+lumi: 1.
 signal_extraction: True
 xtitle: None
 ytitle: None
@@ -76,3 +76,4 @@ disable_legend: False
 ybins: None
 disable_bin_merge: False
 enable_range_arrows: False
+ignore_process_labels: False
