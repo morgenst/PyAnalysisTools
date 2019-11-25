@@ -10,10 +10,7 @@ from builtins import str
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ProcessConfig import Process
 from PyAnalysisTools.base.ShellUtils import resolve_path_from_symbolic_links, make_dirs, move
-try:
-    from PyAnalysisTools.AnalysisTools.DataStorePy3 import DataSetStore
-except SyntaxError:
-    from PyAnalysisTools.AnalysisTools.DataStorePy2 import DataSetStore
+from PyAnalysisTools.AnalysisTools.DataStore import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
 
 
