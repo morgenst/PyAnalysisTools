@@ -401,7 +401,7 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
 
 
 def transform_color(color, index=None):
-    if isinstance(color, str):
+    if isinstance(color, "".__class__):
         offset = 0
         if "+" in color:
             color, offset = color.split("+")

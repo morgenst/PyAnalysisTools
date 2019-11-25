@@ -209,7 +209,10 @@ class TestPlotConfig(unittest.TestCase):
         self.assertFalse(common_cfg.ratio)
 
     def test_plot_config_build_exception(self):
-        self.assertRaises(FileNotFoundError, pcm.parse_and_build_plot_config, 'foo')
+        try:
+            self.assertRaises(FileNotFoundError, pcm.parse_and_build_plot_config, 'foo')
+        except NameError:
+            self.assertRaises(IOError, pcm.parse_and_build_plot_config, 'foo')
 
     def test_common_cfg_propagation(self):
         plot_cfgs, common_cfg = pcm.parse_and_build_plot_config(os.path.join(os.path.dirname(__file__),
