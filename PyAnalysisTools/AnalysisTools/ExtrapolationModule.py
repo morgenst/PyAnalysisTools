@@ -5,7 +5,7 @@ from builtins import object
 
 from past.utils import old_div
 import ROOT
-from PyAnalysisTools.AnalysisTools.LimitHelpersTRF import Yield
+# from PyAnalysisTools.AnalysisTools.LimitHelpersTRF import Yield
 from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger
@@ -145,7 +145,7 @@ class ExtrapolationModule(object):
             region = [r for r in list(self.stich_points.keys()) if r in list(histograms.values())[0].GetName()][0]
         except IndexError:
             _logger.error('Requested qcd but could not find corresponding region')
-            return 
+            return
         h_qcd = list(histograms.values())[0].Clone(region + "_lq_mass_max_QCD")
         qcd_uncert_up = h_qcd.Clone('{:s}_lq_mass_max_QCD_extrapol_unc__1up'.format(region))
         qcd_uncert_down = h_qcd.Clone('{:s}_lq_mass_max_QCD_extrapol_unc__1down'.format(region))
@@ -177,40 +177,40 @@ class ExtrapolationModule(object):
         cuts += ' && lq_mass_max / 1000. < {:f}'.format(stitch_point)
         return cuts
 
-    def add_extrapolated_yields(self, sample, lumi=139.):
-        uncert_name = '{:s}_extrapol'.format(self.tag)
-        for region in list(sample.ctrl_region_yields.keys()):
-            yld, uncert = self.get_extrapolated_bin_content(region,
-                                                            self.stich_points[region],
-                                                            lumi=lumi)
-            if not self.qcd_mode:
-                sample.ctrl_region_yields[region] += yld
-                uncert = old_div(uncert, sample.ctrl_region_yields[region].sum())
-            else:
-                sample.ctrl_region_yields[region] = Yield(yld)
-                uncert = old_div(uncert, yld)
-            sample.ctrl_region_yields[region].extrapolated = True
-            sample.ctrl_reg_shape_ylds[region]['{:s}__1down'.format(uncert_name)] = 1. - uncert
-            sample.ctrl_reg_shape_ylds[region]['{:s}__1up'.format(uncert_name)] = 1. + uncert
-
-        for region in list(sample.nominal_evt_yields.keys()):
-            stitch_point = self.get_stitch_point(region)
-            for cut in list(sample.nominal_evt_yields[region].keys()):
-                if cut < stitch_point:
-                    yld, uncert = self.get_extrapolated_bin_content(region, stitch_point, lumi=lumi)
-                    sample.nominal_evt_yields[region][cut] += yld
-                else:
-                    yld, uncert = self.get_extrapolated_bin_content(region, cut, lumi=lumi)
-                    if not self.qcd_mode:
-                        sample.nominal_evt_yields[region][cut] += yld
-                        sample.nominal_evt_yields[region][cut].extrapolated = True
-                    else:
-                        sample.nominal_evt_yields[region][cut] = Yield(yld)
-
-                sample.nominal_evt_yields[region][cut].extrapolated = True
-                uncert = old_div(uncert, sample.nominal_evt_yields[region][cut].sum())
-                sample.shape_uncerts[region][cut]['{:s}__1down'.format(uncert_name)] = 1. - uncert
-                sample.shape_uncerts[region][cut]['{:s}__1up'.format(uncert_name)] = 1. + uncert
+    # def add_extrapolated_yields(self, sample, lumi=139.):
+    #     uncert_name = '{:s}_extrapol'.format(self.tag)
+    #     for region in list(sample.ctrl_region_yields.keys()):
+    #         yld, uncert = self.get_extrapolated_bin_content(region,
+    #                                                         self.stich_points[region],
+    #                                                         lumi=lumi)
+    #         if not self.qcd_mode:
+    #             sample.ctrl_region_yields[region] += yld
+    #             uncert = old_div(uncert, sample.ctrl_region_yields[region].sum())
+    #         else:
+    #             sample.ctrl_region_yields[region] = Yield(yld)
+    #             uncert = old_div(uncert, yld)
+    #         sample.ctrl_region_yields[region].extrapolated = True
+    #         sample.ctrl_reg_shape_ylds[region]['{:s}__1down'.format(uncert_name)] = 1. - uncert
+    #         sample.ctrl_reg_shape_ylds[region]['{:s}__1up'.format(uncert_name)] = 1. + uncert
+    #
+    #     for region in list(sample.nominal_evt_yields.keys()):
+    #         stitch_point = self.get_stitch_point(region)
+    #         for cut in list(sample.nominal_evt_yields[region].keys()):
+    #             if cut < stitch_point:
+    #                 yld, uncert = self.get_extrapolated_bin_content(region, stitch_point, lumi=lumi)
+    #                 sample.nominal_evt_yields[region][cut] += yld
+    #             else:
+    #                 yld, uncert = self.get_extrapolated_bin_content(region, cut, lumi=lumi)
+    #                 if not self.qcd_mode:
+    #                     sample.nominal_evt_yields[region][cut] += yld
+    #                     sample.nominal_evt_yields[region][cut].extrapolated = True
+    #                 else:
+    #                     sample.nominal_evt_yields[region][cut] = Yield(yld)
+    #
+    #             sample.nominal_evt_yields[region][cut].extrapolated = True
+    #             uncert = old_div(uncert, sample.nominal_evt_yields[region][cut].sum())
+    #             sample.shape_uncerts[region][cut]['{:s}__1down'.format(uncert_name)] = 1. - uncert
+    #             sample.shape_uncerts[region][cut]['{:s}__1up'.format(uncert_name)] = 1. + uncert
 
 
 class TopExtrapolationModule(ExtrapolationModule):
