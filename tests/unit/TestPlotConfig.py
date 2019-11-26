@@ -153,17 +153,32 @@ class TestPlotConfig(unittest.TestCase):
     def test_transform_color_str(self):
         self.assertEqual(634, pcm.transform_color('kRed + 2'))
 
+    def test_transform_color_unicode(self):
+        self.assertEqual(634, pcm.transform_color(u'kRed + 2'))
+
     def test_transform_color_str_2(self):
         self.assertEqual(630, pcm.transform_color('kRed - 2'))
+
+    def test_transform_color_unicode_2(self):
+        self.assertEqual(630, pcm.transform_color(u'kRed - 2'))
 
     def test_transform_color_str_3(self):
         self.assertEqual(632, pcm.transform_color('kRed'))
 
+    def test_transform_color_unicode_3(self):
+        self.assertEqual(632, pcm.transform_color(u'kRed'))
+
     def test_transform_color_root_str(self):
         self.assertEqual(634, pcm.transform_color('ROOT.kRed + 2'))
 
+    def test_transform_color_root_unicode(self):
+        self.assertEqual(634, pcm.transform_color(u'ROOT.kRed + 2'))
+
     def test_transform_color_list(self):
         self.assertEqual(634, pcm.transform_color(['ROOT.kRed + 2'], 0))
+
+    def test_transform_color_list_unicode(self):
+        self.assertEqual(634, pcm.transform_color([u'ROOT.kRed + 2'], 0))
 
     def test_transform_color_list_out_of_range(self):
         self.assertEqual(1, pcm.transform_color(['ROOT.kRed + 2'], 1))

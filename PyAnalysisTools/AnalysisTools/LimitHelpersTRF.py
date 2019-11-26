@@ -8,6 +8,7 @@ import os
 import pickle
 import re
 import sys
+import traceback
 from builtins import filter
 from builtins import map
 from builtins import object
@@ -15,7 +16,9 @@ from builtins import range
 from builtins import str
 from collections import OrderedDict
 from copy import deepcopy
+from functools import partial
 from math import sqrt
+from random import randint
 
 import dill
 import numpy as np
@@ -23,20 +26,22 @@ import pandas as pd
 
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
+from pathos.multiprocessing import Pool
 import ROOT
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyser, TheoryUncertaintyProvider
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
+from PyAnalysisTools.PlottingUtils import Plotter
 from PyAnalysisTools.PlottingUtils.HistTools import get_log_scale_x_bins, rebin
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, transform_color, \
-    parse_and_build_process_config
+    parse_and_build_process_config, find_process_config
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
-from PyAnalysisTools.base.ShellUtils import make_dirs
-from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd
+from PyAnalysisTools.base.ShellUtils import make_dirs, remove_directory
+from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd, YAMLDumper
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 try:
@@ -53,97 +58,97 @@ def dump_input_config(cfg, output_dir):
                  os.path.join(output_dir, 'config.yml'))
 
 
-class Yield(object):
-    def __init__(self, weights):
-        self.weights = weights
-        self.original_weights = []
-        self.scale_factor = []
-        self.extrapolated = False
-        try:
-            self.weights.dtype = np.float64
-        except ValueError:
-            pass
-        except AttributeError:
-            self.weights = np.array(weights)
-            self.weights.dtype = np.float64
-
-    def __add__(self, other):
-        self.append(other)
-        return self
-
-    def __radd__(self, other):
-        """
-        Overloaded swapped add. Needed for sum()
-        :param other: number like object
-        :type other: int or Yield
-        :return: this with weights summed. For other == 0 (first operand in sum() return just self)
-        :rtype: Yield
-        """
-        if other == 0:
-            return self
-        return self + other
-
-    def __mul__(self, other):
-        if isinstance(other, self.__class__):
-            self.weights *= other.weights
-        else:
-            self.original_weights += [deepcopy(self.weights)]
-            self.weights *= other
-            self.scale_factor.append(other)
-        return self
-
-    def __rmul__(self, other):
-        return self * other
-
-    def __imul__(self, other):
-        return self.__mul__(other)
-
-    def __div__(self, other):
-        tmp_sum = other.weights.sum()
-        if tmp_sum == 0.:
-            if self.weights.sum() == 0.:
-                return 0.
-            _logger.error('Summed other to null. Return Nan {:f}'.format(self.weights.sum()))
-            return np.nan
-        return self.weights.sum() / other.weights.sum()
-
-    def reduce(self):
-        init = len(self.weights)
-        self.weights = self.weights[abs(self.weights) < 40.]
-        if init != len(self.weights):
-            print('removed weight')
-
-    def append(self, other):
-        if isinstance(other, self.__class__):
-            self.weights = np.append(self.weights, other.weights)
-            self.original_weights += other.original_weights
-            self.scale_factor += other.scale_factor
-        elif isinstance(other, numbers.Number):
-            self.weights = np.append(self.weights, other)
-            self.original_weights += [other]
-            self.scale_factor.append(1.)
-        else:
-            _logger.error('Cannot add object of type {:s} to Yield'.format(type(other)))
-
-    def sum(self):
-        return np.sum(self.weights)
-
-    def stat_unc(self):
-        stat_unc = 0.
-        try:  # temporary fix while attribute not available in already processed yields
-            if self.extrapolated:
-                return np.sqrt(np.sum(self.weights))
-        except AttributeError:
-            pass
-        if len(self.original_weights) == 0:
-            return np.sqrt(np.sum(self.weights * self.weights))
-        for i in range(len(self.original_weights)):
-            stat_unc += self.scale_factor[i] * self.scale_factor[i] * np.sum(self.original_weights[i]
-                                                                             * self.original_weights[i])
-        return np.sqrt(stat_unc)
-
-    def is_null(self):
-        return True in pd.isnull(self.weights)
+# class Yield(object):
+#     def __init__(self, weights):
+#         self.weights = weights
+#         self.original_weights = []
+#         self.scale_factor = []
+#         self.extrapolated = False
+#         try:
+#             self.weights.dtype = np.float64
+#         except ValueError:
+#             pass
+#         except AttributeError:
+#             self.weights = np.array(weights)
+#             self.weights.dtype = np.float64
+# 
+#     def __add__(self, other):
+#         self.append(other)
+#         return self
+# 
+#     def __radd__(self, other):
+#         """
+#         Overloaded swapped add. Needed for sum()
+#         :param other: number like object
+#         :type other: int or Yield
+#         :return: this with weights summed. For other == 0 (first operand in sum() return just self)
+#         :rtype: Yield
+#         """
+#         if other == 0:
+#             return self
+#         return self + other
+# 
+#     def __mul__(self, other):
+#         if isinstance(other, self.__class__):
+#             self.weights *= other.weights
+#         else:
+#             self.original_weights += [deepcopy(self.weights)]
+#             self.weights *= other
+#             self.scale_factor.append(other)
+#         return self
+# 
+#     def __rmul__(self, other):
+#         return self * other
+# 
+#     def __imul__(self, other):
+#         return self.__mul__(other)
+# 
+#     def __div__(self, other):
+#         tmp_sum = other.weights.sum()
+#         if tmp_sum == 0.:
+#             if self.weights.sum() == 0.:
+#                 return 0.
+#             _logger.error('Summed other to null. Return Nan {:f}'.format(self.weights.sum()))
+#             return np.nan
+#         return self.weights.sum() / other.weights.sum()
+# 
+#     def reduce(self):
+#         init = len(self.weights)
+#         self.weights = self.weights[abs(self.weights) < 40.]
+#         if init != len(self.weights):
+#             print('removed weight')
+# 
+#     def append(self, other):
+#         if isinstance(other, self.__class__):
+#             self.weights = np.append(self.weights, other.weights)
+#             self.original_weights += other.original_weights
+#             self.scale_factor += other.scale_factor
+#         elif isinstance(other, numbers.Number):
+#             self.weights = np.append(self.weights, other)
+#             self.original_weights += [other]
+#             self.scale_factor.append(1.)
+#         else:
+#             _logger.error('Cannot add object of type {:s} to Yield'.format(type(other)))
+# 
+#     def sum(self):
+#         return np.sum(self.weights)
+# 
+#     def stat_unc(self):
+#         stat_unc = 0.
+#         try:  # temporary fix while attribute not available in already processed yields
+#             if self.extrapolated:
+#                 return np.sqrt(np.sum(self.weights))
+#         except AttributeError:
+#             pass
+#         if len(self.original_weights) == 0:
+#             return np.sqrt(np.sum(self.weights * self.weights))
+#         for i in range(len(self.original_weights)):
+#             stat_unc += self.scale_factor[i] * self.scale_factor[i] * np.sum(self.original_weights[i]
+#                                                                              * self.original_weights[i])
+#         return np.sqrt(stat_unc)
+# 
+#     def is_null(self):
+#         return True in pd.isnull(self.weights)
 
 
 class LimitArgs(object):
@@ -431,7 +436,8 @@ class LimitPlotter(object):
 
         limits.sort(key=lambda li: getattr(li, model_par))
         pc = PlotConfig(name=plot_config['name'], ytitle=plot_config['ytitle'], xtitle=plot_config['xtitle'],
-                        draw='pLX', logy=plot_config['logy'], lumi=plot_config['lumi'], watermark=plot_config['watermark'],
+                        draw='pLX', logy=plot_config['logy'], lumi=plot_config['lumi'],
+                        watermark=plot_config['watermark'],
                         ymin=float(plot_config['ymin']), ymax=float(plot_config['ymax']), )
         pc_1sigma = deepcopy(pc)
         pc_2sigma = deepcopy(pc)
@@ -451,10 +457,10 @@ class LimitPlotter(object):
             if not disable_bands:
                 graph_1sigma.SetPoint(i, getattr(limit, model_par), getattr(limit, value_par))
                 graph_2sigma.SetPoint(i, getattr(limit, model_par), getattr(limit, value_par))
-                graph_1sigma.SetPointEYhigh(i, getattr(limit, value_par+'_up') - getattr(limit, value_par))
-                graph_1sigma.SetPointEYlow(i, getattr(limit, value_par) - getattr(limit, value_par+'_low'))
-                graph_2sigma.SetPointEYhigh(i, 2. * (getattr(limit, value_par+'_up') - getattr(limit, value_par)))
-                graph_2sigma.SetPointEYlow(i, 2. * (getattr(limit, value_par) - getattr(limit, value_par+'_low')))
+                graph_1sigma.SetPointEYhigh(i, getattr(limit, value_par + '_up') - getattr(limit, value_par))
+                graph_1sigma.SetPointEYlow(i, getattr(limit, value_par) - getattr(limit, value_par + '_low'))
+                graph_2sigma.SetPointEYhigh(i, 2. * (getattr(limit, value_par + '_up') - getattr(limit, value_par)))
+                graph_2sigma.SetPointEYlow(i, 2. * (getattr(limit, value_par) - getattr(limit, value_par + '_low')))
         if theory_xsec is not None:
             graph_theory = []
             processed_model_pars = sorted([getattr(li, model_par) for li in limits])
@@ -558,7 +564,7 @@ class XsecLimitAnalyser(object):
         self.prefit_yields = {}
         self.scanned_mass_cuts = None
         self.scanned_sig_masses = None
-        #self.lumi = self.plot_config['lumi']
+        # self.lumi = self.plot_config['lumi']
         self.enable_debug_plot = kwargs['enable_debug_plot']
         self.analysis_name = self.plot_config['analysis_name']
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
@@ -932,9 +938,17 @@ class LimitScanAnalyser(object):
 class CommonLimitOptimiser(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('syst_config', None)
+        kwargs.setdefault('skip_fh_reading', False)
+        kwargs.setdefault('thresholds', None)
+        kwargs.setdefault('thrs_cfg', None)
+        kwargs.setdefault('mass_range', None)
         self.signal_region_def = RegionBuilder(**yl.read_yaml(kwargs["sr_module_config"])["RegionBuilder"])
         self.control_region_defs = None
         self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
+
+        if kwargs['thresholds'] is not None:
+            self.thrs_cfg = yl.read_yaml(kwargs["thresholds"])
+            self.mass_cuts = [(cfg[0], cfg[1]["threshold"]) for cfg in list(self.thrs_cfg.items())]
 
         if kwargs["cr_module_config"] is not None:
             self.control_region_defs = RegionBuilder(**yl.read_yaml(kwargs["cr_module_config"])["RegionBuilder"])
@@ -949,6 +963,108 @@ class CommonLimitOptimiser(object):
             self.systematics = SystematicsAnalyser.parse_syst_config(kwargs['syst_config'])
             self.run_syst = True
         self.queue = kwargs['queue']
+        if not kwargs['skip_fh_reading']:
+            self.file_handles = Plotter.filter_unavailable_processes(self.file_handles, self.process_configs)
+            self.file_handles = self.filter_mass_points()
+            self.filter_empty_trees()
+        for k, v in list(kwargs.items()):
+            if hasattr(self, k):
+                continue
+            setattr(self, k, v)
+        if kwargs['mass_range'] is not None:
+            self.mass_scans = np.linspace(self.mass_range[0], self.mass_range[1], kwargs["nscans"])
+
+    def filter_mass_points(self):
+        """
+        Keep all non-signal file handles and only signals which are defined in the limit config
+        :return: filtered list of file handles
+        :rtype: list
+        """
+        return [fh for fh in self.file_handles if find_process_config(fh.process, self.process_configs) is not None and
+                (find_process_config(fh.process, self.process_configs).type == 'Signal'
+                 and fh.process.process_name in self.limit_config) or
+                find_process_config(fh.process, self.process_configs).type != 'Signal']
+
+    @staticmethod
+    def run_limit_wrapper(args, rndm_dir):
+        # TODO: Can't this be called from limit optimisation directly?
+        fname = os.path.join(rndm_dir, "limit_scan_{:s}.yml".format(args.job_id))
+        yd.dump_yaml(args, fname)
+        os.system("python {:s} -mtc {:s}".format(os.path.basename(sys.argv[0]), fname))
+
+    @staticmethod
+    def run_limit(args):
+        if args.run_pyhf:
+            return run_fit_pyhf(args)
+        else:
+            return CommonLimitOptimiser.run_limit_hf(args)
+
+    @staticmethod
+    def run_limit_hf(args):
+        try:
+            run_fit(args, analysis_name='LQAnalysis')
+        except Exception:
+            traceback.print_exc()
+            _logger.error("Failed running limit fit")
+        return 0
+
+    def run_limits(self, cr_config):
+        configs = []
+        if self.thrs_cfg is not None:
+            for sig_name, config in list(self.thrs_cfg.items()):
+                threshold = config["threshold"]
+                configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
+                                         output_dir=self.output_dir, sig_name=sig_name, limit_config=self.limit_config,
+                                         process_configs=self.process_configs, systematics=self.systematics,
+                                         ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
+                                         queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
+                                         ranking=self.ranking))
+            thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
+            scale_factors = convert_hists(self.input_hist_file, self.process_configs,
+                                          self.signal_region_def.regions + self.control_region_defs.regions,
+                                          self.fixed_signal, self.output_dir, thresholds, self.systematics,
+                                          cut_off=self.cut_off_scale)
+        elif self.mass_scans is not None:
+            signals = [pc.name for pc in self.process_configs.values() if pc.type.lower() == 'signal']
+            for threshold in self.mass_scans:
+                for sig_name in list(signals):
+                    configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
+                                             output_dir=self.output_dir, sig_name=sig_name,
+                                             limit_config=self.limit_config,
+                                             process_configs=self.process_configs, systematics=self.systematics,
+                                             ctrl_config=cr_config, jobid=str(len(configs)),
+                                             fixed_signal=self.fixed_signal,
+                                             queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
+                                             ranking=False))
+            thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
+            scale_factors = convert_hists(self.input_hist_file, self.process_configs,
+                                          self.signal_region_def.regions + self.control_region_defs.regions,
+                                          self.fixed_signal, self.output_dir, thresholds, self.systematics,
+                                          cut_off=self.cut_off_scale)
+        else:
+            """
+            Run a single signal with arbitrary fixed yield
+            """
+            configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
+                                     output_dir=self.output_dir, sig_name='Signal', limit_config=self.limit_config,
+                                     process_configs=self.process_configs, systematics=self.systematics,
+                                     ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
+                                     queue=self.queue, mass_cut=0., signal_scale=self.signal_scale))
+            scale_factors = convert_hists(self.input_hist_file, self.process_configs,
+                                          self.signal_region_def.regions + self.control_region_defs.regions,
+                                          self.fixed_signal, self.output_dir, [0.], self.systematics,
+                                          dummy_signal='Signal', cut_off=self.cut_off_scale)
+        YAMLDumper.dump_yaml({'configs': configs, 'scale_factors': scale_factors},
+                             os.path.join(self.output_dir, 'scan_info.yml'))
+
+        if self.test_mode:
+            self.run_limit(configs[0])
+        else:
+            random_dir = '.limit_job_configs_{:d}'.format(randint(0, 10000000))
+            make_dirs(random_dir)
+            Pool(self.ncpu).map(partial(self.run_limit_wrapper, rndm_dir=random_dir), configs)
+            remove_directory(random_dir)
+        _logger.info("Wrote limits to {:s}".format(self.output_dir))
 
     def run(self):
         """
