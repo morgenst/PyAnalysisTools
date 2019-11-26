@@ -13,6 +13,7 @@ from builtins import input
 from builtins import object
 from builtins import range
 from builtins import str
+
 from past.utils import old_div
 
 import ROOT
@@ -401,7 +402,7 @@ def get_draw_option_as_root_str(plot_config, process_config=None):
 
 
 def transform_color(color, index=None):
-    if isinstance(color, "".__class__):
+    if isinstance(color, "".__class__) or isinstance(color, u"".__class__):
         offset = 0
         if "+" in color:
             color, offset = color.split("+")
