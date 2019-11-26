@@ -105,7 +105,6 @@ class CommonCutFlowAnalyser(object):
             self.output_handle.write_and_close()
 
     def load_dxaod_cutflows(self, file_handle):
-        # return
         process = file_handle.process
         if process is None:
             _logger.error("Parsed NoneType process from {:s}".format(file_handle.file_name))
@@ -842,7 +841,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
             cutflow_canvas = Pt.plot_stack(cutflow_hists, plot_config, process_configs=self.process_configs)
             Ft.add_legend_to_canvas(cutflow_canvas, process_configs=self.process_configs)
             self.output_handle.register_object(cutflow_canvas)
-        #self.output_handle.write_and_close()
 
     def execute(self):
         self.read_cutflows()
