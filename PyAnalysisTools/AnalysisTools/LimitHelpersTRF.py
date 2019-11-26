@@ -1622,7 +1622,7 @@ def run_fit(args, **kwargs):
 
     def execute(options):
         trf_cmd = '&& '.join(['trex-fitter {:s} {:s}'.format(o, cfg_file) for o in options])
-        print("""echo 'source $HOME/.bashrc && cd {:s} && source setup_python_ana.sh &&
+        os.system("""echo 'source $HOME/.bashrc && cd {:s} && source setup_python_ana.sh &&
             source /user/mmorgens/workarea/devarea/rel21/TRExFitter/setup.sh && {:s} 
             ' | 
             qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: W291
