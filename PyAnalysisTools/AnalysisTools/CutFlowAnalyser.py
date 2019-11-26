@@ -53,9 +53,17 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault('friend_tree_names', None)
         kwargs.setdefault('friend_file_pattern', None)
         kwargs.setdefault('precision', 3)
+        kwargs.setdefault('output_tag', None)
         self.event_numbers = dict()
         self.lumi = kwargs['lumi']
         self.interactive = not kwargs['disable_interactive']
+        self.output_tag = kwargs['output_tag']
+        self.save_table = kwargs['save_table']
+        if self.save_table:
+            self.interactive = False
+            if kwargs['output_dir'] is None:
+                _logger.error('No output directory provided but requesting to store tables. Using current dir')
+                kwargs['output_dir'] = '.'
         self.disable_sm_total = kwargs['disable_sm_total']
         if 'dataset_config' in kwargs:
             _logger.error('The property "dataset_config" is not supported anymore. Please use xs_config_file')
@@ -66,7 +74,6 @@ class CommonCutFlowAnalyser(object):
                                 friend_tree_names=kwargs['friend_tree_names'],
                                 friend_pattern=kwargs['friend_file_pattern']) for fn in set(kwargs['file_list'])]
         self.process_configs = None
-        self.save_table = kwargs['save_table']
         if kwargs['process_config_files'] is not None:
             self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
 
@@ -92,6 +99,10 @@ class CommonCutFlowAnalyser(object):
 
         list(map(self.load_dxaod_cutflows, self.file_handles))
         set_batch_mode(kwargs['batch'])
+
+    def __del__(self):
+        if self.output_handle is not None:
+            self.output_handle.write_and_close()
 
     def load_dxaod_cutflows(self, file_handle):
         # return
@@ -146,7 +157,7 @@ class CommonCutFlowAnalyser(object):
         available_cutflows = list(self.cutflow_tables.keys())
         if self.interactive:
             print("######## Selection menu  ########")
-            print("Available cutflows for printing: ")
+            print("Available cutflows for printing1: ")
             print("--------------------------------")
             for i, region in enumerate(available_cutflows):
                 print(i, ")", region)
@@ -166,20 +177,26 @@ class CommonCutFlowAnalyser(object):
                 selections = ["BaseSelection"]
         else:
             selections = available_cutflows
-        if self.save_table:
-            if self.output_tag:
-                f = open(os.path.join(self.output_dir, 'cutflow_' + self.output_tag + '.txt'), 'w')
-            else:
-                f = open(os.path.join(self.output_dir, 'cutflow.txt'), 'w')
         for selection, cutflow in list(self.cutflow_tables.items()):
             if selection not in selections:
                 continue
-            print()
-            print("Cutflow for region %s" % selection)
-            print(cutflow)
+            out_file = None
             if self.save_table:
-                print("Cutflow for region %s" % selection, file=f)
-                print(cutflow, file=f)
+                file_extension = 'txt'
+                if self.format == 'latex':
+                    file_extension = 'tex'
+                if self.output_tag:
+                    out_file = open(os.path.join(self.output_handle.output_dir,
+                                                 'cutflow_{:s}_{:s}.{:s}'.format(self.output_tag, selection,
+                                                                                 file_extension)), 'wb')
+                else:
+                    out_file = open(os.path.join(self.output_handle.output_dir,
+                                                 'cutflow_{:s}.{:s}'.format(selection, file_extension)), 'wb')
+            print()
+            print("Cutflow for region {:s}".format(selection))
+            print(cutflow, file=out_file)
+            if out_file is not None:
+                _logger.info('Stored cutflow in {:s}'.format(out_file.name))
 
     def make_cutflow_tables(self):
         for systematic in self.systematics:
@@ -573,8 +590,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
             self.calculate_sm_total()
 
         self.make_cutflow_tables()
-        if self.output_handle is not None:
-            self.output_handle.write_and_close()
 
 
 class CutflowAnalyser(CommonCutFlowAnalyser):
@@ -588,7 +603,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault('process_configs', None)
         kwargs.setdefault('no_merge', False)
         kwargs.setdefault('raw', False)
-        kwargs.setdefault('output_dir', None)
+        #kwargs.setdefault('output_dir', None)
         kwargs.setdefault('format', 'plain')
         super(CutflowAnalyser, self).__init__(**kwargs)
         self.precision = 2  # TODO: quick term fix
@@ -775,35 +790,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
                                dtype=[('cut', 'S100'), ('yield_raw', 'S100'), ('eff_total', float)])  # ('eff', float),
         return cutflow
 
-    def print_cutflow_table(self):
-        available_cutflows = list(self.cutflow_tables.keys())
-        print("######## Selection menu  ########")
-        print("Available cutflows for printing: ")
-        print("--------------------------------")
-        for i, region in enumerate(available_cutflows):
-            print(i, ")", region)
-        print("a) all")
-        user_input = input(
-            "Please enter your selection (space or comma separated). Hit enter to select default (BaseSelection) ")
-        print('user INPUT: ', user_input)
-        if user_input == "":
-            selections = ["BaseSelection"]
-        elif user_input.lower() == "a":
-            selections = available_cutflows
-        elif "," in user_input:
-            selections = [available_cutflows[i] for i in map(int, user_input.split(","))]
-        elif "," not in user_input:
-            selections = [available_cutflows[i] for i in map(int, user_input.split())]
-        else:
-            print("{:s}Invalid input {:s}. Going for default.\033[0m".format("\033[91m", user_input))
-            selections = ["BaseSelection"]
-        for selection, cutflow in list(self.cutflow_tables.items()):
-            if selection not in selections:
-                continue
-            print()
-            print("Cutflow for region %s" % selection)
-            print(cutflow)
-
     def store_cutflow_table(self):
         pass
 
@@ -856,7 +842,7 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
             cutflow_canvas = Pt.plot_stack(cutflow_hists, plot_config, process_configs=self.process_configs)
             Ft.add_legend_to_canvas(cutflow_canvas, process_configs=self.process_configs)
             self.output_handle.register_object(cutflow_canvas)
-        self.output_handle.write_and_close()
+        #self.output_handle.write_and_close()
 
     def execute(self):
         self.read_cutflows()
