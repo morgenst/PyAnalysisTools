@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env LD_LIBRARY_PATH=$LD_LIBRARY_PATH python
 
 import os
 import sys
@@ -24,7 +24,7 @@ def convert_and_dump(file_handle, output_path, tree_name, region=None, branches=
     else:
         region.build_cuts()
         selection = region.convert2cut_string()
-        output_file_name += region.name
+        output_file_name += '_' + region.name
     data = converter.convert_to_array(file_handle.get_object_by_name(tree_name, "Nominal"), selection=selection)
     df_data = pd.DataFrame(data)
 

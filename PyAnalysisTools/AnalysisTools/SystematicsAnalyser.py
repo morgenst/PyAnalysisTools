@@ -379,7 +379,12 @@ class SystematicsAnalyser(BasePlotter):
             colors = []
             for category in list(self.total_systematics.keys()):
                 colors.append(category.color)
-                syst_hists = self.total_systematics[category][variation][plot_config]
+                try:
+                    syst_hists = self.total_systematics[category][variation][plot_config]
+                except KeyError:
+                    _logger.error('Could not find category {:s} for variation {:s} for plot '
+                                 '{:s}'.format(category.name, variation, plot_config.name))
+                    continue
                 sm_total_hist_syst = None
                 for process, nominal_hist in list(nominal_hists.items()):
                     if "data" in process.lower():

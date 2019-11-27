@@ -99,7 +99,7 @@ class ExtrapolationModule(object):
             _logger.warn("Requested top extrapolation, but could not find ttbar in histograms.")
             return
         top_hist = histograms['ttbar']
-        region = [r for r in list(self.stich_points.keys()) if r in top_hist.GetName()][0]
+        region = [r for r in list(self.stich_points.keys()) if r.replace('ZVR', 'VR') in top_hist.GetName()][0]
         top_uncert_up = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1up'.format(region))
         top_uncert_down = top_hist.Clone('{:s}_lq_mass_max_ttbar_top_extrapol_unc__1down'.format(region))
         _logger.debug('Running top extrapolation in region {:s}'.format(region))
