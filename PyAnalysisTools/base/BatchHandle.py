@@ -36,7 +36,7 @@ class BatchHandle(object):
         else:
             self.job.run(self.job.cluster_cfg_file, self.job.job_id)
 
-    def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir, job_ids = None):
+    def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir, disable_wait = False, job_ids = None):
         base_path = os.path.join('/', *os.path.abspath(exec_script).split("/")[1:-2])
 
         for job_id in range(n_jobs):
@@ -65,8 +65,9 @@ class BatchHandle(object):
             os.system('{:s} {:s} -q {:s} -o {:s}.txt -e {:s}.err'.format(self.system, bash_script, self.queue,
                                                                          log_file_name, log_file_name))
             time.sleep(2)
-        while len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root')))) < n_jobs:
-            time.sleep(10)
+        if not disable_wait:
+            while len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root')))) < n_jobs:
+                time.sleep(10)
         return output_dir
 
     def __del__(self):

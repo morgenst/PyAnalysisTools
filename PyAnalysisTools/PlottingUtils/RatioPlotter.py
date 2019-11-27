@@ -118,6 +118,9 @@ class RatioPlotter(object):
         canvas = pt.plot_hist(hist[0], plot_config[0], index=0)
         if len(hist) > 1:
             for i, unc_hist in enumerate(hist[1:]):
+                if n_systematics == 0:
+                    _logger.warning("Detected 0 systematics for hist {:s}".format(unc_hist.GetName()))
+                    continue
                 pc = plot_config[old_div(i, n_systematics)]
                 pt.add_histogram_to_canvas(canvas, unc_hist, pc, index=i+1)
         pt.add_histogram_to_canvas(canvas, ratio_hist, self.plot_config)

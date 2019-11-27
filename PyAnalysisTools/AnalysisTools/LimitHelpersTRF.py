@@ -3,7 +3,6 @@ from __future__ import print_function
 from __future__ import unicode_literals
 
 import json
-import numbers
 import os
 import pickle
 import re
@@ -16,17 +15,13 @@ from builtins import range
 from builtins import str
 from collections import OrderedDict
 from copy import deepcopy
-from functools import partial
 from math import sqrt
-from random import randint
 
 import dill
 import numpy as np
-import pandas as pd
 
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
-from pathos.multiprocessing import Pool
 import ROOT
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
@@ -36,11 +31,11 @@ from PyAnalysisTools.PlottingUtils import Plotter
 from PyAnalysisTools.PlottingUtils.HistTools import get_log_scale_x_bins, rebin
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, transform_color, \
     parse_and_build_process_config, find_process_config
-from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
-from PyAnalysisTools.base.ShellUtils import make_dirs, remove_directory
+from PyAnalysisTools.base.ShellUtils import make_dirs
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd, YAMLDumper
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
@@ -58,99 +53,6 @@ def dump_input_config(cfg, output_dir):
                  os.path.join(output_dir, 'config.yml'))
 
 
-# class Yield(object):
-#     def __init__(self, weights):
-#         self.weights = weights
-#         self.original_weights = []
-#         self.scale_factor = []
-#         self.extrapolated = False
-#         try:
-#             self.weights.dtype = np.float64
-#         except ValueError:
-#             pass
-#         except AttributeError:
-#             self.weights = np.array(weights)
-#             self.weights.dtype = np.float64
-# 
-#     def __add__(self, other):
-#         self.append(other)
-#         return self
-# 
-#     def __radd__(self, other):
-#         """
-#         Overloaded swapped add. Needed for sum()
-#         :param other: number like object
-#         :type other: int or Yield
-#         :return: this with weights summed. For other == 0 (first operand in sum() return just self)
-#         :rtype: Yield
-#         """
-#         if other == 0:
-#             return self
-#         return self + other
-# 
-#     def __mul__(self, other):
-#         if isinstance(other, self.__class__):
-#             self.weights *= other.weights
-#         else:
-#             self.original_weights += [deepcopy(self.weights)]
-#             self.weights *= other
-#             self.scale_factor.append(other)
-#         return self
-# 
-#     def __rmul__(self, other):
-#         return self * other
-# 
-#     def __imul__(self, other):
-#         return self.__mul__(other)
-# 
-#     def __div__(self, other):
-#         tmp_sum = other.weights.sum()
-#         if tmp_sum == 0.:
-#             if self.weights.sum() == 0.:
-#                 return 0.
-#             _logger.error('Summed other to null. Return Nan {:f}'.format(self.weights.sum()))
-#             return np.nan
-#         return self.weights.sum() / other.weights.sum()
-# 
-#     def reduce(self):
-#         init = len(self.weights)
-#         self.weights = self.weights[abs(self.weights) < 40.]
-#         if init != len(self.weights):
-#             print('removed weight')
-# 
-#     def append(self, other):
-#         if isinstance(other, self.__class__):
-#             self.weights = np.append(self.weights, other.weights)
-#             self.original_weights += other.original_weights
-#             self.scale_factor += other.scale_factor
-#         elif isinstance(other, numbers.Number):
-#             self.weights = np.append(self.weights, other)
-#             self.original_weights += [other]
-#             self.scale_factor.append(1.)
-#         else:
-#             _logger.error('Cannot add object of type {:s} to Yield'.format(type(other)))
-# 
-#     def sum(self):
-#         return np.sum(self.weights)
-# 
-#     def stat_unc(self):
-#         stat_unc = 0.
-#         try:  # temporary fix while attribute not available in already processed yields
-#             if self.extrapolated:
-#                 return np.sqrt(np.sum(self.weights))
-#         except AttributeError:
-#             pass
-#         if len(self.original_weights) == 0:
-#             return np.sqrt(np.sum(self.weights * self.weights))
-#         for i in range(len(self.original_weights)):
-#             stat_unc += self.scale_factor[i] * self.scale_factor[i] * np.sum(self.original_weights[i]
-#                                                                              * self.original_weights[i])
-#         return np.sqrt(stat_unc)
-# 
-#     def is_null(self):
-#         return True in pd.isnull(self.weights)
-
-
 class LimitArgs(object):
     def __init__(self, output_dir, **kwargs):
         kwargs.setdefault("ctrl_syst", None)
@@ -159,12 +61,16 @@ class LimitArgs(object):
         kwargs.setdefault("fixed_xsec", None)
         kwargs.setdefault("run_pyhf", False)
         kwargs.setdefault("ranking", False)
+        kwargs.setdefault("queue", 'short7')
         self.skip_ws_build = kwargs['skip_ws_build']
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
         self.job_id = kwargs["jobid"]
         self.sig_reg_name = kwargs["sig_reg_name"]
         self.run_pyhf = kwargs['run_pyhf']
+        self.queue = kwargs['queue']
+        self.log_level = kwargs['log_level']
+        self.local = False
         self.kwargs = kwargs
 
     def __str__(self):
@@ -942,6 +848,16 @@ class CommonLimitOptimiser(object):
         kwargs.setdefault('thresholds', None)
         kwargs.setdefault('thrs_cfg', None)
         kwargs.setdefault('mass_range', None)
+        kwargs.setdefault('local', False)
+        kwargs.setdefault('cluster_cfg_file', None)
+        if kwargs['cluster_cfg_file'] is not None:
+            self.log_level = kwargs['log_level']
+            self.queue = kwargs['queue']
+            self.local = False
+            self.job_id = kwargs['job_id']
+            self.cluster_cfg_file = kwargs['cluster_cfg_file']
+            return
+
         self.signal_region_def = RegionBuilder(**yl.read_yaml(kwargs["sr_module_config"])["RegionBuilder"])
         self.control_region_defs = None
         self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
@@ -986,29 +902,16 @@ class CommonLimitOptimiser(object):
                 find_process_config(fh.process, self.process_configs).type != 'Signal']
 
     @staticmethod
-    def run_limit_wrapper(args, rndm_dir):
-        # TODO: Can't this be called from limit optimisation directly?
-        fname = os.path.join(rndm_dir, "limit_scan_{:s}.yml".format(args.job_id))
-        yd.dump_yaml(args, fname)
-        os.system("python {:s} -mtc {:s}".format(os.path.basename(sys.argv[0]), fname))
-
-    @staticmethod
-    def run_limit(args):
-        if args.run_pyhf:
-            return run_fit_pyhf(args)
-        else:
-            return CommonLimitOptimiser.run_limit_hf(args)
-
-    @staticmethod
     def run_limit_hf(args):
         try:
-            run_fit(args, analysis_name='LQAnalysis')
+            CommonLimitOptimiser.run_fit(args, analysis_name='LQAnalysis')
         except Exception:
             traceback.print_exc()
             _logger.error("Failed running limit fit")
         return 0
 
-    def run_limits(self, cr_config):
+    def prepare(self):
+        cr_config = build_region_info(self.control_region_defs)
         configs = []
         if self.thrs_cfg is not None:
             for sig_name, config in list(self.thrs_cfg.items()):
@@ -1018,7 +921,7 @@ class CommonLimitOptimiser(object):
                                          process_configs=self.process_configs, systematics=self.systematics,
                                          ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
                                          queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
-                                         ranking=self.ranking))
+                                         ranking=self.ranking, log_level=self.log_level))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
@@ -1035,7 +938,7 @@ class CommonLimitOptimiser(object):
                                              ctrl_config=cr_config, jobid=str(len(configs)),
                                              fixed_signal=self.fixed_signal,
                                              queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
-                                             ranking=False))
+                                             ranking=False, log_level=self.log_level))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
@@ -1053,29 +956,58 @@ class CommonLimitOptimiser(object):
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
                                           self.fixed_signal, self.output_dir, [0.], self.systematics,
-                                          dummy_signal='Signal', cut_off=self.cut_off_scale)
+                                          dummy_signal='Signal', cut_off=self.cut_off_scale,
+                                          anking=False, log_level=self.log_level)
+        cfg_file_name = os.path.join(self.output_dir, 'scan_info.yml')
         YAMLDumper.dump_yaml({'configs': configs, 'scale_factors': scale_factors},
-                             os.path.join(self.output_dir, 'scan_info.yml'))
+                             cfg_file_name)
 
+        self.submit_args = cfg_file_name, os.path.basename(sys.argv[0]), len(configs), self.output_dir, True
         if self.test_mode:
-            self.run_limit(configs[0])
-        else:
-            random_dir = '.limit_job_configs_{:d}'.format(randint(0, 10000000))
-            make_dirs(random_dir)
-            Pool(self.ncpu).map(partial(self.run_limit_wrapper, rndm_dir=random_dir), configs)
-            remove_directory(random_dir)
-        _logger.info("Wrote limits to {:s}".format(self.output_dir))
+            return [0]
 
-    def run(self):
+    @staticmethod
+    def run_fit(args, **kwargs):
+        """
+        Submit limit fit using trex fitter executable
+        :param args: argument list for configuration
+        :type args: arglist
+        :param kwargs: named argument list for additional information
+        :type kwargs: dict
+        :return: nothing
+        :rtype: None
+        """
+
+        def execute(options):
+            trf_cmd = '&& '.join(['trex-fitter {:s} {:s}'.format(o, cfg_file) for o in options])
+            os.system(trf_cmd)
+
+        write_config(args)
+        kwargs.setdefault('options', 'hwdflp')
+
+        cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
+        execute(kwargs['options'])
+        if args.kwargs['ranking']:
+            args.output_dir = os.path.join(args.output_dir, 'ranking')
+            cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
+            execute('hwfr')
+
+    def finish(self):
+        pass
+
+    def run(self, cluster_cfg_file, job_id):
         """
         Entry point starting execution
         :return: nothing
         :rtype: None
         """
         _logger.debug('Start running limits')
-        cr_config = build_region_info(self.control_region_defs)
-        self.run_limits(cr_config)
-        self.output_handle.write_and_close()
+        args = yl.read_yaml(cluster_cfg_file)['configs'][job_id]
+        self.queue = args.queue
+        if args.run_pyhf:
+            return run_fit_pyhf(args)
+        else:
+            return CommonLimitOptimiser.run_limit_hf(args)
 
 
 __file_path__ = os.path.realpath(__file__)
@@ -1607,38 +1539,3 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
                 h.Write()
             f.Close()
     return scale_factors
-
-
-def run_fit(args, **kwargs):
-    """
-    Submit limit fit using trex fitter executable
-    :param args: argument list for configuration
-    :type args: arglist
-    :param kwargs: named argument list for additional information
-    :type kwargs: dict
-    :return: nothing
-    :rtype: None
-    """
-
-    def execute(options):
-        trf_cmd = '&& '.join(['trex-fitter {:s} {:s}'.format(o, cfg_file) for o in options])
-        os.system("""echo 'source $HOME/.bashrc && cd {:s} && source setup_python_ana.sh &&
-            source /user/mmorgens/workarea/devarea/rel21/TRExFitter/setup.sh && {:s} 
-            ' | 
-            qsub -q {:s} -o {:s}.txt -e {:s}.err""".format(os.path.join(base_dir, analysis_pkg_name),  # noqa: W291
-                                                           trf_cmd,
-                                                           args.kwargs['queue'],
-                                                           os.path.join(args.output_dir, str(args.job_id), 'fit'),
-                                                           os.path.join(args.output_dir, str(args.job_id), 'fit')))
-
-    write_config(args)
-    kwargs.setdefault('options', 'hwdflp')
-    base_dir = os.path.abspath(os.path.join(os.path.basename(__file_path__), '../../../'))
-    analysis_pkg_name = os.path.abspath(os.curdir).split('/')[-2]
-
-    cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-    execute(kwargs['options'])
-    if args.kwargs['ranking']:
-        args.output_dir = os.path.join(args.output_dir, 'ranking')
-        cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-        execute('hwfr')
