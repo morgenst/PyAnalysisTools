@@ -6,7 +6,6 @@ import re
 from array import array
 from collections import OrderedDict
 from copy import deepcopy
-from math import log10
 
 from builtins import input
 from builtins import object
@@ -16,6 +15,7 @@ from builtins import str
 from past.utils import old_div
 
 import ROOT
+import math
 from PyAnalysisTools.PlottingUtils.HistTools import check_name
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig
@@ -476,8 +476,8 @@ def get_histogram_definition(plot_config, systematics='Nominal', factor_syst='')
         if not plot_config.logx:
             hist = ROOT.TH1F(hist_name, "", plot_config.bins, plot_config.xmin, plot_config.xmax)
         else:
-            logxmin = log10(plot_config.xmin)
-            logxmax = log10(plot_config.xmax)
+            logxmin = math.log10(plot_config.xmin)
+            logxmax = math.log10(plot_config.xmax)
             binwidth = old_div((logxmax - logxmin), plot_config.bins)
             xbins = []
             for i in range(0, plot_config.bins + 1):
