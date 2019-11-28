@@ -14,14 +14,14 @@ from builtins import range
 import PyAnalysisTools.PlottingUtils.Formatting as Ft
 import PyAnalysisTools.PlottingUtils.PlottingTools as Pt
 from PyAnalysisTools.base.Modules import load_modules
-from PyAnalysisTools.base.ProcessConfig import Process
+from PyAnalysisTools.base.ProcessConfig import Process, find_process_config, parse_and_build_process_config
 
 from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.FileHandle import FileHandle as FH
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle, get_xsec_weight
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, find_process_config, PlotConfig, \
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, \
     parse_and_build_plot_config, get_default_color_scheme
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter as pl

@@ -9,7 +9,8 @@ from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_draw_option_as_root_str, get_style_setters_and_values
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_plot_config
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 

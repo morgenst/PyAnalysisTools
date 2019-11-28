@@ -24,7 +24,8 @@ from systematic import Systematic
 from math import sqrt
 import os
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy, std_stream_redirected
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_process_config, transform_color
+from PyAnalysisTools.PlottingUtils.PlotConfig import transform_color
+from PyAnalysisTools.base.ProcessConfig import parse_and_build_process_config
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 

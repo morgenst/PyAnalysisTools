@@ -11,7 +11,8 @@ import ROOT
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 
 
 def load_atlas_style():

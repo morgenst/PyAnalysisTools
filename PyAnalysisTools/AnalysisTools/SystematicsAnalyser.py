@@ -56,6 +56,7 @@ class Systematic(object):
         kwargs.setdefault('title', None)
         kwargs.setdefault('expand', None)
         kwargs.setdefault('hist_name', None)
+        kwargs.setdefault('envelope', None)
         self.name = name
         for k, v in list(kwargs.items()):
             setattr(self, k, v)

@@ -8,11 +8,10 @@ from operator import itemgetter
 
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, parse_and_build_plot_config, get_histogram_definition,\
-    parse_and_build_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, parse_and_build_plot_config, get_histogram_definition
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 
 

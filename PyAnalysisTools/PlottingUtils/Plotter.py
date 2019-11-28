@@ -14,8 +14,7 @@ import ROOT
 import os
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
-from PyAnalysisTools.base.ProcessConfig import ProcessConfig
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig, find_process_config, parse_and_build_process_config
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -528,7 +527,7 @@ class Plotter(BasePlotter):
                                                                         plot_config_syst_unc_ratio,
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
-                self.syst_analyser.make_overview_plots(plot_config)
+                #self.syst_analyser.make_overview_plots(plot_config)
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio)
             _logger.debug('register canvas {:s}'.format(canvas_combined.GetName()))

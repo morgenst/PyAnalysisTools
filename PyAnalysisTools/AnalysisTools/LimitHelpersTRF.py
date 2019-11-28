@@ -29,8 +29,8 @@ from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyse
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils import Plotter
 from PyAnalysisTools.PlottingUtils.HistTools import get_log_scale_x_bins, rebin
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, transform_color, \
-    parse_and_build_process_config, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, transform_color
+from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle

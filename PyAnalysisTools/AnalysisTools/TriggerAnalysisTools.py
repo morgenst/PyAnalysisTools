@@ -16,7 +16,8 @@ from PyAnalysisTools.AnalysisTools.EfficiencyCalculator import EfficiencyCalcula
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, get_histogram_definition
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import find_branches_matching_pattern

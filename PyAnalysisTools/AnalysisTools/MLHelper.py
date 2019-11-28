@@ -17,7 +17,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import ROOT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, parse_and_build_process_config
+from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
@@ -234,8 +234,7 @@ class Root2NumpyConverter(object):
         self.branches = branches
 
     def convert_to_array(self, tree, selection="", max_events=None):
-        selection = "1"
-        data = root_numpy.tree2array(tree, branches=self.branches, selection=None, start=0)
+        data = root_numpy.tree2array(tree, branches=self.branches, selection=selection, start=0)
         return data
 
     def merge(self, signals, bkgs):
