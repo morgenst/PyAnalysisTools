@@ -69,6 +69,8 @@ class Region(object):
         # limit specific settings to help HistFactory setup
         kwargs.setdefault("norm_region", False)
         kwargs.setdefault("val_region", False)
+        kwargs.setdefault("channel", None)
+        kwargs.setdefault("label", None)
         kwargs.setdefault("norm_backgrounds", {})
 
         self.name = kwargs["name"]
@@ -238,6 +240,11 @@ class Region(object):
                                                     [self.n_electron, self.n_muon, self.n_tau])])
         if self.is_on_z is not None:
             self.label += " on-Z" if self.is_on_z else " off-Z"
+
+    def convert2cut_string(self):
+        if len(self.cut_list) == 0:
+            return ''
+        return '&&'.join([c.selection for c in self.cut_list])
 
 
 class RegionBuilder(object):

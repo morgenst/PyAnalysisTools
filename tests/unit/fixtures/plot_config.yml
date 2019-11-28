@@ -1,6 +1,6 @@
 common:
   Watermark: Internal
-  Lumi:
+  lumi:
     mc16a: 36.24
     mc16d: 44.3
     mc16e: 58.45

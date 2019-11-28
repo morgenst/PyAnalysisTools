@@ -93,6 +93,7 @@ class TestRegion(unittest.TestCase):
         self.assertIsNone(region.common_selection)
         self.assertIsNone(region.weight)
         self.assertIsNone(region.binning)
+        self.assertIsNone(region.channel)
         self.assertEqual('==', region.operator)
         self.assertEqual('==', region.muon_operator)
         self.assertEqual('test', region.name)
