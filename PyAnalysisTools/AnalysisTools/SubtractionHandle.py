@@ -1,5 +1,5 @@
 from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 
 
 class SubtractionHandle(object):

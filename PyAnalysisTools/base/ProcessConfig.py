@@ -6,6 +6,7 @@ from builtins import object
 from future.utils import python_2_unicode_compatible
 import re
 from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 data_streams = ['physics_Late', 'physics_Main']
 
@@ -274,3 +275,101 @@ class ProcessConfig(object):
         pc = ProcessConfig(**dict((k, v) for (k, v) in list(self.__dict__.items()) if not k == "subprocesses"))
         pc.parent_process = self.name
         return pc
+
+
+def find_process_config_str(process_name, process_configs):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
+
+    def is_sub_process(config):
+        if process_name == config.name:
+            return True
+        if not hasattr(config, 'subprocesses'):
+            return False
+        if process_name in config.subprocesses:
+            return True
+        if any(re.match(sub_process.replace("re.", ""), process_name) for sub_process in config.subprocesses):
+            return True
+        return False
+
+    if process_configs is None or process_name is None:
+        return None
+    if process_name in process_configs:
+        return process_configs[process_name]
+    matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
+    if len(matched_process_cfg) != 1:
+        if len(matched_process_cfg) > 0:
+            print('SOMEHOW matched to multiple configs')
+        return None
+    return matched_process_cfg[0]
+
+
+def find_process_config(process, process_configs):
+    """
+    Searches for process config matching process name. If process name matches subprocess of mother process it adds a
+    new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
+    MC campaign info exists it will be created adding
+    :param process_name:
+    :type process_name:
+    :param process_configs:
+    :type process_configs:
+    :return:
+    :rtype:
+    """
+
+    def is_sub_process(config):
+        if process.match(config.name):
+            return True
+        if not hasattr(config, 'subprocesses'):
+            return False
+        if process.matches_any(config.subprocesses) is not None:
+            return True
+        return False
+
+    if not isinstance(process, Process):
+        return find_process_config_str(process, process_configs)
+    if process_configs is None or process is None:
+        return None
+    match = process.matches_any(list(process_configs.keys()))
+    if match is not None:
+        return process_configs[match]
+    matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
+    if len(matched_process_cfg) != 1:
+        if len(matched_process_cfg) > 0:
+            print('SOMEHOW matched to multiple configs')
+        return None
+    return matched_process_cfg[0]
+
+
+def parse_and_build_process_config(process_config_files):
+    """
+    Parse yml file containing process definition and build ProcessConfig object
+    :param process_config_files: process configuration yml files
+    :type process_config_files: list
+    :return: Process config
+    :rtype: ProcessConfig
+    """
+    if process_config_files is None:
+        return None
+    try:
+        _logger.debug("Parsing process configs")
+        if not isinstance(process_config_files, list):
+            parsed_process_config = yl.read_yaml(process_config_files)
+            process_configs = {k: ProcessConfig(name=k, **v) for k, v in list(parsed_process_config.items())}
+        else:
+            parsed_process_configs = [yl.read_yaml(pcf) for pcf in process_config_files]
+            process_configs = {k: ProcessConfig(name=k, **v) for parsed_config in parsed_process_configs
+                               for k, v in list(parsed_config.items())}
+        _logger.debug("Successfully parsed %i process items." % len(process_configs))
+        return process_configs
+    except Exception as e:
+        raise e

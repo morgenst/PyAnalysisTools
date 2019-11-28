@@ -18,8 +18,8 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, parse_and_build_process_config, \
-    get_histogram_definition, find_process_config, merge_plot_configs
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition, merge_plot_configs
+from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 
 
 class BasePlotter(object):

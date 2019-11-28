@@ -15,8 +15,8 @@ import ROOT
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, parse_and_build_process_config, \
-    find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition
+from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.PlottingUtils.RatioPlotter import RatioPlotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
@@ -291,7 +291,7 @@ class SingleFileMultiRefReader(ComparisonReader):
 class MultiFileSingleRefReader(ComparisonReader):
     def __init__(self, **kwargs):
         input_files = kwargs['input_files']
-        compare_files = kwargs['input_files'] + kwargs['compare_files']
+        compare_files = kwargs['compare_files']  # why was there this included here: kwargs['input_files'] +
         self.file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in input_files]
         self.compare_file_handles = [FileHandle(file_name=fn, switch_off_process_name_analysis=True) for fn in
                                      compare_files]
@@ -321,8 +321,7 @@ class MultiFileSingleRefReader(ComparisonReader):
         else:
             cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
         cuts_ref = collections.OrderedDict([list(cuts.items())[0]])
-        cuts_comp = cuts
-
+        cuts_comp = cuts_ref  # cuts
         plotable_objects = []
         for k_cuts, v_cuts in list(cuts_ref.items()):
             reference = collections.OrderedDict()
@@ -358,7 +357,7 @@ class MultiFileSingleRefReader(ComparisonReader):
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts,
                                       process=k_comp))
-        del plotable_objects[1]
+        #del plotable_objects[1]
         return plotable_objects
 
 

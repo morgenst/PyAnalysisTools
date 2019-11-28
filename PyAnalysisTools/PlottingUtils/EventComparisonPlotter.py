@@ -18,8 +18,8 @@ from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition, \
-    parse_and_build_process_config, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_histogram_definition
+from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.JSONHandle import JSONHandle

@@ -27,7 +27,8 @@ from PyAnalysisTools.AnalysisTools.SystematicsAnalyserOld import parse_syst_conf
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, find_process_config
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
