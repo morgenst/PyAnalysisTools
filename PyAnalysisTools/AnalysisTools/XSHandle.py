@@ -12,8 +12,8 @@ from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 
 def get_xsec_weight(lumi, process, xs_handle, event_numbers):
-    if isinstance(lumi, OrderedDict):
-        if process.mc_campaign is None or re.search('mc16[acde]$', process.mc_campaign) is None:
+    if isinstance(lumi, OrderedDict) or isinstance(lumi, dict):
+        if process.mc_campaign is None or re.search(r'mc16[acde]$', process.mc_campaign) is None:
             _logger.error('Could not find MC campaign information, but lumi was provided per MC '
                           'campaign. Not clear what to do. It will be assumed that you meant to scale '
                           'to total lumi. Please update and acknowledge once.')
