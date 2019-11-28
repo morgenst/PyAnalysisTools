@@ -62,6 +62,7 @@ class LimitArgs(object):
         kwargs.setdefault("run_pyhf", False)
         kwargs.setdefault("ranking", False)
         kwargs.setdefault("queue", 'short7')
+        kwargs.setdefault("pruning", None)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
@@ -933,10 +934,10 @@ class CommonLimitOptimiser(object):
                 for sig_name in list(signals):
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
                                              output_dir=self.output_dir, sig_name=sig_name,
-                                             limit_config=self.limit_config,
+                                             limit_config=self.limit_config, pruning=0.00011,
                                              process_configs=self.process_configs, systematics=self.systematics,
                                              ctrl_config=cr_config, jobid=str(len(configs)),
-                                             fixed_signal=self.fixed_signal,
+                                             fixed_signal=self.fixed_signal, disable_plots=True,
                                              queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
                                              ranking=False, log_level=self.log_level))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
@@ -983,17 +984,17 @@ class CommonLimitOptimiser(object):
             os.system(trf_cmd)
 
         write_config(args)
-        kwargs.setdefault('options', 'hwdflp')
+        kwargs.setdefault('options', 'hbwdflp')
 
         cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
         execute(kwargs['options'])
         if args.kwargs['ranking']:
             args.output_dir = os.path.join(args.output_dir, 'ranking')
             cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-            execute('hwfr')
+            execute('hbwfr')
 
     def finish(self):
-        pass
+        _logger.info('Wrote limits to {:s}'.format(self.output_dir))
 
     def run(self, cluster_cfg_file, job_id):
         """
@@ -1085,8 +1086,10 @@ def write_config(args, ranking=False):
         print('\tDoSignalRegionsPlot: {:s}'.format(make_plots), file=f)
         print('\tDoPieChartPlot: {:s}'.format(make_plots), file=f)
         print('\tMergeUnderOverFlow: FALSE', file=f)
-        # print >> f, '\tSystPruningShape: 0.005'
-        # print >> f, '\tSystPruningNorm: 0.005'
+        if kwargs['pruning'] is not None:
+            print('\tSystPruningNorm: {:f}'.format(kwargs['pruning']), file=f)
+            print('\tSystPruningShape: {:f}'.format(kwargs['pruning']), file=f)
+
         print('\tUseATLASRounding: TRUE', file=f)
         print('\tTableOptions: !STANDALONE', file=f)
         if ranking:
@@ -1266,7 +1269,6 @@ def write_config(args, ranking=False):
                 new_unc = deepcopy(theory_unc[0])
                 new_unc.name = component.replace('weight_', '')
                 new_unc.variation = 'custom'
-                new_unc.symmetrise_option = 'ABSMEAN'
                 kwargs['systematics'].append(new_unc)
             kwargs['systematics'].remove(theory_unc[0])
         custom_syst = [syst for syst in kwargs['systematics'] if syst.type == 'custom']
@@ -1308,7 +1310,10 @@ def write_config(args, ranking=False):
             print('Systematic: "{:s}"'.format(syst_name), file=f)
             title = syst.title
             if title is None:
-                title = syst_name
+                if syst.envelope is not None:
+                    title = syst.envelope
+                else:
+                    title = syst_name
             print('\tTitle: "{:s}"'.format(title), file=f)
             if syst.type != 'fixed':
                 print('\tType: HISTO', file=f)
@@ -1326,16 +1331,19 @@ def write_config(args, ranking=False):
                         hist_name = syst.hist_name
                     print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name + '__1up')), file=f)
                     print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name + '__1down')), file=f)
-                elif 'theory_envelop' in syst_name:
-                    print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path,
-                                                                      syst_name + '_{:.0f}'.format(
-                                                                          kwargs['mass_cut']))),
-                          file=f)
-                    print('\tSymmetrisation: {:s}'.format('ABSMEAN'), file=f)
+                # elif 'theory_envelop' in syst_name:
+                #     print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path,
+                #                                                       syst_name + '_{:.0f}'.format(
+                #                                                           kwargs['mass_cut']))),
+                #           file=f)
+                #     print('\tSymmetrisation: ABSMEAN', file=f)
                 elif syst.variation == 'custom':
                     hist_name = syst_name
                     if syst.hist_name is not None:
                         hist_name = syst.hist_name
+                    if syst.envelope is not None:
+                        print('\tCombineName: {:s}'.format(syst.envelope), file=f)
+                        print('\tCombineType: ENVELOPE', file=f)
                     print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
                     print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
                 else:
@@ -1406,84 +1414,84 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
             else:
                 data['Nominal'][dummy_signal][reg].SetBinContent(1, 0.)
 
-    theory_thrs = []
-    if 'theory_envelop' in [s.name for s in systematics]:
-        sherpa_uncerts = [s.replace('weight_', '') for s in TheoryUncertaintyProvider.get_sherpa_uncerts()]
-        if len(set(sherpa_uncerts).intersection(set(data.keys()))) > 0:
-            """
-            Due to the statistical power of the Sherpa sample the theory uncertainties have to be evaluated on the final
-            binning.
-            """
-            theory_uncerts = {}
-            for uncert in sherpa_uncerts:
-                current_uncert_data = data.pop(uncert)
-                for process in current_uncert_data.keys():
-                    for reg, hist in current_uncert_data[process].items():
-                        # if reg not in current_uncert_data:
-                        #     continue
-
-                        if reg not in theory_uncerts:
-                            theory_uncerts[reg] = {}
-                        try:
-                            hist = rebin(hist, list(map(float, list(binnings[reg].split(',')))))
-                        except KeyError:
-                            try:
-                                if reg not in set([i[0] for i in sr_thresholds]):
-                                    raise KeyError
-                            except TypeError:
-                                _logger.error('Unable to parse any binning for region {:s}. Like the reason is a '
-                                              'model independent signal and no threshold configuration provided. If'
-                                              'this is the case the binning info should be in the SR configuration'
-                                              'file'.format(reg))
-                        if process not in theory_uncerts[reg]:
-                            theory_uncerts[reg][process] = []
-                        theory_uncerts[reg][process].append(hist)
-
-            def get_max_variation(b, nom, uncerts):
-                return nom.GetBinContent(b) + max(
-                    map(lambda h: abs(h.GetBinContent(b) - nom.GetBinContent(b)), uncerts))
-
-            for reg in theory_uncerts.keys():
-                for process, hists in theory_uncerts[reg].items():
-                    h_tmp_nominal = deepcopy(data['Nominal'][process][reg])
-                    try:
-                        h_tmp_nominal = rebin(h_tmp_nominal, list(map(float, list(binnings[reg].split(',')))))
-                    except KeyError:
-                        continue
-                    h_tmp = hists[0].Clone('{:s}_theory_envelop'.format('_'.join(hists[0].GetName().split('_')[:6])))
-                    for b in range(h_tmp.GetNbinsX()):
-                        h_tmp.SetBinContent(b, get_max_variation(b, h_tmp_nominal, hists))
-                    if 'theory_envelop' not in data:
-                        data['theory_envelop'] = {}
-                    if process not in data['theory_envelop']:
-                        data['theory_envelop'][process] = {}
-                    data['theory_envelop'][process][reg] = deepcopy(h_tmp)
-
-            # signal regions
-            for reg, thrs in set(sr_thresholds):
-                for process, hists in theory_uncerts[reg].items():
-                    h_tmp_nominal = deepcopy(data['Nominal'][process][reg])
-                    try:
-                        h_tmp_nominal = rebin(h_tmp_nominal, [thrs, 8000.])
-                    except KeyError:
-                        continue
-                    h_tmp = hists[0].Clone(
-                        '{:s}_theory_envelop_{:.0f}'.format('_'.join(hists[0].GetName().split('_')[:6]),
-                                                            thrs))
-                    h_tmp = rebin(h_tmp, [thrs, 8000.])
-                    for b in range(h_tmp.GetNbinsX()):
-                        h_tmp.SetBinContent(b, get_max_variation(b, h_tmp_nominal, hists))
-                    syst_name = 'theory_envelop_{:.0f}'.format(thrs)
-                    theory_thrs.append(syst_name)
-                    if syst_name not in data:
-                        data[syst_name] = {}
-                    if process not in data[syst_name]:
-                        data[syst_name][process] = {}
-                    data[syst_name][process][reg] = deepcopy(h_tmp)
-
-            if 'theory_envelop__1down' in data:
-                data.pop('theory_envelop__1down')
-                data.pop('theory_envelop__1up')
+    # theory_thrs = []
+    # if 'theory_envelop' in [s.name for s in systematics]:
+    #     sherpa_uncerts = [s.replace('weight_', '') for s in TheoryUncertaintyProvider.get_sherpa_uncerts()]
+    #     if len(set(sherpa_uncerts).intersection(set(data.keys()))) > 0:
+    #         """
+    #         Due to the statistical power of the Sherpa sample the theory uncertainties have to be evaluated on the final
+    #         binning.
+    #         """
+    #         theory_uncerts = {}
+    #         for uncert in sherpa_uncerts:
+    #             current_uncert_data = data.pop(uncert)
+    #             for process in current_uncert_data.keys():
+    #                 for reg, hist in current_uncert_data[process].items():
+    #                     # if reg not in current_uncert_data:
+    #                     #     continue
+    #
+    #                     if reg not in theory_uncerts:
+    #                         theory_uncerts[reg] = {}
+    #                     try:
+    #                         hist = rebin(hist, list(map(float, list(binnings[reg].split(',')))))
+    #                     except KeyError:
+    #                         try:
+    #                             if reg not in set([i[0] for i in sr_thresholds]):
+    #                                 raise KeyError
+    #                         except TypeError:
+    #                             _logger.error('Unable to parse any binning for region {:s}. Like the reason is a '
+    #                                           'model independent signal and no threshold configuration provided. If'
+    #                                           'this is the case the binning info should be in the SR configuration'
+    #                                           'file'.format(reg))
+    #                     if process not in theory_uncerts[reg]:
+    #                         theory_uncerts[reg][process] = []
+    #                     theory_uncerts[reg][process].append(hist)
+    #
+    #         def get_max_variation(b, nom, uncerts):
+    #             return nom.GetBinContent(b) + max(
+    #                 map(lambda h: abs(h.GetBinContent(b) - nom.GetBinContent(b)), uncerts))
+    #
+    #         for reg in theory_uncerts.keys():
+    #             for process, hists in theory_uncerts[reg].items():
+    #                 h_tmp_nominal = deepcopy(data['Nominal'][process][reg])
+    #                 try:
+    #                     h_tmp_nominal = rebin(h_tmp_nominal, list(map(float, list(binnings[reg].split(',')))))
+    #                 except KeyError:
+    #                     continue
+    #                 h_tmp = hists[0].Clone('{:s}_theory_envelop'.format('_'.join(hists[0].GetName().split('_')[:6])))
+    #                 for b in range(h_tmp.GetNbinsX()):
+    #                     h_tmp.SetBinContent(b, get_max_variation(b, h_tmp_nominal, hists))
+    #                 if 'theory_envelop' not in data:
+    #                     data['theory_envelop'] = {}
+    #                 if process not in data['theory_envelop']:
+    #                     data['theory_envelop'][process] = {}
+    #                 data['theory_envelop'][process][reg] = deepcopy(h_tmp)
+    #
+    #         # signal regions
+    #         for reg, thrs in set(sr_thresholds):
+    #             for process, hists in theory_uncerts[reg].items():
+    #                 h_tmp_nominal = deepcopy(data['Nominal'][process][reg])
+    #                 try:
+    #                     h_tmp_nominal = rebin(h_tmp_nominal, [thrs, 8000.])
+    #                 except KeyError:
+    #                     continue
+    #                 h_tmp = hists[0].Clone(
+    #                     '{:s}_theory_envelop_{:.0f}'.format('_'.join(hists[0].GetName().split('_')[:6]),
+    #                                                         thrs))
+    #                 h_tmp = rebin(h_tmp, [thrs, 8000.])
+    #                 for b in range(h_tmp.GetNbinsX()):
+    #                     h_tmp.SetBinContent(b, get_max_variation(b, h_tmp_nominal, hists))
+    #                 syst_name = 'theory_envelop_{:.0f}'.format(thrs)
+    #                 theory_thrs.append(syst_name)
+    #                 if syst_name not in data:
+    #                     data[syst_name] = {}
+    #                 if process not in data[syst_name]:
+    #                     data[syst_name][process] = {}
+    #                 data[syst_name][process][reg] = deepcopy(h_tmp)
+    #
+    #         if 'theory_envelop__1down' in data:
+    #             data.pop('theory_envelop__1down')
+    #             data.pop('theory_envelop__1up')
     if fixed_signal and dummy_signal is None:
         scale_factors = {}
         for process in data['Nominal'].keys():
@@ -1522,20 +1530,20 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
                 h.Write()
             f.Close()
 
-    for unc in theory_thrs:
-        make_dirs(os.path.join(output_dir, 'hists', unc))
-        for process in list(data[unc].keys()):
-            f = ROOT.TFile.Open(os.path.join(output_dir, 'hists', unc, '{:s}.root'.format(process)), 'RECREATE')
-            f.cd()
-            for reg, h in list(data[unc][process].items()) + list(data['theory_envelop'][process].items()):
-                if scale_factors is not None and process in scale_factors and not reg.startswith('SR_'):
-                    h.Scale(scale_factors[process])
-                # blinding
-                if reg.startswith('SR_') and 'data' in process.lower():
-                    for b in range(h.GetNbinsX() + 1):
-                        h.SetBinContent(b, 0)
-                        h.SetBinError(b, 0)
-                h.SetName('h_{:s}'.format(reg))
-                h.Write()
-            f.Close()
+    # for unc in theory_thrs:
+    #     make_dirs(os.path.join(output_dir, 'hists', unc))
+    #     for process in list(data[unc].keys()):
+    #         f = ROOT.TFile.Open(os.path.join(output_dir, 'hists', unc, '{:s}.root'.format(process)), 'RECREATE')
+    #         f.cd()
+    #         for reg, h in list(data[unc][process].items()) + list(data['theory_envelop'][process].items()):
+    #             if scale_factors is not None and process in scale_factors and not reg.startswith('SR_'):
+    #                 h.Scale(scale_factors[process])
+    #             # blinding
+    #             if reg.startswith('SR_') and 'data' in process.lower():
+    #                 for b in range(h.GetNbinsX() + 1):
+    #                     h.SetBinContent(b, 0)
+    #                     h.SetBinError(b, 0)
+    #             h.SetName('h_{:s}'.format(reg))
+    #             h.Write()
+    #         f.Close()
     return scale_factors
