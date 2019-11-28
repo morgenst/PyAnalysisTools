@@ -918,6 +918,7 @@ class CommonLimitOptimiser(object):
             for sig_name, config in list(self.thrs_cfg.items()):
                 threshold = config["threshold"]
                 configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
+                                         sig_reg_cfg=self.signal_region_def.regions[0],
                                          output_dir=self.output_dir, sig_name=sig_name, limit_config=self.limit_config,
                                          process_configs=self.process_configs, systematics=self.systematics,
                                          ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
@@ -933,6 +934,7 @@ class CommonLimitOptimiser(object):
             for threshold in self.mass_scans:
                 for sig_name in list(signals):
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
+                                             sig_reg_cfg=self.signal_region_def.regions[0],
                                              output_dir=self.output_dir, sig_name=sig_name,
                                              limit_config=self.limit_config, pruning=0.00011,
                                              process_configs=self.process_configs, systematics=self.systematics,
@@ -1048,6 +1050,7 @@ def write_config(args, ranking=False):
     make_dirs(hist_path)
     limit_config = yl.read_yaml(kwargs['limit_config'])
     limit_config['general'].setdefault('lumi_uncert', 0.017)
+    limit_config['general'].setdefault('suffix', None)
 
     def convert_binning(parsed_info):
         if 'logx' in parsed_info:
@@ -1062,12 +1065,12 @@ def write_config(args, ranking=False):
         print('% --------------- %', file=f)
         print('\n', file=f)
 
-        print('Job: {:s}'.format('LQAnalysis'), file=f)
+        print('Job: {:s}'.format(limit_config['general']['analysis_name']), file=f)
         print('\tCmeLabel: "13 TeV"', file=f)
         print('\tPOI: "mu_Sig"', file=f)
         print('\tReadFrom: HIST', file=f)
         print('\tHistoPath: {:s}'.format(os.path.join(hist_path, 'Nominal')), file=f)
-        print('\tLabel: "LQAnalysis"', file=f)
+        print('\tLabel: "{:s}"'.format(kwargs['sig_reg_cfg'].channel), file=f)
         print('\tLumiLabel: "139 fb^{-1}"', file=f)
         print('\tPlotOptions: NOXERR, NOENDERR', file=f)
         print('\tSystErrorBars: {:s}'.format(make_plots), file=f)
@@ -1086,6 +1089,8 @@ def write_config(args, ranking=False):
         print('\tDoSignalRegionsPlot: {:s}'.format(make_plots), file=f)
         print('\tDoPieChartPlot: {:s}'.format(make_plots), file=f)
         print('\tMergeUnderOverFlow: FALSE', file=f)
+        if limit_config['general']['suffix']:
+            print('\tSuffix: {:s}'.format(limit_config['general']['suffix']), file=f)
         if kwargs['pruning'] is not None:
             print('\tSystPruningNorm: {:f}'.format(kwargs['pruning']), file=f)
             print('\tSystPruningShape: {:f}'.format(kwargs['pruning']), file=f)
@@ -1131,7 +1136,10 @@ def write_config(args, ranking=False):
         print('Region: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tType: SIGNAL', file=f)
         print('\tVariableTitle: "{:s}"'.format(limit_config['plotting']['xtitle']), file=f)
-        print('\tLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
+        if kwargs['sig_reg_cfg'].channel is not None:
+            print('\tLabel: "{:s}"'.format(kwargs['sig_reg_cfg'].label), file=f)
+        else:
+            print('\tLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tShortLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
         print('\tDataType: ASIMOV', file=f)
