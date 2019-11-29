@@ -851,6 +851,8 @@ class CommonLimitOptimiser(object):
         kwargs.setdefault('mass_range', None)
         kwargs.setdefault('local', False)
         kwargs.setdefault('cluster_cfg_file', None)
+        kwargs.setdefault('scan_bounds_per_mass', None)
+        kwargs.setdefault('mass_pattern', r'\d{2,4}')
         if kwargs['cluster_cfg_file'] is not None:
             self.log_level = kwargs['log_level']
             self.queue = kwargs['queue']
@@ -933,6 +935,11 @@ class CommonLimitOptimiser(object):
             signals = [pc.name for pc in self.process_configs.values() if pc.type.lower() == 'signal']
             for threshold in self.mass_scans:
                 for sig_name in list(signals):
+                    if self.scan_bounds_per_mass is not None:
+                        mass = float(re.search(self.mass_pattern, sig_name).group())
+                        if threshold < mass - self.scan_bounds_per_mass[0] or threshold > self.scan_bounds_per_mass[1] \
+                                + mass:
+                            continue
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
                                              sig_reg_cfg=self.signal_region_def.regions[0],
                                              output_dir=self.output_dir, sig_name=sig_name,
