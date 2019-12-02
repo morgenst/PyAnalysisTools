@@ -595,8 +595,6 @@ class LimitScanAnalyser(object):
     def parse_limits(self):
         parsed_data = []
         for scan in self.scan_info:
-            print('scan: ', scan, ' type: ', type(self.scan_info))
-            #print(self.scan_info)
             if 'mc' in scan.kwargs['sig_name']:
                 continue
             self.sig_reg_name = scan.sig_reg_name
@@ -605,11 +603,7 @@ class LimitScanAnalyser(object):
             try:
                 scale_factor = None
                 if self.scale_factors is not None:
-                    #PROBLEM : SF with threshold!
                     scale_factor = self.scale_factors[scan.kwargs['sig_name']]
-                fixed_xsec = None
-                if 'fixed_xsec' in scan.kwargs:
-                    fixed_xsec = scan.kwargs['fixed_xsec']
                 limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'],
                                                     self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
                                                     fixed_sig_sf=scale_factor)
@@ -622,14 +616,11 @@ class LimitScanAnalyser(object):
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"],
                                 mass=mass)
             parsed_data.append(limit_info)
-            # self.parse_prefit_yields(scan, mass)
         best_limits = self.find_best_limit(parsed_data)
         self.make_scan_plot(parsed_data, self.plot_config, best_limits)
         self.tabulate_limits(best_limits)
         theory_xsec = None
 
-        # if self.xsec_map is not None:
-        #     theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0] in chains])
         pc = deepcopy(self.plot_config)
         pc['name'] = 'xsec_limit{:s}'.format(scan.sig_reg_name)
         self.plotter.make_cross_section_limit_plot(best_limits, pc, theory_xsec)
@@ -640,18 +631,10 @@ class LimitScanAnalyser(object):
 
     def tabulate_limits(self, limits):
         limits.sort(key=lambda l: l.mass)
-        # with open(os.path.join(self.input_path, 'event_yields_nom.pkl'), 'r') as f:
-        #     event_yields = dill.load(f)
         data = []
         ordering = self.plot_config['ordering']
         for limit in limits:
             data_mass_point = [limit.mass, limit.mass_cut, limit.exp_limit]
-            # prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut, event_yields.get_signal_region_names()[0])
-            # prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut,
-            #                                                     event_yields.get_signal_region_names()[0])[0] / 1000.
-            # data_mass_point.append(prefit_ylds_sig * limit.exp_limit)
-            # for process in ordering:
-            #     data_mass_point.append("{:.2f} $\\pm$ {:.2f}".format(*prefit_ylds_bkg[process]))
             data.append(data_mass_point)
         headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [\\GeV{}]', 'UL [pb]', 'Signal'] + ordering
         print(tabulate(data, headers=headers, tablefmt='latex_raw'))
