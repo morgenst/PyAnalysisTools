@@ -74,6 +74,7 @@ class BatchHandle(object):
         if not self.is_master:
             return
         _logger.debug("Taring log files")
+        time.sleep(120)
         try:
             with change_dir(self.output_dir):
                 os.system('tar -cf {:s} log*.txt log*.err &> /dev/null'.format('logs.tar'))
