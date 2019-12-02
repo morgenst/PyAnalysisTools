@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import glob
 import json
 import os
 import pickle
@@ -858,6 +859,9 @@ class CommonLimitOptimiser(object):
         kwargs.setdefault('cluster_cfg_file', None)
         kwargs.setdefault('scan_bounds_per_mass', None)
         kwargs.setdefault('mass_pattern', r'\d{2,4}')
+        kwargs.setdefault('resubmit', None)
+        kwargs.setdefault('include_timeout', False)
+
         if kwargs['cluster_cfg_file'] is not None:
             self.log_level = kwargs['log_level']
             self.queue = kwargs['queue']
@@ -877,7 +881,10 @@ class CommonLimitOptimiser(object):
         if kwargs["cr_module_config"] is not None:
             self.control_region_defs = RegionBuilder(**yl.read_yaml(kwargs["cr_module_config"])["RegionBuilder"])
         self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
-        os.makedirs(self.output_dir)
+        if kwargs['resubmit'] is not None:
+            self.output_dir = kwargs['resubmit']
+
+        make_dirs(self.output_dir)
         self.input_hist_file = kwargs['input_hist_file']
         self.output_handle = OutputFileHandle(**kwargs)
         self.run_syst = False
@@ -921,7 +928,15 @@ class CommonLimitOptimiser(object):
     def prepare(self):
         cr_config = build_region_info(self.control_region_defs)
         configs = []
-        if self.thrs_cfg is not None:
+        if self.resubmit is not None:
+            jobs = yl.read_yaml(os.path.join(self.resubmit, 'scan_info.yml'))['configs']
+            processed_jobs = [int(i) for i in os.listdir(self.resubmit) if re.match(r'\d+', i)]
+            if self.include_timeout:
+                processed_jobs = [i for i in processed_jobs if len(glob.glob(os.path.join(self.resubmit, str(i), '*',
+                                                                                          'Limits'))) > 0]
+            _logger.debug("Processed jobs: {:d} expected: {:d}".format(len(processed_jobs), len(jobs)))
+
+        elif self.thrs_cfg is not None:
             for sig_name, config in list(self.thrs_cfg.items()):
                 threshold = config["threshold"]
                 configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
@@ -974,10 +989,14 @@ class CommonLimitOptimiser(object):
                                           dummy_signal='Signal', cut_off=self.cut_off_scale,
                                           anking=False, log_level=self.log_level)
         cfg_file_name = os.path.join(self.output_dir, 'scan_info.yml')
+
+        if self.resubmit:
+            self.submit_args = cfg_file_name, os.path.basename(sys.argv[0]), len(jobs), self.output_dir, True
+            return [i for i in range(len(jobs)) if i not in processed_jobs]
         YAMLDumper.dump_yaml({'configs': configs, 'scale_factors': scale_factors},
                              cfg_file_name)
-
         self.submit_args = cfg_file_name, os.path.basename(sys.argv[0]), len(configs), self.output_dir, True
+
         if self.test_mode:
             return [0]
 
