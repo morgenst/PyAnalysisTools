@@ -524,7 +524,6 @@ class XsecLimitAnalyser(object):
             chains = []
         if self.xsec_map is not None:
             theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0].split('_')[0] in chains])
-        # self.plotter.make_limit_plot_plane(limits, self.plot_config, theory_xsec, scan.sig_reg_name)
 
         pc = deepcopy(self.plot_config)
         pc['name'] = 'xsec_limit{:s}'.format(scan.sig_reg_name)
@@ -580,7 +579,9 @@ class LimitScanAnalyser(object):
         self.analysis_name = self.plot_config['analysis_name']
         self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
-            self.scan_info = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+            tmp = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
+            self.scan_info = tmp['configs']
+            self.scale_factors = tmp['scale_factors']
         dump_input_config(self.__dict__, self.output_handle.output_dir)
 
     @staticmethod
@@ -594,17 +595,24 @@ class LimitScanAnalyser(object):
     def parse_limits(self):
         parsed_data = []
         for scan in self.scan_info:
+            print('scan: ', scan, ' type: ', type(self.scan_info))
+            #print(self.scan_info)
             if 'mc' in scan.kwargs['sig_name']:
                 continue
             self.sig_reg_name = scan.sig_reg_name
             analyser = LimitAnalyserCL(os.path.join(self.input_path, str(scan.kwargs['jobid']), self.analysis_name,
                                                     'Limits'))
             try:
+                scale_factor = None
+                if self.scale_factors is not None:
+                    #PROBLEM : SF with threshold!
+                    scale_factor = self.scale_factors[scan.kwargs['sig_name']]
                 fixed_xsec = None
                 if 'fixed_xsec' in scan.kwargs:
                     fixed_xsec = scan.kwargs['fixed_xsec']
-                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'], scan.kwargs['fixed_signal'],
-                                                    scan.kwargs['sig_yield'], fixed_xsec)
+                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'],
+                                                    self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
+                                                    fixed_sig_sf=scale_factor)
             except ReferenceError:
                 _logger.error("Could not find info for scan {:s}".format(scan))
                 continue
@@ -622,7 +630,9 @@ class LimitScanAnalyser(object):
 
         # if self.xsec_map is not None:
         #     theory_xsec = dict([kv for kv in iter(list(self.xsec_map.items())) if kv[0] in chains])
-        self.plotter.make_cross_section_limit_plot(best_limits, self.plot_config, theory_xsec, self.sig_reg_name)
+        pc = deepcopy(self.plot_config)
+        pc['name'] = 'xsec_limit{:s}'.format(scan.sig_reg_name)
+        self.plotter.make_cross_section_limit_plot(best_limits, pc, theory_xsec)
         if theory_xsec is not None:
             self.plotter.make_limit_plot_plane(best_limits, self.plot_config, theory_xsec,
                                                scan.sig_reg_name)
@@ -630,18 +640,18 @@ class LimitScanAnalyser(object):
 
     def tabulate_limits(self, limits):
         limits.sort(key=lambda l: l.mass)
-        with open(os.path.join(self.input_path, 'event_yields_nom.pkl'), 'r') as f:
-            event_yields = dill.load(f)
+        # with open(os.path.join(self.input_path, 'event_yields_nom.pkl'), 'r') as f:
+        #     event_yields = dill.load(f)
         data = []
         ordering = self.plot_config['ordering']
         for limit in limits:
             data_mass_point = [limit.mass, limit.mass_cut, limit.exp_limit]
-            prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut, event_yields.get_signal_region_names()[0])
-            prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut,
-                                                                event_yields.get_signal_region_names()[0])[0] / 1000.
-            data_mass_point.append(prefit_ylds_sig * limit.exp_limit)
-            for process in ordering:
-                data_mass_point.append("{:.2f} $\\pm$ {:.2f}".format(*prefit_ylds_bkg[process]))
+            # prefit_ylds_bkg = event_yields.retrieve_bkg_ylds(limit.mass_cut, event_yields.get_signal_region_names()[0])
+            # prefit_ylds_sig = event_yields.retrieve_signal_ylds(limit.sig_name, limit.mass_cut,
+            #                                                     event_yields.get_signal_region_names()[0])[0] / 1000.
+            # data_mass_point.append(prefit_ylds_sig * limit.exp_limit)
+            # for process in ordering:
+            #     data_mass_point.append("{:.2f} $\\pm$ {:.2f}".format(*prefit_ylds_bkg[process]))
             data.append(data_mass_point)
         headers = ['$m_{LQ}^{gen} [\\GeV{}]$', '\\mLQmax{} cut [\\GeV{}]', 'UL [pb]', 'Signal'] + ordering
         print(tabulate(data, headers=headers, tablefmt='latex_raw'))
@@ -797,6 +807,7 @@ class LimitScanAnalyser(object):
         y_binning[2] += (y_binning[2] - y_binning[1]) / y_binning[0] * 10
         y_binning[0] += 10
         hist = ROOT.TH2F("upper_limit", "", *(self.sig_mass_binning + y_binning))
+        hist_norm = ROOT.TH2F("upper_limit_norm", "", *(self.sig_mass_binning + y_binning))
         hist_best = hist.Clone("best_limit")
         hist_fit_status = hist.Clone("fit_status")
         hist_fit_quality = hist.Clone("fit_quality")
@@ -809,14 +820,22 @@ class LimitScanAnalyser(object):
 
             if limit_info.exp_limit > 0:
                 hist.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit * 1000.)
+                best_limit = min([li.exp_limit for li in parsed_data if li.mass == limit_info.mass and li.exp_limit > 0.])
+                hist_norm.Fill(limit_info.mass, limit_info.mass_cut, limit_info.exp_limit/best_limit)
+            # else:
+            #     hist.Fill(limit_info.mass, limit_info.mass_cut, -1.)
+            #     hist_norm.Fill(limit_info.mass, limit_info.mass_cut, -1.)
             hist_fit_status.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_status + 1)
             hist_fit_quality.Fill(limit_info.mass, limit_info.mass_cut, limit_info.fit_cov_quality)
 
         ROOT.gStyle.SetPalette(1)
-        # ROOT.gStyle.SetPaintTextFormat(".2g")
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
                         watermark='Internal', lumi=139.0)
+        ROOT.gStyle.SetPaintTextFormat(".2g")
+        pc_norm = PlotConfig(name="limit_scan_norm_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT", lumi=139.0,
+                             xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], watermark='Internal',
+                             ztitle="#splitline{95% CL U.L. #sigma [fb]}{normalised to lowest U.L. per mass bin}")
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
                                ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=139.0)
@@ -824,14 +843,17 @@ class LimitScanAnalyser(object):
                                     xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
                                     ztitle="fit cov quality", watermark='Internal', lumi=139.0)
         canvas = pt.plot_obj(hist, pc)
+        canvas_scan_norm = pt.plot_obj(hist_norm, pc_norm)
         if best_limits is not None:
             pc_best = PlotConfig(draw_option="BOX")
             for limit in best_limits:
                 hist_best.Fill(limit.mass, limit.mass_cut, hist.GetMaximum())
             hist_best.SetLineColor(ROOT.kRed)
             pt.add_histogram_to_canvas(canvas, hist_best, pc_best)
+            pt.add_histogram_to_canvas(canvas_scan_norm, hist_best, pc_best)
         fm.decorate_canvas(canvas, pc)
         self.output_handle.register_object(canvas)
+        self.output_handle.register_object(canvas_scan_norm)
         canvas_status = pt.plot_obj(hist_fit_status, pc_status)
         self.output_handle.register_object(canvas_status)
         canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
