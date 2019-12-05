@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+import sys
 import unittest
 
 from PyAnalysisTools.base import get_default_argparser, default_init
@@ -42,7 +43,7 @@ def create_test_case(_, input_fn, reference_fn):
     return test_case
 
 
-if __name__ == '__main__':
+def main(argv):
     parser = get_default_argparser("Execution script of FileChecker unittests")
     parser.add_argument('input_file', help='input file to test')
     parser.add_argument('reference_file', help='reference to which input file is compared')
@@ -52,3 +53,7 @@ if __name__ == '__main__':
     tests = unittest.TestSuite()
     tests.addTests(loader.loadTestsFromTestCase(create_test_case(*list(vars(args).values()))))
     unittest.TextTestRunner().run(tests)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

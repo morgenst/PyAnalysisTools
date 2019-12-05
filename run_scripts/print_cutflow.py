@@ -30,7 +30,7 @@ def main(argv):
                                                                                                   'signal efficiency')
     parser.add_argument('--disable_sm_total', '-dsm', default=False, action='store_true',
                         help="disable summing sm total")
-    parser.add_argument('--format', '-f', type=str, choices=list(map(str, tabulate_formats)),
+    parser.add_argument('--format', '-f', choices=list(map(str, tabulate_formats)),
                         help="format of printed table")
     parser.add_argument('--no_merge', '-n', action='store_true', default=False, help="switch off merging")
     parser.add_argument('--precision', '-p', type=int, default=3, help="precision of printed numbers")

@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import os
+import sys
 from subprocess import check_call
 from PyAnalysisTools.base import _logger, InvalidInputError, default_init, get_default_argparser
 from PyAnalysisTools.base.Utilities import recursive_glob
@@ -45,10 +46,14 @@ def merge(args):
         remove_file('prw_tmp.root')
 
 
-if __name__ == '__main__':
+def main(argv):
     parser = get_default_argparser("Pileup reweigthing input generator")
     parser.add_argument("--input_path", "-i", default=None, help="input path for merging")
     parser.add_argument("--output_path", "-o", default=None, help="output path for merging")
 
     args = default_init(parser)
     merge(args)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

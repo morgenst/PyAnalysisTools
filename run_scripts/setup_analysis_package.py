@@ -1,4 +1,7 @@
+#!/usr/bin/env python
 from __future__ import print_function
+
+import sys
 from builtins import map
 from builtins import object
 import argparse
@@ -193,7 +196,7 @@ class ModuleCreator(object):
         self.copy_common_files()
 
 
-if __name__ == '__main__':
+def main(argv):
     parser = argparse.ArgumentParser(description="Setup new analysis package")
     parser.add_argument('name', help="Name of new package")
     parser.add_argument('--short_name', '-a', default=None, help="Abbreviation of package name")
@@ -203,3 +206,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
     creator = ModuleCreator(**vars(args))
     creator.create()
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])
