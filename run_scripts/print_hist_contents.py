@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+import sys
+
 import root_numpy
 from pandas import DataFrame
 from tabulate import tabulate
@@ -15,7 +17,7 @@ def print_content(h):
     print('\n\n')
 
 
-if __name__ == '__main__':
+def main(argv):
     parser = get_default_argparser('Tablise bin contents of histogram')
     parser.add_argument("input_file", help="input file list")
     parser.add_argument("--directory", '-d', default=None, help="input file list")
@@ -25,3 +27,7 @@ if __name__ == '__main__':
     hists = fh.get_objects_by_type('TH1', args.directory)
     for h in hists:
         print_content(h)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

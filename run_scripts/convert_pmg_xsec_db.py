@@ -1,12 +1,15 @@
 #!/usr/bin/env python
 
 from __future__ import print_function
+
+import sys
+
 from PyAnalysisTools.base import get_default_argparser, default_init
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from PyAnalysisTools.AnalysisTools.XSHandle import Dataset
 
 
-if __name__ == '__main__':
+def main(argv):
     parser = get_default_argparser(description='Converter from PMG xsec DB to dataset format')
     parser.add_argument('input_file', help="PMG input file")
     parser.add_argument('--output_file', '-o', help='output file name')
@@ -41,3 +44,7 @@ if __name__ == '__main__':
             datasets[ds_id] = dataset
 
     YAMLDumper.dump_yaml(datasets, args.output_file)
+
+
+if __name__ == '__main__':
+    main(sys.argv[1:])

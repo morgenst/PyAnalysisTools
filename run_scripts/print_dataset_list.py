@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-import argparse
 import sys
 
 from builtins import map
@@ -9,15 +8,16 @@ try:
 except ImportError:
     from tabulate import tabulate_formats
 from PyAnalysisTools.AnalysisTools.DatasetPrinter import DatasetPrinter
+from PyAnalysisTools.base import default_init, get_default_argparser
 
 
 def main(argv):
-    parser = argparse.ArgumentParser(description="Steering script for dataset printer")
-    parser.add_argument("dataset_list", type=str, help="dataset list input file")
-    parser.add_argument("xs_info_file", type=str, help="cross section input file")
-    parser.add_argument("--format", "-f", type=str, choices=list(map(str, tabulate_formats)), default="plain",
+    parser = get_default_argparser(description="Steering script for dataset printer")
+    parser.add_argument("dataset_list", help="dataset list input file")
+    parser.add_argument("xs_info_file", help="cross section input file")
+    parser.add_argument("--format", "-f", choices=list(map(str, tabulate_formats)), default="plain",
                         help="output format")
-    args = parser.parse_args()
+    args = default_init(parser)
     printer = DatasetPrinter(**vars(args))
     printer.pprint()
 

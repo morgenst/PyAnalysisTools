@@ -1,8 +1,10 @@
-#!/usr/bin/env LD_LIBRARY_PATH=$LD_LIBRARY_PATH python
+#!/usr/bin/env python
 
 import os
 import sys
 from functools import partial
+
+import six
 from pathos.multiprocessing import Pool
 import pandas as pd
 
@@ -13,7 +15,14 @@ from PyAnalysisTools.base.ShellUtils import make_dirs
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.base.FileHandle import FileHandle
-import feather
+try:
+    ModuleNotFoundError
+except NameError:
+    ModuleNotFoundError = ImportError
+try:
+    import feather
+except ModuleNotFoundError:
+    pass
 
 
 def convert_and_dump(file_handle, output_path, tree_name, region=None, branches=None, format='json'):
@@ -31,7 +40,10 @@ def convert_and_dump(file_handle, output_path, tree_name, region=None, branches=
     if format == 'json':
         df_data.to_json(os.path.join(output_path, output_file_name) + '.json')
     elif format == 'feather':
-        feather.write_dataframe(df_data, os.path.join(output_path, output_file_name) + '.feather')
+        if six.PY2:
+            _logger.error('Feather not available in python2')
+        else:
+            feather.write_dataframe(df_data, os.path.join(output_path, output_file_name) + '.feather')
 
 
 def main(argv):
