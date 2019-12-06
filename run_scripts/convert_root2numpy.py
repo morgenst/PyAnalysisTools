@@ -1,4 +1,4 @@
-#!/usr/bin/env LD_LIBRARY_PATH=$LD_LIBRARY_PATH python
+#!/usr/bin/env python
 
 import os
 import sys
