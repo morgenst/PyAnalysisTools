@@ -1,16 +1,28 @@
 from collections import OrderedDict
 from copy import deepcopy
 from itertools import product
-
+import re
 
 class Cut(object):
     def __init__(self, selection):
-        #TODO: need implementation for data/MC
-        if '::' in selection:
-            self.selection, self.name = selection.split('::')
+        self.is_data = False
+        self.is_mc = False
+        self.process_type = None
+        if ':::' in selection:
+            self.selection, self.name = selection.split(':::')
         else:
             self.name = selection
             self.selection = selection
+        if 'DATA:' in self.selection:
+            self.selection = self.selection.replace('DATA:', '')
+            self.is_data = True
+        if 'MC:' in self.selection:
+            self.selection = self.selection.replace('MC:', '')
+            self.is_mc = True
+        elif re.match(r'TYPE_[A-Z]*:', self.selection):
+            process_type = re.match(r'TYPE_[A-Z]*:', self.selection).group(0)
+            self.selection = self.selection.replace(process_type, '')
+            self.process_type = process_type.rstrip(':').lower()
 
     def __str__(self):
         """

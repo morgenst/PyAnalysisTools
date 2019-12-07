@@ -107,9 +107,14 @@ class Plotter(BasePlotter):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
 
     def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name):
-            return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
-        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name), self.file_handles)
+        def is_empty(file_handle, tree_name, syst_tree_name):
+            try:
+                return file_handle.get_object_by_name(tree_name, "Nominal").GetEntries() > 0
+            except ValueError:
+                if syst_tree_name is not None:
+                    return file_handle.get_object_by_name(syst_tree_name, "Nominal").GetEntries() > 0
+                raise ValueError("Can not read tree from root file.")
+        self.file_handles = filter(lambda fh: is_empty(fh, self.tree_name, self.syst_tree_name), self.file_handles)
 
     #todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -261,6 +266,7 @@ class Plotter(BasePlotter):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
 
     def make_plot(self, plot_config, data):
+
         for mod in self.modules_data_providers:
             data.update([mod.execute(plot_config)])
         data = {k: v for k, v in data.iteritems() if v}
@@ -299,17 +305,22 @@ class Plotter(BasePlotter):
         elif signal_only:
             canvas = pt.plot_objects(signals, plot_config, process_configs=self.process_configs)
         else:
+            c = ROOT.TCanvas("c", "", 800, 600)
+            c.cd()
+            data.values()[0].Draw()
+            c.SaveAs("test.pdf")
             canvas = pt.plot_objects(data, plot_config, process_configs=self.process_configs)
             if plot_config.signal_extraction:
                 for signal in signals.iteritems():
                     pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
-            
+                    
         FM.decorate_canvas(canvas, plot_config)
-        if plot_config.legend_options is not None:
-            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
-                                    **plot_config.legend_options)
-        else:
-            FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
+        if plot_config.enable_legend:
+            if plot_config.legend_options is not None:
+                FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
+                                        **plot_config.legend_options)
+            else:
+                FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs)
         if hasattr(plot_config, "calcsig"):
             # todo: "Background" should be an actual type
             merged_process_configs = dict(filter(lambda pc: hasattr(pc[1], "type"),
@@ -340,6 +351,7 @@ class Plotter(BasePlotter):
                                                                    name=canvas.GetName() + "_significance")
             if significance_canvas is not None:
                 self.output_handle.register_object(canvas_significance_ratio)
+                
         self.output_handle.register_object(canvas)
         if plot_config.ratio:
             if plot_config.no_data or plot_config.is_multidimensional:
@@ -409,7 +421,7 @@ class Plotter(BasePlotter):
             self.output_handle.register_object(canvas_combined)
 
     def make_plots(self):
-        self.read_cutflows()
+        # self.read_cutflows()
         for mod in self.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plot_configs)
             if self.syst_analyser is not None:

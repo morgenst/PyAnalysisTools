@@ -10,6 +10,10 @@ color_palette = [
     # ROOT.kPink-7,
     # ROOT.kSpring-7,
     # ROOT.kPink-1
+
+    # ROOT.kBlue+3,
+    # ROOT.kBlue+3,
+    
     ROOT.kGray+3,
     ROOT.kRed+2,
     ROOT.kAzure+4,

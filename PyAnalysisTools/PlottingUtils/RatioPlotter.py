@@ -134,12 +134,12 @@ class RatioPlotter(object):
         if len(self.compare) > 1:
             colors = get_colors(self.compare)
         if isinstance(self.reference, list):
-            self.reference[0].Draw("ap")
+            self.reference[0].Draw("ap0")
             for i in range(len(self.reference)):
-                self.reference[i+1].Draw("psame")
+                self.reference[i+1].Draw("pesame")
                 self.plot_config.xtitle = self.reference[0].GetPaintedGraph().GetXaxis().GetTitle()
         else:
-            self.reference.Draw("ap")
+            self.reference.Draw("ap0")
             self.plot_config.xtitle = self.reference.GetPaintedGraph().GetXaxis().GetTitle()
                         
         self.plot_config.ytitle = "ratio"

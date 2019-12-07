@@ -68,6 +68,7 @@ class CommonCutFlowAnalyser(object):
         set_batch_mode(kwargs['batch'])
 
     def load_dxaod_cutflows(self, file_handle):
+        return
         process = file_handle.process
         if process is None:
             _logger.error("Parsed NoneType process from {:s}".format(file_handle.file_name))
@@ -446,8 +447,9 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         return cutflow.assign(**{tag: cut_efficiencies})
 
     def execute(self):
-        self.read_event_yields()
-        self.plot_signal_yields()
+        for systematic in self.systematics:
+            self.read_event_yields(systematic)
+        #self.plot_signal_yields()
 
         if not self.raw:
             for systematic in self.cutflows.keys():

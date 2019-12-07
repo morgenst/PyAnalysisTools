@@ -13,6 +13,7 @@ import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 def retrieve_new_canvas(name, title, size_x=800, size_y=600):
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
+    canvas.SetRightMargin(0.07)
     ROOT.SetOwnership(canvas, False)
     return canvas
 
@@ -243,6 +244,21 @@ def format_hist(hist, plot_config):
         if hasattr(plot_config, "zmin") and hasattr(plot_config, "zmax"):
             fm.set_range_z(hist, plot_config.zmin, plot_config.zmax)
 
+    # if plot_config.normalise:
+    #     HT.normalise(hist, plot_config.normalise_range)
+    #     ymax = plot_config.yscale * hist.GetMaximum()
+    #     if plot_config.ymax is not None:
+    #         plot_config.ymax = max(plot_config.ymax, ymax)
+    #     else:
+    #         plot_config.ymax = ymax
+    if plot_config.rebin and not isinstance(hist, ROOT.THStack) and not plot_config.ignore_rebin:
+        hist = HT.rebin(hist, plot_config.rebin)
+        if not plot_config.normalise:
+            ymax = plot_config.yscale*hist.GetMaximum()
+            if plot_config.ymax is not None:
+                plot_config.ymax = max(plot_config.ymax, ymax)
+            else:
+                plot_config.ymax = ymax
     if plot_config.normalise:
         HT.normalise(hist, plot_config.normalise_range)
         ymax = plot_config.yscale * hist.GetMaximum()
@@ -250,13 +266,7 @@ def format_hist(hist, plot_config):
             plot_config.ymax = max(plot_config.ymax, ymax)
         else:
             plot_config.ymax = ymax
-    if plot_config.rebin and not isinstance(hist, ROOT.THStack) and not plot_config.ignore_rebin:
-        hist = HT.rebin(hist, plot_config.rebin)
-        ymax = plot_config.yscale*hist.GetMaximum()
-        if plot_config.ymax is not None:
-            plot_config.ymax = max(plot_config.ymax, ymax)
-        else:
-            plot_config.ymax = ymax
+
     # if hasattr(plot_config, "logy") and plot_config.logy:
     #     print hist.GetMaximum()
     #     hist.SetMaximum(hist.GetMaximum() * 100.)
@@ -369,6 +379,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     if plot_config.ordering is not None:
         hist_defs = sorted(hist_defs, key=lambda k: plot_config.ordering.index(k[0]))
     for process, hist in hist_defs:
+
         index = map(itemgetter(1), hist_defs).index(hist)
         hist = format_hist(hist, plot_config)
         process_config = fetch_process_config(process, process_configs)
@@ -380,6 +391,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         if not is_first and "same" not in draw_option:
             draw_option += "sames"
         hist.Draw(draw_option)
+
         #todo: might break something upstream
         # if common_config is None or common_config.ignore_style:
         #     style_setter = "Line"
@@ -388,6 +400,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
         fm.apply_style(hist, plot_config, process_config, index=index)
 
         if is_first:
+
             if isinstance(hist, ROOT.TH2) and draw_option.lower() == "colz":
                 canvas.SetRightMargin(0.15)
             fm.set_minimum_y(hist, plot_config.ymin)
@@ -421,11 +434,12 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 canvas.SetLogx()
             format_hist(hist, plot_config)
             if plot_config.ymax:
-                 hist.SetMaximum(plot_config.ymax)
+                hist.SetMaximum(plot_config.ymax)
             else:
                 hist.SetMaximum(hist.GetMaximum() * 1.2)
         if plot_config.logy:
-            hist.SetMaximum(hist.GetMaximum() * 100.)
+            if not plot_config.normalise:
+                hist.SetMaximum(hist.GetMaximum() * 100.)
             if plot_config.ymin > 0.:
                 hist.SetMinimum(plot_config.ymin)
             else:
@@ -436,6 +450,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             canvas.Update()
         is_first = False
     if plot_config.normalise:
+        print "Set max to", plot_config.ymax
         hist_defs[0][1].SetMaximum(plot_config.ymax)
 
     canvas.Update()
@@ -707,6 +722,7 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
 
     if name is None:
         name = canvas.GetName() + "_ratio"
+
     c = retrieve_new_canvas(name, title)
     c.Draw()
     pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
@@ -735,12 +751,13 @@ def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, nam
     pad2.cd()
     hratio.GetYaxis().SetNdivisions(505)
     scale = 1. / (((1 - y_frac) * (canvas.GetBottomMargin()) / y_frac + 1) * y_frac)
-
+    
     reset_frame_text(hratio)
     scale_frame_text(hratio, scale)
     ratio.Update()
     ratio.SetBottomMargin(0.4)
     ratio.DrawClonePad()
+    # hratio.Draw("e0")
     pad2.Update()
     xlow = pad2.GetUxmin()
     xup = pad2.GetUxmax()
