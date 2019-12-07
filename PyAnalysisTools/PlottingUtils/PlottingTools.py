@@ -459,7 +459,8 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
             if plot_config.ymin:
                 fm.set_minimum_y(hist, plot_config.ymin)
         if plot_config.logy:
-            hist.SetMaximum(hist.GetMaximum() * 100.)
+            if not plot_config.normalise:
+                hist.SetMaximum(hist.GetMaximum() * 100.)
             if plot_config.ymin > 0.:
                 hist.SetMinimum(plot_config.ymin)
             else:

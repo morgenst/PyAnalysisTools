@@ -662,7 +662,7 @@ class ComparisonPlotter(BasePlotter):
                         canvas_ratio.cd()
                         ratio_plotter = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config)
                         hist_ratio = ratio_plotter.ratio_calculator.calculate_ratio_hist(ref.plot_object, comp)
-                        hist_ratio.Draw('same')
+                        hist_ratio.Draw('e0same')
                         ROOT.SetOwnership(canvas_ratio, False)
                     else:
                         canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp,
