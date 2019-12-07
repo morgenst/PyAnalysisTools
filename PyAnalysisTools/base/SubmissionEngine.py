@@ -50,4 +50,5 @@ class SubmissionEngine(object):
         job_args.parameters['JOP'] = abs_job_output_path
         check_call(['qsub', '-q', job_args.queue, '-o', log_file, '-e', err_file,
                     os.path.join(os.path.abspath(self.callee_dir), job_args.run_script),
-                    '-v', str(','.join(['{:s}={:s}'.format(opt, val) for opt, val in job_args.parameters.iteritems()]))])
+                    '-v',
+                    str(','.join(['{:s}={:s}'.format(opt, val) for opt, val in job_args.parameters.iteritems()]))])

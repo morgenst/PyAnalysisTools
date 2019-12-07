@@ -14,22 +14,26 @@
 #
 import os
 import sys
-sys.path.insert(0, os.path.abspath('../../'))
-print sys.path
-from PyAnalysisTools import AnalysisTools
+try:
+    # python3
+    from unittest.mock import MagicMock
+except ImportError:
+    # python2
+    from mock import MagicMock
 
+
+sys.path.insert(0, os.path.abspath('../../'))
 
 # -- Project information -----------------------------------------------------
 
 project = u'PyAnalysisTools'
-copyright = u'2018, Marcus M. Morgenstern'
+copyright = u'2019, Marcus M. Morgenstern'
 author = u'Marcus M. Morgenstern'
 
 # The short X.Y version
 version = u''
 # The full version, including alpha/beta/rc tags
 release = u'1.0'
-
 
 # -- General configuration ---------------------------------------------------
 
@@ -52,7 +56,18 @@ extensions = [
     'sphinx.ext.githubpages',
 ]
 
-autodoc_mock_imports = ["ROOT", "numpy", "sklearn", "pathos", "tensorflow", "tabulate", "root_numpy", "pyAMI", "pandas"]
+autodoc_mock_imports = ["ROOT", "numpy", "sklearn", "pathos", "tensorflow", "tabulate", "root_numpy", "pyAMI", "pandas",
+                        'mock', "matplotlib", "keras", 'MagicMock', 'imblearn']
+
+
+class Mock(MagicMock):
+    @classmethod
+    def __getattr__(cls, name):
+        return MagicMock()
+
+
+MOCK_MODULES = ['ROOT', 'numpy']
+sys.modules.update((mod_name, Mock()) for mod_name in MOCK_MODULES)
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -81,13 +96,12 @@ exclude_patterns = []
 # The name of the Pygments (syntax highlighting) style to use.
 pygments_style = 'sphinx'
 
-
 # -- Options for HTML output -------------------------------------------------
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-html_theme = 'pyramid'
+html_theme = 'nature'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the
@@ -115,7 +129,6 @@ html_static_path = ['_static']
 
 # Output file base name for HTML help builder.
 htmlhelp_basename = 'PyAnalysisToolsdoc'
-
 
 # -- Options for LaTeX output ------------------------------------------------
 
@@ -145,7 +158,6 @@ latex_documents = [
      u'Marcus M. Morgenstern', 'manual'),
 ]
 
-
 # -- Options for manual page output ------------------------------------------
 
 # One entry per manual page. List of tuples
@@ -154,7 +166,6 @@ man_pages = [
     (master_doc, 'pyanalysistools', u'PyAnalysisTools Documentation',
      [author], 1)
 ]
-
 
 # -- Options for Texinfo output ----------------------------------------------
 
@@ -166,7 +177,6 @@ texinfo_documents = [
      author, 'PyAnalysisTools', 'One line description of project.',
      'Miscellaneous'),
 ]
-
 
 # -- Options for Epub output -------------------------------------------------
 
@@ -188,6 +198,7 @@ epub_copyright = copyright
 # A list of files that should not be packed into the epub file.
 epub_exclude_files = ['search.html']
 
+add_module_names = False
 
 # -- Extension configuration -------------------------------------------------
 

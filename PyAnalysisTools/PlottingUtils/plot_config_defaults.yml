@@ -1,3 +1,4 @@
+add_text: None
 outline: "hist"
 stat_box: False
 weight: None
@@ -9,6 +10,7 @@ ignore_style: False
 style: None
 rebin: None
 ratio: None
+calcsig: False
 ignore_rebin: False
 enable_legend: False
 blind: None
@@ -18,19 +20,21 @@ is_multidimensional: False
 ordering: None
 yscale: 1.2
 yscale_log: 100.
-ymin: 0.1
+ymin: None
+ymin_log: 0.1
 xmin: None
 draw_option: None
 ymax: None
 is_common: False
 normalise_range: None
+norm_scale: 1.
 ratio_config: None
 grid: False
 logy: False
 logx: False
 logz: False
 signal_scale: None
-Lumi: 1.
+lumi: 1.
 signal_extraction: True
 xtitle: None
 ytitle: None
@@ -67,4 +71,9 @@ ztitle_size: None
 labels: None
 color: None
 lumi_text: None
-add_text: None
+lumi_precision: 1
+disable_legend: False
+ybins: None
+disable_bin_merge: False
+enable_range_arrows: False
+ignore_process_labels: False

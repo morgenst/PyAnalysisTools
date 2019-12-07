@@ -1,21 +1,48 @@
+import glob
 import shutil
 import os
 import subprocess
 import sys
 from contextlib import contextmanager
+from threading import Lock
+from PyAnalysisTools.base import _logger
 
 
 def make_dirs(path):
+    """
+    Create (nested) directories (thread-safe)
+    :param path: directory
+    :type path: str
+    :return: Nothing
+    :rtype: None
+    """
+    if path is None:
+        _logger.debug('Cannot make dir None')
+        return 
+    lock = Lock()
+    lock.acquire()
     path = os.path.expanduser(path)
     if os.path.exists(path):
         return
     try:
         os.makedirs(path)
-    except OSError as e:
+    except OSError:
+        _logger.error('Unable to create directory {:s}'.format(path))
         raise OSError
+    finally:
+        lock.release()
 
 
 def resolve_path_from_symbolic_links(symbolic_link, relative_path):
+    """
+    Expand symbolic link in relative path. Needed to deal with sysmlinks to eos
+    :param symbolic_link: input link
+    :type symbolic_link: str
+    :param relative_path: name of relative path
+    :type relative_path: str
+    :return: relative path w.r.t symbolic link
+    :rtype: str
+    """
     def is_symbolic_link(path):
         return os.path.islink(path)
     if symbolic_link is None or relative_path is None:
@@ -32,20 +59,53 @@ def resolve_path_from_symbolic_links(symbolic_link, relative_path):
 
 
 def move(src, dest):
-    try:
-        shutil.move(src, dest)
-    except IOError as e:
-        raise e
+    """
+    Wrapper of OS move operation.
+    :param src: input source
+    :type src: string
+    :param dest: destination
+    :type dest: str
+    :return: Nothing
+    :rtype: None
+    """
+    if '*' in src:
+        for fn in glob.glob(src):
+            move(fn, dest)
+    else:
+        try:
+            shutil.move(src, dest)
+        except IOError as e:
+            raise e
 
 
 def copy(src, dest):
+    """
+    Wrapper for OS copy operation.
+    :param src: source
+    :type src: string
+    :param dest: destination
+    :type dest: str
+    :return: Nothing
+    :rtype: None
+    """
     try:
         shutil.copy(src, dest)
-    except:
-        raise
+    except IOError:
+        shutil.copytree(src, dest)
+    except Exception as e:
+        raise e
 
 
 def remove_directory(path, safe=False):
+    """
+    Delete directory and its contents
+    :param path: input path to be deleted
+    :type path: string
+    :param safe: switch to check if directory is empty
+    :type safe: bool
+    :return: Nothing
+    :rtype: None
+    """
     if not os.path.exists(path):
         return
     if safe:
@@ -58,6 +118,13 @@ def remove_directory(path, safe=False):
             shutil.rmtree(path)
         except OSError as e:
             raise e
+
+
+def remove_file(file_name):
+    try:
+        os.remove(file_name)
+    except OSError as e:
+        raise e
 
 
 def source(script_name):
@@ -78,7 +145,7 @@ def fileno(file_or_fd):
 @contextmanager
 def std_stream_redirected(dest=os.devnull, stream=sys.stdout, std_stream=None):
     if std_stream is None:
-       std_stream = stream
+        std_stream = stream
 
     std_stream_fd = fileno(std_stream)
 
@@ -105,3 +172,18 @@ def find_file(file_name, subdirectory=''):
         if file_name in names:
             return os.path.join(root, file_name)
     return None
+
+
+@contextmanager
+def change_dir(path):
+    """
+    Custom change dir. Changes to path, executes and returns to old path
+    :param path:
+    :return:
+    """
+    oldpwd = os.getcwd()
+    os.chdir(path)
+    try:
+        yield
+    finally:
+        os.chdir(oldpwd)

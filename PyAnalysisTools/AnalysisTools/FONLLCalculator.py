@@ -1,8 +1,7 @@
 import ROOT
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
 from PyAnalysisTools.PlottingUtils.ComparisonPlotter import ComparisonPlotter
-from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 
 
@@ -10,20 +9,21 @@ class FONLLCalculator(ComparisonPlotter):
     def __init__(self, **kwargs):
         self.file_handles = [FileHandle(file_name=fn) for fn in kwargs["input_files"]]
         self.fonll_prediction = self.parse_input_file(kwargs["fonll_file"])
-        self.rebin = [14 + 2 * i for i in range(14)] + [45 + 5 * i for i in range(6)] + [80, 90, 100, 130, 160, 190, 250, 300]
+        self.rebin = [14 + 2 * i for i in range(14)] + [45 + 5 * i for i in range(6)] + [80, 90, 100, 130, 160, 190,
+                                                                                         250, 300]
         self.fonll_pc = pc(name="fonll_truth_muon_pt", dist="", xtitle="Truth #mu p_{T} [GeV]",
                            ytitle="d#sigma/dp_{T} [pb/GeV]", draw="E3", logy=True, ymin=0.0001, ymax=1000000, xmin=15.,
                            normalise=True, color=ROOT.kRed, normalise_range=[1, -1], style=1001, rebin=self.rebin)
         kwargs.setdefault("plot_config_files", [])
         kwargs.setdefault("nfile_handles", 1)
-        self.fonll_process = "B(b)#rightarrow e (FONLL)" if "B2e" in kwargs["fonll_file"] else "D(c)#rightarrow e (FONLL)"
+        self.fonll_process = "B(b)#rightarrow e (FONLL)" if "B2e" in kwargs["fonll_file"] \
+            else "D(c)#rightarrow e (FONLL)"
         super(FONLLCalculator, self).__init__(reference_merge_file=kwargs["process_merge"],
                                               xs_config_file=kwargs["dataset_info_file"],
                                               **kwargs)
         self.color_palette = [ROOT.kRed, ROOT.kBlue, ROOT.kGreen, ROOT.kCyan, ROOT.kPink, ROOT.kOrange, ROOT.kBlue-4,
                               ROOT.kRed+3, ROOT.kGreen-2]
         self.output_handle = OutputFileHandle(overload="comparison", output_file_name="Compare.root", **kwargs)
-
 
     @staticmethod
     def parse_input_file(input_file):

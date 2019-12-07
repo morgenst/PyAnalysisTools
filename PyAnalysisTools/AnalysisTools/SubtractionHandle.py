@@ -1,5 +1,5 @@
 from PyAnalysisTools.base import InvalidInputError, _logger
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 
 
 class SubtractionHandle(object):
@@ -10,7 +10,7 @@ class SubtractionHandle(object):
         kwargs.setdefault("process_configs", None)
         self.process_configs = kwargs["process_configs"]
         self.type = "DataProvider"
-        
+
     def execute(self, histograms):
         try:
             key, value = filter(lambda kv: kv[0].name == self.reference_item, histograms.iteritems())[0]
@@ -30,5 +30,3 @@ class SubtractionHandle(object):
                 output_key = process_config
         histograms[output_key] = output
         return histograms
-
-

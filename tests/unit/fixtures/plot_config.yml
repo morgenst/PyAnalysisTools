@@ -1,0 +1,45 @@
+common:
+  Watermark: Internal
+  lumi:
+    mc16a: 36.24
+    mc16d: 44.3
+    mc16e: 58.45
+  yTitle: events
+  outline: stack
+  ratio: False
+  grid: True
+  weight: weight
+  merge: True
+  normalise: False
+  decor_text_x: 0.2
+  decor_text_y: 0.75
+  merge_mc_campaigns: True
+  ratio_config:
+    draw: Marker
+    ymin: 0.7
+    ymax: 1.3
+    ytitle: Data / SM
+  legend_options:
+   xl: 0.65
+   yl: 0.65
+   position: None
+
+
+lq_mass_max:
+ dist : lq_mass_max / 1000.
+ xtitle : "m_{l,jet}^{max} [GeV]"
+ bins : 8000
+ xmin : 0.
+ xmax : 8000.
+ disable_bin_merge: True
+ cuts:
+  - '1 ::: dummy_cut'
+ weight: 'weight'
+
+lq_mass_max_no_cut:
+ dist: lq_mass_max / 1000.
+ xtitle: "m_{l,jet}^{max} [GeV]"
+ bins: 8000
+ xmin: 0.
+ xmax: 8000.
+ disable_bin_merge: True

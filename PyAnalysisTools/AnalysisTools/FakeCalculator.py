@@ -1,20 +1,14 @@
-import ROOT
-import traceback
-from array import array
-from itertools import permutations
-from copy import copy, deepcopy
-from functools import partial
-from PyAnalysisTools.base import _logger, InvalidInputError, Utilities
-import PyAnalysisTools.PlottingUtils.PlottingTools as pt
+from __future__ import print_function
+
+from builtins import filter
+from builtins import object
+
 import PyAnalysisTools.PlottingUtils.HistTools as HT
-import PyAnalysisTools.PlottingUtils.Formatting as FT
+import PyAnalysisTools.PlottingUtils.PlottingTools as pt
+import ROOT
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
-from PyAnalysisTools.ROOTUtils.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import find_process_config, PlotConfig
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
-from PyAnalysisTools.base.OutputHandle import OutputFileHandle
-import pathos.multiprocessing as mp
+from PyAnalysisTools.base.FileHandle import FileHandle
 
 
 class MuonFakeCalculator(object):
@@ -32,29 +26,30 @@ class MuonFakeCalculator(object):
         for mod in self.plotter.modules_pc_modifiers:
             self.plot_configs = mod.execute(self.plotter.plot_configs)
         self.region_builder = filter(lambda mod: isinstance(mod, RegionBuilder), self.plotter.modules_pc_modifiers)[0]
-        numerator_configs = filter(lambda region: "numerator" in region.name, self.region_builder.regions)
+        numerator_configs = [region for region in self.region_builder.regions if "numerator" in region.name]
         self.fake_configs = [(num_conf,
                               filter(lambda reg: reg.name == num_conf.name.replace("numerator", "denominator"),
                                      self.region_builder.regions)[0])
                              for num_conf in numerator_configs]
 
     def make_plots(self):
-        fetched_histograms = self.plotter.read_histograms(file_handle=self.file_handles, plot_configs=self.plot_configs)
-        fetched_histograms = filter(lambda hist_set: all(hist_set), fetched_histograms)
+        fetched_histograms = self.plotter.read_histograms(file_handles=self.file_handles,
+                                                          plot_configs=self.plot_configs)
+        fetched_histograms = [hist_set for hist_set in fetched_histograms if all(hist_set)]
         self.plotter.categorise_histograms(fetched_histograms)
         self.plotter.apply_lumi_weights(self.plotter.histograms)
         if self.plotter.process_configs is not None:
             self.plotter.merge_histograms()
         histograms = self.plotter.histograms
-        for plot_config, data in histograms.iteritems():
+        for plot_config, data in list(histograms.items()):
             plot_config.ignore_rebin = True
             self.plotter.make_plot(plot_config, data)
 
     def subtract_prompt(self):
         data_hists = {}
-        for plot_config, data in self.plotter.histograms.iteritems():
+        for plot_config, data in list(self.plotter.histograms.items()):
             data_hists[plot_config] = data["Data"]
-            for process, hist in data.iteritems():
+            for process, hist in list(data.items()):
                 if process == "Data":
                     continue
                 data_hists[plot_config].Add(hist, -1.0)
@@ -70,7 +65,7 @@ class MuonFakeCalculator(object):
             denominator = HT.rebin(denominator, pc.rebin)
         numerator_hist.Divide(denominator)
         pc.name = pc.name.replace("numerator", "fake_factor")
-        print numerator_hist
+        print(numerator_hist)
         if not isinstance(numerator_hist, ROOT.TH2F):
             pc.draw_option = "p"
             pc.ytitle = "Fake factor"
@@ -78,7 +73,7 @@ class MuonFakeCalculator(object):
             pc.ymin = 0.
             pc.ymax = 2.
         else:
-            print "go to else"
+            print("go to else")
             pc.draw_option = "COLZ"
             pc.ztitle = "Fake factor"
             pc.logy = False
@@ -91,8 +86,8 @@ class MuonFakeCalculator(object):
         self.make_plots()
         fake_contributions = self.subtract_prompt()
         for fake_def in self.fake_configs:
-            for numerator in filter(lambda t: fake_def[0].name in t[0].name, fake_contributions.iteritems()):
+            for numerator in [t for t in iter(list(fake_contributions.items())) if fake_def[0].name in t[0].name]:
                 denominator = filter(lambda t: numerator[0].name.replace("numerator", "denominator") in t[0].name,
-                                     fake_contributions.iteritems())[0]
+                                     iter(list(fake_contributions.items())))[0]
                 self.calculate_fake_factors(numerator, denominator)
         self.plotter.output_handle.write_and_close()

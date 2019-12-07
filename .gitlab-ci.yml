@@ -1,62 +1,83 @@
 variables:
   GIT_STRATEGY: fetch
   PACKAGE_NAME: PyAnalysisTools
+  CI_WEBSITE_DIR: "docs/build"
+  DFS_WEBSITE_NAME: "pyanalysistoolsdocs"
+  DFS_WEBSITE_USERNAME: morgens
 
 stages:
-  #- docker
-  #- trigger
+  - build
   - test
-#   - coverage
-  
+  - docs
+  - deploy
 
-# trigger_LQ:
-#   stage: trigger
-#   image: appropriate/curl
-#   script:
-#     - curl -X POST -F token=$CI_JOB_TOKEN -F ref=master https://gitlab.cern.ch/api/v4/projects/44641/trigger/pipeline
+build_latest_image:
+  stage: build
+  variables:
+    TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+    DOCKER_FILE: Dockerfile
+  except:
+    - tags
+  tags:
+    - docker-image-build
+  script:
+    - ignore
 
-test:
-  image: atlas/analysisbase:latest
+build_docs:
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  stage: docs
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - export PATH=/home/atlas/.local/bin:$PATH
+    - pip install sphinx --user
+  script:
+    - ls
+    - sphinx-build docs/source/ docs/build/
+    - ls docs/build
+  artifacts:
+    paths:
+      - docs/build
+    
+.deploy_template: &deploy_definition
+  stage: deploy
+  image: gitlab-registry.cern.ch/ci-tools/ci-web-deployer
+  tags:
+    - docker
+  script:
+    - SMB_PROTOCOL=smb3
+    - deploy-dfs
+
+deploy_production:
+  variables:
+  <<: *deploy_definition
+  only:
+    - master
+  environment:
+    name: production
+    url: https://cern.ch/PyAnalysisToolsDocs
+    
+unittest:
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
   stage: test
   coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
   before_script:
     - source /home/atlas/release_setup.sh
-    - which python
-    - which pip
-    - pip install nose --user
-    - pip install oyaml --user
-    - pip install coverage --user
+    - sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
     - export PATH=$PATH:/home/atlas/.local/bin
   script:
-    - nosetests tests.TestLogger --with-coverage
+    - echo $SERVICE_PASS | kinit $CERN_USER
+    - mkdir -p tests/unit/fixtures/files/
+    - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/analysis_files/fixtues/ntuple-311331_0.MC16d.root tests/unit/fixtures/files/
+    - sudo chown atlas run_scripts/*
+    - source setup.sh
+    - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
 
-# coverage:
-#     stage: coverage
-#     script:
-#         - nosetests -c .noserc -q --cover-html-dir=build --cover-html
-#         - coverage report -m
-#     coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
-#     artifacts:
-#         paths:
-#             - build
-#         expire_in: 1 day    
-# build_image:
-#   stage: docker
-#   except:
-#     - tags
-#   tags:
-#     - docker-image-build
-#   script:
-#     - ignore
-
-# build_tagged_image:
-#   stage: docker
-#   variables:
-#     TO: $CI_REGISTRY_IMAGE:$CI_COMMIT_TAG
-#   only:
-#     - tags
-#   tags:
-#     - docker-image-build
-#   script:
-#     - ignore
-    
+style_check:
+  image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
+  stage: test
+  before_script:
+    - source /home/atlas/release_setup.sh
+    - export PATH=$PATH:/home/atlas/.local/bin
+  script:
+    - flake8 .
+  allow_failure: true

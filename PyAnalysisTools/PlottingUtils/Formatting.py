@@ -1,3 +1,9 @@
+from __future__ import print_function
+from __future__ import division
+from builtins import zip
+from builtins import str
+from builtins import filter
+from past.utils import old_div
 import re
 import traceback
 
@@ -5,8 +11,8 @@ import ROOT
 import os
 from PyAnalysisTools.base import InvalidInputError, _logger
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas_by_name
-from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values, find_process_config
-from PyAnalysisTools.PlottingUtils.PlotableObject import PlotableObject
+from PyAnalysisTools.PlottingUtils.PlotConfig import get_style_setters_and_values
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 
 
 def load_atlas_style():
@@ -14,8 +20,8 @@ def load_atlas_style():
         base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
         ROOT.SetAtlasStyle()
-    except Exception as e:
-        print traceback.print_exc()
+    except Exception:
+        print(traceback.print_exc())
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
@@ -53,27 +59,35 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     :rtype: None
     """
 
+    attributes = ['watermark_x', 'watermark_y', 'watermark_size', 'watermark_offset', 'lumi_text_x', 'lumi_text_y',
+                  'lumi_text_size']
+    postfix = ''
     if plot_config.ratio is not None and plot_config.ratio is not False:
-        kwargs.setdefault('watermark_x', plot_config.watermark_x_ratio)
-        kwargs.setdefault('watermark_y', plot_config.watermark_y_ratio)
-        kwargs.setdefault('watermark_size', plot_config.watermark_size_ratio)
-        kwargs.setdefault('watermark_offset', plot_config.watermark_offset_ratio)
-        kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x_ratio)
-        kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y_ratio)
-        kwargs.setdefault('lumi_text_size', plot_config.lumi_text_size_ratio)
-    else:
-        kwargs.setdefault('watermark_x', plot_config.watermark_x)
-        kwargs.setdefault('watermark_y', plot_config.watermark_y)
-        kwargs.setdefault('watermark_size', plot_config.watermark_size)
-        kwargs.setdefault('watermark_offset', plot_config.watermark_offset)
-        kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
-        kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
-        kwargs.setdefault('lumi_text_size', plot_config.lumi_text_size)
+        postfix = '_ratio'
+    for attr in attributes:
+        kwargs.setdefault(attr, getattr(plot_config, attr + postfix))
+    # if plot_config.ratio is not None and plot_config.ratio is not False:
+    #     kwargs.setdefault('watermark_x', plot_config.watermark_x_ratio)
+    #     kwargs.setdefault('watermark_y', plot_config.watermark_y_ratio)
+    #     kwargs.setdefault('watermark_size', plot_config.watermark_size_ratio)
+    #     kwargs.setdefault('watermark_offset', plot_config.watermark_offset_ratio)
+    #     kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x_ratio)
+    #     kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y_ratio)
+    #     kwargs.setdefault('lumi_text_size', plot_config.lumi_text_size_ratio)
+    # else:
+    #     kwargs.setdefault('watermark_x', plot_config.watermark_x)
+    #     kwargs.setdefault('watermark_y', plot_config.watermark_y)
+    #     kwargs.setdefault('watermark_size', plot_config.watermark_size)
+    #     kwargs.setdefault('watermark_offset', plot_config.watermark_offset)
+    #     kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
+    #     kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
+    #     kwargs.setdefault('lumi_text_size', plot_config.lumi_text_size)
 
     kwargs.setdefault('decor_text_x', plot_config.decor_text_x)
     kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
     kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
     kwargs.setdefault('lumi_text', plot_config.lumi_text)
+    kwargs.setdefault('lumi_precision', plot_config.lumi_precision)
     kwargs.setdefault('add_text', plot_config.add_text)
 
     if plot_config.watermark is not None:
@@ -82,7 +96,7 @@ def decorate_canvas(canvas, plot_config, **kwargs):
                         size=kwargs['watermark_size'], offset=kwargs['watermark_offset'])
     if plot_config.get_lumi() is not None and plot_config.get_lumi() >= 0 or kwargs['lumi_text'] is not None:
         add_lumi_text(canvas, plot_config.get_lumi(), {"x": kwargs['lumi_text_x'], "y": kwargs['lumi_text_y']},
-                      size=kwargs['lumi_text_size'], lumi_text=kwargs['lumi_text'])
+                      size=kwargs['lumi_text_size'], lumi_text=kwargs['lumi_text'], precision=kwargs['lumi_precision'])
 
     if plot_config.grid:
         canvas.SetGrid()
@@ -92,7 +106,8 @@ def decorate_canvas(canvas, plot_config, **kwargs):
                            size=kwargs['decor_text_size'])
 
     if plot_config.add_text is not None:
-        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]}, size=kwargs['add_text'][3])
+        add_text_to_canvas(canvas, kwargs['add_text'][0], {'x': kwargs['add_text'][1], 'y': kwargs['add_text'][2]},
+                           size=kwargs['add_text'][3])
 
 
 def check_valid_axis(axis):
@@ -108,7 +123,6 @@ def set_axis_title(obj, title, axis):
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
         raise TypeError
     try:
-        print "Set titl to: ", title
         getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitle(title)
     except ReferenceError:
         _logger.error("Nil object {:s}".format(obj.GetName()))
@@ -127,6 +141,7 @@ def set_axis_title_offset(obj, offset, axis):
 def set_axis_title_size(obj, size, axis):
     check_valid_axis(axis)
     if not hasattr(obj, "Get{:s}axis".format(axis.capitalize())):
+        _logger.error("Object: {:s} has no available axis".format(obj.__str__()))
         raise TypeError
     try:
         getattr(obj, 'Get{:s}axis'.format(axis.capitalize()))().SetTitleSize(size)
@@ -135,38 +150,119 @@ def set_axis_title_size(obj, size, axis):
 
 
 def set_title_x(obj, title):
+    """
+    Set x-axis title
+    :param obj: drawable object
+    :type obj: TH1X, TGraph
+    :param title: axis title
+    :type title: str
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title(obj, title, 'x')
 
 
 def set_title_y(obj, title):
+    """
+    Set y-axis title
+    :param obj: drawable object
+    :type obj: TH1X, TGraph
+    :param title: axis title
+    :type title: str
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title(obj, title, 'y')
 
 
 def set_title_z(obj, title):
+    """
+    Set z-axis title
+    :param obj: drawable object
+    :type obj: TH1X, TGraph
+    :param title: axis title
+    :type title: str
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title(obj, title, 'z')
 
 
 def set_title_x_offset(obj, offset):
+    """
+    Set x-axis title offset
+    :param obj: drawable object
+    :type obj: TH1X, TGraph
+    :param offset: axis title offset value
+    :type offset: float
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_offset(obj, offset, 'x')
 
 
 def set_title_y_offset(obj, offset):
+    """
+    Set y-axis title offset
+    :param obj: drawable object
+    :type obj: TH1X, TGraph
+    :param offset: axis title offset value
+    :type offset: float
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_offset(obj, offset, 'y')
 
 
 def set_title_z_offset(obj, offset):
+    """
+    Set z-axis title offset
+    :param obj: drawable object
+    :type obj: TH1X, TGraph
+    :param offset: axis title offset value
+    :type offset: float
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_offset(obj, offset, 'z')
 
 
 def set_title_x_size(obj, size):
+    """
+    Set x-axis title size for plotable object
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param size: font size
+    :type size: int
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_size(obj, size, 'x')
 
 
 def set_title_y_size(obj, size):
+    """
+    Set y-axis title size for plotable object
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param size: font size
+    :type size: int
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_size(obj, size, 'y')
 
 
 def set_title_z_size(obj, size):
+    """
+    Set z-axis title size for plotable object
+    :param obj: plot object
+    :type obj: ROOT.TH1, ROOT.TGraph, etc
+    :param size: font size
+    :type size: int
+    :return: nothing
+    :rtype: None
+    """
     set_axis_title_size(obj, size, 'z')
 
 
@@ -174,18 +270,14 @@ def set_style_options(obj, style):
     allowed_attributes = ["marker", "line"]
     if not isinstance(style, dict):
         raise InvalidInputError("Invalid style config. Needs to be dictionary")
-    for style_object, style_options in style.items():
+    for style_object, style_options in list(style.items()):
         if style_object.lower() not in allowed_attributes:
             continue
         if not isinstance(style_options, dict):
-            raise InvalidInputError("Invalid style option for " + style_object + ". Requires dict, but received " +
-                                    str(type(style_options)))
-        for style_option, value in style_options.items():
-            try:
-                getattr(obj, "Set" + style_object.capitalize() + style_option.capitalize())(value)
-            except AttributeError:
-                _logger.warning("Could not set rquested style " + style_object.capitalize() + style_option.capitalize()
-                                + " for object " + str(obj))
+            raise InvalidInputError("Invalid style option for " + style_object + ". Requires dict, but received "
+                                    + str(type(style_options)))
+        for style_option, value in list(style_options.items()):
+            getattr(obj, "Set" + style_object.capitalize() + style_option.capitalize())(value)
 
 
 def make_text(x, y, text, size=0.05, angle=0, font=42, color=ROOT.kBlack, ndc=True):
@@ -233,20 +325,20 @@ def add_atlas_label(canvas, description='', pos={'x': 0.6, 'y': 0.87}, size=0.05
     canvas.Update()
 
 
-def set_title(self, hist, title, axis='x'):
-    if title is None:
-        return
-    if type(hist) == dict:
-        for h in hist.keys():
-            hist[h] = __setTitle(hist[h], title, axis)
-    else:
-        if isinstance(hist, ROOT.TEfficiency):
-            # hist.Draw('ap')
-            ROOT.gPad.Update()
-            graph = hist.GetPaintedGraph()
-            self.__setTitle(graph, title, axis)
-        else:
-            hist = setTitle(hist, title, axis)
+# def set_title(self, hist, title, axis='x'):
+#     if title is None:
+#         return
+#     if type(hist) == dict:
+#         for h in hist.keys():
+#             hist[h] = __setTitle(hist[h], title, axis)
+#     else:
+#         if isinstance(hist, ROOT.TEfficiency):
+#             # hist.Draw('ap')
+#             ROOT.gPad.Update()
+#             graph = hist.GetPaintedGraph()
+#             self.__setTitle(graph, title, axis)
+#         else:
+#             hist = setTitle(hist, title, axis)
 
 
 def add_stat_box_to_canvas(canvas):
@@ -307,7 +399,18 @@ def set_maximum_y(graph_obj, maximum):
 
 
 def set_maximum_x(graph_obj, maximum):
-    graph_obj.GetXaxis().SetRangeUser(0, maximum)
+    """
+    Set x-axis maximum
+    :param graph_obj: graphics object (hist, graph)
+    :type graph_obj: TH1X, TGraph
+    :param maximum: maximum x-value to display
+    :type maximum: float
+    :return: nothing
+    :rtype: None
+    """
+    minimum = graph_obj.GetXaxis().GetXmin()
+    graph_obj.GetXaxis().SetLimits(minimum, maximum)
+    graph_obj.GetXaxis().SetRangeUser(minimum, maximum)
 
 
 def set_minimum(graph_obj, minimum, axis='y'):
@@ -315,7 +418,9 @@ def set_minimum(graph_obj, minimum, axis='y'):
     if axis == 'y':
         set_minimum_y(graph_obj, minimum)
     elif axis == 'x':
-        graph_obj.GetXaxis().SetRangeUser(minimum, graph_obj.GetXaxis().GetXmax())
+        maximum = graph_obj.GetXaxis().GetXmax()
+        graph_obj.GetXaxis().SetLimits(minimum, maximum)
+        graph_obj.GetXaxis().SetRangeUser(minimum, maximum)
 
 
 def set_minimum_y(graph_obj, minimum):
@@ -326,29 +431,58 @@ def set_minimum_y(graph_obj, minimum):
     set_range_y(graph_obj, minimum, maximum)
 
 
+def set_minimum_x(graph_obj, minimum):
+    """
+    Wrapper to set minimum on x-axis
+    :param graph_obj: plot object
+    :type graph_obj: any plottable ROOT object (THX, TGraph)
+    :param minimum: minimum value
+    :type minimum: float
+    :return: nothing
+    :rtype: None
+    """
+    set_minimum(graph_obj, minimum, 'x')
+
+
 def set_range_y(graph_obj, minimum, maximum):
+    if minimum >= maximum:
+        print('minmax:', minimum, maximum)
+        return
     if isinstance(graph_obj, ROOT.THStack):
         graph_obj.SetMinimum(minimum)
         graph_obj.SetMaximum(maximum)
     elif isinstance(graph_obj, ROOT.TH1) or isinstance(graph_obj, ROOT.TGraph):
         if not isinstance(graph_obj, ROOT.TH2):
             graph_obj.SetMaximum(maximum)
-        # print 'Set range to ', minimum, maximum
+            graph_obj.SetMinimum(minimum)
         graph_obj.GetYaxis().SetRangeUser(minimum, maximum)
     elif isinstance(graph_obj, ROOT.TEfficiency):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
-def set_range_z(graph_obj, minimum, maximum):
-    if isinstance(graph_obj, ROOT.TH1):
-        if minimum is not None:
-            graph_obj.SetMinimum(minimum)
-        if maximum is not None:
-            graph_obj.SetMaximum(maximum)
-        else:
-            maximum = graph_obj.GetMaximum()
-        # print 'set z axis to ', minimum, maximum
-        graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
+def set_range_z(graph_obj, minimum=None, maximum=None):
+    """
+    Set z-axis range for given plot object. If min/max is None take the current min/max of the axis
+    :param graph_obj: plottable object with z-axis
+    :type graph_obj: TH2
+    :param minimum: z-axis minimum (default: None)
+    :type minimum: float
+    :param maximum: z-axis maximum
+    :type maximum: float
+    :return: nothing
+    :rtype: None
+    """
+    if not isinstance(graph_obj, ROOT.TH1):
+        return
+    if minimum is None:
+        minimum = graph_obj.GetMinimum()
+    if maximum is None:
+        maximum = graph_obj.GetMaximum()
+
+    graph_obj.SetMinimum(minimum)
+    graph_obj.SetMaximum(maximum)
+    graph_obj.GetZaxis().SetLimits(minimum, maximum)
+    graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
 
 
 def set_range_x(graph_obj, minimum, maximum):
@@ -391,9 +525,33 @@ def set_range(graph_obj, minimum=None, maximum=None, axis='y'):
         _logger.error("Invalid axis choice: {:s}".format(axis))
 
 
+def get_min_max_y(canvas, plot_config):
+    y_scale_offset = plot_config.yscale
+    if plot_config.logy:
+        y_scale_offset = plot_config.yscale_log
+    plotted_obj = get_objects_from_canvas_by_type(canvas, ['TH1', 'TH2', 'THStack', 'TGraph'])
+    max_y = max([get_max_y(o) for o in plotted_obj])
+    if plot_config.ymax is not None:
+        tmp_max = max_y
+        if isinstance(plot_config.ymax, str):
+            tmp_max = eval(plot_config.ymax)
+        max_y = max(max_y, tmp_max)
+    min_y = max([get_min_y(o) for o in plotted_obj])
+    if plot_config.ymin is not None:
+        min_y = plot_config.ymin
+    if plot_config.logy:
+        if plot_config.ymin is not None and plot_config.ymin > 0.:
+            min_y = plot_config.ymin
+        elif plot_config.ymin_log > 0.:
+            min_y = plot_config.ymin_log
+        else:
+            min_y = 0.1
+    return min_y, y_scale_offset * max_y
+
+
 def auto_scale_y_axis(canvas, offset=1.1):
     graph_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
-    max_y = 1.1 * max([graph_obj.GetMaximum() for graph_obj in graph_objects])
+    max_y = offset * max([graph_obj.GetMaximum() for graph_obj in graph_objects])
     draw_options = [graph_obj.GetDrawOption() for graph_obj in graph_objects]
     first_index = draw_options.index(filter(lambda draw_option: draw_option.count("same") == 0)[0])
     first_graph_obj = graph_objects[first_index]
@@ -406,8 +564,8 @@ def get_legend(lines, max_length_label, **kwargs):
     position = kwargs['position']
     if kwargs['ratio'] is True:
         scale = 0.0625
-        if lines > 9 or max_length_label > (25 / columns) or columns > 3:
-            if lines > 9 or max_length_label > (30 / columns) or columns > 3:
+        if lines > 9 or max_length_label > (old_div(25, columns)) or columns > 3:
+            if lines > 9 or max_length_label > (old_div(30, columns)) or columns > 3:
                 text_size = 0.04
                 x_min = 0.55
             else:
@@ -418,8 +576,8 @@ def get_legend(lines, max_length_label, **kwargs):
             x_min = 0.6
     else:
         scale = 0.04687
-        if lines > 9 or max_length_label > (25 / columns) or columns > 3:
-            if lines > 9 or max_length_label > (30 / columns) or columns > 3:
+        if lines > 9 or max_length_label > (old_div(25, columns)) or columns > 3:
+            if lines > 9 or max_length_label > (old_div(30, columns)) or columns > 3:
                 text_size = 0.03
                 x_min = 0.55
             else:
@@ -430,9 +588,9 @@ def get_legend(lines, max_length_label, **kwargs):
             x_min = 0.6
     if position == 0 or position == 'c':
         leg_x = (max(0.3, 0.5 - columns * 0.1), min(0.7, 0.5 + columns * 0.1))
-        leg_y = (max(0.3, 0.5 - lines * scale / 2), min(0.7, 0.5 + lines * scale / 2))
+        leg_y = (max(0.3, 0.5 - old_div(lines * scale, 2)), min(0.7, 0.5 + old_div(lines * scale, 2)))
     elif position == 1 or position == 'ur':
-        if max_length_label > (25 / columns) or columns > 2:
+        if max_length_label > (old_div(25, columns)) or columns > 2:
             leg_x = (x_min, 0.72)
         else:
             leg_x = (max(x_min, 0.72 - columns * 0.1), min(0.92, 0.72 + columns * 0.1))
@@ -440,13 +598,13 @@ def get_legend(lines, max_length_label, **kwargs):
         # leg_y = (max(0.52, 0.72 - lines * 0.0625 / 2), min(0.92, 0.72 + lines * 0.0625 / 2))
     elif position == 2 or position == 'ul':  # upper left
         leg_x = (max(0.08, 0.28 - columns * 0.1), min(0.48, 0.28 + columns * 0.1))
-        leg_y = (max(0.52, 0.72 - lines * scale / 2), min(0.92, 0.72 + lines * scale / 2))
+        leg_y = (max(0.52, 0.72 - old_div(lines * scale, 2)), min(0.92, 0.72 + old_div(lines * scale, 2)))
     elif position == 3 or position == 'll':
         leg_x = (max(0.08, 0.28 - columns * 0.1), min(0.48, 0.28 + columns * 0.1))
-        leg_y = (max(0.08, 0.28 - lines * scale / 2), min(0.48, 0.28 + lines * scale / 2))
+        leg_y = (max(0.08, 0.28 - old_div(lines * scale, 2)), min(0.48, 0.28 + old_div(lines * scale, 2)))
     elif position == 4 or position == 'lr':
         leg_x = (max(0.52, 0.72 - columns * 0.1), min(0.92, 0.72 + columns * 0.1))
-        leg_y = (max(0.08, 0.28 - lines * scale / 2), min(0.48, 0.28 + lines * scale / 2))
+        leg_y = (max(0.08, 0.28 - old_div(lines * scale, 2)), min(0.48, 0.28 + old_div(lines * scale, 2)))
     else:
         leg_x = (kwargs["xl"], kwargs["xh"])
         leg_y = (kwargs["yl"], kwargs["yh"])
@@ -493,9 +651,14 @@ def add_legend_to_canvas(canvas, **kwargs):
 
     def convert_draw_option(process_config=None, plot_config=None):
         def parse_option_from_format():
-            if kwargs["format"] == "line":
+            """
+            Converts format option string to ROOT compatible string
+            :return: ROOT format string
+            :rtype: str
+            """
+            if kwargs["format"].lower() == "line":
                 return "L"
-            elif kwargs["format"] == "marker":
+            elif kwargs["format"].lower() == "marker":
                 return "P"
 
         draw_option = plot_obj.GetDrawOption()
@@ -535,7 +698,7 @@ def add_legend_to_canvas(canvas, **kwargs):
     if "labels" in kwargs:
         labels = kwargs["labels"]
     if "labels" not in kwargs or not isinstance(kwargs["labels"], dict):
-        if not "plot_objects" in kwargs:
+        if "plot_objects" not in kwargs:
             plot_objects = get_objects_from_canvas_by_type(canvas, "TH1F")
             plot_objects += get_objects_from_canvas_by_type(canvas, "TH1D")
             plot_objects += get_objects_from_canvas_by_type(canvas, "TF1")
@@ -548,12 +711,12 @@ def add_legend_to_canvas(canvas, **kwargs):
     else:
         labels = {}
         plot_objects = []
-        for hist_pattern, lab in kwargs["labels"].iteritems():
+        for hist_pattern, lab in list(kwargs["labels"].items()):
             plot_objects.append(get_objects_from_canvas_by_name(canvas, hist_pattern)[0])
             labels[get_objects_from_canvas_by_name(canvas, hist_pattern)[0].GetName()] = lab
 
     stacked_objects = None
-    if len(stacks) is not 0:
+    if len(stacks) != 0:
         stacked_objects = stacks[0].GetHists()
         plot_objects += stacked_objects
 
@@ -567,10 +730,13 @@ def add_legend_to_canvas(canvas, **kwargs):
             try:
                 process_config = find_process_config(plot_obj.GetName().split("_")[-1], kwargs["process_configs"])
                 if process_config is None:
-                    process_config = filter(lambda pn: pn[0] in plot_obj.GetName(), kwargs['process_configs'].iteritems())[0][1]
+                    process_config = sorted([pn for pn in kwargs['process_configs'] if pn[0] in plot_obj.GetName()],
+                                            key=lambda i: len(i[0]))[-1][1]
                 label = process_config.label
                 formats.append(convert_draw_option(process_config, kwargs['plot_config']))
             except AttributeError:
+                _logger.error('Could not find process label for object {:s} with parsed '
+                              'name {:s}'.format(plot_obj.GetName(), plot_obj.GetName().split("_")[-1]))
                 pass
             if label is None:
                 continue
@@ -582,12 +748,15 @@ def add_legend_to_canvas(canvas, **kwargs):
     if isinstance(labels, list):
         legend = get_legend(len(plot_objects), len(max(labels, key=len)), **kwargs)
     else:
-        #TODO: For what is this needed?
+        # TODO: For what is this needed?
         legend = get_legend(len(plot_objects), labels, **kwargs)
 
     plot_config = kwargs["plot_config"] if "plot_config" in kwargs else None
     canvas.cd()
     legend.SetFillStyle(kwargs["fill_style"])
+    if labels is None or len(labels) == 0:
+        _logger.warning('Could not find labels')
+        return
     for plot_obj, label in zip(plot_objects, labels):
         if 'format' not in kwargs or not isinstance(kwargs["format"], list):
             legend.AddEntry(plot_obj, label, convert_draw_option(None, plot_config))
@@ -599,8 +768,22 @@ def add_legend_to_canvas(canvas, **kwargs):
 
 
 def format_canvas(canvas, **kwargs):
+    """
+    Apply style configuration to canvas
+    :param canvas: canvas
+    :type canvas: TCanvas
+    :param kwargs: style arguments
+    :type kwargs: dict
+    :return: input canvas
+    :rtype: TCanvas
+
+    Additional arguments
+    --------------------
+    :param margin: key value pairs of side (top, bottom, left, right) and margin value
+    :type margin: dict
+    """
     if "margin" in kwargs:
-        for side, margin in kwargs["margin"].iteritems():
+        for side, margin in list(kwargs["margin"].items()):
             getattr(canvas, "Set{:s}Margin".format(side.capitalize()))(margin)
     canvas.Modified()
     canvas.Update()
