@@ -73,8 +73,6 @@ class ComparisonReader(object):
         hist.SetName('_'.join([hist.GetName(), file_handle.process, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
-        print file_handle.tfile.IsOpen()
-        print hist
         try:
             file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string, tdirectory='Nominal')
             hist.SetName(hist.GetName() + '_' + file_handle.process)
@@ -712,7 +710,7 @@ class ComparisonPlotter(BasePlotter):
                         canvas_ratio.cd()
                         ratio_plotter = RatioPlotter(reference=ref.plot_object, compare=comp, plot_config=plot_config)
                         hist_ratio = ratio_plotter.ratio_calculator.calculate_ratio_hist(ref.plot_object, comp)
-                        hist_ratio.Draw('same')
+                        hist_ratio.Draw('e0same')
                         ROOT.SetOwnership(canvas_ratio, False)
                     else:
                         canvas_ratio = RatioPlotter(reference=ref.plot_object, compare=comp,

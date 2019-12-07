@@ -25,7 +25,7 @@ color_palette = [
     ROOT.kMagenta-5
 ]
 
-marker_style_palette_filled = [#21,
+marker_style_palette_filled = [21,
                                20,
                                22,
                                23,
@@ -34,7 +34,7 @@ marker_style_palette_filled = [#21,
                                29,
                                2
 ]
-marker_style_palette_empty = [#25,
+marker_style_palette_empty = [25,
                               24,
                               26,
                               32,

@@ -341,7 +341,12 @@ def set_range_y(graph_obj, minimum, maximum):
 
 def set_range_z(graph_obj, minimum, maximum):
     if isinstance(graph_obj, ROOT.TH1):
-        graph_obj.SetMaximum(maximum)
+        if minimum is not None:
+            graph_obj.SetMinimum(minimum)
+        if maximum is not None:
+            graph_obj.SetMaximum(maximum)
+        else:
+            maximum = graph_obj.GetMaximum()
         # print 'set z axis to ', minimum, maximum
         graph_obj.GetZaxis().SetRangeUser(minimum, maximum)
 

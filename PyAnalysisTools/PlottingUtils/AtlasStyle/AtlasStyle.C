@@ -87,7 +87,7 @@ TStyle* AtlasStyle()
   atlasStyle->SetPadTickX(1);
   atlasStyle->SetPadTickY(1);
   
-  atlasStyle->SetPalette(1);
+  atlasStyle->SetPalette(57);
 
   return atlasStyle;
 

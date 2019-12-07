@@ -68,6 +68,11 @@ def __rebin_asymmetric_1d_hist(hist, n_bins, bins):
     if binning is not None:
         hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
     return hist.Rebin(n_bins - 1, hist.GetName(), bins)
+    # htmp = hist.Rebin(n_bins - 1, hist.GetName(), bins)
+    # for b in range(hist.GetNbinsX() + 1):
+    #     htmp.SetBinContent(b, htmp.GetBinContent(b)/ htmp.GetBinWidth(b))
+    #     htmp.SetBinError(b, htmp.GetBinError(b)/ htmp.GetBinWidth(b))
+    # return htmp
 
 
 def __rebin_asymmetric_2d_hist(hist, n_binsx, bins_x):
@@ -97,7 +102,7 @@ def _merge_overflow_bins_1d(hist, x_max=None):
         last_visible_bin = hist.FindBin(x_max)
     else:
         last_visible_bin = hist.GetNbinsX()
-    print hist.Integral(last_visible_bin, -1), hist.GetBinContent(hist.GetNbinsX()+1), hist.GetBinContent(hist.GetNbinsX())
+    # print hist.Integral(last_visible_bin, -1), hist.GetBinContent(hist.GetNbinsX()+1), hist.GetBinContent(hist.GetNbinsX())
     hist.SetBinContent(last_visible_bin, hist.Integral(last_visible_bin, -1))
     for b in range(last_visible_bin+1, hist.GetNbinsX()+2):
         hist.SetBinContent(b, 0)
@@ -164,9 +169,25 @@ def normalise_hist(hist, integration_range=[-1, -1]):
         return _normalise_1d_hist(hist, integration_range)
 
 
-def _normalise_1d_hist(hist, integration_range=[-1, -1]):
+def has_asymmetric_binning(hist):
+    """
+    Check if graph object has asymmetric x-binning
+    :param hist: histogram
+    :type hist: TH1
+    :return: true/false on asymmetric binning
+    :rtype: bool
+    """
+    # print hist, set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX())])
+    return len(set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX())])) > 1
+
+
+def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
     if isinstance(hist, ROOT.THStack):
         return hist
+    if has_asymmetric_binning(hist):
+        for b in range(hist.GetNbinsX() + 1):
+            hist.SetBinContent(b, hist.GetBinContent(b)/ hist.GetBinWidth(b))
+            hist.SetBinError(b, hist.GetBinError(b)/ hist.GetBinWidth(b))
     integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
