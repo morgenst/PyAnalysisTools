@@ -81,6 +81,35 @@ while if any attribute is not provided by neither the users default and plot con
 * enable_range_arrows (bool): enable/disable arrows in ratio if ratio is out of range
 
 
+Merging ntuples
+---------------
+
+When doing your analysis you will likely submit production jobs for your ntuples to the grid. After downloading all
+processed samples you will end up with a bunch of directories with long (and perhaps cryptic) names and several tentatively
+small root files in each directory. Since this kind of output is rather inconvenient for further post-processing, e.g. plotting,
+you likely want to merge the root files into single files - one per sample. This job is done by the *merge_ntuple.py*
+script. To run it you just need to do this:
+
+.. code-block:: python
+
+     merge_ntuples.py INPUT_PATH -o OUTPUT_PATH --filter r10724 --tag MC16e
+
+The *INPUT_PATH* and *OUTPUT_PATH* are required arguments pointing to the path containing the downloaded datasets and
+the destination directory to store the merged ntuples. *filter* and *tag* are optional arguments which come in handy if
+you have to deal with different MC campaigns etc. *filter* will only considered datasets whose name matches the filter
+arguments (in the example using the reco-tag for MC16e production) and *tag* will add an additional suffix to the output
+file name, i.e. the example above will create files named *ntuple-DSID.MC16e.root*.
+If for some reason you have to deal with recorded data datasets not provided as period containers, but on a per run basis,
+and you'd like to still have period container merged ntuples you can pass a configuration file (*data_summary*)
+providing the run number to period mapping.
+Other optional arguments are
+
+* merge_dir: temporary directory to perform hadd (adding of ntuples). Needed if destination file system does not allow overwrite operations
+* ncpu: number of parallel merge jobs to execute
+* force: run hadd -f, i.e. force creation
+
+
+
 Check ntuple production completeness
 ------------------------------------
 
