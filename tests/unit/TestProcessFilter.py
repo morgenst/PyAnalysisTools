@@ -1,5 +1,5 @@
 import unittest
-from unittest.mock import MagicMock, PropertyMock
+from mock import MagicMock, PropertyMock
 
 from PyAnalysisTools.AnalysisTools.ProcessFilter import ProcessFilter
 
