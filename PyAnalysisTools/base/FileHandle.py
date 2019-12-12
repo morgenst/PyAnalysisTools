@@ -25,20 +25,25 @@ class FileHandle(object):
         kwargs.setdefault("friend_pattern", None)
         kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("split_mc", False)
-        kwargs.setdefault("dataset_info", None)
-        self.file_name = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["file_name"])
-        self.path = resolve_path_from_symbolic_links(kwargs["cwd"], kwargs["path"])
-        self.absFName = os.path.join(self.path, self.file_name)
+        kwargs.setdefault('dataset_info', None)
+        if not kwargs['file_name'].startswith('root://'):
+            self.file_name = resolve_path_from_symbolic_links(kwargs['cwd'], kwargs['file_name'])
+            self.path = resolve_path_from_symbolic_links(kwargs['cwd'], kwargs['path'])
+            self.absFName = os.path.join(self.path, self.file_name)
+        else:
+            self.file_name = kwargs['file_name']
+            self.path = None
+            self.absFName = self.file_name
         self.dataset_info = None
-        if "dataset_info" in kwargs and kwargs["dataset_info"] is not None:
+        if 'dataset_info' in kwargs and kwargs['dataset_info'] is not None:
             if isinstance(kwargs['dataset_info'], dict):
                 self.dataset_info = kwargs['dataset_info']
             else:
-                self.dataset_info = DataSetStore(kwargs["dataset_info"]).dataset_info
-        self.open_option = kwargs["open_option"]
+                self.dataset_info = DataSetStore(kwargs['dataset_info']).dataset_info
+        self.open_option = kwargs['open_option']
         self.tfile = None
         self.initial_file_name = None
-        self.run_dir = kwargs["run_dir"]
+        self.run_dir = kwargs['run_dir']
         self.year = None
         self.period = None
         self.is_data = False
@@ -50,30 +55,30 @@ class FileHandle(object):
         self.mc16e = False
         self.mc_campaign = None
         self.friends = None
-        self.friend_tree_names = kwargs["friend_tree_names"]
-        self.friend_pattern = kwargs["friend_pattern"]
+        self.friend_tree_names = kwargs['friend_tree_names']
+        self.friend_pattern = kwargs['friend_pattern']
         self.friend_files = []
         self.switch_off_process_name_analysis = kwargs['switch_off_process_name_analysis']
         if self.dataset_info is None:
-            _logger.debug("Turning off process name analysis because no dataset info provided")
+            _logger.debug('Turning off process name analysis because no dataset info provided')
             self.switch_off_process_name_analysis = True
         if self.friend_tree_names is not None and not isinstance(self.friend_tree_names, list):
             self.friend_tree_names = [self.friend_tree_names]
         if self.friend_pattern is not None and not isinstance(self.friend_pattern, list):
             self.friend_pattern = [self.friend_pattern]
-        if "ignore_process_name" not in kwargs:
+        if 'ignore_process_name' not in kwargs:
             self.process = Process(self.file_name, self.dataset_info)
             if self.process is not None:
                 if self.mc16a:
-                    self.process += ".mc16a"
+                    self.process += '.mc16a'
                 if self.mc16c:
-                    self.process += ".mc16c"
+                    self.process += '.mc16c'
                 if self.mc16d:
-                    self.process += ".mc16d"
+                    self.process += '.mc16d'
                 if self.mc16e:
-                    self.process += ".mc16e"
-        if kwargs["friend_directory"]:
-            self.attach_friend_files(kwargs["friend_directory"])
+                    self.process += '.mc16e'
+        if kwargs['friend_directory']:
+            self.attach_friend_files(kwargs['friend_directory'])
         self.trees_with_friends = None
 
     def open(self, file_name=None):
@@ -81,7 +86,7 @@ class FileHandle(object):
             return
         if file_name is not None:
             return TFile.Open(file_name, "READ")
-        if not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
+        if self.path is not None and not os.path.exists(self.absFName) and "create" not in self.open_option.lower():
             raise ValueError("File " + os.path.join(self.path, self.file_name) + " does not exist.")
         if self.open_option.lower() == "update" and self.run_dir is not None:
             self.initial_file_name = self.file_name
@@ -90,11 +95,10 @@ class FileHandle(object):
             self.file_name = os.path.join(copy_dir, self.file_name.split("/")[-1])
             move(self.initial_file_name, self.file_name)
             time.sleep(1)
-            self.absFName = os.path.join(self.path, self.file_name)
             while not os.path.exists(self.file_name):
                 time.sleep(1)
-        _logger.debug("Opening file {:s}".format(self.file_name))
-        self.tfile = TFile.Open(os.path.join(self.path, self.file_name), self.open_option)
+        _logger.debug("Opening file {:s}".format(self.absFName))
+        self.tfile = TFile.Open(self.absFName, self.open_option)
 
     def __del__(self):
         if self.tfile is None:
