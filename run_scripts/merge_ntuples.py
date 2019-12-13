@@ -22,9 +22,9 @@ def match_files_to_dataset(directory_list, base_path, data_summary, filter_dsid)
         if filter_dsid is not None:
             if not re.search(filter_dsid, ds):
                 continue
-        try:
-            ds_number = ds.split(".")[2]
-        except IndexError:
+        if re.search(r'\d{6,8}', ds):
+            ds_number = re.search(r'\d{6,8}', ds).group()
+        else:
             ds_number = ds
         is_data = len(ds_number) > 6
         if is_data:
@@ -54,12 +54,24 @@ def match_files_to_dataset(directory_list, base_path, data_summary, filter_dsid)
                     year = "data{:d}".format(year)
                     period = re.findall(r"period[A-Z]", ds)[0]
                 except IndexError:
-                    print("Could not resolve year from ", ds)
+                    _logger.error("Could not resolve year from ", ds)
                     continue
             add("{:s}_13TeV_{:s}".format(year, period))
         else:
             add(ds_number)
     return result
+
+
+def load_input_direcories(input_path):
+    dirs = []
+    for path in os.listdir(input_path):
+        tmp = [os.path.join(path, fname) for fname in os.listdir(os.path.join(input_path, path))
+               if os.path.isdir(os.path.join(input_path, path, fname))]
+        if len(tmp):
+            dirs += tmp
+        else:
+            dirs.append(path)
+    return dirs
 
 
 def main(argv):
@@ -78,13 +90,14 @@ def main(argv):
     if args.data_summary is not None:
         data_summary = YAMLLoader.read_yaml(args.data_summary)
 
-    input_directories = os.listdir(args.input_path)
+    input_directories = load_input_direcories(args.input_path)
+
     match = match_files_to_dataset(input_directories, args.input_path, data_summary, args.filter)
     if len(match) == 0:
         _logger.info("Could not find any match")
         return
     parallel_merge(match, args.output_path,
-                   "ntuple-", merge_dir=args.merge_dir, force=True, postfix=args.tag)
+                   "ntuple-", merge_dir=args.merge_dir, force=args.force, postfix=args.tag)
 
 
 if __name__ == '__main__':
