@@ -1,4 +1,4 @@
-#!/usr/bin/env python2
+#!/usr/bin/env python
 
 from builtins import map
 
@@ -45,7 +45,6 @@ def main(argv):
     parser.add_argument('--output_tag', default=None, help='additional tag for file names storing enabled')
     parser.add_argument("--disable_cutflow_reading", "-dcr", action='store_true', default=False,
                         help="disable reading of initial cutflows. Lumi weighting won't work apparently.")
-
 
     args = base.default_init(parser)
     args.file_list = [os.path.abspath(f) for f in args.input_file_list]
