@@ -672,7 +672,7 @@ class ComparisonPlotter(BasePlotter):
                 canvas_ratio.SetName(plot_config.name.replace(' ', '_') + '_ratio')
                 # self.output_handle.register_object(canvas)
                 # self.output_handle.register_object(canvas_ratio)
-                canvas_combined = PT.add_ratio_to_canvas(canvas, canvas_ratio)
+                canvas_combined = RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio)
                 self.output_handle.register_object(canvas_combined)
             else:
                 _logger.error('Ratio canvas was not created.')
