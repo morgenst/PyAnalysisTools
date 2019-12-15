@@ -138,6 +138,9 @@ class Process(object):
         elif 'allyear' in file_name.lower():
             self.year = re.search('[0-9]{2}', re.search(r'data[0-9]{2}', file_name).group()).group()
             self.process_name = 'data{:s}_allYear'.format(self.year)
+        elif re.search(r'00\d{6}', file_name):
+            self.year = re.search('[0-9]{2}', re.search(r'data[0-9]{2}', file_name).group()).group()
+            self.process_name = 'data{:s}_{:s}'.format(self.year, re.search(r'00\d{6}', file_name).group())
 
     def set_mc_name(self, file_name):
         """

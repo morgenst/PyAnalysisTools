@@ -1,4 +1,4 @@
-#!/usr/bin/env python
+#!/usr/bin/env python2
 
 from builtins import map
 
@@ -41,8 +41,10 @@ def main(argv):
     parser.add_argument('--enable_eff', '-ee', action='store_true', default=False, help='Enable cut efficiencies')
     parser.add_argument('--percent_eff', '-per', action='store_true', default=False,
                         help='Calculate cut efficiencies in percent')
-    parser.add_argument('--save_table', action='store_true', default=False, help='store cutflow to file')
+    parser.add_argument('--save_table', '-st', action='store_true', default=False, help='store cutflow to file')
     parser.add_argument('--output_tag', default=None, help='additional tag for file names storing enabled')
+    parser.add_argument("--disable_cutflow_reading", "-dcr", action='store_true', default=False,
+                        help="disable reading of initial cutflows. Lumi weighting won't work apparently.")
 
 
     args = base.default_init(parser)

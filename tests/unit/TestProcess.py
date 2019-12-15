@@ -124,3 +124,10 @@ class TestProcess(unittest.TestCase):
         self.assertEqual('TBbLQmumu1300l1', process.process_name)
         self.assertEqual('311570', process.dsid)
         self.assertEqual('mc16e', process.mc_campaign)
+
+    def test_process_file_name_data_cos(self):
+        process = Process('hist-data16_cos.00306147.physics_Main.cosmicsStandardOFCs.root', None)
+        self.assertTrue(process.is_data)
+        self.assertFalse(process.is_mc)
+        self.assertEqual('data16_00306147', process.process_name)
+        self.assertIsNone(process.period)
