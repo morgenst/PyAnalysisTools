@@ -76,7 +76,8 @@ class ComparisonReader(object):
         if tree_name is None:
             tree_name = self.tree_name
         try:
-            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string, tdirectory='Nominal')
+            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string,
+                                                    tdirectory=self.tree_dir_name)
             hist.SetName(hist.GetName() + '_' + file_handle.process.process_name)
             _logger.debug("try to access config for process %s" % file_handle.process.process_name)
         except Exception as e:
@@ -448,7 +449,6 @@ class ComparisonPlotter(BasePlotter):
         kwargs.setdefault('output_dir', './')
         kwargs.setdefault('output_tag', None)
         kwargs.setdefault('process_config_files', None)
-        kwargs.setdefault('systematics', 'Nominal')
         kwargs.setdefault('ref_mod_modules', [])
         kwargs.setdefault('inp_mod_modules', None)
         kwargs.setdefault('read_hist', False)
@@ -462,6 +462,9 @@ class ComparisonPlotter(BasePlotter):
             kwargs = JSONHandle(kwargs['json']).load()
         set_batch_mode(kwargs['batch'])
         super(ComparisonPlotter, self).__init__(**kwargs)
+        if self.tree_dir_name == "" or self.tree_dir_name.lower() == 'none':
+            self.tree_dir_name = None
+            kwargs['tree_dir_name'] = None
         self.input_files = kwargs['input_files']
         self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root',
                                               extension=kwargs['file_extension'], **kwargs)
