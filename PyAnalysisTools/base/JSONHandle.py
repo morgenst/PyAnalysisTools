@@ -1,20 +1,22 @@
+from builtins import object
 import json
 import os
+from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.Singleton import Singleton
 from PyAnalysisTools.base.ShellUtils import copy
+from future.utils import with_metaclass
 
 
-class JSONHandle(object):
-    __metaclass__ = Singleton
-
+class JSONHandle(with_metaclass(Singleton, object)):
     def __init__(self, *args, **kwargs):
+        kwargs.setdefault('copy', False)
         self.data = {}
         self.file_name = os.path.join(args[0], "config.json")
-        self.copy = False
+        self.copy = kwargs['copy']
         self.input_file = None
 
     def add_args(self, **kwargs):
-        for val, arg in kwargs.iteritems():
+        for val, arg in list(kwargs.items()):
             self.data[val] = arg
 
     def reset_path(self, path):
@@ -22,6 +24,9 @@ class JSONHandle(object):
 
     def dump(self):
         if self.copy:
+            if self.input_file is None:
+                _logger.warning('Try copying json file, but no input file provided')
+                return
             copy(self.input_file, self.file_name)
             return
         with open(self.file_name, 'w') as outfile:

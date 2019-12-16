@@ -54,6 +54,7 @@ class CommonCutFlowAnalyser(object):
         kwargs.setdefault('friend_file_pattern', None)
         kwargs.setdefault('precision', 3)
         kwargs.setdefault('output_tag', None)
+        kwargs.setdefault('disable_cutflow_reading', False)
         self.event_numbers = dict()
         self.lumi = kwargs['lumi']
         self.interactive = not kwargs['disable_interactive']
@@ -97,7 +98,9 @@ class CommonCutFlowAnalyser(object):
             modules = load_modules(kwargs['module_config_files'], self)
             self.modules = [m for m in modules]
 
-        list(map(self.load_dxaod_cutflows, self.file_handles))
+        self.disable_cutflow_reading = kwargs['disable_cutflow_reading']
+        if not self.disable_cutflow_reading:
+            list(map(self.load_dxaod_cutflows, self.file_handles))
         set_batch_mode(kwargs['batch'])
 
     def __del__(self):
@@ -794,12 +797,13 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
 
     def load_cutflows(self, file_handle):
         process = file_handle.process
+
         if process is None:
             _logger.error("Parsed NoneType process from {:s}".format(file_handle.file_name))
             return
-        if process not in self.event_numbers:
+        if process not in self.event_numbers and not self.disable_cutflow_reading:
             self.event_numbers[process] = file_handle.get_number_of_total_events()
-        else:
+        elif not self.disable_cutflow_reading:
             self.event_numbers[process] += file_handle.get_number_of_total_events()
         if process not in list(self.cutflow_hists.keys()):
             self.cutflow_hists[process] = dict()

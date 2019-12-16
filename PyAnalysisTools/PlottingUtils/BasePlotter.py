@@ -247,7 +247,7 @@ class BasePlotter(object):
                         selection_cuts += "{:s} && ".format(mc_cut.replace("MC:", ""))
                 for data_cut in data_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(data_cut))
-                    if self.process_configs[file_handle.process].type == "Data":  # "data" in file_handle.process:
+                    if find_process_config(file_handle.process, self.process_configs).type == "Data":
                         selection_cuts += "{:s} && ".format(data_cut.replace("DATA:", ""))
                 for evt_cut in event_no_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(evt_cut))
