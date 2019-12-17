@@ -162,10 +162,16 @@ class NTupleAnalyser(object):
         :return: None
         :rtype: None
         """
-        incomplete = [ds[0] for ds in incomplete]
-        missing = [ds[0] for ds in missing]
-        datasets = {'incomplete': incomplete, 'missing': missing}
-        YAMLDumper.dump_yaml(datasets, self.dataset_list_file.replace('.yml', '_resubmit.yml'),
+        resubmit_ds = {}
+        for ds in incomplete:
+            for grid_ds in ds[2]:
+                version = re.search(r'.v\d+.\d+', grid_ds).group().replace('.v', 'v')
+                try:
+                    resubmit_ds['incomplete_{:s}'.format(version)].append(ds[0])
+                except KeyError:
+                    resubmit_ds['incomplete_{:s}'.format(version)] = [ds[0]]
+        resubmit_ds['missing'] = [ds[0] for ds in missing]
+        YAMLDumper.dump_yaml(resubmit_ds, self.dataset_list_file.replace('.yml', '_resubmit.yml'),
                              default_flow_style=False)
 
     def run(self):
