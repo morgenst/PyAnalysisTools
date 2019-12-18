@@ -97,6 +97,9 @@ class FileHandle(object):
             time.sleep(1)
             while not os.path.exists(self.file_name):
                 time.sleep(1)
+        if self.absFName is None:
+            _logger.error('absolute file name is None')
+            return
         _logger.debug("Opening file {:s}".format(self.absFName))
         self.tfile = TFile.Open(self.absFName, self.open_option)
 
