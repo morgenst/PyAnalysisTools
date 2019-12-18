@@ -26,7 +26,7 @@ class FileHandle(object):
         kwargs.setdefault("friend_tree_names", None)
         kwargs.setdefault("split_mc", False)
         kwargs.setdefault('dataset_info', None)
-        if not kwargs['file_name'].startswith('root://'):
+        if kwargs['file_name'] is not None and not kwargs['file_name'].startswith('root://'):
             self.file_name = resolve_path_from_symbolic_links(kwargs['cwd'], kwargs['file_name'])
             self.path = resolve_path_from_symbolic_links(kwargs['cwd'], kwargs['path'])
             self.absFName = os.path.join(self.path, self.file_name)
@@ -105,6 +105,11 @@ class FileHandle(object):
             return
         _logger.log(0, "Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
+
+    def exists(self):
+        if self.absFName is None:
+            return False
+        return os.path.exists(self.absFName)
 
     def close(self):
         if self.tfile is None or not self.tfile.IsOpen():
