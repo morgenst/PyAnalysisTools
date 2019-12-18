@@ -972,6 +972,12 @@ class CommonLimitOptimiser(object):
             self.systematics = SystematicsAnalyser.parse_syst_config(kwargs['syst_config'])
             self.run_syst = True
         self.queue = kwargs['queue']
+        regions = [r.name for r in self.control_region_defs.regions] + [r.name for r in self.signal_region_def.regions]
+        region_constraint_process = [p for p in self.process_configs.items() if p[1].regions_only is not None]
+        for name, cfg in region_constraint_process:
+            if 're.' in cfg.regions_only:
+                if not any(re.match(cfg.regions_only.replace('re.', ''), reg) for reg in regions):
+                    self.process_configs.pop(name)
         if not kwargs['skip_fh_reading']:
             self.file_handles = Plotter.filter_unavailable_processes(self.file_handles, self.process_configs)
             self.file_handles = self.filter_mass_points()
