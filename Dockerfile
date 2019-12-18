@@ -1,4 +1,4 @@
-FROM atlas/analysisbase:latest
+FROM atlas/athanalysis:latest
 
 ADD . /analysis/src
 WORKDIR /analysis/src
