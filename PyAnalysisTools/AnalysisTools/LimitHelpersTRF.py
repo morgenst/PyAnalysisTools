@@ -1428,10 +1428,19 @@ def write_config(args, ranking=False):
             affected_samples = ','.join(all_processes)
             if syst.samples is not None:
                 if isinstance(syst.samples, list):
-                    affected_samples = ','.join(syst.samples)
+                    syst_affected_samples = [s for s in syst.samples if s in all_processes]
+                    if len(syst_affected_samples) == 0:
+                        continue
+                    affected_samples = ','.join(syst_affected_samples)
                 if isinstance(syst.samples, dict) or isinstance(syst.samples, OrderedDict):
                     if 'type' in syst.samples:
-                        pass
+                        is_not = '!' in syst.samples['type']
+                        sample_type = syst.samples['type'].replace('!', '')
+                        syst_affected_samples = [p[0] for p in kwargs["process_configs"].items()
+                                                 if (p[1].type.lower() == sample_type and not is_not or
+                                                     p[1].type.lower() != sample_type and is_not)
+                                                 and p[0] in all_processes]
+                        affected_samples = ','.join(syst_affected_samples)
             # tmp fix
             affected_samples = affected_samples.replace('QCD,', '')
             print('Systematic: "{:s}"'.format(syst_name), file=f)
