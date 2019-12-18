@@ -29,10 +29,12 @@ def apply_style(obj, plot_config, process_config, index=None):
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
     if style_attr is not None:
         for setter in style_setter:
+            _logger.debug('Apply {:s} style {:s} to {:s}'.format(setter, str(style_attr), obj.GetName()))
             getattr(obj, "Set" + setter + "Style")(style_attr)
 
     if color is not None:
         for setter in style_setter:
+            _logger.debug('Apply {:s} color {:s} to {:s}'.format(setter, str(color), obj.GetName()))
             getattr(obj, "Set" + setter + "Color")(color)
 
 

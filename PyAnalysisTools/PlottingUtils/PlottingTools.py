@@ -635,6 +635,7 @@ def plot_stack(hists, plot_config, **kwargs):
         process_config = find_process_config(process, process_configs)
         draw_option = get_draw_option_as_root_str(plot_config, process_config)
         fm.apply_style(hist, plot_config, process_config, index)
+        _logger.debug('Add hist {:s} to stack with draw option {:s}'.format(hist.GetName(), draw_option))
         stack.Add(hist, draw_option)
     stack.Draw()
     canvas.Update()
