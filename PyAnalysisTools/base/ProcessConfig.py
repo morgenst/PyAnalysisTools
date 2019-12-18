@@ -53,7 +53,7 @@ class Process(object):
         :rtype: str
         """
         obj_str = str(self.process_name)
-        obj_str += ' parsed from file name {:s}'.format(self.file_name)
+        obj_str += ' parsed from file name {:s}'.format(str(self.file_name))
         return obj_str
 
     def __unicode__(self):
@@ -218,6 +218,7 @@ class ProcessConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
+        kwargs.setdefault('regions_only', None)
         for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         self.is_data, self.is_mc = self.transform_type()

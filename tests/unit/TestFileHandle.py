@@ -21,6 +21,9 @@ class TestFileHandle(unittest.TestCase):
         with self.assertRaises(ValueError):
             FileHandle(file_name='NonExistingFile.root').open()
 
+    def test_file_open_None(self):
+        self.assertIsNone(FileHandle(file_name=None).open())
+
     def testFileGetObjects(self):
         self.file_handle.open()
         objects = self.file_handle.get_objects()
