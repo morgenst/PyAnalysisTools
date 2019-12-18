@@ -188,7 +188,8 @@ class RatioPlotter(object):
         return canvas
 
     @staticmethod
-    def add_ratio_to_canvas(canvas, ratio, y_min=None, y_max=None, y_title=None, name=None, title=''):
+    def add_ratio_to_canvas(canvas, ratio, ratio_rel_size=0.25, y_min=None, y_max=None, y_title=None, name=None,
+                            title=''):
         def scale_frame_text(fr, scale):
             x_axis = fr.GetXaxis()
             y_axis = fr.GetYaxis()
@@ -216,7 +217,6 @@ class RatioPlotter(object):
 
         if not canvas or not ratio:
             raise InvalidInputError("Either canvas or ratio not provided.")
-        y_frac = 0.25
         if isinstance(ratio, ROOT.TCanvas):
             supported_types = ["TH1F", "TH1D", "TGraph", "TGraphAsymmErrors", "TEfficiency"]
             try:
@@ -232,11 +232,11 @@ class RatioPlotter(object):
             name = canvas.GetName() + "_ratio"
         c = pt.retrieve_new_canvas(name, title)
         c.Draw()
-        pad1 = ROOT.TPad("pad1", "top pad", 0., y_frac, 1., 1.)
+        pad1 = ROOT.TPad("pad1", "top pad", 0., ratio_rel_size, 1., 1.)
         pad1.SetBottomMargin(0.05)
         pad1.Draw()
         pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1,
-                         (old_div((1 - y_frac) * canvas.GetBottomMargin(), y_frac) + 1) * y_frac - 0.009)
+                         ((1 - ratio_rel_size) * canvas.GetBottomMargin() / ratio_rel_size + 1) * ratio_rel_size - 0.009)
         pad2.SetBottomMargin(0.1)
         pad2.Draw()
         pad1.cd()
@@ -253,13 +253,13 @@ class RatioPlotter(object):
                     stack = object_handle.get_objects_from_canvas_by_type(canvas, "TGraph")[0]
         stack.GetXaxis().SetTitleSize(0)
         stack.GetXaxis().SetLabelSize(0)
-        scale = 1. / (1. - y_frac)
+        scale = 1. / (1. - ratio_rel_size)
         scale_frame_text(stack, scale)
         canvas.DrawClonePad()
 
         pad2.cd()
         hratio.GetYaxis().SetNdivisions(505)
-        scale = 1. / ((old_div((1 - y_frac) * (canvas.GetBottomMargin()), y_frac) + 1) * y_frac)
+        scale = 1. / (((1 - ratio_rel_size) * (canvas.GetBottomMargin()) / ratio_rel_size + 1) * ratio_rel_size)
 
         reset_frame_text(hratio)
         scale_frame_text(hratio, scale)

@@ -529,7 +529,8 @@ class Plotter(BasePlotter):
                                                                        n_systematics=len(ratio_syst_up))
                 #self.syst_analyser.make_overview_plots(plot_config)
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
-            canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio)
+            canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio,
+                                                                  ratio_rel_size=ratio_plot_config.ratio_rel_size)
             _logger.debug('register canvas {:s}'.format(canvas_combined.GetName()))
             self.output_handle.register_object(canvas_combined)
 
