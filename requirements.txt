@@ -8,7 +8,7 @@ coverage
 nosedep
 mock
 future
-numpy >= 1.13.0
+numpy>=1.13.0
 root_numpy
 matplotlib==1.5.3
 flake8==3.5.0
