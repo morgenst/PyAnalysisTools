@@ -57,6 +57,7 @@ class TestBatchHandle(unittest.TestCase):
         self.assertEqual('qsub', handle.system)
         self.assertEqual('foo', handle.queue)
         self.assertEqual('info', handle.log_level)
+        self.assertEqual('log', handle.log_fname)
         self.assertEqual(self.master_test_job, handle.job)
         self.assertFalse(handle.local)
         self.assertTrue(handle.is_master)

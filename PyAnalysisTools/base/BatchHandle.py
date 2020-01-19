@@ -20,10 +20,13 @@ class BatchHandle(object):
     """
 
     def __init__(self, job):
+        if not hasattr(job, 'log_fname'):
+            job.log_fname = 'log'
         self.system = 'qsub'
         self.queue = job.queue
         self.is_master = False
         self.log_level = job.log_level
+        self.log_fname = job.log_fname
         self.local = job.local
         self.job = job
         if job.cluster_cfg_file is None:
@@ -45,7 +48,7 @@ class BatchHandle(object):
             if job_ids is not None and job_id not in job_ids:
                 continue
             if self.local:
-                log_fn = 'log_plotting_{:d}.txt'.format(job_id)
+                log_fn = '{:s}_{:d}.txt'.format(self.log_fname, job_id)
                 os.system('python {:s} -mtcf {:s} -id {:d} -log {:s} > {:s}'.format(exec_script, cfg_file_name, job_id,
                                                                                     self.log_level,
                                                                                     os.path.join(output_dir, log_fn)))
@@ -61,7 +64,7 @@ class BatchHandle(object):
                                          self.log_level), file=f)
             os.chmod(bash_script, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP |
                      stat.S_IXGRP | stat.S_IROTH)
-            log_file_name = os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id))
+            log_file_name = os.path.join(output_dir, '{:s}_{:d}'.format(self.log_fname, job_id))
             os.system('{:s} {:s} -q {:s} -o {:s}.txt -e {:s}.err'.format(self.system, bash_script, self.queue,
                                                                          log_file_name, log_file_name))
             time.sleep(2)
