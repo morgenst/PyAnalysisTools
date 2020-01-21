@@ -31,7 +31,7 @@ class TestPlotableObject(unittest.TestCase):
     def tests_palettes(self):
         color_palette = [ROOT.kGray + 3, ROOT.kRed + 2, ROOT.kAzure + 4, ROOT.kSpring - 6, ROOT.kOrange - 3,
                          ROOT.kCyan - 3, ROOT.kPink - 2, ROOT.kSpring - 9, ROOT.kMagenta - 5]
-        marker_style_palette_filled = [20, 22, 23, 33, 34, 29, 2]
+        marker_style_palette_filled = [21, 20, 22, 23, 33, 34, 29, 2]
         marker_style_palette_empty = [24, 26, 32, 27, 28, 30, 5]
         line_style_palette_homogen = [1, 1, 1, 1, 1]
         line_style_palette_heterogen = [1, 1, 4, 8, 6]
