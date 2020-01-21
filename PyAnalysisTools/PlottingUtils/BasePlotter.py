@@ -170,7 +170,7 @@ class BasePlotter(object):
             else:
                 self.event_yields[process] = file_handle.get_number_of_total_events()
 
-    def fetch_histograms_new(self, data, tree_dir_name="Nominal", factor_syst=''):
+    def fetch_histograms(self, data, tree_dir_name="Nominal", factor_syst=''):
         file_handle, plot_config = data
         if file_handle.process is None or file_handle.process.is_data and plot_config.no_data:
             return [None, None, None]
@@ -208,6 +208,13 @@ class BasePlotter(object):
         :return: filled histogram - dimension depends on request in plot config
         :rtype: THX
         """
+        def add_weight(base_weight, weight):
+            if base_weight is not None:
+                base_weight += '* ({:s})'.format(weight)
+            else:
+                base_weight = weight
+            return base_weight
+
         file_handle.open()
         file_handle.reset_friends()
         try:
@@ -227,10 +234,12 @@ class BasePlotter(object):
                                                                                         file_handle.process)]
                 if len(match) > 0:
                     process_weight = plot_config.process_weight[match[0]]
-                    if weight is not None:
-                        weight += '* ({:s})'.format(process_weight)
-                    else:
-                        weight = process_weight
+                    weight = add_weight(weight, process_weight)
+            parent_process = find_process_config(file_handle.process, self.process_configs)
+            if file_handle.process is not None and file_handle.process.weight is not None:
+                weight = add_weight(weight, file_handle.process.weight)
+            if parent_process is not None and parent_process.weight is not None:
+                weight = add_weight(weight, parent_process.weight)
             if plot_config.cuts:
                 plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
@@ -292,19 +301,21 @@ class BasePlotter(object):
         return hist
 
     def read_histograms(self, file_handles, plot_configs, tree_dir_name="Nominal", factor_syst=''):
+        self.ncpu = 0
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
-        if cpus > 0 and sys.version_info[0] != 3:
+        if False and cpus > 0 and sys.version_info[0] != 3:
             pool = mp.ProcessPool(nodes=cpus)
-            histograms = pool.map(partial(self.fetch_histograms_new, tree_dir_name=tree_dir_name), comb)
+            histograms = pool.map(partial(self.fetch_histograms, tree_dir_name=tree_dir_name), comb)
         else:
             histograms = []
             for i in comb:
-                hist = self.fetch_histograms_new(i, tree_dir_name=tree_dir_name, factor_syst=factor_syst)
+                hist = self.fetch_histograms(i, tree_dir_name=tree_dir_name, factor_syst=factor_syst)
                 histograms.append(hist)
         return histograms
 
     def read_histograms_plain(self, file_handle, plot_configs, tree_dir_name="Nominal"):
+        self.ncpu = 1
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handle))
         comb = product(file_handle, plot_configs)
         if cpus > 1:
