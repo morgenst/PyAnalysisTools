@@ -171,6 +171,13 @@ class FileHandle(object):
                 branch_names.append(branch.GetName())
         return branch_names
 
+    def has_object(self, obj_name, tdirectory=None, friend_file=None):
+        try:
+            _ = self.get_object_by_name(obj_name, tdirectory, friend_file)
+            return True
+        except ValueError:
+            return False
+
     def get_object_by_name(self, obj_name, tdirectory=None, friend_file=None):
         self.open()
         if friend_file is None:

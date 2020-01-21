@@ -247,6 +247,8 @@ class BasePlotter(object):
                 mc_cuts = [cut for cut in plot_config.cuts if "MC:" in cut]
                 data_cuts = [cut for cut in plot_config.cuts if "DATA:" in cut]
                 event_no_cuts = [cut for cut in plot_config.cuts if "file_handle." in cut]
+                process_cuts = [cut for cut in plot_config.cuts if ':::' in cut]
+
                 for mc_cut in mc_cuts:
                     plot_config.cuts.pop(plot_config.cuts.index(mc_cut))
                     if "data" not in file_handle.process:
@@ -260,6 +262,12 @@ class BasePlotter(object):
                     dsid = evt_cut.split(':')[0].split('.')[-1]
                     if file_handle.process.dsid == dsid:
                         selection_cuts += "event_number != {:s} && ".format(evt_cut.split(':')[-1])
+                for process_cut in process_cuts:
+                    plot_config.cuts.pop(plot_config.cuts.index(process_cut))
+                    if file_handle.process not in process_cut:
+                        continue
+                    _logger.debug("add to cut: {:s}".format(process_cut.split(":::")[-1]))
+                    selection_cuts += "{:s} && ".format(process_cut.split(":::")[-1])
                 if len(plot_config.cuts) > 0:
                     selection_cuts += "&&".join(plot_config.cuts)
             if plot_config.blind and find_process_config(file_handle.process, self.process_configs).type == "Data":
