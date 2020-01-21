@@ -17,7 +17,7 @@ class Process(object):
     Class defining a physics process
     """
 
-    def __init__(self, file_name, dataset_info, process_name=None, tags=[], cut=None):
+    def __init__(self, file_name, dataset_info, process_name=None, tags=[], cut=None, weight=None):
         """
         Constructor
         :param file_name: name of input file
@@ -41,6 +41,7 @@ class Process(object):
         self.year = None
         self.period = None
         self.process_name = process_name
+        self.weight = weight
         if file_name is not None:
             self.parse_file_name(self.base_name.split('/')[-1])
         if self.cut is not None:
