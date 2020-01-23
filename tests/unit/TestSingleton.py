@@ -31,4 +31,3 @@ class TestModule(unittest.TestCase):
         self.assertEqual(foo1.args, (1,))
         self.assertEqual(foo2.kwargs, {'foo': 'foo'})
         self.assertEqual(foo2.args, (1,))
-

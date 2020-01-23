@@ -1,7 +1,7 @@
 import os
 import unittest
 from PyAnalysisTools.base import Utilities, InvalidInputError
-#from pyfakefs.fake_filesystem_unittest import TestCase
+# from pyfakefs.fake_filesystem_unittest import TestCase
 
 cwd = os.path.dirname(__file__)
 
@@ -9,11 +9,11 @@ cwd = os.path.dirname(__file__)
 class TestUtilities(unittest.TestCase):
     def setUp(self):
         pass
-        #self.setUpPyfakefs()
+        # self.setUpPyfakefs()
 
     def tearDown(self):
         pass
-        #self.tearDownPyfakefs()
+        # self.tearDownPyfakefs()
 
     def test_merge_dicts(self):
         d1 = {'foo': 1}

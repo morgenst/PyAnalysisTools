@@ -18,7 +18,7 @@ def make_dirs(path):
     """
     if path is None:
         _logger.debug('Cannot make dir None')
-        return 
+        return
     lock = Lock()
     lock.acquire()
     path = os.path.expanduser(path)
