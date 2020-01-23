@@ -1,4 +1,3 @@
-import os
 import unittest
 
 from PyAnalysisTools.base.JSONHandle import JSONHandle
@@ -13,7 +12,7 @@ def clear_instance(cls):
 
 
 class TestJSONHandle(unittest.TestCase):
-    def setUp(self):pass
+    def setUp(self): pass
 
     def tearDown(self):
         clear_instance(JSONHandle)

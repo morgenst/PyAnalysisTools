@@ -26,10 +26,10 @@ class TestProcessFilter(unittest.TestCase):
         self.assertDictEqual(data, {})
 
     def test_get_object_key_object(self):
-        filter = ProcessFilter(processes=['bar'])
+        pr_filter = ProcessFilter(processes=['bar'])
         mock_key = MagicMock(name='bar')
         type(mock_key).name = PropertyMock(return_value='bar')
-        self.data = {"foo": 1,  mock_key: 2}
-        data = filter.execute(self.data)
+        self.data = {"foo": 1, mock_key: 2}
+        data = pr_filter.execute(self.data)
         expected = {mock_key: 2}
         self.assertDictEqual(data, expected)

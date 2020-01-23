@@ -11,4 +11,6 @@ export PATH=${PATH}:${CWD}/run_scripts/
 
 if [[ "$1" != "disable_dep_check" ]]; then
     python ${CWD}/.check_dependencies.py
+else
+    python ${CWD}/.check_dependencies.py --basic
 fi

@@ -18,7 +18,6 @@ from collections import OrderedDict
 from copy import deepcopy
 from math import sqrt
 
-import dill
 import numpy as np
 
 import PyAnalysisTools.PlottingUtils.Formatting as fm
@@ -29,7 +28,7 @@ from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyser, TheoryUncertaintyProvider
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
 from PyAnalysisTools.PlottingUtils import Plotter
-from PyAnalysisTools.PlottingUtils.HistTools import get_log_scale_x_bins, rebin
+from PyAnalysisTools.PlottingUtils.HistTools import get_log_scale_x_bins
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_color_scheme, transform_color
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
@@ -66,6 +65,7 @@ class LimitArgs(object):
         kwargs.setdefault("ranking", False)
         kwargs.setdefault("queue", 'short7')
         kwargs.setdefault("pruning", None)
+        kwargs.setdefault("blind", True)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
@@ -74,6 +74,7 @@ class LimitArgs(object):
         self.run_pyhf = kwargs['run_pyhf']
         self.queue = kwargs['queue']
         self.log_level = kwargs['log_level']
+        self.blind = kwargs['blind']
         self.local = False
         self.kwargs = kwargs
 
@@ -616,7 +617,8 @@ class XsecLimitAnalyser(object):
                     h = f.get_object_by_name('h_{:s}_postFit'.format(process))
                 else:
                     h = f.get_object_by_name('h_{:s}'.format(process))
-                cr_data.append((reg, process, h.Integral(1, h.GetNbinsX()), scan.kwargs['process_configs'][process].color))
+                cr_data.append((reg, process, h.Integral(1, h.GetNbinsX()),
+                                scan.kwargs['process_configs'][process].color))
             total = f.get_object_by_name('g_totErr_postFit')
             total.SetName('tot_unc_{:s}'.format(reg))
             cr_data.append((reg, deepcopy(total)))
@@ -963,6 +965,7 @@ class CommonLimitOptimiser(object):
             self.output_dir = kwargs['resubmit']
 
         make_dirs(self.output_dir)
+        self.blind = not kwargs['unblind']
         self.input_hist_file = kwargs['input_hist_file']
         self.output_handle = OutputFileHandle(**kwargs)
         self.run_syst = False
@@ -1028,12 +1031,12 @@ class CommonLimitOptimiser(object):
                                          output_dir=self.output_dir, sig_name=sig_name, limit_config=self.limit_config,
                                          process_configs=self.process_configs, systematics=self.systematics,
                                          ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
-                                         queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
-                                         ranking=self.ranking, log_level=self.log_level))
+                                         queue=self.queue, mass_cut=threshold, blind=self.blind, ranking=self.ranking,
+                                         signal_scale=self.signal_scale, log_level=self.log_level))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
-                                          self.fixed_signal, self.output_dir, thresholds, self.systematics,
+                                          self.fixed_signal, self.output_dir, thresholds, blind=self.blind,
                                           cut_off=self.cut_off_scale)
         elif self.mass_scans is not None:
             signals = [pc.name for pc in self.process_configs.values() if pc.type.lower() == 'signal']
@@ -1052,11 +1055,11 @@ class CommonLimitOptimiser(object):
                                              ctrl_config=cr_config, jobid=str(len(configs)),
                                              fixed_signal=self.fixed_signal, disable_plots=True,
                                              queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
-                                             ranking=False, log_level=self.log_level))
+                                             ranking=False, log_level=self.log_level, blind=self.blind))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
-                                          self.fixed_signal, self.output_dir, thresholds, self.systematics,
+                                          self.fixed_signal, self.output_dir, thresholds, blind=self.blind,
                                           cut_off=self.cut_off_scale)
         else:
             """
@@ -1066,10 +1069,10 @@ class CommonLimitOptimiser(object):
                                      output_dir=self.output_dir, sig_name='Signal', limit_config=self.limit_config,
                                      process_configs=self.process_configs, systematics=self.systematics,
                                      ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
-                                     queue=self.queue, mass_cut=0., signal_scale=self.signal_scale))
+                                     queue=self.queue, mass_cut=0., signal_scale=self.signal_scale, blind=self.blind))
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
-                                          self.fixed_signal, self.output_dir, [0.], self.systematics,
+                                          self.fixed_signal, self.output_dir, [0.], blind=self.blind,
                                           dummy_signal='Signal', cut_off=self.cut_off_scale,
                                           anking=False, log_level=self.log_level)
         cfg_file_name = os.path.join(self.output_dir, 'scan_info.yml')
@@ -1234,6 +1237,7 @@ def write_config(args, ranking=False):
             print('\tFitRegion: CRSR', file=f)
             print('\tPOIAsimov: 5.', file=f)
         print('\tUseMinos: mu_Sig', file=f)
+        print('\tFitBlind: {:s}'.format('TRUE' if args.blind else 'FALSE'), file=f)
         print('\n', file=f)
         print('% --------------- %', file=f)
         print('% ---  LIMIT - -- %', file=f)
@@ -1494,7 +1498,7 @@ def write_config(args, ranking=False):
     print('Wrote config to ', config_name)
 
 
-def convert_hists(input_hist_file, process_configs, regions, fixed_signal, output_dir, thresholds, systematics,
+def convert_hists(input_hist_file, process_configs, regions, fixed_signal, output_dir, thresholds, blind=True,
                   dummy_signal=None, cut_off=None):
     def parse_hist_name(hist_name):
         try:
@@ -1575,7 +1579,7 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
             f.cd()
             for reg, h in list(data[unc][process].items()):
                 _logger.debug('Apply blinding')
-                if reg.startswith('SR_') and 'data' in process.lower():
+                if reg.startswith('SR_') and 'data' in process.lower() and blind:
                     for b in range(h.GetNbinsX() + 1):
                         h.SetBinContent(b, 0)
                         h.SetBinError(b, 0)
