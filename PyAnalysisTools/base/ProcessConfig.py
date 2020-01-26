@@ -220,6 +220,7 @@ class ProcessConfig(object):
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
         kwargs.setdefault('regions_only', None)
+        kwargs.setdefault('weight', None)
         for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         self.is_data, self.is_mc = self.transform_type()

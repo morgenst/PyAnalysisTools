@@ -48,6 +48,11 @@ class NTupleAnalyser(object):
         self.datasets = YAMLLoader.read_yaml(self.dataset_list_file)
         self.datasets = dict([kv for kv in iter(list(self.datasets.items())) if "pilot" not in kv[0]])
         self.datasets = dict([kv for kv in iter(list(self.datasets.items())) if "resubmit" not in kv[0]])
+        keys = [k for k in self.datasets.keys() if '$$' in k]
+        if len(keys):
+            self.grid_name_pattern = '$$' + keys[0].split('$$')[-1]
+        else:
+            self.grid_name_pattern = None
         self.input_path = kwargs["input_path"]
         self.resubmit = kwargs["resubmit"]
         self.filter = kwargs['filter']
@@ -166,11 +171,16 @@ class NTupleAnalyser(object):
         for ds in incomplete:
             for grid_ds in ds[2]:
                 version = re.search(r'.v\d+.\d+', grid_ds).group().replace('.v', 'v')
+                if self.grid_name_pattern is not None:
+                    version += self.grid_name_pattern
                 try:
                     resubmit_ds['incomplete_{:s}'.format(version)].append(ds[0])
                 except KeyError:
                     resubmit_ds['incomplete_{:s}'.format(version)] = [ds[0]]
-        resubmit_ds['missing'] = [ds[0] for ds in missing]
+        missing_key = 'missing'
+        if self.grid_name_pattern is not None:
+            missing_key += self.grid_name_pattern
+        resubmit_ds[missing_key] = [ds[0] for ds in missing]
         YAMLDumper.dump_yaml(resubmit_ds, self.dataset_list_file.replace('.yml', '_resubmit.yml'),
                              default_flow_style=False)
 
