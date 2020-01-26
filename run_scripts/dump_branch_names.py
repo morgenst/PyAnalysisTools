@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 import sys
 
 from PyAnalysisTools.base import default_init, get_default_argparser, add_input_args
