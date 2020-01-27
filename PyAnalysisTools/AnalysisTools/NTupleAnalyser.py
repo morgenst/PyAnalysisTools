@@ -41,6 +41,7 @@ class NTupleAnalyser(object):
         input_path: path containing ntuples to cross check against AMI
         """
         kwargs.setdefault('filter', None)
+        kwargs.setdefault('merge_mode', None)
         self.check_valid_proxy()
         if "dataset_list" not in kwargs:
             raise InvalidInputError("No dataset list provided")
@@ -56,6 +57,7 @@ class NTupleAnalyser(object):
         self.input_path = kwargs["input_path"]
         self.resubmit = kwargs["resubmit"]
         self.filter = kwargs['filter']
+        self.merge_mode = kwargs['merge_mode']
         if self.filter is not None:
             for pattern in self.filter:
                 self.datasets = dict([kv for kv in iter(list(self.datasets.items())) if not re.match(pattern, kv[0])])
@@ -82,10 +84,12 @@ class NTupleAnalyser(object):
 
     def transform_dataset_list(self):
         self.datasets = [ds for campaign in list(self.datasets.values()) for ds in campaign]
-        self.datasets = [[ds, ".".join([ds.split(".")[1], ds.split(".")[5]])] for ds in self.datasets]
+        if self.merge_mode is None:
+            self.datasets = map(lambda ds: [ds, ".".join(ds.split(".")[1:3])], self.datasets)
+        else:
+            self.datasets = [[ds, ".".join([ds.split(".")[1], ds.split(".")[5]])] for ds in self.datasets]
         # self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[2],
-        # ds.split(".")[3], ds.split(".")[4], ds.split(".")[5]])], self.datasets)
-        # self.datasets = map(lambda ds: [ds, ".".join(ds.split(".")[1:3])], self.datasets)
+        #ds.split(".")[3], ds.split(".")[4], ds.split(".")[5]])], self.datasets)
 
     def add_path(self):
         """
@@ -96,7 +100,6 @@ class NTupleAnalyser(object):
         processed_datasets = []
         for path in self.input_path:
             processed_datasets += os.listdir(path)
-
         for ds in self.datasets:
             matches = [pds for pds in processed_datasets if ds[1] in pds]
             if len(matches) > 0:
