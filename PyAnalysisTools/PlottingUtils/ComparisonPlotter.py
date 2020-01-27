@@ -41,20 +41,20 @@ class ComparisonReader(object):
     def get_instance(self, plot_config):
         if self.compare_files:
             if hasattr(plot_config, 'multi_ref') and plot_config.multi_ref:
-                print("Using MultiFileMultiRefReader instance")
+                _logger.debug("Using MultiFileMultiRefReader instance")
                 _logger.debug("Using MultiFileMultiRefReader instance")
                 return MultiFileMultiRefReader(plot_config=plot_config, **self.__dict__)
             else:
-                print("Using MultiFileSingleRefReader instance")
+                _logger.debug("Using MultiFileSingleRefReader instance")
                 _logger.debug("Using MultiFileSingleRefReader instance")
                 return MultiFileSingleRefReader(plot_config=plot_config, **self.__dict__)
         else:
             if hasattr(plot_config, 'multi_ref') and plot_config.multi_ref:
-                print("Using SingleFileMultiRefReader instance")
+                _logger.debug("Using SingleFileMultiRefReader instance")
                 _logger.debug("Using SingleFileMultiRefReader instance")
                 return SingleFileMultiRefReader(plot_config=plot_config, **self.__dict__)
             else:
-                print("Using SingleFileSingleRefReader instance")
+                _logger.debug("Using SingleFileSingleRefReader instance")
                 _logger.debug("Using SingleFileSingleRefReader instance")
                 return SingleFileSingleRefReader(plot_config=plot_config, **self.__dict__)
 
@@ -679,7 +679,8 @@ class ComparisonPlotter(BasePlotter):
                 canvas_ratio.SetName(plot_config.name.replace(' ', '_') + '_ratio')
                 # self.output_handle.register_object(canvas)
                 # self.output_handle.register_object(canvas_ratio)
-                canvas_combined = RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio)
+                canvas_combined = RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio,
+                                                                   ratio_rel_size=plot_config.ratio_rel_size)
                 self.output_handle.register_object(canvas_combined)
             else:
                 _logger.error('Ratio canvas was not created.')

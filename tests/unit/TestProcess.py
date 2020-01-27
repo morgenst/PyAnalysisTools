@@ -131,3 +131,8 @@ class TestProcess(unittest.TestCase):
         self.assertFalse(process.is_mc)
         self.assertEqual('data16_00306147', process.process_name)
         self.assertIsNone(process.period)
+        self.assertIsNone(process.weight)
+
+    def test_process_weight(self):
+        process = Process('v21/ntuple-mc16_311570_MC16e.root', self.data_set_info, weight='foo')
+        self.assertEqual('foo', process.weight)

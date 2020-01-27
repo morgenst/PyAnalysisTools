@@ -551,8 +551,8 @@ class NNReader(object):
         branch = friend_tree.Branch(self.branch_name, nn_prediction, "{:s}/F".format(self.branch_name))
         total_entries = tree.GetEntries()
         multiple_triplets = 0
-        processed_events = 0
-        already_processed_events = []
+        # processed_events = 0
+        # already_processed_events = []
         for entry in range(total_entries):
             tree.GetEntry(entry)
             # is_train = tree.train_flag == 0

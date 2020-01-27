@@ -1,6 +1,5 @@
-# import time
-import unittest
 import os
+import unittest
 from PyAnalysisTools.base import Utilities, InvalidInputError
 # from pyfakefs.fake_filesystem_unittest import TestCase
 
@@ -14,6 +13,7 @@ class TestUtilities(unittest.TestCase):
 
     def tearDown(self):
         pass
+        # self.tearDownPyfakefs()
 
     def test_merge_dicts(self):
         d1 = {'foo': 1}
@@ -35,7 +35,7 @@ class TestUtilities(unittest.TestCase):
     def test_check_required_args_missing(self):
         self.assertEqual('arg', Utilities.check_required_args('arg', foo=1))
 
-    @unittest.skip("Need MMPP-1841")
+    @unittest.skip("Requires fake fs")
     def test_cleaner_check_lifetime(self):
         self.fs.create_file('/foo/bar.txt')
         self.assertTrue(Utilities.Cleaner.check_lifetime(100, 'foo', ['bar.txt']))
@@ -50,7 +50,7 @@ class TestUtilities(unittest.TestCase):
     def test_cleaner_default_ctor(self):
         cleaner = Utilities.Cleaner(base_path='foo')
         self.assertTrue(cleaner.safe)
-        self.assertEqual('foo', cleaner.base_path)
+        self.assertEqual('/foo', cleaner.base_path)
         self.assertEqual([".git", ".keep", ".svn", "InstallArea", "RootCoreBin", "WorkArea"], cleaner.keep_pattern)
         self.assertEqual([], cleaner.deletion_list)
         self.assertEqual(14., cleaner.touch_threshold_days)

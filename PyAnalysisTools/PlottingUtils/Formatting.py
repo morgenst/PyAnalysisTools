@@ -16,6 +16,9 @@ from PyAnalysisTools.base.ProcessConfig import find_process_config
 
 
 def load_atlas_style():
+    if ROOT.gStyle.GetName() == 'ATLAS':
+        return
+    _logger.debug('Loading ATLAS style')
     try:
         base_path = os.path.dirname(os.path.join(os.path.realpath(__file__)))
         ROOT.gROOT.LoadMacro(os.path.join(base_path, 'AtlasStyle/AtlasStyle.C'))
@@ -25,14 +28,19 @@ def load_atlas_style():
         _logger.error("Could not find Atlas style files in %s" % os.path.join(base_path, 'AtlasStyle'))
 
 
+load_atlas_style()
+
+
 def apply_style(obj, plot_config, process_config, index=None):
     style_setter, style_attr, color = get_style_setters_and_values(plot_config, process_config, index)
     if style_attr is not None:
         for setter in style_setter:
+            _logger.debug('Apply {:s} style {:s} to {:s}'.format(setter, str(style_attr), obj.GetName()))
             getattr(obj, "Set" + setter + "Style")(style_attr)
 
     if color is not None:
         for setter in style_setter:
+            _logger.debug('Apply {:s} color {:s} to {:s}'.format(setter, str(color), obj.GetName()))
             getattr(obj, "Set" + setter + "Color")(color)
 
 

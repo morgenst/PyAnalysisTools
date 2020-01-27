@@ -21,6 +21,9 @@ class TestFileHandle(unittest.TestCase):
         with self.assertRaises(ValueError):
             FileHandle(file_name='NonExistingFile.root').open()
 
+    def test_file_open_None(self):
+        self.assertIsNone(FileHandle(file_name=None).open())
+
     def testFileGetObjects(self):
         self.file_handle.open()
         objects = self.file_handle.get_objects()
@@ -83,6 +86,15 @@ class TestFileHandle(unittest.TestCase):
     def test_get_daod_events(self):
         self.assertEqual(self.file_handle.get_daod_events(), 10000.)
 
+    def test_exists_true(self):
+        self.assertTrue(self.file_handle.exists())
+
+    def test_exists_false(self):
+        self.assertFalse(FileHandle(file_name='foobar').exists())
+
+    def test_exists_none(self):
+        self.assertFalse(FileHandle(file_name=None).exists())
+        
     @unittest.skip
     def test_friend(self):
         pass

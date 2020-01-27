@@ -3,6 +3,7 @@ from __future__ import print_function
 import glob
 import os
 import time
+import stat
 
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import remove_file, change_dir
@@ -17,11 +18,15 @@ class BatchHandle(object):
     """
     Class to handle submission and monitoring to batch system
     """
+
     def __init__(self, job):
+        if not hasattr(job, 'log_fname'):
+            job.log_fname = 'log'
         self.system = 'qsub'
         self.queue = job.queue
         self.is_master = False
         self.log_level = job.log_level
+        self.log_fname = job.log_fname
         self.local = job.local
         self.job = job
         if job.cluster_cfg_file is None:
@@ -36,14 +41,14 @@ class BatchHandle(object):
         else:
             self.job.run(self.job.cluster_cfg_file, self.job.job_id)
 
-    def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir, disable_wait = False, job_ids = None):
+    def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir, disable_wait=False, job_ids=None):
         base_path = os.path.join('/', *os.path.abspath(exec_script).split("/")[1:-2])
         _logger.debug('childs ids: ', job_ids, n_jobs)
         for job_id in range(n_jobs):
             if job_ids is not None and job_id not in job_ids:
                 continue
             if self.local:
-                log_fn = 'log_plotting_{:d}.txt'.format(job_id)
+                log_fn = '{:s}_{:d}.txt'.format(self.log_fname, job_id)
                 os.system('python {:s} -mtcf {:s} -id {:d} -log {:s} > {:s}'.format(exec_script, cfg_file_name, job_id,
                                                                                     self.log_level,
                                                                                     os.path.join(output_dir, log_fn)))
@@ -57,11 +62,9 @@ class BatchHandle(object):
                 print('source $HOME/.bashrc && cd {:s} && source {:s} && cd macros && python {:s} -mtcf {:s} -id {:d} '
                       '-log {:s}'.format(base_path, os.environ['AnaPySetup'], exec_script, cfg_file_name, job_id,
                                          self.log_level), file=f)
-            try:
-                os.chmod(bash_script, 0744)
-            except SyntaxError:
-                os.chmod(bash_script, 0o744)
-            log_file_name = os.path.join(output_dir, 'log_plotting_{:d}'.format(job_id))
+            os.chmod(bash_script, stat.S_IRUSR | stat.S_IWUSR | stat.S_IXUSR | stat.S_IRGRP | stat.S_IWGRP |
+                     stat.S_IXGRP | stat.S_IROTH)
+            log_file_name = os.path.join(output_dir, '{:s}_{:d}'.format(self.log_fname, job_id))
             os.system('{:s} {:s} -q {:s} -o {:s}.txt -e {:s}.err'.format(self.system, bash_script, self.queue,
                                                                          log_file_name, log_file_name))
             time.sleep(2)

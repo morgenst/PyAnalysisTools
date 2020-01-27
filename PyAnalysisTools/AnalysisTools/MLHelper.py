@@ -100,9 +100,11 @@ class MLConfig(object):
 
     def __init__(self, **kwargs):
         kwargs.setdefault('scaler', None)
+        kwargs.setdefault('scale_algo', None)
         self.score_name = kwargs['branch_name']
         self.varset = kwargs['variable_list']
         self.scaler = kwargs['scaler']
+        self.scale_algo = kwargs['scale_algo']
         self.selection = kwargs['selection']
 
     def __str__(self):
@@ -121,7 +123,10 @@ class MLConfig(object):
                 obj_str += '\t {:s}\n'.format(sel)
         else:
             obj_str += 'selection: None\n'
-        obj_str += 'scaler: {:s}'.format(self.scaler)
+        if self.scaler is not None:
+            obj_str += 'scaler: {:s}'.format(self.scaler)
+        else:
+            obj_str += 'scaler: None\n'
         return obj_str
 
     def __eq__(self, other):
@@ -137,6 +142,10 @@ class MLConfig(object):
                 if k not in other.__dict__:
                     return False
                 if k == 'scaler':
+                    if v is None and other.__dict__[k] is None:
+                        continue
+                    if v is None or other.__dict__[k] is None:
+                        return False
                     if self.__dict__[k].scale_algo != other.__dict__[k].scale_algo:
                         return False
                     continue
@@ -162,6 +171,7 @@ class MLConfigHandle(object):
     """
 
     def __init__(self, **kwargs):
+        kwargs.setdefault('output_path', '.')
         self.config = MLConfig(**kwargs)
         self.output_path = kwargs['output_path']
         self.file_name = os.path.join(self.output_path, 'ml_config_summary.pkl')
@@ -186,6 +196,21 @@ class DataScaler(object):
     def __init__(self, algo="default"):
         self.scale_algo = algo
         self.scaler = None
+
+    def __eq__(self, other):
+        """
+        Comparison operator
+        :param other: DataScaler config object to compare to
+        :type other: DataScaler
+        :return: True/False
+        :rtype: boolean
+        """
+        if isinstance(self, other.__class__):
+            return self.scale_algo == other.scale_algo
+        return False
+
+    def __format__(self, format_spec):
+        return self.__unicode__()
 
     @staticmethod
     def get_algos():
@@ -231,10 +256,12 @@ class DataScaler(object):
 
 class Root2NumpyConverter(object):
     def __init__(self, branches):
+        if not isinstance(branches, list):
+            branches = [branches]
         self.branches = branches
 
     def convert_to_array(self, tree, selection="", max_events=None):
-        data = root_numpy.tree2array(tree, branches=self.branches, selection=selection, start=0)
+        data = root_numpy.tree2array(tree, branches=self.branches, selection=selection, start=0, stop=max_events)
         return data
 
     def merge(self, signals, bkgs):
@@ -313,6 +340,10 @@ class TrainingReader(object):
 class MLAnalyser(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("batch", True)
+        kwargs.setdefault("process_config_file", None)
+        kwargs.setdefault("branch_name", None)
+        kwargs.setdefault("tree_name", None)
+        kwargs.setdefault("output_dir", '.')
         self.file_handles = [FileHandle(file_name=file_name, dataset_info=kwargs["cross_section_config"])
                              for file_name in kwargs["input_files"]]
         self.process_config_file = kwargs["process_config_file"]
@@ -322,12 +353,6 @@ class MLAnalyser(object):
         self.process_configs = parse_and_build_process_config(self.process_config_file)
         self.output_handle = OutputFileHandle(output_dir=kwargs["output_dir"])
         set_batch_mode(kwargs["batch"])
-
-    def parse_process_config(self):
-        if self.process_config_file is None:
-            return None
-        process_config = parse_and_build_process_config(self.process_config_file)
-        return process_config
 
     def read_score(self, selection=None):
         trees = {fh.process: fh.get_object_by_name(self.tree_name, "Nominal") for fh in self.file_handles}

@@ -17,7 +17,7 @@ class Process(object):
     Class defining a physics process
     """
 
-    def __init__(self, file_name, dataset_info, process_name=None, tags=[], cut=None):
+    def __init__(self, file_name, dataset_info, process_name=None, tags=[], cut=None, weight=None):
         """
         Constructor
         :param file_name: name of input file
@@ -41,6 +41,7 @@ class Process(object):
         self.year = None
         self.period = None
         self.process_name = process_name
+        self.weight = weight
         if file_name is not None:
             self.parse_file_name(self.base_name.split('/')[-1])
         if self.cut is not None:
@@ -53,7 +54,7 @@ class Process(object):
         :rtype: str
         """
         obj_str = str(self.process_name)
-        obj_str += ' parsed from file name {:s}'.format(self.file_name)
+        obj_str += ' parsed from file name {:s}'.format(str(self.file_name))
         return obj_str
 
     def __unicode__(self):
@@ -218,6 +219,8 @@ class ProcessConfig(object):
     def __init__(self, **kwargs):
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
+        kwargs.setdefault('regions_only', None)
+        kwargs.setdefault('weight', None)
         for k, v in list(kwargs.items()):
             setattr(self, k.lower(), v)
         self.is_data, self.is_mc = self.transform_type()

@@ -82,7 +82,6 @@ class TestXSHandle(unittest.TestCase):
         dataset = MagicMock(spec=[])
         dataset.cross_section = 10.
         dataset.is_data = False
-        #dataset.kfactor = MagicMock()
         dataset.name = 'foo'
         xsi = xs.XSInfo(dataset)
         self.assertEqual('foo', xsi.name)
