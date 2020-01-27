@@ -95,7 +95,6 @@ class NTupleAnalyser(object):
         """
         processed_datasets = []
         for path in self.input_path:
-            print('PATH: ', path, ' ip: ', self.input_path)
             processed_datasets += os.listdir(path)
 
         for ds in self.datasets:
