@@ -463,7 +463,8 @@ class ComparisonPlotter(BasePlotter):
         set_batch_mode(kwargs['batch'])
         super(ComparisonPlotter, self).__init__(**kwargs)
         if self.tree_dir_name == "" or self.tree_dir_name.lower() == 'none':
-            self.tree_dir_name = None
+            # self.tree_dir_name = None
+            self.tree_dir_name = 'Nominal'
             kwargs['tree_dir_name'] = None
         self.input_files = kwargs['input_files']
         self.output_handle = OutputFileHandle(overload='comparison', output_file_name='Compare.root',

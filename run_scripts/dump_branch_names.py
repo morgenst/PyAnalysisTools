@@ -1,6 +1,6 @@
 #!/usr/bin/env python
+from __future__ import print_function
 import sys
-
 from PyAnalysisTools.base import default_init, get_default_argparser, add_input_args
 from PyAnalysisTools.base.FileHandle import FileHandle
 

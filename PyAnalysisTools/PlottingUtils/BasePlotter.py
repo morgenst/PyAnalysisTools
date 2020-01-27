@@ -241,6 +241,7 @@ class BasePlotter(object):
             if parent_process is not None and parent_process.weight is not None:
                 weight = add_weight(weight, parent_process.weight)
             if plot_config.cuts:
+                print(file_handle.process)
                 plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
@@ -312,7 +313,8 @@ class BasePlotter(object):
         self.ncpu = 0
         cpus = min(self.ncpu, len(plot_configs)) * min(self.nfile_handles, len(file_handles))
         comb = product(file_handles, plot_configs)
-        if False and cpus > 0 and sys.version_info[0] != 3:
+        cpus = 0
+        if cpus > 0 and sys.version_info[0] != 3:
             pool = mp.ProcessPool(nodes=cpus)
             histograms = pool.map(partial(self.fetch_histograms, tree_dir_name=tree_dir_name), comb)
         else:
