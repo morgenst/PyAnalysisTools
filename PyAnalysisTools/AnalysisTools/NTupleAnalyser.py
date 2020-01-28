@@ -85,7 +85,7 @@ class NTupleAnalyser(object):
     def transform_dataset_list(self):
         self.datasets = [ds for campaign in list(self.datasets.values()) for ds in campaign]
         if self.merge_mode is None:
-            self.datasets = map(lambda ds: [ds, ".".join(ds.split(".")[1:3])], self.datasets)
+            self.datasets = [[ds, ".".join(ds.split(".")[1:3])] for ds in self.datasets]
         else:
             self.datasets = [[ds, ".".join([ds.split(".")[1], ds.split(".")[5]])] for ds in self.datasets]
         # self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[2],
