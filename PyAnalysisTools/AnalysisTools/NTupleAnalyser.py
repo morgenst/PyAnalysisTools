@@ -173,7 +173,10 @@ class NTupleAnalyser(object):
         resubmit_ds = {}
         for ds in incomplete:
             for grid_ds in ds[2]:
-                version = re.search(r'.v\d+.\d+', grid_ds).group().replace('.v', 'v')
+                try:
+                    version = re.search(r'.v\d+.\d+', grid_ds).group().replace('.v', 'v')
+                except AttributeError:
+                    version = re.search(r'.v\d+', grid_ds).group().replace('.v', 'v')
                 if self.grid_name_pattern is not None:
                     version += self.grid_name_pattern
                 try:
