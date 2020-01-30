@@ -174,15 +174,15 @@ class NTupleAnalyser(object):
         for ds in incomplete:
             for grid_ds in ds[2]:
                 try:
-                    version = re.search(r'.v\d+.\d+', grid_ds).group().replace('.v', 'v')
+                    version = '_' + re.search(r'.v\d+.\d+', grid_ds).group().replace('.v', 'v')
                 except AttributeError:
-                    version = re.search(r'.v\d+', grid_ds).group().replace('.v', 'v')
+                    version = ''
                 if self.grid_name_pattern is not None:
                     version += self.grid_name_pattern
                 try:
-                    resubmit_ds['incomplete_{:s}'.format(version)].append(ds[0])
+                    resubmit_ds['incomplete{:s}'.format(version)].append(ds[0])
                 except KeyError:
-                    resubmit_ds['incomplete_{:s}'.format(version)] = [ds[0]]
+                    resubmit_ds['incomplete{:s}'.format(version)] = [ds[0]]
         missing_key = 'missing'
         if self.grid_name_pattern is not None:
             missing_key += self.grid_name_pattern
