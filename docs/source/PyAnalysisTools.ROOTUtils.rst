@@ -12,14 +12,6 @@ PyAnalysisTools.ROOTUtils.ObjectHandle module
    :undoc-members:
    :show-inheritance:
 
-PyAnalysisTools.ROOTUtils.Utils module
---------------------------------------
-
-.. automodule:: PyAnalysisTools.ROOTUtils.Utils
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
 
 Module contents
 ---------------
