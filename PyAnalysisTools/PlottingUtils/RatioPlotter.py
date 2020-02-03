@@ -102,10 +102,10 @@ class RatioPlotter(object):
                 colors = get_colors(self.compare)
                 self.plot_config.color = colors
             self.plot_config.ordering = None
-        self.plot_config.normalise = False
+            self.plot_config.normalise = False
         _logger.debug('Plotting now ratio histograms')
         canvas = pt.plot_histograms(ratios, self.plot_config)
-        if self.plot_config.enable_range_arrows:
+        if self.plot_config is not None and self.plot_config.enable_range_arrows:
             RatioPlotter.overlay_out_of_range_arrow(canvas)
         return canvas
 
@@ -136,6 +136,8 @@ class RatioPlotter(object):
         c = ROOT.TCanvas("C", "C")
         c.cd()
         colors = None
+        if self.plot_config is None:
+            self.plot_config = PlotConfig()
         if len(self.compare) > 1:
             colors = get_colors(self.compare)
         if isinstance(self.reference, list):

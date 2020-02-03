@@ -3,9 +3,7 @@ from builtins import str
 from builtins import range
 from builtins import object
 
-from past.utils import old_div
 import ROOT
-# from PyAnalysisTools.AnalysisTools.LimitHelpersTRF import Yield
 from PyAnalysisTools.base.ProcessConfig import find_process_config
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base import _logger

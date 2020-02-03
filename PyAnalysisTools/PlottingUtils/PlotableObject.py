@@ -44,14 +44,14 @@ marker_style_palette_empty = [25,
                               27,
                               28,
                               30,
-                              5
-]
+                              5]
 
 line_style_palette_homogen = [1,
                               9,
                               7,
                               2,
                               3]
+
 line_style_palette_heterogen = [10,
                                 5,
                                 4,
@@ -65,8 +65,8 @@ fill_style_palette_left = [3305,
                            3345,
                            3365,
                            3375,
-                           3385
-                           ]
+                           3385]
+
 fill_style_palette_right = [3359,
                             3351,
                             3352,
@@ -74,8 +74,7 @@ fill_style_palette_right = [3359,
                             3354,
                             3356,
                             3357,
-                            3358
-                            ]
+                            3358]
 
 
 class PlotableObject(object):
