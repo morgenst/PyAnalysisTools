@@ -99,7 +99,9 @@ class NTupleAnalyser(object):
         """
         processed_datasets = []
         for path in self.input_path:
+            print('PATH: ', path)
             processed_datasets += os.listdir(path)
+            print(processed_datasets[-1])
         for ds in self.datasets:
             matches = [pds for pds in processed_datasets if ds[1] in pds]
             if len(matches) > 0:
@@ -109,9 +111,9 @@ class NTupleAnalyser(object):
 
     def get_events(self, ds):
         n_processed_events = 0
-        processed_datasets = []
         for path in self.input_path:
-            processed_datasets += os.listdir(path)
+            if not os.path.exists(os.path.join(path, ds[2][0])):
+                continue
             for rf in os.listdir(os.path.join(path, ds[2][0])):
                 n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2][0], rf),
                                                      switch_off_process_name_analysis=True).get_daod_events())
