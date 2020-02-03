@@ -1263,7 +1263,7 @@ def write_config(args, ranking=False):
             print('\tLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tShortLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
-        print('\tDataType: ASIMOV', file=f)
+        print('\tDataType: {:s}'.format('ASIMOV' if args.blind else 'DATA'), file=f)
         if 'signal_region' in limit_config and 'binning' in limit_config['signal_region']:
             print('\tBinning: {:s}'.format(convert_binning(limit_config['signal_region']['binning'])), file=f)
         else:
