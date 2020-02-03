@@ -99,9 +99,7 @@ class NTupleAnalyser(object):
         """
         processed_datasets = []
         for path in self.input_path:
-            print('PATH: ', path)
             processed_datasets += os.listdir(path)
-            print(processed_datasets[-1])
         for ds in self.datasets:
             matches = [pds for pds in processed_datasets if ds[1] in pds]
             if len(matches) > 0:
