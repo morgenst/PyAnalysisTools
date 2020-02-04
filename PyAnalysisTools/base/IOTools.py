@@ -50,13 +50,12 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
         return bucket_list
 
     def merge(file_lists):
-        print(os.path.abspath(os.curdir))
         import time
         time.sleep(2)
         if len([f for chunk in file_lists for f in chunk]) == 0:
             return
         for file_list in file_lists:
-            merge_cmd = 'hadd '
+            merge_cmd = 'nice -n 15 hadd '
             if force:
                 merge_cmd += ' -f '
             if postfix is not None:
@@ -82,7 +81,6 @@ def merge_files(input_file_list, output_path, prefix, merge_dir=None, force=Fals
 
     buckets = build_buckets(input_file_list)
     setup_paths(merge_dir)
-    # merge(buckets, prefix, output_path, merge_dir, force)
     merge(buckets)
     if merge_dir is not None:
         remove_directory(os.path.abspath(merge_dir))
