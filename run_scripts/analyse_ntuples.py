@@ -12,6 +12,7 @@ def main(argv):
     parser.add_argument("--resubmit", "-r", action="store_true", default=False, help="add samples for resubmission to "
                                                                                      "dataset_list")
     parser.add_argument('--filter', '-f', nargs='+', default=None, help='ignore datasets matching filter requirement')
+    parser.add_argument('--merge_mode', '-mm', default=None, help='switch between dataset merge mode')
     args = default_init(parser)
     analyser = NTupleAnalyser(**vars(args))
     analyser.run()
