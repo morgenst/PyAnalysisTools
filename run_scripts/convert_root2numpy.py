@@ -1,5 +1,6 @@
 #!/usr/bin/env python
-
+import collections
+import itertools
 import os
 import sys
 from functools import partial
@@ -25,7 +26,17 @@ except ModuleNotFoundError:
     pass
 
 
-def convert_and_dump(file_handle, output_path, tree_name, region=None, branches=None, format='json'):
+def store(df, output_path, output_file_name, output_fmt):
+    if output_fmt == 'json':
+        df.to_json(os.path.join(output_path, output_file_name) + '.json')
+    elif output_fmt == 'feather':
+        if six.PY2:
+            _logger.error('Feather not available in python2')
+        else:
+            feather.write_dataframe(df, os.path.join(output_path, output_file_name) + '.feather')
+
+
+def convert_and_dump(file_handle, output_path, tree_name, region=None, branches=None, output_fmt='json', mining=None):
     converter = Root2NumpyConverter(branches)
     output_file_name = file_handle.file_name.split("/")[-1].replace(".root", "")
     if region is None:
@@ -37,13 +48,11 @@ def convert_and_dump(file_handle, output_path, tree_name, region=None, branches=
     data = converter.convert_to_array(file_handle.get_object_by_name(tree_name, "Nominal"), selection=selection)
     df_data = pd.DataFrame(data)
 
-    if format == 'json':
-        df_data.to_json(os.path.join(output_path, output_file_name) + '.json')
-    elif format == 'feather':
-        if six.PY2:
-            _logger.error('Feather not available in python2')
-        else:
-            feather.write_dataframe(df_data, os.path.join(output_path, output_file_name) + '.feather')
+    if mining is not None:
+        args = {'frac': mining} if mining < 1. else {'n': int(mining)}
+        dev_df = df_data.sample(**args)
+        store(dev_df, output_path, output_file_name+'_dev', output_fmt)
+    store(df_data, output_path, output_file_name, output_fmt)
 
 
 def main(argv):
@@ -53,6 +62,9 @@ def main(argv):
     parser.add_argument("--tree_name", "-tn", required=True, help="input tree name")
     parser.add_argument("--output_path", "-o", required=True, help="output directory")
     parser.add_argument('--var_list', '-vl', default=None, help='config file with reduced variable list')
+    parser.add_argument('--mining_fraction', '-mf', default=None, type=float, help='store fraction of parsed data set '
+                                                                                   'for development purpose '
+                                                                                '(< 1 fraction; > 1 abs no of events)')
     parser.add_argument('--format', '-f', default='json', choices=['json', 'feather'], help='format of output file')
     args = default_init(parser)
 
@@ -66,15 +78,18 @@ def main(argv):
 
     if args.var_list is not None:
         branches = yl.read_yaml(args.var_list)
+        if isinstance(branches, collections.Mapping):
+            branches = list(itertools.chain(*branches.values()))
 
     if regions is None:
         Pool().map(partial(convert_and_dump, output_path=args.output_path, tree_name=args.tree_name, branches=branches,
-                           format=args.format),
+                           output_fmt=args.format, mining=args.mining_fraction),
                    file_handles)
     else:
         for region in regions.regions:
             Pool().map(partial(convert_and_dump, output_path=args.output_path, tree_name=args.tree_name,
-                               region=region, branches=branches, format=args.format), file_handles)
+                               region=region, branches=branches, output_fmt=args.format, mining=args.mining_fraction),
+                       file_handles)
     _logger.info('Wrote output file to {:s}'.format(args.output_path))
 
 
