@@ -1,3 +1,4 @@
+import re
 import unittest
 import os
 from PyAnalysisTools.base.ProcessConfig import Process
@@ -124,6 +125,12 @@ class TestProcess(unittest.TestCase):
         self.assertEqual('TBbLQmumu1300l1', process.process_name)
         self.assertEqual('311570', process.dsid)
         self.assertEqual('mc16e', process.mc_campaign)
+
+    def test_process_file_name_data_user(self):
+        process = Process('~/user.foo.data18_13TeV.periodAllYear.physics_Late.pro24_v01.v8_hist/user.foo.2._000001.hist-output.root ', self.data_set_info, tags=['foo'])
+        self.assertFalse(process.is_mc)
+        self.assertTrue(process.is_data)
+        self.assertTrue(re.match(r'.*data.*', process.process_name))
 
     def test_process_file_name_data_cos(self):
         process = Process('hist-data16_cos.00306147.physics_Main.cosmicsStandardOFCs.root', None)

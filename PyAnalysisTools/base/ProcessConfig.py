@@ -43,7 +43,7 @@ class Process(object):
         self.process_name = process_name
         self.weight = weight
         if file_name is not None:
-            self.parse_file_name(self.base_name.split('/')[-1])
+            self.parse_file_name('/'.join(self.base_name.split('/')[-2:]))
         if self.cut is not None:
             self.process_name += self.cut
 
