@@ -87,10 +87,11 @@ class RatioPlotter(object):
 
     def make_ratio_plot(self):
         ratios = self.ratio_calculator.calculate_ratio()
-        if not isinstance(self.reference, ROOT.TEfficiency):
-            return self.make_ratio_histogram(ratios)
-        elif isinstance(self.reference, ROOT.TEfficiency):
+        if isinstance(self.reference, ROOT.TEfficiency) or \
+                isinstance(self.reference, list) and isinstance(self.reference[0], ROOT.TEfficiency):
             return self.make_ratio_tefficiency(ratios)
+        else:
+            return self.make_ratio_histogram(ratios)
 
     def make_ratio_histogram(self, ratios):
         if self.plot_config:
@@ -114,6 +115,7 @@ class RatioPlotter(object):
         arrows = object_handle.get_objects_from_canvas_by_type(canvas, "TArrow")
         if not isinstance(hist, list):
             hist = [hist]
+        if not isinstance(plot_config, list):
             plot_config = [plot_config]
         canvas = pt.plot_hist(hist[0], plot_config[0], index=0)
         if len(hist) > 1:
@@ -142,8 +144,8 @@ class RatioPlotter(object):
             colors = get_colors(self.compare)
         if isinstance(self.reference, list):
             self.reference[0].Draw("ap0")
-            for i in range(len(self.reference)):
-                self.reference[i+1].Draw("pesame")
+            for i in range(1, len(self.reference)):
+                self.reference[i].Draw("pesame")
                 self.plot_config.xtitle = self.reference[0].GetPaintedGraph().GetXaxis().GetTitle()
         else:
             self.reference.Draw("ap0")
@@ -163,12 +165,17 @@ class RatioPlotter(object):
 
     @staticmethod
     def overlay_out_of_range_arrow(canvas):
-        hist = get_objects_from_canvas_by_name(canvas, "Data")[0]
+        try:
+            hist = get_objects_from_canvas_by_name(canvas, "Data")[0]
+        except TypeError:
+            _logger.error('Requested to add arrow bars in ratio to indicate out of boundary entries, but could not'
+                          'find data histogram. Doing nothing.')
+            return canvas
         y_min, y_max = hist.GetMinimum(), hist.GetMaximum()
         canvas.cd()
         for b in range(1, hist.GetNbinsX() + 1):
             bin_content = hist.GetBinContent(b)
-            if bin_content >= y_min and bin_content < y_max:
+            if y_min <= bin_content < y_max:
                 continue
             bin_center = hist.GetXaxis().GetBinCenter(b)
             if bin_content < y_min:
