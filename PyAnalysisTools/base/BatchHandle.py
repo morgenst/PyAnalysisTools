@@ -43,7 +43,7 @@ class BatchHandle(object):
 
     def submit_childs(self, cfg_file_name, exec_script, n_jobs, output_dir, disable_wait=False, job_ids=None):
         base_path = os.path.join('/', *os.path.abspath(exec_script).split("/")[1:-2])
-        _logger.debug('childs ids: ', job_ids, n_jobs)
+        _logger.debug('childs ids: {} {:d}'.format(str(job_ids), n_jobs))
         for job_id in range(n_jobs):
             if job_ids is not None and job_id not in job_ids:
                 continue
