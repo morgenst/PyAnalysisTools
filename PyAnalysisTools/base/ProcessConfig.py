@@ -153,7 +153,7 @@ class Process(object):
         """
         self.is_mc = True
         try:
-            self.dsid = re.search(r'\d{6,}', file_name).group(0)
+            self.dsid = re.findall(r'\d{6,}', file_name)[-1]
         except AttributeError:
             pass
         if re.search(r'\d{6,}', file_name):

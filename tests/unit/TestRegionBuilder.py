@@ -66,6 +66,13 @@ class TestCut(unittest.TestCase):
         self.assertEqual('my_process', c.process_type)
         self.assertEqual(self.base_selection, c.selection)
 
+    def test_process_specific_cut_2(self):
+        c = Cut("TYPE_BACKGROUND:HLT_noalg_bkg_L1RD0_UNPAIRED_ISO")
+        self.assertFalse(c.is_mc)
+        self.assertFalse(c.is_data)
+        self.assertEqual('background', c.process_type)
+        self.assertEqual('HLT_noalg_bkg_L1RD0_UNPAIRED_ISO', c.selection)
+
 
 class TestRegion(unittest.TestCase):
     @classmethod
