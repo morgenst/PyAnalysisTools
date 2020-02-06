@@ -12,6 +12,7 @@ import PyAnalysisTools.PlottingUtils.Formatting as FM
 import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import ROOT
+from PyAnalysisTools.AnalysisTools.RegionBuilder import Cut
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils import set_batch_mode
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -65,18 +66,28 @@ class ComparisonReader(object):
             data[plot_config] = getter.get_data()
         return data
 
-    def make_hist(self, file_handle, plot_config, cut_name, cut_string, tree_name=None):
+    def make_hist(self, file_handle, plot_config, cut_name, cuts, tree_name=None):
+        process_cfg = find_process_config(file_handle.process.process_name, self.process_configs)
+        process_type_specific_cuts = [c for c in cuts if c.process_type]
+        cuts = [c for c in cuts if c.process_type is None]
         if file_handle.is_data:
-            cut_string = cut_string.replace('DATA:', '')
+            cuts = [c for c in cuts if not c.is_mc]
         else:
-            cut_string = '&&'.join([ct for ct in cut_string.split("&&") if 'DATA' not in ct])
-        file_handle.open()  # ?
+            cuts = [c for c in cuts if not c.is_data]
+        if len(process_type_specific_cuts) > 0:
+            if process_cfg is None:
+                _logger.error('You defined process type specific cuts, but could not find a process config for '
+                              '{:s}'.format(file_handle.process.process_name))
+            else:
+                cuts += [c for c in process_type_specific_cuts if c.process_type == process_cfg.type.lower()]
+        selection_str = '&& '.join([c.selection for c in cuts])
+        file_handle.open()
         hist = get_histogram_definition(plot_config)
         hist.SetName('_'.join([hist.GetName(), file_handle.process.process_name, cut_name]))
         if tree_name is None:
             tree_name = self.tree_name
         try:
-            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, cut_string,
+            file_handle.fetch_and_link_hist_to_tree(tree_name, hist, plot_config.dist, selection_str,
                                                     tdirectory=self.tree_dir_name)
             hist.SetName(hist.GetName() + '_' + file_handle.process.process_name)
             _logger.debug("try to access config for process %s" % file_handle.process.process_name)
@@ -145,15 +156,14 @@ class SingleFileSingleRefReader(ComparisonReader):
             for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(
-                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
+                        cuts[' '.join([k_l1, k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l1 + v_l2]
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
+                    cuts[' '.join([k_l1])] = [Cut(v) for v in self.plot_config.cuts + v_l1]
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                cuts[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
+                cuts[' '.join([k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l2]
         else:
-            cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+            cuts['cut'] = [Cut(v) for v in self.plot_config.cuts]
         cuts_ref = collections.OrderedDict([list(cuts.items())[0]])
         if len(cuts) == 2:
             cuts_comp = collections.OrderedDict([list(cuts.items())[-1]])
@@ -219,16 +229,16 @@ class SingleFileMultiRefReader(ComparisonReader):
         if hasattr(self.plot_config, 'cuts_l1'):
             if hasattr(self.plot_config, 'cuts_l2'):
                 for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                    cuts_ref[' '.join([list(self.plot_config.cuts_l1.keys())[0], k_l2])] = '&&'.join(
-                        [str(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l1.values())[0] + v_l2])
+                    cuts_ref[' '.join([list(self.plot_config.cuts_l1.keys())[0], k_l2])] =\
+                        [Cut(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l1.values())[0] + v_l2]
             else:
-                cuts_ref[list(self.plot_config.cuts_l1.keys())[0]] = '&&'.join(
-                    [str(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l1.values())[0]])
+                cuts_ref[list(self.plot_config.cuts_l1.keys())[0]] = \
+                    [Cut(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l1.values())[0]]
         elif hasattr(self.plot_config, 'cuts_l2'):
-            cuts_ref[list(self.plot_config.cuts_l2.keys())[0]] = '&&'.join(
-                [str(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l2.values())[0]])
+            cuts_ref[list(self.plot_config.cuts_l2.keys())[0]] =\
+                [Cut(v) for v in self.plot_config.cuts + list(self.plot_config.cuts_l2.values())[0]]
         else:
-            cuts_ref['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+            cuts_ref['cut'] = [Cut(v) for v in self.plot_config.cuts]
         cuts_comp = collections.OrderedDict()
         if not self.plot_config.cuts:
             setattr(self.plot_config, 'cuts', [])
@@ -238,17 +248,17 @@ class SingleFileMultiRefReader(ComparisonReader):
                     continue
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                        cuts_comp[' '.join([k_l1, k_l2])] = '&&'.join(
-                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
+                        cuts_comp[' '.join([k_l1, k_l2])] =\
+                            [Cut(v) for v in self.plot_config.cuts + v_l1 + v_l2]
                 else:
-                    cuts_comp[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
+                    cuts_comp[' '.join([k_l1])] = [Cut(v) for v in self.plot_config.cuts + v_l1]
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
                 if list(self.plot_config.cuts_l2.keys()).index(k_l2) == 0:
                     continue
-                cuts_comp[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
+                cuts_comp[' '.join([k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l2]
         else:
-            cuts_comp['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+            cuts_comp['cut'] = [Cut(v) for v in self.plot_config.cuts]
 
         plotable_objects = []
         for k_cuts, v_cuts in list(cuts_ref.items()):
@@ -312,15 +322,14 @@ class MultiFileSingleRefReader(ComparisonReader):
             for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(
-                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
+                        cuts[' '.join([k_l1, k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l1 + v_l2]
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
+                    cuts[' '.join([k_l1])] = [Cut(v) for v in self.plot_config.cuts + v_l1]
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                cuts[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
+                cuts[' '.join([k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l2]
         else:
-            cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+            cuts['cut'] = [Cut(v) for v in self.plot_config.cuts]
         cuts_ref = collections.OrderedDict([list(cuts.items())[0]])
         cuts_comp = cuts_ref  # cuts
         plotable_objects = []
@@ -385,15 +394,14 @@ class MultiFileMultiRefReader(ComparisonReader):
             for k_l1, v_l1 in list(self.plot_config.cuts_l1.items()):
                 if hasattr(self.plot_config, 'cuts_l2'):
                     for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                        cuts[' '.join([k_l1, k_l2])] = '&&'.join(
-                            [str(v) for v in self.plot_config.cuts + v_l1 + v_l2])
+                        cuts[' '.join([k_l1, k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l1 + v_l2]
                 else:
-                    cuts[' '.join([k_l1])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l1])
+                    cuts[' '.join([k_l1])] = [Cut(v) for v in self.plot_config.cuts + v_l1]
         elif hasattr(self.plot_config, 'cuts_l2'):
             for k_l2, v_l2 in list(self.plot_config.cuts_l2.items()):
-                cuts[' '.join([k_l2])] = '&&'.join([str(v) for v in self.plot_config.cuts + v_l2])
+                cuts[' '.join([k_l2])] = [Cut(v) for v in self.plot_config.cuts + v_l2]
         else:
-            cuts['cut'] = '&&'.join([str(v) for v in self.plot_config.cuts])
+            cuts['cut'] = [Cut(v) for v in self.plot_config.cuts]
 
         plotable_objects = []
         for k_cuts, v_cuts in list(cuts.items()):
