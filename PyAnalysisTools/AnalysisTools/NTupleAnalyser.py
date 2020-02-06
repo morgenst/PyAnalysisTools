@@ -147,18 +147,33 @@ class NTupleAnalyser(object):
                 missing_fraction = float(ds[-2]) / float(ds[-1]) * 100.
                 data.append((ds[2][0], ds[-2], ds[-1], missing_fraction, 100. - missing_fraction))
             return data
+        if len(missing + incomplete + duplicated) == 0:
+            print("CONGRATULATIONS! All samples have been completely processed. Have fun analysing.")
+            return
+            
         print("--------------- Missing datasets ---------------")
-        print(tabulate([[ds[0]] for ds in missing], tablefmt='rst'))
+        if len(missing) > 0:
+            print(tabulate([[ds[0]] for ds in missing], tablefmt='rst'))
+        else:
+            print('No missing datasets found')
+        print("------------------------------------------------")
+        print('\n\n\n')
         print("--------------- Duplicated datasets ---------------")
-        print(tabulate(calc_fractions(duplicated), tablefmt='rst', floatfmt='.2f',
-                       headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
-                                "missing fraction [%]"]))
+        if len(duplicated) > 0:
+            print(tabulate(calc_fractions(duplicated), tablefmt='rst', floatfmt='.2f',
+                           headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
+                                    "missing fraction [%]"]))
+        else:
+            print('No duplicated datasets found')
         print("------------------------------------------------")
         print('\n\n\n')
         print("--------------- Incomplete datasets ---------------")
-        print(tabulate(calc_fractions(incomplete), tablefmt='rst', floatfmt='.2f',
-                       headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
-                                "missing fraction [%]"]))
+        if len(incomplete) > 0:
+            print(tabulate(calc_fractions(incomplete), tablefmt='rst', floatfmt='.2f',
+                           headers=["Dataset", "Processed event", "Total avail. events", "available fraction [%]",
+                                    "missing fraction [%]"]))
+        else:
+            print('No incomplete datasets found')
 
     def prepare_resubmit(self, incomplete, missing):
         """
