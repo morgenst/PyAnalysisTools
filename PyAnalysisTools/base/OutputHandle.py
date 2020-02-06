@@ -3,6 +3,8 @@ from builtins import object
 import os
 import re
 import time
+from copy import deepcopy
+
 import ROOT
 import math
 from PyAnalysisTools.base import _logger
@@ -214,7 +216,7 @@ class OutputFileHandle(SysOutputHandle):
             self.objects[(tdir, obj.GetName())] = obj.CloneTree()
         else:
             if not disable_clone:
-                self.objects[(tdir, obj.GetName())] = obj.Clone(obj.GetName() + "_clone")
+                self.objects[(tdir, obj.GetName())] = deepcopy(obj)
             else:
                 self.objects[(tdir, obj.GetName())] = obj
             ROOT.SetOwnership(self.objects[(tdir, obj.GetName())], False)
