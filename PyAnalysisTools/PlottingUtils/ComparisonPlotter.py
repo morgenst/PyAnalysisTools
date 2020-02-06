@@ -32,6 +32,7 @@ class ComparisonReader(object):
             _logger.error('No input file provided')
             raise InvalidInputError('Missing input files')
         kwargs.setdefault('compare_files', None)
+        kwargs.setdefault('tree_dir_name', 'Nominal')
         self.input_files = kwargs['input_files']
         self.compare_files = kwargs['compare_files']
         self.tree_name = kwargs['tree_name']
