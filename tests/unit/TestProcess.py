@@ -82,7 +82,6 @@ class TestProcess(unittest.TestCase):
         process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         process2 = Process('tmp/hist-311570_0.MC16e.root', self.data_set_info)
         self.assertNotEqual(process1, process2)
-
     def test_inequality_type(self):
         process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         self.assertNotEqual(process, None)
@@ -126,8 +125,17 @@ class TestProcess(unittest.TestCase):
         self.assertEqual('311570', process.dsid)
         self.assertEqual('mc16e', process.mc_campaign)
 
+    def test_process_file_name_hist_full_path(self):
+        process = Process('/Users/foo/tmp/test/hists_20200206_18-04-21/hist-364106_1.MC16d.root',
+                          self.data_set_info, tags=['foo'])
+        self.assertTrue(process.is_mc)
+        self.assertFalse(process.is_data)
+        self.assertEqual('ZmumuHT140280CVetoBVeto', process.process_name)
+        self.assertEqual('364106', process.dsid)
+        self.assertEqual('mc16d', process.mc_campaign)
+
     def test_process_file_name_data_user(self):
-        process = Process('~/user.foo.data18_13TeV.periodAllYear.physics_Late.pro24_v01.v8_hist/user.foo.2._000001.hist-output.root ', self.data_set_info, tags=['foo'])
+        process = Process('~/user.foo.data18_13TeV.periodAllYear.physics_Late.pro24_v01.v8_hist/user.foo.2._000001.hist-output.root', self.data_set_info, tags=['foo'])
         self.assertFalse(process.is_mc)
         self.assertTrue(process.is_data)
         self.assertTrue(re.match(r'.*data.*', process.process_name))
