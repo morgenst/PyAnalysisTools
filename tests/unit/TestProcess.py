@@ -134,6 +134,13 @@ class TestProcess(unittest.TestCase):
         self.assertEqual('364106', process.dsid)
         self.assertEqual('mc16d', process.mc_campaign)
 
+    def test_process_file_name_ntuple_data_full_path(self):
+        process = Process('/storage/hepgrp/morgens/LQ/ntuples/v29_merged/ntuple-data17_13TeV_periodK_0.root',
+                          self.data_set_info, tags=['foo'])
+        self.assertFalse(process.is_mc)
+        self.assertTrue(process.is_data)
+        self.assertEqual('data17.periodK', process.process_name)
+
     def test_process_file_name_data_user(self):
         process = Process('~/user.foo.data18_13TeV.periodAllYear.physics_Late.pro24_v01.v8_hist/user.foo.2._000001.hist-output.root', self.data_set_info, tags=['foo'])
         self.assertFalse(process.is_mc)
