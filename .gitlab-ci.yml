@@ -72,22 +72,21 @@ unittest:
     - source setup.sh
     - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
 
-#unittest_py3:
-#  image: morgens/root-py3
-#  stage: test
-#  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
-#  before_script:
-#     - pip3 install --user -r requirements.txt
-#    #    - source /home/atlas/release_setup.sh
-#    #- sudo rm -rf /usr/lib/python2.7/site-packages/dateutil/
-#  #    - export PATH=$PATH:/home/atlas/.local/bin
-#  script:
-#    #- echo $SERVICE_PASS | kinit $CERN_USER
-#    - mkdir -p tests/unit/fixtures/files/
-#    #- xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/analysis_files/fixtues/ntuple-311331_0.MC16d.root tests/unit/fixtures/files/
-#    #- sudo chown atlas run_scripts/*
-#    - source setup.sh
-#    - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
+unittest_py3:
+  image: morgens/root-py3
+  stage: test
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+\%)$/'
+  before_script:
+     - pip3 install --user -r requirements.txt
+     - export PATH=$PATH:/root/.local/bin
+     - export LD_LIBRARY_PATH=/usr/local/lib/:$LD_LIBRARY_PATH
+  script:
+    - echo $SERVICE_PASS | kinit $CERN_USER
+    - mkdir -p tests/unit/fixtures/files/
+    - xrdcp -f root://eosuser.cern.ch//eos/user/m/morgens/analysis_files/fixtues/ntuple-311331_0.MC16d.root tests/unit/fixtures/files/
+    - sudo chown root run_scripts/*
+    - source setup.sh
+    - nosetests -w tests/unit --with-coverage --nologcapture --cover-package PyAnalysisTools
 
 style_check:
   image: $CI_REGISTRY_IMAGE:$CI_COMMIT_REF_NAME
