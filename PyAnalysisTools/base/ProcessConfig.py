@@ -134,7 +134,8 @@ class Process(object):
         """
         self.is_data = True
         if 'period' in file_name:
-            self.year, _, self.period = file_name.split("_")[0:3]
+            self.year = re.search('data\d{2}', file_name).group()
+            self.period = re.search('period[A-Z]', file_name).group()
             self.process_name = ".".join([self.year, self.period])
         elif 'allyear' in file_name.lower():
             self.year = re.search('[0-9]{2}', re.search(r'data[0-9]{2}', file_name).group()).group()
