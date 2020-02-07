@@ -75,7 +75,8 @@ class TestExecute(unittest.TestCase):
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(input_files=['foo'], log_level=None, tree_name='foo',
-                                                output_path='foo', selection=None, var_list=[], format='json'))
+                                                output_path='foo', selection=None, var_list=[], format='json',
+                                                mining_fraction=None))
     @mock.patch.object(YAMLLoader, 'read_yaml', patch)
     @mock.patch.object(Pool, 'map', patch)
     @mock.patch.object(FileHandle, '__del__', patch)
