@@ -225,9 +225,9 @@ class TestPlotConfig(unittest.TestCase):
 
     def test_plot_config_build_exception(self):
         try:
-            self.assertRaises(FileNotFoundError, pcm.parse_and_build_plot_config, 'foo')
+            self.assertRaises(FileNotFoundError, pcm.parse_and_build_plot_config, 'rndm_file')
         except NameError:
-            self.assertRaises(IOError, pcm.parse_and_build_plot_config, 'foo')
+            self.assertRaises(IOError, pcm.parse_and_build_plot_config, 'rndm_file')
 
     def test_common_cfg_propagation(self):
         plot_cfgs, common_cfg = pcm.parse_and_build_plot_config(os.path.join(os.path.dirname(__file__),
