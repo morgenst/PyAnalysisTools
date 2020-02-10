@@ -24,7 +24,7 @@ try:
 except NameError:
     ModuleNotFoundError = ImportError
 try:
-    import pyAMI.client
+    import pyAMI
 except ModuleNotFoundError:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
@@ -42,6 +42,8 @@ class NTupleAnalyser(object):
         """
         kwargs.setdefault('filter', None)
         kwargs.setdefault('merge_mode', None)
+        kwargs.setdefault('input_path', '.')
+        kwargs.setdefault('resubmit', False)
         self.check_valid_proxy()
         if "dataset_list" not in kwargs:
             raise InvalidInputError("No dataset list provided")
@@ -63,7 +65,7 @@ class NTupleAnalyser(object):
                 self.datasets = dict([kv for kv in iter(list(self.datasets.items())) if not re.match(pattern, kv[0])])
 
     @staticmethod
-    def check_valid_proxy():
+    def check_valid_proxy():  # pragma: no cover
         """
         Checks if valid voms proxy is setup and exits if not
 
@@ -88,8 +90,6 @@ class NTupleAnalyser(object):
             self.datasets = [[ds, ".".join(ds.split(".")[1:3])] for ds in self.datasets]
         else:
             self.datasets = [[ds, ".".join([ds.split(".")[1], ds.split(".")[5]])] for ds in self.datasets]
-        # self.datasets = map(lambda ds: [ds, ".".join([ds.split(".")[1], ds.split(".")[2],
-        #ds.split(".")[3], ds.split(".")[4], ds.split(".")[5]])], self.datasets)
 
     def add_path(self):
         """
@@ -150,7 +150,7 @@ class NTupleAnalyser(object):
         if len(missing + incomplete + duplicated) == 0:
             print("CONGRATULATIONS! All samples have been completely processed. Have fun analysing.")
             return
-            
+
         print("--------------- Missing datasets ---------------")
         if len(missing) > 0:
             print(tabulate([[ds[0]] for ds in missing], tablefmt='rst'))
