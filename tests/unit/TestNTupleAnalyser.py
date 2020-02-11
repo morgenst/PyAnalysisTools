@@ -105,7 +105,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
                           ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12',
                            'foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v13'],
                           10, 1]]
-            #self.assertIsNone(self.analyser.print_summary([], [], []))
+            self.assertIsNone(self.analyser.print_summary([], [], []))
             self.assertIsNone(self.analyser.print_summary(missing, [], []))
             self.assertIsNone(self.analyser.print_summary([], incomplete, []))
             self.assertIsNone(self.analyser.print_summary(missing, incomplete, duplicated))
