@@ -199,7 +199,8 @@ class TestExecute(unittest.TestCase):
                 get_dataset_size.main(None)
 
     def test_get_dataset_size_callable(self):
-        self.assertEqual(1, call(['get_dataset_size.py', '-h']))
+        with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
+            self.assertEqual(1, call(['get_dataset_size.py', '-h']))
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(log_level=None, dataset_list=None,
