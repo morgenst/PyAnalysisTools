@@ -194,7 +194,7 @@ class TestExecute(unittest.TestCase):
         if six.PY2:
             pass  # needs refactoring of staticmethos
         else:
-            with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
+            with mock.patch.dict('sys.modules', {'pyAMI.client': mock.MagicMock()}):
                 from run_scripts import get_dataset_size
                 get_dataset_size.main(None)
 

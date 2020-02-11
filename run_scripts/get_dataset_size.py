@@ -9,7 +9,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 try:
-    import pyAMI
+    import pyAMI.client
 except Exception:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
