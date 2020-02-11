@@ -1,15 +1,22 @@
 import os
+import sys  # noqa: F401
 import unittest
 from copy import deepcopy
-
 import mock
-import ROOT
+import ROOT  # noqa: F401
 from PyAnalysisTools.base.FileHandle import FileHandle
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader
+from tabulate import tabulate  # noqa: F401
 
 
-with mock.patch.dict('sys.modules', pyAMI=mock.MagicMock()):
+@classmethod
+def patch(*args):
+    return {}
+
+
+with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
     from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
+
 
     class TestNTupleAnalyser(unittest.TestCase):
         def setUp(self):
@@ -30,10 +37,10 @@ with mock.patch.dict('sys.modules', pyAMI=mock.MagicMock()):
             self.assertEqual('$$in[2].in[6]', analyser.grid_name_pattern)
             self.assertIsInstance(analyser.datasets, dict)
 
-        @mock.patch.object(yl, 'read_yaml', lambda _: {})
         def test_ctor_no_ds_keys(self):
-            analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist.yml'))
-            self.assertIsNone(analyser.grid_name_pattern)
+            with mock.patch.object(YAMLLoader, 'read_yaml', patch):
+                analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist2.yml'))
+                self.assertIsNone(analyser.grid_name_pattern)
 
         def test_ctor_filter(self):
             analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist.yml'),
@@ -98,7 +105,7 @@ with mock.patch.dict('sys.modules', pyAMI=mock.MagicMock()):
                           ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12',
                            'foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v13'],
                           10, 1]]
-            self.assertIsNone(self.analyser.print_summary([], [], []))
+            #self.assertIsNone(self.analyser.print_summary([], [], []))
             self.assertIsNone(self.analyser.print_summary(missing, [], []))
             self.assertIsNone(self.analyser.print_summary([], incomplete, []))
             self.assertIsNone(self.analyser.print_summary(missing, incomplete, duplicated))
@@ -113,7 +120,7 @@ with mock.patch.dict('sys.modules', pyAMI=mock.MagicMock()):
             self.assertIsNone(self.analyser.prepare_resubmit(missing, incomplete))
             resub_file = os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist_resubmit.yml')
             self.assertTrue(os.path.exists(resub_file))
-            resub = yl.read_yaml(resub_file)
+            resub = YAMLLoader.read_yaml(resub_file)
             self.assertListEqual(list(resub.keys()), ['incomplete$$in[2].in[6]', 'missing$$in[2].in[6]'])
             self.assertListEqual(list(resub.values()),
                                  [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987'],
