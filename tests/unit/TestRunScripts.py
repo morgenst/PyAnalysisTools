@@ -134,7 +134,7 @@ class TestExecute(unittest.TestCase):
         with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
             self.patcher = mock.patch.object(NTupleAnalyser, 'check_valid_proxy')
-            self.assertEqual(0, call(['analyse_ntuples.py', '-h']))
+            self.assertEqual(1, call(['analyse_ntuples.py', '-h']))
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(log_level=None))
