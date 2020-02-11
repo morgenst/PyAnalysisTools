@@ -9,7 +9,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader
 
 try:
-    import pyAMI.client
+    import pyAMI
 except Exception:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
@@ -25,7 +25,7 @@ def get_size(dataset_name):
 
 def main(argv):
     parser = argparse.ArgumentParser(description="PyAMI script to get file size of sample list")
-    parser.add_argument("dataset_list", type=str, help="dataset list file")
+    parser.add_argument("dataset_list", help="dataset list file")
 
     args = parser.parse_args()
     dataset_list = YAMLLoader.read_yaml(args.dataset_list)

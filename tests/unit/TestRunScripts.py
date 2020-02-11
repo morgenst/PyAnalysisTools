@@ -8,8 +8,6 @@ import six
 
 from PyAnalysisTools.PlottingUtils.Plotter import Plotter
 
-sys.modules['pyAMI'] = mock.MagicMock()
-sys.modules['pyAMI.client'] = mock.MagicMock()
 from subprocess import call
 
 import pandas
@@ -19,12 +17,11 @@ from multiprocess.pool import Pool
 from PyAnalysisTools import base
 from PyAnalysisTools.AnalysisTools.CutFlowAnalyser import CutflowAnalyser, ExtendedCutFlowAnalyser
 from PyAnalysisTools.AnalysisTools.DatasetPrinter import DatasetPrinter
-from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
 from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
 from run_scripts import convert_root2numpy, merge_prw, print_dataset_list, print_hist_contents, run_file_check, \
-    setup_analysis_package, get_dataset_size, run_plotting
+    setup_analysis_package, run_plotting
 
 cwd = os.path.dirname(__file__)
 sys.path.insert(0, os.path.join(cwd, '../../run_scripts'))
@@ -117,37 +114,40 @@ class TestExecute(unittest.TestCase):
     def test_merge_prw_merge_missing_input_path(self):
         self.assertRaises(InvalidInputError, merge_prw.merge, None)
 
-    def test_convert_root2numpy_callable(self):
-        self.assertEqual(0, call(['convert_root2numpy.py', '-h']))
-
     def test_merge_prw_callable(self):
         self.assertEqual(0, call(['merge_prw.py', '-h']))
 
-    @mock.patch('argparse.ArgumentParser.parse_args',
-                return_value=argparse.Namespace(input_path=['foo'], log_level=None, dataset_list='foo',
-                                                selection_config=True))
-    @mock.patch.object(NTupleAnalyser, 'check_valid_proxy', patch)
-    @mock.patch.object(NTupleAnalyser, '__init__', patch)
-    @mock.patch.object(NTupleAnalyser, 'run', patch)
-    def test_analyse_ntuples(self, mock_args):
-        from analyse_ntuples import main
-        main(None)
+    # with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
+    #     from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
+    #     @mock.patch('argparse.ArgumentParser.parse_args',
+    #                 return_value=argparse.Namespace(input_path=['foo'], log_level=None, dataset_list='foo',
+    #                                                 selection_config=True))
+    #     @mock.patch.object(NTupleAnalyser, 'check_valid_proxy', patch)
+    #     @mock.patch.object(NTupleAnalyser, '__init__', patch)
+    #     @mock.patch.object(NTupleAnalyser, 'run', patch)
+    #     @mock.patch.object(YAMLLoader, 'read_yaml', lambda _: {})
+    #     def test_analyse_ntuples(self, mock_args):
+    #         from run_scripts.analyse_ntuples import main
+    #         main(None)
 
     def test_analyse_ntuples_callable(self):
-        self.assertEqual(1, call(['analyse_ntuples.py', '-h']))
+        with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
+            from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
+            self.patcher = mock.patch.object(NTupleAnalyser, 'check_valid_proxy')
+            self.assertEqual(1, call(['analyse_ntuples.py', '-h']))
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(log_level=None))
     @mock.patch.object(DatasetPrinter, '__init__', patch)
     @mock.patch.object(DatasetPrinter, 'pprint', patch)
-    def test_print_dataset_list(self, mock_args):
+    def test_print_dataset_list(self, _):
         print_dataset_list.main(None)
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(log_level=None, format='foo'))
     @mock.patch.object(DatasetPrinter, '__init__', patch)
     @mock.patch.object(DatasetPrinter, 'pprint', patch)
-    def test_print_dataset_list_invalid_choice(self, mock_args):
+    def test_print_dataset_list_invalid_choice(self, _):
         print_dataset_list.main(None)
 
     def test_print_dataset_list_callable(self):
@@ -159,7 +159,7 @@ class TestExecute(unittest.TestCase):
     @mock.patch.object(FileHandle, '__init__', patch)
     @mock.patch.object(FileHandle, '__del__', patch)
     @mock.patch.object(FileHandle, 'get_objects_by_type', lambda x, y, z: [])
-    def test_print_hist_contents(self, mock_args):
+    def test_print_hist_contents(self, _):
         print_hist_contents.main(None)
 
     def test_print_hist_contents_callable(self):
@@ -171,7 +171,7 @@ class TestExecute(unittest.TestCase):
     @mock.patch.object(FileHandle, '__init__', patch)
     @mock.patch.object(FileHandle, '__del__', patch)
     @mock.patch.object(run_file_check, 'create_test_case', lambda x, y, z: unittest.TestCase)
-    def test_run_file_check(self, mock_args):
+    def test_run_file_check(self, _):
         run_file_check.main(None)
 
     def test_run_file_check_callable(self):
@@ -181,7 +181,7 @@ class TestExecute(unittest.TestCase):
                 return_value=argparse.Namespace(input_file=None, log_level=None,
                                                 name='foo', path='.', short_name='foo'))
     @mock.patch.object(setup_analysis_package.ModuleCreator, 'create', patch)
-    def test_setup_analysis_package_check(self, mock_args):
+    def test_setup_analysis_package_check(self, _):
         setup_analysis_package.main(None)
 
     def test_setup_analysis_package_callable(self):
@@ -189,16 +189,18 @@ class TestExecute(unittest.TestCase):
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(log_level=None, dataset_list=None))
-    @mock.patch('pyAMI.client')
     @mock.patch.object(YAMLLoader, 'read_yaml', lambda _: {})
     def test_get_dataset_size_check(self, *mock_args):
         if six.PY2:
             pass  # needs refactoring of staticmethos
         else:
-            get_dataset_size.main(None)
+            with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
+                from run_scripts import get_dataset_size
+                get_dataset_size.main(None)
 
     def test_get_dataset_size_callable(self):
-        self.assertEqual(1, call(['get_dataset_size.py', '-h']))
+        with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
+            self.assertEqual(1, call(['get_dataset_size.py', '-h']))
 
     @mock.patch('argparse.ArgumentParser.parse_args',
                 return_value=argparse.Namespace(log_level=None, dataset_list=None,
