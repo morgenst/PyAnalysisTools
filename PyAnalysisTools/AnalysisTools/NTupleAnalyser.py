@@ -47,6 +47,7 @@ class NTupleAnalyser(object):
         self.check_valid_proxy()
         if "dataset_list" not in kwargs:
             raise InvalidInputError("No dataset list provided")
+        print(kwargs['dataset_list'], os.path.exists(kwargs['dataset_list']))
         self.dataset_list_file = kwargs["dataset_list"]
         self.datasets = YAMLLoader.read_yaml(self.dataset_list_file)
         self.datasets = dict([kv for kv in iter(list(self.datasets.items())) if "pilot" not in kv[0]])
