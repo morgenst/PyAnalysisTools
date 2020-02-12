@@ -2,6 +2,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+import collections
 import glob
 import json
 import os
@@ -262,17 +263,16 @@ class LimitAnalyserCL(object):
         self.converter = Root2NumpyConverter(['exp_upperlimit', 'exp_upperlimit_plus1', 'exp_upperlimit_plus2',
                                               'exp_upperlimit_minus1', 'exp_upperlimit_minus2', 'fit_status'])
 
-    def analyse_limit(self, signal_scale=1., pmg_xsec=None, fixed_sig_sf=None, enable_debug_plot=False):
+    def analyse_limit(self, mass_cut=None, pmg_xsec=None, signal_scale=1., fixed_sig_sf=None, enable_debug_plot=False):
         """
-
+        Read limit information from TRF output directory
+        :param mass_cut: mass cut during scan
+        :param pmg_xsec: PMG cross section for signal
         :param signal_scale: signal scale factor applied on top of 1 pb fixed xsec in limit setting
-        :type signal_scale: float (default 1.0
-        :param fixed_signal: fixed signal yield input if used during limit setting
-        :type fixed_signal: float (default None)
-        :param sig_yield: signal yield scaled according to sigma=1pb
-        :type sig_yield: float (default None)
+        :param fixed_sig_sf: SF applied when calculating limit with fixed xsec or number of events
+        :param enable_debug_plot: produce debug plots, i.e. limits w/o scaling (default: False)
+
         :return: limit info object containing parsed UL
-        :rtype: LimitInfo
         """
 
         def get_scale_factor(signal_scale):
@@ -280,8 +280,12 @@ class LimitAnalyserCL(object):
                 signal_scale = 1.
             scale_factor = 1.
             if fixed_sig_sf is not None:
-                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}".format(fixed_sig_sf, scale_factor))
-                scale_factor = fixed_sig_sf * 1000. * pmg_xsec
+                if isinstance(fixed_sig_sf, collections.Mapping) and mass_cut is not None:
+                    fixed_sf = fixed_sig_sf[mass_cut]
+                else:
+                    fixed_sf = fixed_sig_sf
+                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}".format(fixed_sf, scale_factor))
+                scale_factor = fixed_sf * 1000. * pmg_xsec
             elif pmg_xsec is not None:
                 scale_factor = 1000. * pmg_xsec
             return scale_factor
@@ -471,9 +475,9 @@ class LimitPlotter(object):
         canvas = pt.plot_stack(hists, pc, process_configs=process_configs)
         stack = get_objects_from_canvas_by_type(canvas, "THStack")[0]
         for i, name in enumerate(cr_regions):
-            stack.GetXaxis().SetBinLabel(i+1, name)
+            stack.GetXaxis().SetBinLabel(i + 1, name)
         for i, name in enumerate(mass_cuts):
-            stack.GetXaxis().SetBinLabel(len(cr_regions)+i+1, str(name))
+            stack.GetXaxis().SetBinLabel(len(cr_regions) + i + 1, str(name))
         fm.decorate_canvas(canvas, pc)
         fm.add_text_to_canvas(canvas, 'Mass cut', pos={'x': 0.8, 'y': 0.05})
         self.output_handle.register_object(canvas)
@@ -684,8 +688,10 @@ class LimitScanAnalyser(object):
                 scale_factor = None
                 if self.scale_factors is not None:
                     scale_factor = self.scale_factors[scan.kwargs['sig_name']]
-                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'],
-                                                    self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
+                limit_info = analyser.analyse_limit(scan.kwargs["mass_cut"],
+                                                    pmg_xsec=self.xsec_handle.get_xs_scale_factor(
+                                                        scan.kwargs['sig_name']),
+                                                    signal_scale=scan.kwargs['signal_scale'],
                                                     fixed_sig_sf=scale_factor)
             except ReferenceError:
                 _logger.error("Could not find info for scan {:s}".format(scan))
@@ -1504,7 +1510,7 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
         try:
             region = list(filter(lambda r: r in hist_name, region_names))[0]
             try:
-                process = list(filter(lambda p: p + '_' in hist_name, processes))[0]
+                process = list(filter(lambda p: p + '_' in hist_name or hist_name.endswith(p), processes))[0]
             except IndexError:
                 if 'QCD' not in hist_name:
                     raise IndexError
