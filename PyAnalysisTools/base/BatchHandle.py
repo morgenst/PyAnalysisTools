@@ -7,6 +7,8 @@ import stat
 
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import remove_file, change_dir
+import dill
+dill._dill._reverse_typemap['ObjectType'] = object
 
 
 class BatchJob(object):
@@ -23,6 +25,10 @@ class BatchHandle(object):
         if not hasattr(job, 'log_fname'):
             job.log_fname = 'log'
         self.system = 'qsub'
+        if hasattr(job, 'extra_submission_args'):
+            if job.extra_submission_args is not None:
+                self.system += ' {:s}'.format(job.extra_submission_args)
+
         self.queue = job.queue
         self.is_master = False
         self.log_level = job.log_level
