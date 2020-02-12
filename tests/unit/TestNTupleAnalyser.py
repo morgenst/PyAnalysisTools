@@ -14,6 +14,10 @@ def patch(*args):
     return {}
 
 
+def patch_raise(*_):
+    raise ValueError
+
+
 with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
     from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
 
@@ -90,6 +94,25 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             test_ds_list = deepcopy(expected_ds_list)
             self.analyser.get_events(test_ds_list[1])
             expected_ds_list[-1] += [10, 1]
+            self.assertEqual(expected_ds_list, test_ds_list)
+
+        @mock.patch.object(os, 'listdir', lambda _: ['foo'])
+        @mock.patch.object(os.path, 'exists', lambda _: True)
+        @mock.patch.object(os.path, 'join', lambda *_: 'foo')
+        @mock.patch.object(FileHandle, 'get_daod_events', patch_raise)
+        @mock.patch.object(FileHandle, '__init__', lambda *args, **kwargs: None)
+        @mock.patch.object(FileHandle, '__del__', lambda _: None)
+        def test_get_events_invalid_root_file(self):
+            self.analyser.transform_dataset_list()
+            expected_ds_list = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
+                                 'periodD.grp15_v01_p3987', None],
+                                ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
+                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
+                                 '364100.e5271_s3126_r9364_r9315_p3978',
+                                 ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12']]]
+            test_ds_list = deepcopy(expected_ds_list)
+            self.analyser.get_events(test_ds_list[1])
+            expected_ds_list[-1] += [0, 1]
             self.assertEqual(expected_ds_list, test_ds_list)
 
         def test_print_summary(self):
