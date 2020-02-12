@@ -125,11 +125,6 @@ class TestPlotConfig(unittest.TestCase):
         prcfg = ProcessConfig(draw='l', type='data')
         self.assertEqual('l', pcm._parse_draw_option(pc, prcfg))
 
-    def test_get_lumi_dict_part_processed(self):
-        pc = PlotConfig(lumi=OrderedDict([('MC16a', 100.), ('MC16d', 120.)]))
-        pc.used_mc_campaigns = ['MC16a']
-        self.assertEqual(100., pc.get_lumi())
-
     def test_draw_opt_as_root_str_default(self):
         pc = PlotConfig()
         self.assertEqual('HIST', pcm.get_draw_option_as_root_str(pc))

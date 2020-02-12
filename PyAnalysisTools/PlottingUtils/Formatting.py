@@ -454,7 +454,7 @@ def set_minimum_x(graph_obj, minimum):
 
 def set_range_y(graph_obj, minimum, maximum):
     if minimum >= maximum:
-        print('minmax:', minimum, maximum)
+        _logger.warning('Minimum {:f} > maximum {:f}'.format(minimum, maximum))
         return
     if isinstance(graph_obj, ROOT.THStack):
         graph_obj.SetMinimum(minimum)

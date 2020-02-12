@@ -225,5 +225,6 @@ class TestRatioPlotter(unittest.TestCase):
             hist.SetBinContent(i, i)
         c = ROOT.TCanvas()
         c.cd()
-        rp.RatioPlotter(reference=hist, compare=hist, plot_config=PlotConfig(enable_legend=True)).decorate_ratio_canvas(c)
+        rp.RatioPlotter(reference=hist, compare=hist,
+                        plot_config=PlotConfig(enable_legend=True)).decorate_ratio_canvas(c)
         self.assertEqual(1, len(get_objects_from_canvas_by_type(c, 'TLegend')))

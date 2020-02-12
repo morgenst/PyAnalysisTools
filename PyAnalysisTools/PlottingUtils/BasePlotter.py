@@ -241,7 +241,6 @@ class BasePlotter(object):
             if parent_process is not None and parent_process.weight is not None:
                 weight = add_weight(weight, parent_process.weight)
             if plot_config.cuts:
-                print(file_handle.process)
                 plot_config = deepcopy(plot_config)
                 if isinstance(plot_config.cuts, str):
                     plot_config.cuts = plot_config.split("&&")
@@ -357,7 +356,9 @@ class BasePlotter(object):
             parent_process = find_process_config(process, process_configs).name
             if parent_process not in list(histograms.keys()):
                 new_hist_name = histograms[process].GetName().replace(process.process_name, parent_process)
-                histograms[parent_process] = histograms[process].Clone(new_hist_name)
+                new_hist = deepcopy(histograms[process])
+                new_hist.SetName(new_hist_name)
+                histograms[parent_process] = new_hist
             else:
                 histograms[parent_process].Add(histograms[process])
             histograms.pop(process)
