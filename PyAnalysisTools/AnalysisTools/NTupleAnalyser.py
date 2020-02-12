@@ -24,7 +24,7 @@ try:
 except NameError:
     ModuleNotFoundError = ImportError
 try:
-    import pyAMI
+    from pyAMI import client, exception
 except ModuleNotFoundError:
     _logger.error("pyAMI not loaded")
     sys.exit(1)
@@ -117,11 +117,11 @@ class NTupleAnalyser(object):
                                                      switch_off_process_name_analysis=True).get_daod_events())
 
         ds.append(n_processed_events)
-        client = pyAMI.client.Client('atlas')
+        pyami_client = client.Client('atlas')
         try:
-            n_expected_events = int(client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
+            n_expected_events = int(pyami_client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
                                                    format="dict_object").get_rows()[0]["totalEvents"])
-        except pyAMI.exception.Error:
+        except exception.Error:
             _logger.error("Could not find dataset: {:s}".format(ds[0]))
             return
         ds.append(n_expected_events)
