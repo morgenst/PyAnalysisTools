@@ -13,6 +13,7 @@ from past.utils import old_div
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import ROOT
+from PyAnalysisTools.AnalysisTools.MLHelper import Root2NumpyConverter
 from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_color_scheme
@@ -57,6 +58,8 @@ class Systematic(object):
         kwargs.setdefault('expand', None)
         kwargs.setdefault('hist_name', None)
         kwargs.setdefault('envelope', None)
+        kwargs.setdefault('type', None)
+        kwargs.setdefault('variation', None)
         self.name = name
         for k, v in list(kwargs.items()):
             setattr(self, k, v)
@@ -80,7 +83,24 @@ class Systematic(object):
         """
         return self.__str__() + '\n'
 
+    def __eq__(self, other):
+        """
+        Comparison operator
+
+        """
+        if isinstance(self, other.__class__):
+            for k, v in list(self.__dict__.items()):
+                if k not in other.__dict__:
+                    return False
+                if self.__dict__[k] != other.__dict__[k]:
+                    return False
+        else:
+            return False
+        return True
+
     def get_variations(self):
+        if self.variation is None:
+            return []
         if self.variation == 'updown':
             return [self.prefix + self.name + var for var in ['__1up', '__1down']]
         if 'single' in self.variation:
@@ -105,6 +125,9 @@ class SystematicsAnalyser(BasePlotter):
         kwargs.setdefault("dump_hists", False)
         kwargs.setdefault("cluster_mode", False)
         kwargs.setdefault('store_abs_syst', False)
+        kwargs.setdefault('systematics_config', None)
+        kwargs.setdefault('file_handles', [])
+        kwargs.setdefault('disable_cutflow_reading', False)
         self.file_handles = None
         for attr, value in list(kwargs.items()):
             setattr(self, attr.lower(), value)
@@ -125,6 +148,9 @@ class SystematicsAnalyser(BasePlotter):
 
     @staticmethod
     def parse_syst_config(cfg_file):
+        if cfg_file is None:
+            _logger.error('Try to read systematics from None. Cannot do anything')
+            return []
         cfg = yl.read_yaml(cfg_file)
         return [Systematic(k, **v) for k, v in list(cfg.items())]
 
@@ -132,9 +158,9 @@ class SystematicsAnalyser(BasePlotter):
     def load_dumped_hist(arg, systematic):
         fh = arg[0]
         pc = arg[1]
-        hist_name = '{:s}_{:s}_{:s}_clone_clone'.format(pc.name, fh.process.process_name, systematic)
+        hist_name = '{:s}_{:s}_{:s}'.format(pc.name, str(fh.process.process_name), systematic)
         try:
-            return pc, fh.process, fh.get_object_by_name(hist_name)
+            return pc, fh.process, deepcopy(fh.get_object_by_name(hist_name))
         except ValueError:
             try:
                 if systematic in TheoryUncertaintyProvider.get_sherpa_uncerts():
@@ -147,6 +173,8 @@ class SystematicsAnalyser(BasePlotter):
         hists = []
         for arg in product(file_handles, plot_configs):
             hists.append(self.load_dumped_hist(arg, systematic))
+        for fh in file_handles:
+            fh.close()
         return hists
 
     def process_histograms(self, fetched_histograms, syst):
@@ -179,6 +207,8 @@ class SystematicsAnalyser(BasePlotter):
         for systematic in self.custom_uncerts:
             if systematic.call is not None:
                 eval(systematic.call)
+        for fh in file_handles:
+            fh.close()
 
     def get_symmetrised_hists(self, sys_hist, nominal_hist, new_hist_name):
         h_tmp = sys_hist.Clone(new_hist_name)
@@ -201,7 +231,19 @@ class SystematicsAnalyser(BasePlotter):
                 continue
             self.process_histograms(fetched_histograms, syst)
 
-    def get_scale_uncertainties(self, file_handles, weights, dumped_hist_path=None, disable_relative=False):
+    def get_scale_uncertainties(self, file_handles, weights, dumped_hist_path=None, disable_relative=False,
+                                scale_factors=None):
+        """
+        Get systematic histogram for scale uncertainty
+
+        :param file_handles:
+        :param weights:
+        :param dumped_hist_path:
+        :param disable_relative:
+        :param scale_factors: Additional scale factors to be applied, e.g. top EV uncertainties are normalised to unit
+        area with nominal
+        :return:
+        """
         for weight in weights:
             plot_configs = deepcopy(self.plot_configs)
             for pc in plot_configs:
@@ -219,7 +261,14 @@ class SystematicsAnalyser(BasePlotter):
                                                           tree_dir_name="Nominal", factor_syst=weight)
             else:
                 fetched_histograms = self.load_dumped_hists(file_handles, self.plot_configs, weight)
-
+            if scale_factors is not None:
+                for _, process, hist in fetched_histograms:
+                    if process not in scale_factors:
+                        _logger.error('Provided scale factors but could not find any for process: {:s}'.format(process))
+                        continue
+                    _logger.debug('Multiply scale-factor systematic {:s} by additional scale factor {:f} for process '
+                                  '{:s}'.format(weight, scale_factors[process][weight], process))
+                    hist.Scale(scale_factors[process][weight])
             if self.dump_hists:
                 histograms = [it[-1] for it in fetched_histograms]
                 for h in histograms:
@@ -228,7 +277,7 @@ class SystematicsAnalyser(BasePlotter):
                 continue
             self.process_histograms(fetched_histograms, weight.replace('weight_', ''))
 
-    def get_fixed_scale_uncertainties(self, file_handles, scale_unc, dumped_hist_path=None, disable_relative=False):
+    def get_fixed_scale_uncertainties(self, file_handles, scale_unc, dumped_hist_path=None):
         for unc_name, data in list(scale_unc.items()):
             if dumped_hist_path is None:
                 nominal_hists = self.read_histograms(file_handles=file_handles, plot_configs=self.plot_configs,
@@ -481,12 +530,12 @@ class TheoryUncertaintyProvider(object):
         self.top_unc = None
         if fixed_top_unc_file is not None:
             self.top_unc = yl.read_yaml(fixed_top_unc_file)
-
+        self.converter = None
     @staticmethod
     def get_sherpa_uncerts():
-        return ['weight_pdf_uncert_MUR0.5_MUF0.5_PDF261000',
-                'weight_pdf_uncert_MUR0.5_MUF1_PDF261000',
-                'weight_pdf_uncert_MUR1_MUF0.5_PDF261000',
+        return ['weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000',
+                'weight_pdf_uncert_MUR0p5_MUF1_PDF261000',
+                'weight_pdf_uncert_MUR1_MUF0p5_PDF261000',
                 'weight_pdf_uncert_MUR1_MUF2_PDF261000',
                 'weight_pdf_uncert_MUR2_MUF1_PDF261000',
                 'weight_pdf_uncert_MUR2_MUF2_PDF261000',
@@ -494,7 +543,29 @@ class TheoryUncertaintyProvider(object):
                 'weight_pdf_uncert_MUR1_MUF1_PDF13000']
 
     @staticmethod
-    def is_affected(file_handle, tree_name):
+    def get_top_scale_uncerts():
+        uncerts = ['weight_pdf_uncert_Var3cUp',
+                   'weight_pdf_uncert_Var3cDown',
+                   'weight_pdf_uncert_muR_0p5_muF_0p5',
+                   'weight_pdf_uncert_muR_0p5_muF_1p0',
+                   'weight_pdf_uncert_muR_0p5_muF_2p0',
+                   'weight_pdf_uncert_muR_1p0_muF_0p5',
+                   'weight_pdf_uncert_muR_1p0_muF_2p0',
+                   'weight_pdf_uncert_muR_2p0_muF_0p5',
+                   'weight_pdf_uncert_muR_2p0_muF_1p0',
+                   'weight_pdf_uncert_muR_2p0_muF_2p0',
+                   'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=0p5',
+                   'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=1p0',
+                   'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=2p0',
+                   'weight_pdf_uncert_isr_muRfac=1p0_fsr_muRfac=0p5',
+                   'weight_pdf_uncert_isr_muRfac=1p0_fsr_muRfac=2p0',
+                   'weight_pdf_uncert_isr_muRfac=2p0_fsr_muRfac=1p0',
+                   'weight_pdf_uncert_isr_muRfac=2p0_fsr_muRfac=2p0']
+        uncerts += ['weight_pdf_uncert_PDF_set_{:d}'.format(i) for i in range(90901, 90931)]
+        return uncerts
+
+    @staticmethod
+    def is_affected(file_handle, tree_name, branch_name):
         """
         Check if file is affected by Sherpa uncertainties
         :param file_handle: input file
@@ -505,10 +576,10 @@ class TheoryUncertaintyProvider(object):
         :rtype: bool
         """
         tree = file_handle.get_object_by_name(tree_name, tdirectory='Nominal')
-        return TheoryUncertaintyProvider.check_is_affected(tree)
+        return TheoryUncertaintyProvider.check_is_affected(tree, branch_name)
 
     @staticmethod
-    def check_is_affected(tree):
+    def check_is_affected(tree, branch_name):
         """
         Check if file is affected by Sherpa uncertainties
         :param file_handle: input file
@@ -518,15 +589,16 @@ class TheoryUncertaintyProvider(object):
         :return: yes/no decision
         :rtype: bool
         """
-        return hasattr(tree, "weight_pdf_uncert_MUR0.5_MUF0.5_PDF261000")
+        return hasattr(tree, branch_name)
 
     def get_envelop(self, analyser, dump_hist_path=None):
         self.fetch_uncertainties(analyser, dump_hist_path)
-        self.calculate_envelop(analyser)
+        # self.calculate_envelop(analyser)
 
     def fetch_uncertainties(self, analyser, dump_hist_path=None):
         if dump_hist_path is None:
-            file_handles = [fh for fh in analyser.file_handles if self.is_affected(fh, analyser.tree_name)]
+            file_handles = [fh for fh in analyser.file_handles if self.is_affected(fh, analyser.tree_name,
+                                                                                   'weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000')]
         else:
             file_handles = analyser.file_handles
         if len(file_handles) == 0:
@@ -538,72 +610,91 @@ class TheoryUncertaintyProvider(object):
     def get_top_theory_unc(self, analyser, dump_hist_path=None):
         if dump_hist_path is None:
             file_handles = [fh for fh in analyser.file_handles if
-                            int(fh.process.dsid) in self.top_unc.values()[0].keys()]
+                            int(fh.process.dsid) in list(self.top_unc.values())[0].keys()]
+            file_handles_scales = [fh for fh in analyser.file_handles if self.is_affected(fh, analyser.tree_name,
+                                                                                          'weight_pdf_uncert_Var3cUp')]
         else:
             file_handles = analyser.file_handles
-        analyser.get_fixed_scale_uncertainties(file_handles, self.top_unc, dump_hist_path, True)
+            file_handles_scales = file_handles
+
+        scale_factors = None
+        if dump_hist_path is None:
+            scale_factors = {}
+            for fh in file_handles_scales:
+                scale_factors[fh.process] = {unc: 1. for unc in  self.get_top_scale_uncerts()}
+                pdf_ev_uncert = [i for i in self.get_top_scale_uncerts() if 'PDF_set_' in i]
+                if self.converter is None:
+                    self.converter = Root2NumpyConverter(branches=["weight"] + pdf_ev_uncert)
+                tree = fh.get_object_by_name(analyser.tree_name, 'Nominal')
+                weights = self.converter.convert_to_array(tree)
+                for pdf_unc in pdf_ev_uncert:
+                    scale_factors[fh.process][pdf_unc] = sum(weights[pdf_unc] / sum(weights['weight']))
+        analyser.get_scale_uncertainties(file_handles_scales, self.get_top_scale_uncerts(), dump_hist_path,
+                                         disable_relative=True, scale_factors=scale_factors)
+        analyser.get_fixed_scale_uncertainties(file_handles, self.top_unc, dump_hist_path)
 
     def get_top_uncert_names(self):
-        return self.top_unc.keys()
-
-    def calculate_envelop(self, analyser):
-        def get_pc(hists, plot_config):
-            """
-            Required as dedicated plot config matching is needed since the weights are different and thus the equality
-            check won't work
-            :param hists: dictionary with plot configs and process, syst_hist dictionary for given systematic uncert
-            :type hists: dict
-            :param plot_config: (nominal) plot config
-            :type plot_config: PlotConfig
-            :return: plot config for given systematic uncertainty
-            :rtype: PlotConfig
-            """
-            return [pc for pc in list(hists.keys()) if pc.name == plot_config.name][0]
-
-        return
-        if self.all_uneffected:
+        if self.top_unc is None:
             return
-        try:
-            pdf_name = 'pdf_uncert_MUR1_MUF0.5_PDF261000'
-            for plot_config in list(analyser.systematic_hists[pdf_name].keys()):
-                for process, hist in list(analyser.systematic_hists[pdf_name][plot_config].items()):
-                    nominal_hist = analyser.nominal_hists[get_pc(analyser.nominal_hists, plot_config)][process]
-                    new_hist_name = hist.GetName().replace('weight_{:s}'.format(pdf_name), '') + '_theory_envelop'
-                    new_hist_name = new_hist_name.replace('_clone', '')
-                    envelop_up = hist.Clone(new_hist_name + '__1up')
-                    envelop_down = hist.Clone(new_hist_name + '__1down')
-                    for b in range(envelop_up.GetNbinsX() + 1):
-                        unc_max = max([analyser.systematic_hists[sys.replace('weight_', '')]
-                                       [get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)]
-                                       [process].GetBinContent(b) - nominal_hist.GetBinContent(b)
-                                       for sys in self.sherpa_pdf_uncert])
-                        nom = nominal_hist.GetBinContent(b)
-                        if unc_max > 0:
-                            up, down = unc_max + nom, nom - unc_max
-                        else:
-                            up, down = nom - unc_max, nom + unc_max
-                        envelop_up.SetBinContent(b, up)
-                        envelop_down.SetBinContent(b, down)
-                    if 'theory_envelop__1up' not in analyser.systematic_hists:
-                        analyser.systematic_hists['theory_envelop__1up'] = {}
-                        analyser.systematic_hists['theory_envelop__1down'] = {}
-                    if plot_config not in analyser.systematic_hists['theory_envelop__1up']:
-                        analyser.systematic_hists['theory_envelop__1up'][plot_config] = {}
-                        analyser.systematic_hists['theory_envelop__1down'][plot_config] = {}
+        return list(self.top_unc.keys())
 
-                    analyser.systematic_hists['theory_envelop__1up'][plot_config][process] = deepcopy(envelop_up)
-                    analyser.systematic_hists['theory_envelop__1down'][plot_config][process] = deepcopy(envelop_down)
-            # for sys in self.sherpa_pdf_uncert:
-            #     analyser.systematic_hists.pop(sys.replace('weight_', ''))
-        except KeyError:
-            _logger.debug("Could not find theory uncertainties")
-            pass
+    # def calculate_envelop(self, analyser):
+    #     def get_pc(hists, plot_config):
+    #         """
+    #         Required as dedicated plot config matching is needed since the weights are different and thus the equality
+    #         check won't work
+    #         :param hists: dictionary with plot configs and process, syst_hist dictionary for given systematic uncert
+    #         :type hists: dict
+    #         :param plot_config: (nominal) plot config
+    #         :type plot_config: PlotConfig
+    #         :return: plot config for given systematic uncertainty
+    #         :rtype: PlotConfig
+    #         """
+    #         return [pc for pc in list(hists.keys()) if pc.name == plot_config.name][0]
+    #
+    #     return
+    #     if self.all_uneffected:
+    #         return
+    #     try:
+    #         pdf_name = 'pdf_uncert_MUR1_MUF0.5_PDF261000'
+    #         for plot_config in list(analyser.systematic_hists[pdf_name].keys()):
+    #             for process, hist in list(analyser.systematic_hists[pdf_name][plot_config].items()):
+    #                 nominal_hist = analyser.nominal_hists[get_pc(analyser.nominal_hists, plot_config)][process]
+    #                 new_hist_name = hist.GetName().replace('weight_{:s}'.format(pdf_name), '') + '_theory_envelop'
+    #                 new_hist_name = new_hist_name.replace('_clone', '')
+    #                 envelop_up = hist.Clone(new_hist_name + '__1up')
+    #                 envelop_down = hist.Clone(new_hist_name + '__1down')
+    #                 for b in range(envelop_up.GetNbinsX() + 1):
+    #                     unc_max = max([analyser.systematic_hists[sys.replace('weight_', '')]
+    #                                    [get_pc(analyser.systematic_hists[sys.replace('weight_', '')], plot_config)]
+    #                                    [process].GetBinContent(b) - nominal_hist.GetBinContent(b)
+    #                                    for sys in self.sherpa_pdf_uncert])
+    #                     nom = nominal_hist.GetBinContent(b)
+    #                     if unc_max > 0:
+    #                         up, down = unc_max + nom, nom - unc_max
+    #                     else:
+    #                         up, down = nom - unc_max, nom + unc_max
+    #                     envelop_up.SetBinContent(b, up)
+    #                     envelop_down.SetBinContent(b, down)
+    #                 if 'theory_envelop__1up' not in analyser.systematic_hists:
+    #                     analyser.systematic_hists['theory_envelop__1up'] = {}
+    #                     analyser.systematic_hists['theory_envelop__1down'] = {}
+    #                 if plot_config not in analyser.systematic_hists['theory_envelop__1up']:
+    #                     analyser.systematic_hists['theory_envelop__1up'][plot_config] = {}
+    #                     analyser.systematic_hists['theory_envelop__1down'][plot_config] = {}
+    #
+    #                 analyser.systematic_hists['theory_envelop__1up'][plot_config][process] = deepcopy(envelop_up)
+    #                 analyser.systematic_hists['theory_envelop__1down'][plot_config][process] = deepcopy(envelop_down)
+    #         # for sys in self.sherpa_pdf_uncert:
+    #         #     analyser.systematic_hists.pop(sys.replace('weight_', ''))
+    #     except KeyError:
+    #         _logger.debug("Could not find theory uncertainties")
+    #         pass
 
     def calculate_envelop_count(self, yields):
         try:
             tmp = {syst: yields[syst].sum() for syst in self.sherpa_pdf_uncert}
             max_key, _ = max(iter(list(tmp.items())), key=lambda x: x[1])
             yields['theory_envelop'] = yields[max_key]
-            # yields['theory_envelop'].extrapolated = True
         except KeyError:
             pass

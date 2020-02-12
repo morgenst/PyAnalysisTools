@@ -368,7 +368,7 @@ class MultiFileSingleRefReader(ComparisonReader):
                 plotable_objects.append(
                     PO.PlotableObject(plot_object=v_comp, is_ref=False, ref_id=1, label=label, cuts=v_cuts,
                                       process=k_comp))
-        #del plotable_objects[1]
+        # del plotable_objects[1]
         return plotable_objects
 
 

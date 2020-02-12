@@ -25,7 +25,6 @@ class Process(object):
         :param dataset_info: config containing information on all defined datasets
         :type dataset_info: dict
         """
-        self.dataset_info = dataset_info
         self.file_name = file_name
         self.stream = None
         self.is_mc = False
@@ -43,7 +42,7 @@ class Process(object):
         self.process_name = process_name
         self.weight = weight
         if file_name is not None:
-            self.parse_file_name('/'.join(self.base_name.split('/')[-2:]))
+            self.parse_file_name('/'.join(self.base_name.split('/')[-2:]), dataset_info)
         if self.cut is not None:
             self.process_name += self.cut
 
@@ -108,7 +107,7 @@ class Process(object):
     def __hash__(self):
         return hash(self.process_name)
 
-    def parse_file_name(self, file_name):
+    def parse_file_name(self, file_name, dataset_info):
         """
         Reads process information from given file name
         :param file_name: file name
@@ -119,10 +118,10 @@ class Process(object):
         if 'data' in file_name:
             self.set_data_name(file_name)
         elif re.match(r'\d{6}', file_name):
-            self.set_mc_name(file_name)
+            self.set_mc_name(file_name, dataset_info)
         else:
             _logger.debug("No dedicated parsing found. Assume MC and run simplified")
-            self.set_mc_name(file_name)
+            self.set_mc_name(file_name, dataset_info)
 
     def set_data_name(self, file_name):
         """
@@ -144,7 +143,7 @@ class Process(object):
             self.year = re.search('[0-9]{2}', re.search(r'data[0-9]{2}', file_name).group()).group()
             self.process_name = 'data{:s}_{:s}'.format(self.year, re.search(r'00\d{6}', file_name).group())
 
-    def set_mc_name(self, file_name):
+    def set_mc_name(self, file_name, dataset_info):
         """
         Parser for MonteCarlo processes
         :param file_name: file name
@@ -158,22 +157,22 @@ class Process(object):
         except IndexError:
             pass
         if re.search(r'\d{6,}', file_name):
-            self.parse_from_dsid()
+            self.parse_from_dsid(dataset_info)
         else:
             self.process_name = file_name
         self.parse_mc_campaign(file_name)
 
-    def parse_from_dsid(self):
+    def parse_from_dsid(self, dataset_info):
         """
         Read information from dataset info 'DB' given the dataset id (dsid) - for MC only
         :return: nothing
         :rtype: None
         """
-        if self.dataset_info is None:
+        if dataset_info is None:
             self.process_name = self.dsid
             return
         try:
-            tmp = [l for l in list(self.dataset_info.values()) if l.dsid == int(self.dsid)]
+            tmp = [l for l in list(dataset_info.values()) if l.dsid == int(self.dsid)]
         except ValueError:
             _logger.error("Could not find {:d}".format(self.dsid))
         if len(tmp) == 1:

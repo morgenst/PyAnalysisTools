@@ -71,7 +71,7 @@ class Plotter(BasePlotter):
         if kwargs['cluster_config'] is not None:
             self.cluster_init(kwargs['cluster_config'])
             self.cluster_mode = True
-            self.ncpu = kwargs['ncpu']
+            self.ncpu = 0  # kwargs['ncpu']
             return
         self.cluster_mode = kwargs['cluster_mode']
         if kwargs['redraw_hists'] is not None:
@@ -115,15 +115,15 @@ class Plotter(BasePlotter):
         self.output_handle = OutputFileHandle(make_plotbook=self.plot_configs[0].make_plot_book,
                                               extension=kwargs['file_extension'], **kwargs)
         self.syst_analyser = None
-        if kwargs["enable_systematics"]:
-            self.syst_analyser = SystematicsAnalyser(**self.__dict__)
+        # if kwargs["enable_systematics"]:
+        #     self.syst_analyser = SystematicsAnalyser(**self.__dict__)
 
         self.file_handles = [fh for fh in self.file_handles if fh.process is not None]
         self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if not self.read_hist:
             self.filter_empty_trees()
         self.modules = load_modules(kwargs['module_config_files'], self)
-        self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
+        # self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
         # self.modules.append(self.fake_estimator)
         self.init_modules()
         self.expand_plot_configs()
@@ -248,7 +248,6 @@ class Plotter(BasePlotter):
             if syst_tree_name is not None and file_handle.is_mc:
                 tn = syst_tree_name
             return file_handle.get_object_by_name(tn, self.tree_dir_name).GetEntries() > 0
-
         empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.syst_tree_name)]
         self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.syst_tree_name)]
         list([fh.close() for fh in empty_files])
@@ -558,7 +557,7 @@ class Plotter(BasePlotter):
         fh = args[0]
         pc = args[1]
         c = fh.get_object_by_name(pc.name)
-        return pc, fh.process, get_objects_from_canvas_by_type(c, 'TH1F')[0]
+        return pc, fh.process, copy.deepcopy(get_objects_from_canvas_by_type(c, 'TH1F')[0])
 
     def project_hists(self):
         self.read_cutflows()  # disabled in susy
@@ -622,6 +621,7 @@ class Plotter(BasePlotter):
         if dumped_hist_path is None:
             fetched_histograms = self.project_hists()
         else:
+            _logger.debug('Reading histograms from path {:s}'.format(dumped_hist_path))
             fetched_histograms = self.read_hists(dumped_hist_path)
         self.categorise_histograms(fetched_histograms)
         if not self.cluster_mode:
@@ -630,7 +630,6 @@ class Plotter(BasePlotter):
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         # workaround due to missing worker node communication of regex process parsing
-
         if self.process_configs is not None:
             self.merge_histograms()
             if not self.cluster_mode:
