@@ -7,3 +7,4 @@ tests/yaml_loader.yml
 .pydevproject
 run_scripts/WmunuCR_ntuples.txt
 run_scripts/test.txt
+tests/fixtures/unit/datasetlist_resubmit.yml
