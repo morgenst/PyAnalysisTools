@@ -94,7 +94,7 @@ class TestFileHandle(unittest.TestCase):
 
     def test_exists_none(self):
         self.assertFalse(FileHandle(file_name=None).exists())
-        
+
     @unittest.skip
     def test_friend(self):
         pass
