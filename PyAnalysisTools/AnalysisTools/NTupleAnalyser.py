@@ -113,8 +113,11 @@ class NTupleAnalyser(object):
             if not os.path.exists(os.path.join(path, ds[2][0])):
                 continue
             for rf in os.listdir(os.path.join(path, ds[2][0])):
-                n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2][0], rf),
-                                                     switch_off_process_name_analysis=True).get_daod_events())
+                try:
+                    n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2][0], rf),
+                                                        switch_off_process_name_analysis=True).get_daod_events())
+                except ValueError:
+                    _logger.error('Unable to find no of processed events for {:s}'.format(rf))
 
         ds.append(n_processed_events)
         pyami_client = client.Client('atlas')
