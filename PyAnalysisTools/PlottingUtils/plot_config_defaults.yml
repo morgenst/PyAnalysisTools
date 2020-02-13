@@ -51,7 +51,7 @@ watermark_size_ratio: 0.04875
 watermark_offset_ratio: 0.12
 watermark_x_ratio: 0.2
 watermark_y_ratio: 0.88
-ratio_rel_size: 0.025
+ratio_rel_size: 0.25
 decor_text: None
 decor_text_x: 0.2
 decor_text_y: 0.8
