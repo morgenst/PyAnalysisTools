@@ -21,7 +21,6 @@ def patch_raise(*_):
 with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
     from PyAnalysisTools.AnalysisTools.NTupleAnalyser import NTupleAnalyser
 
-
     class TestNTupleAnalyser(unittest.TestCase):
         def setUp(self):
             self.patcher = mock.patch.object(NTupleAnalyser, 'check_valid_proxy')
@@ -29,7 +28,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             self.analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__),
                                                                      'fixtures/datasetlist.yml'),
                                            merge_mode='foo')
-
+            self.ds_mc = 'mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978'  # noqa: E501
             self.addCleanup(self.patcher.stop)
 
         def test_ctor(self):
@@ -43,15 +42,14 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
 
         def test_ctor_no_ds_keys(self):
             with mock.patch.object(YAMLLoader, 'read_yaml', patch):
-                analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist2.yml'))
+                analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__),
+                                                                    'fixtures/datasetlist2.yml'))
                 self.assertIsNone(analyser.grid_name_pattern)
 
         def test_ctor_filter(self):
             analyser = NTupleAnalyser(dataset_list=os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist.yml'),
                                       filter='data')
-            expected_ds = {'mc16a_13TeV':
-                               ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',]}
+            expected_ds = {'mc16a_13TeV': [self.ds_mc]}
 
             self.assertEqual('data', analyser.filter)
             self.assertEqual(expected_ds, analyser.datasets)
@@ -60,9 +58,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             self.analyser.transform_dataset_list()
             expected_ds_list = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
                                  'periodD.grp15_v01_p3987'],
-                                ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                                 '364100.e5271_s3126_r9364_r9315_p3978']]
+                                [self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978']]
             self.assertEqual(expected_ds_list, self.analyser.datasets)
 
         @mock.patch.object(os, 'listdir', lambda _: ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12'])
@@ -71,9 +67,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             self.analyser.add_path()
             expected_ds_list = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
                                  'periodD.grp15_v01_p3987', None],
-                                ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                                 '364100.e5271_s3126_r9364_r9315_p3978',
+                                [self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978',
                                  ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12']]]
             self.assertEqual(expected_ds_list, self.analyser.datasets)
 
@@ -87,9 +81,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             self.analyser.transform_dataset_list()
             expected_ds_list = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
                                  'periodD.grp15_v01_p3987', None],
-                                ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                                 '364100.e5271_s3126_r9364_r9315_p3978',
+                                [self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978',
                                  ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12']]]
             test_ds_list = deepcopy(expected_ds_list)
             self.analyser.get_events(test_ds_list[1])
@@ -106,9 +98,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             self.analyser.transform_dataset_list()
             expected_ds_list = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
                                  'periodD.grp15_v01_p3987', None],
-                                ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                                 '364100.e5271_s3126_r9364_r9315_p3978',
+                                [self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978',
                                  ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12']]]
             test_ds_list = deepcopy(expected_ds_list)
             self.analyser.get_events(test_ds_list[1])
@@ -118,15 +108,11 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
         def test_print_summary(self):
             missing = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
                        'periodD.grp15_v01_p3987', None]]
-            incomplete = [['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                                 '364100.e5271_s3126_r9364_r9315_p3978',
-                                 ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12'], 10, 1]]
-            duplicated = [['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                          'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                          '364100.e5271_s3126_r9364_r9315_p3978',
-                          ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12',
-                           'foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v13'],
+            incomplete = [[self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978',
+                           ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12'], 10, 1]]
+            duplicated = [[self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978',
+                           ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12',
+                            'foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v13'],
                           10, 1]]
             self.assertIsNone(self.analyser.print_summary([], [], []))
             self.assertIsNone(self.analyser.print_summary(missing, [], []))
@@ -136,10 +122,8 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
         def test_prepare_resubmit(self):
             missing = [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987',
                        'periodD.grp15_v01_p3987', ['foo/user.data']]]
-            incomplete = [['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978',
-                                 '364100.e5271_s3126_r9364_r9315_p3978',
-                                 ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12'], 10, 1]]
+            incomplete = [[self.ds_mc, '364100.e5271_s3126_r9364_r9315_p3978',
+                           ['foo/user.364100.e5271_s3126_r9364_r9315_p3978LQ_v12'], 10, 1]]
             self.assertIsNone(self.analyser.prepare_resubmit(missing, incomplete))
             resub_file = os.path.join(os.path.dirname(__file__), 'fixtures/datasetlist_resubmit.yml')
             self.assertTrue(os.path.exists(resub_file))
@@ -147,8 +131,7 @@ with mock.patch.dict('sys.modules', {'pyAMI': mock.MagicMock()}):
             self.assertListEqual(list(resub.keys()), ['incomplete$$in[2].in[6]', 'missing$$in[2].in[6]'])
             self.assertListEqual(list(resub.values()),
                                  [['data15_13TeV.periodD.physics_Main.PhysCont.DAOD_EXOT12.grp15_v01_p3987'],
-                                 ['mc16_13TeV.364100.Sherpa_221_NNPDF30NNLO_Zmumu_MAXHTPTV0_70_CVetoBVeto.deriv.'
-                                 'DAOD_EXOT12.e5271_s3126_r9364_r9315_p3978']])
+                                 [self.ds_mc]])
 
         def test_run(self):
             self.assertIsNone(self.analyser.run())

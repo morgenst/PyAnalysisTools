@@ -120,7 +120,7 @@ class TestRootNumpyConverter(unittest.TestCase):
         np.testing.assert_array_equal(np.array([i+1 for i in range(8)]), data)
         np.testing.assert_array_equal(np.array([1]*4+[0]*4), labels)
 
-    @patch.object(root_numpy, 'tree2array', lambda x, **kwargs: (x, kwargs))  # x, branches, selection: [x, branches, selection])
+    @patch.object(root_numpy, 'tree2array', lambda x, **kwargs: (x, kwargs))
     def test_convert(self):
         converter = mh.Root2NumpyConverter(['foo'])
         data = converter.convert_to_array(None, 'sel', 1000)
