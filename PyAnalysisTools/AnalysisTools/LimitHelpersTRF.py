@@ -211,6 +211,17 @@ def get_fit_quality(file_name, ws_name="w", fr_name="RooExpandedFitResult_afterF
     return fit_result.status(), fit_result.covQual()
 
 
+def read_theory_cross_sections(file_name):
+    if file_name is None:
+        return None
+    try:
+        xsec = yl.read_yaml(file_name)
+    except UnicodeDecodeError:
+        with open(file_name, 'r') as f:
+            xsec = pickle.load(f)
+    return xsec
+
+
 class LimitInfo(object):
     def __init__(self, **kwargs):
         self.add_info(**kwargs)
@@ -514,18 +525,12 @@ class XsecLimitAnalyser(object):
         # self.lumi = self.plot_config['lumi']
         self.enable_debug_plot = kwargs['enable_debug_plot']
         self.analysis_name = self.plot_config['analysis_name']
-        self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
+        self.xsec_map = read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             tmp = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
             self.scan_info = tmp['configs']
             self.scale_factors = tmp['scale_factors']
         dump_input_config(self.__dict__, self.output_handle.output_dir)
-
-    def read_theory_cross_sections(self, file_name):
-        if file_name is None:
-            return None
-        xsec = yl.read_yaml(file_name)
-        return xsec
 
     def parse_limits(self):
         parsed_data = []
@@ -662,20 +667,12 @@ class LimitScanAnalyser(object):
         self.scanned_sig_masses = None
         self.lumi = self.plot_config['lumi']
         self.analysis_name = self.plot_config['analysis_name']
-        self.xsec_map = self.read_theory_cross_sections(kwargs['xsec_map'])
+        self.xsec_map = read_theory_cross_sections(kwargs['xsec_map'])
         if kwargs['scan_info'] is None:
             tmp = yl.read_yaml(os.path.join(self.input_path, "scan_info.yml"), None)
             self.scan_info = tmp['configs']
             self.scale_factors = tmp['scale_factors']
         dump_input_config(self.__dict__, self.output_handle.output_dir)
-
-    @staticmethod
-    def read_theory_cross_sections(file_name):
-        if file_name is None:
-            return None
-        with open(file_name, 'r') as f:
-            xsec = pickle.load(f)
-            return xsec
 
     def parse_limits(self):
         parsed_data = []
