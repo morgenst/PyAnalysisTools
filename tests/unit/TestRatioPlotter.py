@@ -9,7 +9,7 @@ import mock
 import ROOT
 from PyAnalysisTools.PlottingUtils import RatioPlotter as rp, Formatting
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
-from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type, get_objects_from_canvas
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.base import InvalidInputError
 
 cwd = os.path.dirname(__file__)
