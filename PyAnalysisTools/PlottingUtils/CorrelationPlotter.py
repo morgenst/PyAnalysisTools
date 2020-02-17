@@ -63,7 +63,7 @@ class CorrelationPlotter(object):
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
-                _ = find_process_config(fh.process, self.process_configs)
+                find_process_config(fh.process, self.process_configs)
 
     def __del__(self):
         self.output_handle.write_and_close()

@@ -115,7 +115,7 @@ class NTupleAnalyser(object):
             for rf in os.listdir(os.path.join(path, ds[2][0])):
                 try:
                     n_processed_events += int(FileHandle(file_name=os.path.join(path, ds[2][0], rf),
-                                                        switch_off_process_name_analysis=True).get_daod_events())
+                                                         switch_off_process_name_analysis=True).get_daod_events())
                 except ValueError:
                     _logger.error('Unable to find no of processed events for {:s}'.format(rf))
 
@@ -123,7 +123,7 @@ class NTupleAnalyser(object):
         pyami_client = client.Client('atlas')
         try:
             n_expected_events = int(pyami_client.execute("GetDatasetInfo  -logicalDatasetName=%s" % ds[0],
-                                                   format="dict_object").get_rows()[0]["totalEvents"])
+                                                         format="dict_object").get_rows()[0]["totalEvents"])
         except exception.Error:
             _logger.error("Could not find dataset: {:s}".format(ds[0]))
             return

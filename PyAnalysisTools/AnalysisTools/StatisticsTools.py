@@ -98,7 +98,8 @@ def get_statistical_uncertainty_ratio(stat_unc_hist):
         for b in range(0, stat_unc_hist.GetNbinsX() + 1):
             stat_unc_hist_ratio.SetBinContent(b, 1.)
             if stat_unc_hist.GetBinContent(b) > 0.:
-                stat_unc_hist_ratio.SetBinError(b, old_div(stat_unc_hist.GetBinError(b), stat_unc_hist.GetBinContent(b)))
+                stat_unc_hist_ratio.SetBinError(b, old_div(stat_unc_hist.GetBinError(b),
+                                                           stat_unc_hist.GetBinContent(b)))
             else:
                 stat_unc_hist_ratio.SetBinError(b, 0.)
         stat_unc_hist_ratio.SetMarkerStyle(20)
@@ -170,7 +171,7 @@ def get_signal_acceptance(signal_yields, generated_events, plot_config=None):
         yields['yield'] /= generated_events[process]
     for cut in list(signal_yields.values())[0]['cut']:
         yields = [(float(re.findall(r"\d{3,4}", process)[0]), eff[eff['cut'] == cut]['yield'])
-                   for process, eff in signal_yields.items()]
+                  for process, eff in signal_yields.items()]
         acceptance_hists.append((cut, make_acceptance_graph(yields)))
         acceptance_hists[-1][-1].SetName(cut)
 

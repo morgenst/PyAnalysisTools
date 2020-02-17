@@ -20,7 +20,7 @@ from PyAnalysisTools.AnalysisTools.DatasetPrinter import DatasetPrinter
 from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader, YAMLDumper
-from run_scripts import convert_root2numpy, merge_prw, print_dataset_list, print_hist_contents, run_file_check, \
+from run_scripts import merge_prw, print_dataset_list, print_hist_contents, run_file_check, \
     setup_analysis_package, run_plotting
 
 cwd = os.path.dirname(__file__)

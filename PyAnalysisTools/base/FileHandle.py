@@ -104,8 +104,9 @@ class FileHandle(object):
         self.tfile = TFile.Open(self.absFName, self.open_option)
 
     def __del__(self):
-        if self.tfile is None or type(self.tfile).__name__ == 'PyROOT_NoneType':
-            return
+        return
+        # if self.tfile is None or type(self.tfile).__name__ == 'PyROOT_NoneType':
+        #     return
         _logger.log(0, "Delete file handle for {:s}".format(self.tfile.GetName()))
         self.close()
 
@@ -173,7 +174,7 @@ class FileHandle(object):
 
     def has_object(self, obj_name, tdirectory=None, friend_file=None):
         try:
-            _ = self.get_object_by_name(obj_name, tdirectory, friend_file)
+            self.get_object_by_name(obj_name, tdirectory, friend_file)
             return True
         except ValueError:
             return False

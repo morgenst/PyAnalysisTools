@@ -318,7 +318,8 @@ class ElectronFakeEstimator(object):
         fake_histograms = dict()
 
         for key, plot_config in list(fake_plot_configs.items()):
-            fake_histograms[key] = self.plotter.read_histograms(self.file_handles, [plot_config], tree_dir_name="Nominal")
+            fake_histograms[key] = self.plotter.read_histograms(self.file_handles, [plot_config],
+                                                                tree_dir_name="Nominal")
         rebuild_dict_structure()
         for key, data in list(fake_histograms.items()):
             self.plotter.apply_lumi_weights(data)
