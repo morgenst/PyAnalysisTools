@@ -245,7 +245,8 @@ class RatioPlotter(object):
         pad1.SetBottomMargin(0.05)
         pad1.Draw()
         pad2 = ROOT.TPad("pad2", "bottom pad", 0., 0., 1,
-                         ((1 - ratio_rel_size) * canvas.GetBottomMargin() / ratio_rel_size + 1) * ratio_rel_size - 0.009)
+                         ((1 - ratio_rel_size) * canvas.GetBottomMargin() / ratio_rel_size + 1) *
+                         ratio_rel_size - 0.009)
         pad2.SetBottomMargin(0.1)
         pad2.Draw()
         pad1.cd()
