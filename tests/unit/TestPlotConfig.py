@@ -289,6 +289,7 @@ class TestPlotConfig(unittest.TestCase):
         self.assertTrue(pc.merge)
         self.assertTrue(pc.signal_extraction)
         self.assertTrue(pc.merge_mc_campaigns)
+        self.assertFalse(pc.ignore_process_labels)
         self.assertEqual('default_plot_config', pc.name)
         self.assertEqual('hist', pc.draw)
         self.assertEqual('hist', pc.outline)
@@ -317,7 +318,7 @@ class TestPlotConfig(unittest.TestCase):
         self.assertEqual(0.0375, pc.lumi_text_size_ratio)
         self.assertEqual(0.05, pc.decor_text_size)
         self.assertEqual(0.05, pc.lumi_text_size)
-
+        self.assertEqual(0.25, pc.ratio_rel_size)
         self.assertEqual('', pc.xtitle)
         self.assertEqual('', pc.title)
         self.assertEqual('Internal', pc.watermark)

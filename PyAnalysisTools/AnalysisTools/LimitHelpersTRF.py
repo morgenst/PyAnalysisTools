@@ -67,6 +67,7 @@ class LimitArgs(object):
         kwargs.setdefault("queue", 'short7')
         kwargs.setdefault("pruning", None)
         kwargs.setdefault("blind", True)
+        kwargs.setdefault('inj_sig', None)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
@@ -947,6 +948,8 @@ class CommonLimitOptimiser(object):
         kwargs.setdefault('mass_pattern', r'\d{2,4}')
         kwargs.setdefault('resubmit', None)
         kwargs.setdefault('include_timeout', False)
+        kwargs.setdefault('extra_submission_args', None)
+        kwargs.setdefault('signal_injection', None)
 
         if kwargs['cluster_cfg_file'] is not None:
             self.log_level = kwargs['log_level']
@@ -1032,13 +1035,20 @@ class CommonLimitOptimiser(object):
         elif self.thrs_cfg is not None:
             for sig_name, config in list(self.thrs_cfg.items()):
                 threshold = config["threshold"]
-                configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
-                                         sig_reg_cfg=self.signal_region_def.regions[0],
-                                         output_dir=self.output_dir, sig_name=sig_name, limit_config=self.limit_config,
-                                         process_configs=self.process_configs, systematics=self.systematics,
-                                         ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
-                                         queue=self.queue, mass_cut=threshold, blind=self.blind, ranking=self.ranking,
-                                         signal_scale=self.signal_scale, log_level=self.log_level))
+                cfg = LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
+                                sig_reg_cfg=self.signal_region_def.regions[0],
+                                output_dir=self.output_dir, sig_name=sig_name, limit_config=self.limit_config,
+                                process_configs=self.process_configs, systematics=self.systematics,
+                                ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
+                                queue=self.queue, mass_cut=threshold, blind=self.blind, ranking=self.ranking,
+                                signal_scale=self.signal_scale, log_level=self.log_level)
+                if self.signal_injection is None:
+                    configs.append(cfg)
+                else:
+                    for inj_sig in self.signal_injection:
+                        new_cfg = deepcopy(cfg)
+                        new_cfg.inj_sig = inj_sig
+                        configs.append(new_cfg)
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
@@ -1252,6 +1262,9 @@ def write_config(args, ranking=False):
         print('Limit: "limit"', file=f)
         print('\tLimitType: ASYMPTOTIC', file=f)
         print('\tLimitBlind: FALSE', file=f)
+        if args.inj_sig is not None:
+            print('\tSignalInjection: TRUE', file=f)
+            print('\tSignalInjectionValue: {:f}'.format(args.inj_sig), file=f)
         print('\t% POIAsimov: 1', file=f)
         print('\n', file=f)
 
