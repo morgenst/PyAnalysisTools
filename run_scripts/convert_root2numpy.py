@@ -62,9 +62,9 @@ def main(argv):
     parser.add_argument("--tree_name", "-tn", required=True, help="input tree name")
     parser.add_argument("--output_path", "-o", required=True, help="output directory")
     parser.add_argument('--var_list', '-vl', default=None, help='config file with reduced variable list')
-    parser.add_argument('--mining_fraction', '-mf', default=None, type=float, help='store fraction of parsed data set '
-                                                                                   'for development purpose '
-                                                                                '(< 1 fraction; > 1 abs no of events)')
+    parser.add_argument('--mining_fraction', '-mf', default=None, type=float,
+                        help='store fraction of parsed data set for development purpose '
+                             '(< 1 fraction; > 1 abs no of events)')
     parser.add_argument('--format', '-f', default='json', choices=['json', 'feather'], help='format of output file')
     args = default_init(parser)
 
