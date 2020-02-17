@@ -82,6 +82,7 @@ class TestProcess(unittest.TestCase):
         process1 = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         process2 = Process('tmp/hist-311570_0.MC16e.root', self.data_set_info)
         self.assertNotEqual(process1, process2)
+
     def test_inequality_type(self):
         process = Process('tmp/hist-311570_0.MC16d.root', self.data_set_info)
         self.assertNotEqual(process, None)
@@ -117,7 +118,7 @@ class TestProcess(unittest.TestCase):
         self.assertNotEqual(process1.process_name, process2.process_name)
         self.assertEqual(process1.dsid, process2.dsid)
 
-    def test_process_file_name_data(self):
+    def test_process_file_name_mc(self):
         process = Process('v21/ntuple-mc16_311570_MC16e.root', self.data_set_info, tags=['foo'])
         self.assertTrue(process.is_mc)
         self.assertFalse(process.is_data)
