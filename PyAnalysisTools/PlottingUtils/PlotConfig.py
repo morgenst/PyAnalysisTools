@@ -18,7 +18,6 @@ import ROOT
 import math
 from PyAnalysisTools.PlottingUtils.HistTools import check_name
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.base.ProcessConfig import ProcessConfig
 from PyAnalysisTools.base.ShellUtils import find_file
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
