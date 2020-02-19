@@ -76,6 +76,7 @@ class LimitArgs(object):
         self.run_pyhf = kwargs['run_pyhf']
         self.queue = kwargs['queue']
         self.log_level = kwargs['log_level']
+        self.inj_sig = kwargs['inj_sig']
         self.blind = kwargs['blind']
         self.local = False
         self.kwargs = kwargs
