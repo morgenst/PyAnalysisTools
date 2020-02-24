@@ -75,6 +75,7 @@ class LimitArgs(object):
         self.sig_reg_name = kwargs["sig_reg_name"]
         self.run_pyhf = kwargs['run_pyhf']
         self.queue = kwargs['queue']
+        self.inj_sig = kwargs['inj_sig']
         self.log_level = kwargs['log_level']
         self.inj_sig = kwargs['inj_sig']
         self.blind = kwargs['blind']
@@ -1088,7 +1089,7 @@ class CommonLimitOptimiser(object):
                                           self.signal_region_def.regions + self.control_region_defs.regions,
                                           self.fixed_signal, self.output_dir, [0.], blind=self.blind,
                                           dummy_signal='Signal', cut_off=self.cut_off_scale,
-                                          anking=False, log_level=self.log_level)
+                                          ranking=False, log_level=self.log_level)
         cfg_file_name = os.path.join(self.output_dir, 'scan_info.yml')
         if self.resubmit:
             self.submit_args = cfg_file_name, os.path.basename(sys.argv[0]), len(jobs), self.output_dir, True
@@ -1251,7 +1252,7 @@ def write_config(args, ranking=False):
             print('\tFitRegion: CRSR', file=f)
             print('\tPOIAsimov: 5.', file=f)
         print('\tUseMinos: mu_Sig', file=f)
-        print('\tFitBlind: {:s}'.format('TRUE' if args.blind else 'FALSE'), file=f)
+        print('\tFitBlind: FALSE', file=f)
         print('\n', file=f)
         print('% --------------- %', file=f)
         print('% ---  LIMIT - -- %', file=f)
@@ -1372,7 +1373,7 @@ def write_config(args, ranking=False):
             print('\tFillColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
             print('\tLineColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
             print('\tHistoFile: "{:s}";'.format(bkg), file=f)
-            print('\tSmooth: TRUE', file=f)
+            print('\tSmooth: FALSE', file=f)
             print('\tUseMCstat: TRUE', file=f)
             print('\tSeparateGammas: TRUE', file=f)
             print('\n', file=f)
@@ -1421,7 +1422,7 @@ def write_config(args, ranking=False):
             kwargs['systematics'].remove(theory_unc[0])
         custom_syst = [syst for syst in kwargs['systematics'] if syst.type == 'custom']
         for syst in custom_syst:
-            if syst.expand is None:
+            if syst.expand is None or syst.variation == 'custom:updown':
                 continue
             for unc_name in eval(syst.expand):
                 new_unc = deepcopy(syst)
@@ -1494,15 +1495,23 @@ def write_config(args, ranking=False):
                 #                                                           kwargs['mass_cut']))),
                 #           file=f)
                 #     print('\tSymmetrisation: ABSMEAN', file=f)
-                elif syst.variation == 'custom':
+                elif syst.variation.split(':')[0] == 'custom':
                     hist_name = syst_name
                     if syst.hist_name is not None:
                         hist_name = syst.hist_name
                     if syst.envelope is not None:
                         print('\tCombineName: {:s}'.format(syst.envelope), file=f)
                         print('\tCombineType: ENVELOPE', file=f)
-                    print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
-                    print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
+                    hist_name = hist_name.replace('weight_', '')
+                    if 'updown' not in syst.variation:
+                        print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
+                        print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
+                    else:
+                        hist_names = [hn.replace('weight_', '') for hn in eval(syst.expand)]
+                        hist_name_up = [hn for hn in hist_names if 'up' in hn.lower()][0]
+                        hist_name_dn = [hn for hn in hist_names if 'down' in hn.lower()][0]
+                        print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name_up)), file=f)
+                        print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name_dn)), file=f)
                 else:
                     print("SYST NOT UP DOWN: ", syst_name)
             else:
