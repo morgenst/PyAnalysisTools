@@ -269,6 +269,7 @@ class RatioPlotter(object):
 
         pad2.cd()
         hratio.GetYaxis().SetNdivisions(505)
+        hratio.GetYaxis().CenterTitle()
         scale = 1. / (((1 - ratio_rel_size) * (canvas.GetBottomMargin()) / ratio_rel_size + 1) * ratio_rel_size)
 
         reset_frame_text(hratio)
