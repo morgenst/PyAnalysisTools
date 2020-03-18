@@ -271,7 +271,7 @@ def format_hist(hist, plot_config):
         else:
             plot_config.ymax = ymax
     if plot_config.rebin and not isinstance(hist, ROOT.THStack) and not plot_config.ignore_rebin:
-        hist = ht.rebin(hist, plot_config.rebin)
+        hist = ht.rebin(hist, plot_config.rebin, plot_config.disable_bin_width_division)
         ymax = plot_config.yscale*hist.GetMaximum()
         if plot_config.ymax is not None:
             plot_config.ymax = min(plot_config.ymax, ymax)
@@ -403,7 +403,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     fm.set_range(hist.plot_object, plot_config.xmin, plot_config.xmax, "x")
                 if plot_config.logx:
                     canvas.SetLogx()
-                format_hist(hist.plot_object, plot_config)
+                #format_hist(hist.plot_object, plot_config)
                 if not isinstance(hist.plot_object, ROOT.TH2):
                     if plot_config.ymax:
                         hist.plot_object.SetMaximum(plot_config.ymax)
