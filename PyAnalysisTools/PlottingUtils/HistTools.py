@@ -10,7 +10,7 @@ from array import array
 from PyAnalysisTools.base import InvalidInputError, _logger
 
 
-def rebin(histograms, factor=None):
+def rebin(histograms, factor=None, disable_bin_width_division=False):
     """
     Rebin a histogram. Can be either symmetric, i.e. just merging X bins, or asymmetric
     :param histograms: hists to be rebinned
@@ -18,6 +18,7 @@ def rebin(histograms, factor=None):
     :param factor: rebin factor. If integer a symmetric rebinning will be performed, if a list of bin boarders are
     provided an asymmetric rebinning will be performed
     :type factor: int, list
+    :param disable_bin_width_division: disable division by bin width for asymmetric binning
     :return: rebinned hists
     :rtype: type(hists), i.e. list, dict, TH1
     """
@@ -34,17 +35,17 @@ def rebin(histograms, factor=None):
     elif isinstance(histograms, list):
         histograms = [_rebin_hist(h, factor) for h in histograms]
     else:
-        histograms = _rebin_hist(histograms, factor)
+        histograms = _rebin_hist(histograms, factor, disable_bin_width_division)
     return histograms
 
 
-def _rebin_hist(hist, factor):
+def _rebin_hist(hist, factor, disable_bin_width_division=False):
     if type(factor) is int:
         hist = _rebin_1d_hist(hist, factor)
     elif type(factor) == list:
         binning = array('d', factor)
         _logger.debug('rebin histogram %s asymmetrically' % (hist.GetName()))
-        hist = __rebin_asymmetric_1d_hist(hist, len(factor), binning)
+        hist = __rebin_asymmetric_1d_hist(hist, len(factor), binning, disable_bin_width_division)
     else:
         raise InvalidInputError('Invalid binning: ' + str(factor))
     return hist
@@ -80,11 +81,19 @@ def _rebin_1d_hist(hist, factor):
     return hist.Rebin(factor)
 
 
-def __rebin_asymmetric_1d_hist(hist, n_bins, bins):
+def __rebin_asymmetric_1d_hist(hist, n_bins, bins, disable_bin_width_division=False):
     binning = _parse_y_title(hist)
     if binning is not None:
         hist.GetYaxis().SetTitle(hist.GetYaxis().GetTitle() + ' x %i' % n_bins)
-    return hist.Rebin(n_bins - 1, hist.GetName(), bins)
+
+    if disable_bin_width_division:
+        return hist.Rebin(n_bins - 1, hist.GetName(), bins)
+
+    htmp = hist.Rebin(n_bins - 1, hist.GetName(), bins)
+    for b in range(htmp.GetNbinsX() + 2):
+        htmp.SetBinContent(b, htmp.GetBinContent(b) / htmp.GetBinWidth(b))
+        htmp.SetBinError(b, htmp.GetBinError(b) / htmp.GetBinWidth(b))
+    return htmp
 
 
 def __rebin_asymmetric_2d_hist(hist, n_binsx, bins_x):
@@ -239,15 +248,12 @@ def has_asymmetric_binning(hist):
     :return: true/false on asymmetric binning
     :rtype: bool
     """
-    return len(set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX())])) > 1
+    return len(set([hist.GetBinWidth(b) for b in range(hist.GetNbinsX() + 1)])) > 1
 
 
 def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
     if isinstance(hist, ROOT.THStack):
         return hist
-    if has_asymmetric_binning(hist):
-        for b in range(hist.GetNbinsX() + 1):
-            hist.SetBinContent(b, old_div(hist.GetBinContent(b), hist.GetBinWidth(b)))
     integral = hist.Integral(*integration_range)
     if integral == 0:
         return hist
@@ -256,6 +262,7 @@ def _normalise_1d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
 
 
 def _normalise_2d_hist(hist, integration_range=[-1, -1], norm_scale=1.):
+    _logger.error("Normalisation of 2D histograms not implemented, yet. Open a jira ticket if needed.")
     return hist
 
 

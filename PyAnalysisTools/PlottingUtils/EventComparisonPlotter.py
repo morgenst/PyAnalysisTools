@@ -197,7 +197,7 @@ class EventComparisonReader(object):
         def expand():
             if process_configs is not None:
                 for process_name in list(histograms.keys()):
-                    _ = find_process_config(process_name, process_configs)
+                    find_process_config(process_name, process_configs)
 
         expand()
         for process, process_config in list(process_configs.items()):
@@ -244,7 +244,7 @@ class Reader(EventComparisonReader):
         def expand():
             if process_configs is not None:
                 for fh in file_handles:
-                    _ = find_process_config(fh.process, process_configs)
+                    find_process_config(fh.process, process_configs)
 
         expand()
         tmp_file_handles = collections.OrderedDict()
@@ -354,7 +354,7 @@ class EventComparisonPlotter(BasePlotter):
     def expand_process_configs(self):
         if self.process_configs is not None:
             for fh in self.file_handles:
-                _ = find_process_config(fh.process, self.process_configs)
+                find_process_config(fh.process, self.process_configs)
 
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):

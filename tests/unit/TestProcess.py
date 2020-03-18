@@ -149,6 +149,13 @@ class TestProcess(unittest.TestCase):
         self.assertTrue(process.is_data)
         self.assertTrue(re.match(r'.*data.*', process.process_name))
 
+    def test_process_file_name_data_run(self):
+        fname = '~/v8/ntuple-data16_cos_306147_physics_Main_cosmicsReco.root'
+        process = Process(fname, self.data_set_info, tags=['foo'])
+        self.assertFalse(process.is_mc)
+        self.assertTrue(process.is_data)
+        self.assertTrue(re.match(r'.*data16.*306147.*', process.process_name))
+
     def test_process_file_name_data_cos(self):
         process = Process('hist-data16_cos.00306147.physics_Main.cosmicsStandardOFCs.root', None)
         self.assertTrue(process.is_data)

@@ -16,9 +16,16 @@ from PyAnalysisTools.ROOTUtils import ObjectHandle as object_handle
 class RatioCalculator(object):
     def __init__(self, **kwargs):
         kwargs.setdefault("rebin", None)
+        kwargs.setdefault("disable_bin_width_division", False)
+        kwargs.setdefault("plot_config", None)
         self.reference = kwargs["reference"]
         self.compare = kwargs["compare"]
-        self.rebin = kwargs["rebin"]
+        if kwargs['plot_config'] is not None:
+            self.rebin = kwargs['plot_config'].rebin
+            self.disable_bin_width_division = kwargs['plot_config'].disable_bin_width_division
+        else:
+            self.rebin = kwargs["rebin"]
+            self.disable_bin_width_division = kwargs["disable_bin_width_division"]
 
     def calculate_ratio(self):
         def calc_ratio(self, ref, comp):
@@ -61,8 +68,8 @@ class RatioCalculator(object):
 
     def calculate_ratio_hist(self, reference, compare):
         if self.rebin:
-            compare = ht.rebin(compare, self.rebin)
-            reference = ht.rebin(reference, self.rebin)
+            compare = ht.rebin(compare, self.rebin, self.disable_bin_width_division)
+            reference = ht.rebin(reference, self.rebin, self.disable_bin_width_division)
         ratio_hist = compare.Clone("ratio_" + compare.GetName())
         ratio_hist.Divide(reference)
         fm.set_title_y(ratio_hist, "ratio")

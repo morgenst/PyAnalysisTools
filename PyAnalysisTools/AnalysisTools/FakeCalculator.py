@@ -54,15 +54,16 @@ class MuonFakeCalculator(object):
                     continue
                 data_hists[plot_config].Add(hist, -1.0)
             if plot_config.rebin is not None:
-                data_hists[plot_config] = HT.rebin(data_hists[plot_config], plot_config.rebin)
+                data_hists[plot_config] = HT.rebin(data_hists[plot_config], plot_config.rebin,
+                                                   plot_config.disable_bin_width_division)
         return data_hists
 
     def calculate_fake_factors(self, numerator, denominator):
         pc, numerator_hist = numerator
         denominator = denominator[1]
         if hasattr(pc, "rebin") and pc.rebin is not None:
-            numerator_hist = HT.rebin(numerator_hist, pc.rebin)
-            denominator = HT.rebin(denominator, pc.rebin)
+            numerator_hist = HT.rebin(numerator_hist, pc.rebin, pc.disable_bin_width_division)
+            denominator = HT.rebin(denominator, pc.rebin, pc.disable_bin_width_division)
         numerator_hist.Divide(denominator)
         pc.name = pc.name.replace("numerator", "fake_factor")
         print(numerator_hist)

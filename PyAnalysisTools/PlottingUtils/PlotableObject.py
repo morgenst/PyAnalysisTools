@@ -35,8 +35,8 @@ marker_style_palette_filled = [21,
                                33,
                                34,
                                29,
-                               2
-]
+                               2]
+
 marker_style_palette_empty = [25,
                               24,
                               26,
