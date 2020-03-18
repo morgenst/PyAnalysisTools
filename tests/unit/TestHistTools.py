@@ -56,7 +56,7 @@ class TestHistTools(unittest.TestCase):
     def test_get_color(self):
         self.hist.Draw('hist')
         colors = ht.get_colors([self.hist])
-        self.assertTrue(colors == [602] or ht.get_colors([self.hist]) == 1)
+        self.assertTrue(colors == [602] or colors == [1])
 
     def test_read_bin_from_label(self):
         self.hist.GetXaxis().SetBinLabel(2, 'label')
