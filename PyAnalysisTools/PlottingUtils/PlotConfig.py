@@ -170,7 +170,7 @@ class PlotConfig(object):
         previous_choice = None
         if other is None:
             return
-        for attr, val in list(other.__dict__.items()):
+        for attr, val in sorted(list(other.__dict__.items()), key=lambda x: x[0]):
             if not hasattr(self, attr):
                 setattr(self, attr, val)
                 continue
@@ -181,7 +181,6 @@ class PlotConfig(object):
                                                                          str(getattr(self, attr)),
                                                                          default)
                 dec = input(arg)
-
                 if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)
                     previous_choice = 1
