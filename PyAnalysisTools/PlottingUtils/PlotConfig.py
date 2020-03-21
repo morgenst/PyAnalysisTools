@@ -180,7 +180,7 @@ class PlotConfig(object):
                       "Please choose 1) {:s} or 2) {:s}   {:s}: ".format(attr, str(val),
                                                                          str(getattr(self, attr)),
                                                                          default)
-                dec = eval(input(arg))
+                dec = input(arg)
 
                 if dec == "1" or (dec != '2' and previous_choice == 1):
                     setattr(self, attr, val)

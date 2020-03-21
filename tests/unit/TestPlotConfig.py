@@ -1,3 +1,4 @@
+import builtins
 import math
 import os
 import unittest
@@ -44,13 +45,14 @@ class TestPlotConfig(unittest.TestCase):
                 "merge_mc_campaigns", "signal_extraction", "ratio", "cuts", "enable_legend", 'total_lumi']
         self.assertTrue(opts, pc.get_overwritable_options())
 
-    # @patch('PlotConfig.merge_configs', return_value='1')
-    # def test_merging(self):
-    #     pc1 = PlotConfig(ymin='math.pi')
-    #     pc2 = PlotConfig(ymax='math.pi')
-    #     pc1.merge_configs(pc2)
-    #     self.assertEqual('math.pi', pc1.ymin)
-    #     self.assertEqual('math.pi', pc1.ymax)
+    @mock.patch.object(builtins, 'input')
+    def test_merging(self, mock_input):
+        mock_input.return_value
+        pc1 = PlotConfig(ymin='math.pi')
+        pc2 = PlotConfig(ymax='math.pi')
+        pc1.merge_configs(pc2)
+        self.assertEqual('math.pi', pc1.ymin)
+        self.assertEqual('math.pi', pc1.ymax)
 
     def test_get_default(self):
         pc = pcm.get_default_plot_config(hist)
