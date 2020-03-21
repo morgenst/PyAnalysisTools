@@ -128,6 +128,7 @@ class SystematicsAnalyser(BasePlotter):
         kwargs.setdefault('systematics_config', None)
         kwargs.setdefault('file_handles', [])
         kwargs.setdefault('disable_cutflow_reading', False)
+        kwargs.setdefault("nfile_handles", 1)
         self.file_handles = None
         for attr, value in list(kwargs.items()):
             setattr(self, attr.lower(), value)
@@ -146,6 +147,7 @@ class SystematicsAnalyser(BasePlotter):
         if len(file_handles) == 0:
             self.disable = True
 
+
     @staticmethod
     def parse_syst_config(cfg_file):
         if cfg_file is None:
@@ -162,11 +164,9 @@ class SystematicsAnalyser(BasePlotter):
         try:
             return pc, fh.process, deepcopy(fh.get_object_by_name(hist_name))
         except ValueError:
-            try:
-                if systematic in TheoryUncertaintyProvider.get_sherpa_uncerts():
-                    return None, None, None
-            except AttributeError:
-                _logger.error('Could not find histogram: {:s} and process {:s}'.format(hist_name, fh.process))
+            if systematic in TheoryUncertaintyProvider.get_sherpa_uncerts():
+                return None, None, None
+            _logger.error('Could not find histogram: {:s} and process {:s}'.format(hist_name, fh.process))
             return None, None, None
 
     def load_dumped_hists(self, file_handles, plot_configs, systematic):
@@ -401,7 +401,6 @@ class SystematicsAnalyser(BasePlotter):
                 return [pc for pc in list(self.systematic_hists[systematic].keys()) if pc.name == plot_config.name][0]
             except IndexError:
                 return None
-
         systematic_plot_config = find_plot_config()
         if systematic_plot_config is None:
             return nominal
@@ -433,7 +432,7 @@ class SystematicsAnalyser(BasePlotter):
                     syst_hists = self.total_systematics[category][variation][plot_config]
                 except KeyError:
                     _logger.error('Could not find category {:s} for variation {:s} for plot '
-                                 '{:s}'.format(category.name, variation, plot_config.name))
+                                  '{:s}'.format(category.name, variation, plot_config.name))
                     continue
                 sm_total_hist_syst = None
                 for process, nominal_hist in list(nominal_hists.items()):
@@ -441,15 +440,14 @@ class SystematicsAnalyser(BasePlotter):
                         continue
                     tmp_nominal_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
                     tmp_syst = syst_hists[process]
-                    for b in range(tmp_syst.GetNbinsX()):
+                    for b in range(tmp_syst.GetNbinsX() + 1):
                         if tmp_syst.GetBinContent(b) > 1. or tmp_syst.GetBinContent(b) < 0.:
-                            _logger.warn('FOUND BIN {:d} larger than 1 in {:s} with {:f}'.format(b, tmp_syst.GetName(),
-                                                                                                 tmp_syst.GetBinContent(
-                                                                                                     b)))
+                            _logger.warning('FOUND BIN {:d} larger than 1 in {:s} '
+                                            'with {:f}'.format(b, tmp_syst.GetName(), tmp_syst.GetBinContent(b)))
                             tmp_syst.SetBinContent(b, 1.)
                             continue
                         tmp_syst.SetBinContent(b, 1. + tmp_syst.GetBinContent(b))
-                    for b in range(tmp_nominal_hist.GetNbinsX()):
+                    for b in range(tmp_nominal_hist.GetNbinsX() + 1):
                         if math.isnan(tmp_syst.GetBinContent(b)):
                             _logger.error('FOUND NAN in {:s} at bin {:d}. Exit now'.format(tmp_syst.GetName(), b))
                             exit(0)
@@ -531,6 +529,7 @@ class TheoryUncertaintyProvider(object):
         if fixed_top_unc_file is not None:
             self.top_unc = yl.read_yaml(fixed_top_unc_file)
         self.converter = None
+
     @staticmethod
     def get_sherpa_uncerts():
         return ['weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000',
@@ -543,25 +542,40 @@ class TheoryUncertaintyProvider(object):
                 'weight_pdf_uncert_MUR1_MUF1_PDF13000']
 
     @staticmethod
-    def get_top_scale_uncerts():
-        uncerts = ['weight_pdf_uncert_Var3cUp',
-                   'weight_pdf_uncert_Var3cDown',
-                   'weight_pdf_uncert_muR_0p5_muF_0p5',
-                   'weight_pdf_uncert_muR_0p5_muF_1p0',
-                   'weight_pdf_uncert_muR_0p5_muF_2p0',
-                   'weight_pdf_uncert_muR_1p0_muF_0p5',
-                   'weight_pdf_uncert_muR_1p0_muF_2p0',
-                   'weight_pdf_uncert_muR_2p0_muF_0p5',
-                   'weight_pdf_uncert_muR_2p0_muF_1p0',
-                   'weight_pdf_uncert_muR_2p0_muF_2p0',
-                   'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=0p5',
-                   'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=1p0',
-                   'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=2p0',
-                   'weight_pdf_uncert_isr_muRfac=1p0_fsr_muRfac=0p5',
-                   'weight_pdf_uncert_isr_muRfac=1p0_fsr_muRfac=2p0',
-                   'weight_pdf_uncert_isr_muRfac=2p0_fsr_muRfac=1p0',
-                   'weight_pdf_uncert_isr_muRfac=2p0_fsr_muRfac=2p0']
-        uncerts += ['weight_pdf_uncert_PDF_set_{:d}'.format(i) for i in range(90901, 90931)]
+    def get_top_pdf_uncerts():
+        return ['weight_pdf_uncert_PDF_set_{:d}'.format(i) for i in range(90901, 90931)]
+
+    @staticmethod
+    def get_top_Var3c_uncerts():
+        return ['weight_pdf_uncert_Var3cUp', 'weight_pdf_uncert_Var3cDown']
+
+    @staticmethod
+    def get_top_renorm_scale_uncerts():
+        return ['weight_pdf_uncert_muR_0p5_muF_0p5',
+                'weight_pdf_uncert_muR_0p5_muF_1p0',
+                'weight_pdf_uncert_muR_0p5_muF_2p0',
+                'weight_pdf_uncert_muR_1p0_muF_0p5',
+                'weight_pdf_uncert_muR_1p0_muF_2p0',
+                'weight_pdf_uncert_muR_2p0_muF_0p5',
+                'weight_pdf_uncert_muR_2p0_muF_1p0',
+                'weight_pdf_uncert_muR_2p0_muF_2p0']
+
+    @staticmethod
+    def get_top_isr_fsr_uncerts():
+        return ['weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=0p5',
+                'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=1p0',
+                'weight_pdf_uncert_isr_muRfac=0p5_fsr_muRfac=2p0',
+                'weight_pdf_uncert_isr_muRfac=1p0_fsr_muRfac=0p5',
+                'weight_pdf_uncert_isr_muRfac=1p0_fsr_muRfac=2p0',
+                'weight_pdf_uncert_isr_muRfac=2p0_fsr_muRfac=1p0',
+                'weight_pdf_uncert_isr_muRfac=2p0_fsr_muRfac=2p0']
+
+    @classmethod
+    def get_top_scale_uncerts(cls):
+        uncerts = cls.get_top_Var3c_uncerts()
+        uncerts += cls.get_top_renorm_scale_uncerts()
+        uncerts += cls.get_top_isr_fsr_uncerts()
+        uncerts += cls.get_top_pdf_uncerts()
         return uncerts
 
     @staticmethod
@@ -597,8 +611,8 @@ class TheoryUncertaintyProvider(object):
 
     def fetch_uncertainties(self, analyser, dump_hist_path=None):
         if dump_hist_path is None:
-            file_handles = [fh for fh in analyser.file_handles if self.is_affected(fh, analyser.tree_name,
-                                                                                   'weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000')]
+            file_handles = [fh for fh in analyser.file_handles if
+                            self.is_affected(fh, analyser.tree_name, 'weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000')]
         else:
             file_handles = analyser.file_handles
         if len(file_handles) == 0:
@@ -616,19 +630,18 @@ class TheoryUncertaintyProvider(object):
         else:
             file_handles = analyser.file_handles
             file_handles_scales = file_handles
-
         scale_factors = None
         if dump_hist_path is None:
             scale_factors = {}
             for fh in file_handles_scales:
-                scale_factors[fh.process] = {unc: 1. for unc in  self.get_top_scale_uncerts()}
+                scale_factors[fh.process] = {unc: 1. for unc in self.get_top_scale_uncerts()}
                 pdf_ev_uncert = [i for i in self.get_top_scale_uncerts() if 'PDF_set_' in i]
                 if self.converter is None:
                     self.converter = Root2NumpyConverter(branches=["weight"] + pdf_ev_uncert)
                 tree = fh.get_object_by_name(analyser.tree_name, 'Nominal')
                 weights = self.converter.convert_to_array(tree)
                 for pdf_unc in pdf_ev_uncert:
-                    scale_factors[fh.process][pdf_unc] = sum(weights[pdf_unc] / sum(weights['weight']))
+                    scale_factors[fh.process][pdf_unc] = sum(weights['weight']) / sum(weights[pdf_unc])
         analyser.get_scale_uncertainties(file_handles_scales, self.get_top_scale_uncerts(), dump_hist_path,
                                          disable_relative=True, scale_factors=scale_factors)
         analyser.get_fixed_scale_uncertainties(file_handles, self.top_unc, dump_hist_path)
