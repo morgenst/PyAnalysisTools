@@ -9,6 +9,7 @@ import PyAnalysisTools.PlottingUtils.PlotConfig as pcm
 from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig
 from .Mocks import hist
+from mock import patch
 
 
 class TestPlotConfig(unittest.TestCase):
@@ -44,13 +45,14 @@ class TestPlotConfig(unittest.TestCase):
                 "merge_mc_campaigns", "signal_extraction", "ratio", "cuts", "enable_legend", 'total_lumi']
         self.assertTrue(opts, pc.get_overwritable_options())
 
-    # @patch('PlotConfig.merge_configs', return_value='1')
-    # def test_merging(self):
-    #     pc1 = PlotConfig(ymin='math.pi')
-    #     pc2 = PlotConfig(ymax='math.pi')
-    #     pc1.merge_configs(pc2)
-    #     self.assertEqual('math.pi', pc1.ymin)
-    #     self.assertEqual('math.pi', pc1.ymax)
+    @patch('PyAnalysisTools.PlottingUtils.PlotConfig.input', create=True)
+    def test_merging(self, mock_input):
+        mock_input.side_effect = ['1', '2', '']
+        pc1 = PlotConfig(ymin='math.pi')
+        pc2 = PlotConfig(ymax='math.pi')
+        pc1.merge_configs(pc2)
+        self.assertAlmostEqual(math.pi, pc1.ymin, delta=1.e-5)
+        self.assertAlmostEqual(math.pi, pc1.ymax, delta=1.e-5)
 
     def test_get_default(self):
         pc = pcm.get_default_plot_config(hist)
