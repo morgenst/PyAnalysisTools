@@ -22,7 +22,7 @@ import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.HistTools as ht
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvide
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvider
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
