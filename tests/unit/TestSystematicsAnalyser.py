@@ -1,8 +1,9 @@
-import math
 import os
 import unittest
 from copy import deepcopy
+from functools import partial
 
+import six
 from mock import MagicMock, patch, Mock
 
 import ROOT
@@ -13,7 +14,7 @@ from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.ProcessConfig import Process
-from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl, YAMLLoader
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 from .Mocks import hist
 import numpy as np
 
@@ -22,6 +23,16 @@ cwd = os.path.dirname(__file__)
 
 def entity_patch(*args, **kwargs):
     return args, kwargs
+
+
+@classmethod
+def mock_read_yaml(*args):
+    return {'foo': 'bar'}
+
+
+@classmethod
+def mock_read_yaml2(*args):
+    return {'foo': {'bar': 'foobar'}}
 
 
 class TestSystematicsCategory(unittest.TestCase):
@@ -156,17 +167,19 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertEqual('foo', analyser.xs_handle)
         self.assertTrue(analyser.disable)
 
-    @patch.object(yl, 'read_yaml', lambda _: {'foo': {'bar': 'foobar'}})
+    @patch.object(yl, 'read_yaml', mock_read_yaml2)
     def test_parse_syst_cfg(self):
         systs = sa.SystematicsAnalyser.parse_syst_config('foo')
         self.assertEqual([sa.Systematic('foo', bar='foobar')], systs)
 
+    @patch.object(FileHandle, 'get_object_by_name',
+                  lambda *args: ROOT.TH1F('h_syst', '', 10, 0., 10.))
     def test_load_dumped_hists(self):
         fh = FileHandle(file_name='foo', process=Process('foo', dataset_info=None))
         pc, process, hist = sa.SystematicsAnalyser.load_dumped_hist((fh, PlotConfig()), 'foo')
-        self.assertIsNone(pc)
-        self.assertIsNone(process)
-        self.assertIsNone(hist)
+        self.assertEqual(PlotConfig(), pc)
+        self.assertEqual('foo', process.process_name)
+        self.assertEqual('h_syst', hist.GetName())
 
     def test_load_dumped_hists_tuple(self):
         fh = FileHandle(file_name='foo', process=Process('foo', dataset_info=None))
@@ -376,7 +389,8 @@ class TestSystematicsAnalyser(unittest.TestCase):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[PlotConfig()])
         self.assertIsNone(analyser.get_shape_uncertainty([fh], scale_syst))
-        self.assertEqual(['weight_foo_scale__1up', 'weight_foo_scale__1down'], list(analyser.systematic_hists.keys()))
+        six.assertCountEqual(self, ['weight_foo_scale__1up', 'weight_foo_scale__1down'],
+                             list(analyser.systematic_hists.keys()))
         data = list(analyser.systematic_hists['weight_foo_scale__1up'].items())[0][1]
         self.assertTrue('foo' in data)
         self.assertEqual('h_syst', data['foo'].GetName())
@@ -401,7 +415,8 @@ class TestSystematicsAnalyser(unittest.TestCase):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[PlotConfig()])
         self.assertIsNone(analyser.get_shape_uncertainty([fh], scale_syst, dumped_hist_path='foo'))
-        self.assertEqual(['weight_foo_scale__1up', 'weight_foo_scale__1down'], list(analyser.systematic_hists.keys()))
+        six.assertCountEqual(self, ['weight_foo_scale__1up', 'weight_foo_scale__1down'],
+                             list(analyser.systematic_hists.keys()))
         data = list(analyser.systematic_hists['weight_foo_scale__1up'].items())[0][1]
         self.assertTrue('foo' in data)
         self.assertEqual('h_syst', data['foo'].GetName())
@@ -466,8 +481,8 @@ class TestSystematicsAnalyser(unittest.TestCase):
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[pc])
         hnom = ROOT.TH1F('hnom', '', 10, 0., 10.)
         hsys = ROOT.TH1F('hsys', '', 10, 0., 10.)
-        hnom.SetBinContent(1, math.nan)
-        hsys.SetBinContent(1, math.nan)
+        hnom.SetBinContent(1, np.nan)
+        hsys.SetBinContent(1, np.nan)
         nom = {'foo': hnom}
         analyser.total_systematics[SystematicsCategory()] = {'up': {pc: {'foo': hsys}}}
         self.assertRaises(SystemExit, analyser.get_relative_unc_on_SM_total, pc, nom)
@@ -527,7 +542,7 @@ class TestTheoryUncertProvider(unittest.TestCase):
     def test_top_uncertainy_names_invalid(self):
         self.assertIsNone(sa.TheoryUncertaintyProvider().get_top_uncert_names())
 
-    @patch.object(YAMLLoader, 'read_yaml', lambda _: {'foo': 'bar'})
+    @patch('PyAnalysisTools.base.YAMLHandle.YAMLLoader.read_yaml', mock_read_yaml)
     def test_top_uncertainy_names(self):
         self.assertEqual(['foo'], sa.TheoryUncertaintyProvider(fixed_top_unc_file='foo').get_top_uncert_names())
 
