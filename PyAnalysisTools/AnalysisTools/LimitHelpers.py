@@ -21,9 +21,8 @@ import sys
 import PyAnalysisTools.PlottingUtils.PlottingTools as pt
 import PyAnalysisTools.PlottingUtils.Formatting as fm
 import PyAnalysisTools.PlottingUtils.HistTools as ht
-from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder  # , NewRegionBuilder
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvider  # parse_syst_config,
-from PyAnalysisTools.AnalysisTools.SystematicsAnalyserOld import parse_syst_config
+from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
+from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import TheoryUncertaintyProvide
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle
@@ -155,6 +154,7 @@ class LimitArgs(object):
         kwargs.setdefault("base_output_dir", output_dir)
         kwargs.setdefault("fixed_xsec", None)
         kwargs.setdefault("run_pyhf", False)
+        kwargs.setdefault("blind", True)
         self.skip_ws_build = kwargs['skip_ws_build']
         self.fit_mode = fit_mode
         self.output_dir = output_dir
@@ -162,6 +162,7 @@ class LimitArgs(object):
         self.job_id = kwargs["jobid"]
         self.sig_reg_name = kwargs["sig_reg_name"]
         self.run_pyhf = kwargs['run_pyhf']
+        self.blind = kwargs['blind']
         self.kwargs = kwargs
 
     def __str__(self):
