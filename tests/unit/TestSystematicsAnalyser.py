@@ -435,7 +435,6 @@ class TestSystematicsAnalyser(unittest.TestCase):
         variations = analyser.get_variations_single_systematic('dummy_sys', nom)
         self.assertEqual(1, len(variations))
         self.assertTrue(pc in variations)
-        print(variations)
         for i in range(1, 11):
             self.assertEqual((i*i - i)/i, variations[pc]['foo'].GetBinContent(i))
 
