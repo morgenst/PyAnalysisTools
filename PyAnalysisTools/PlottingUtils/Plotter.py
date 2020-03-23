@@ -12,7 +12,7 @@ from past.utils import old_div
 import ROOT
 
 import os
-from PyAnalysisTools.base.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle, filter_empty_trees
 from PyAnalysisTools.base import _logger, InvalidInputError
 from PyAnalysisTools.base.ProcessConfig import ProcessConfig, find_process_config, parse_and_build_process_config
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
@@ -122,7 +122,8 @@ class Plotter(BasePlotter):
         self.file_handles = [fh for fh in self.file_handles if fh.process is not None]
         self.file_handles = self.filter_unavailable_processes(self.file_handles, self.process_configs)
         if not self.read_hist:
-            self.filter_empty_trees()
+            self.file_handles = filter_empty_trees(self.file_handles, self.tree_name, self.alternative_tree_name,
+                                                   self.tree_dir_name)
         self.modules = load_modules(kwargs['module_config_files'], self)
         # self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
         # self.modules.append(self.fake_estimator)
@@ -223,16 +224,6 @@ class Plotter(BasePlotter):
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
-
-    def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name, alt_tree_name):
-            tn = tree_name
-            if alt_tree_name is not None and not file_handle.has_object(tree_name, self.tree_dir_name):
-                tn = alt_tree_name
-            return file_handle.get_object_by_name(tn, self.tree_dir_name).GetEntries() > 0
-        empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.alternative_tree_name)]
-        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.alternative_tree_name)]
-        list([fh.close() for fh in empty_files])
 
     # todo: why is RatioPlotter not called?
     def calculate_ratios(self, hists, plot_config):
@@ -346,8 +337,10 @@ class Plotter(BasePlotter):
         if self.process_configs is None:
             return
         for process, hist in list(data.items()):
-            cfg = find_process_config(process.process_name, self.process_configs)
-
+            try:
+                cfg = find_process_config(process.process_name, self.process_configs)
+            except AttributeError:
+                cfg = find_process_config(process, self.process_configs)
             if cfg.scale_factor is None:
                 continue
             HT.scale(hist, cfg.scale_factor)
@@ -508,7 +501,7 @@ class Plotter(BasePlotter):
                                                                         plot_config_syst_unc_ratio,
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
-                # self.syst_analyser.make_overview_plots(plot_config)
+                self.syst_analyser.make_overview_plots(plot_config)
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio,
                                                                   ratio_rel_size=ratio_plot_config.ratio_rel_size)

@@ -18,7 +18,7 @@ from PyAnalysisTools.base.ProcessConfig import Process, find_process_config, par
 
 from collections import defaultdict, OrderedDict
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.base.FileHandle import FileHandle as FH
+from PyAnalysisTools.base.FileHandle import FileHandle as FH, filter_empty_trees
 from PyAnalysisTools.PlottingUtils.HistTools import scale
 from PyAnalysisTools.AnalysisTools.XSHandle import XSHandle, get_xsec_weight
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, \
@@ -226,7 +226,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                 setattr(self, k, v)
         if 'alternative_tree_name' not in kwargs:
             self.alternative_tree_name = self.tree_name
-        self.filter_empty_trees()
+        self.file_handles = filter_empty_trees(self.file_handles, self.tree_name, self.alternative_tree_name,
+                                               self.tree_dir_name)
         self.event_yields = {}
         self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
         self.converter = Root2NumpyConverter(["weight"])
@@ -248,16 +249,6 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                           # labels=[data[0] for data in acceptance_hists],
                                           xtitle="LQ mass [GeV]", ytitle="acceptance [%]", draw="Marker",
                                           lumi=self.lumi, watermark="Internal", ymin=0., ymax=100.)
-
-    def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name, alt_tree_name):
-            tn = tree_name
-            if alt_tree_name is not None and not file_handle.has_object(tree_name, self.tree_dir_name):
-                tn = alt_tree_name
-            return file_handle.get_object_by_name(tn, self.tree_dir_name).GetEntries() > 0
-        empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.alternative_tree_name)]
-        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.alternative_tree_name)]
-        list([fh.close() for fh in empty_files])
 
     def read_event_yields(self, systematic="Nominal"):
         _logger.info("Read event yields in directory {:s}".format(systematic))

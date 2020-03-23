@@ -14,6 +14,27 @@ from PyAnalysisTools.AnalysisTools.DataStore import DataSetStore
 from PyAnalysisTools.PlottingUtils.PlottingTools import project_hist
 
 
+def filter_empty_trees(file_handles, tree_name, alt_tree_name=None, tree_dir_name='Nominal'):
+    """
+    Remove and close file_handles with empty tries
+    :param file_handles: list of file handles
+    :param tree_name: name of input tree
+    :param alt_tree_name: name of alternative input tree if tree_name does not exist
+    :param tree_dir_name: directory name containing tree
+    :return:
+    """
+    def is_empty(file_handle):
+        tn = tree_name
+        if alt_tree_name is not None and not file_handle.has_object(tree_name, tree_dir_name):
+            tn = alt_tree_name
+        return file_handle.get_object_by_name(tn, tree_dir_name).GetEntries() > 0
+
+    empty_files = [fh for fh in file_handles if not is_empty(fh)]
+    file_handles = [fh for fh in file_handles if is_empty(fh)]
+    list([fh.close() for fh in empty_files])
+    return file_handles
+
+
 class FileHandle(object):
     def __init__(self, *args, **kwargs):
         kwargs.setdefault("path", "./")
