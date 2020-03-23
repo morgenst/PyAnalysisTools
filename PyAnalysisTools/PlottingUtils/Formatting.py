@@ -68,32 +68,13 @@ def decorate_canvas(canvas, plot_config, **kwargs):
     """
 
     attributes = ['watermark_x', 'watermark_y', 'watermark_size', 'watermark_offset', 'lumi_text_x', 'lumi_text_y',
-                  'lumi_text_size']
+                  'lumi_text_size', 'decor_text_x', 'decor_text_y', 'decor_text_size']
     postfix = ''
     if plot_config.ratio is not None and plot_config.ratio is not False:
         postfix = '_ratio'
     for attr in attributes:
         kwargs.setdefault(attr, getattr(plot_config, attr + postfix))
-    # if plot_config.ratio is not None and plot_config.ratio is not False:
-    #     kwargs.setdefault('watermark_x', plot_config.watermark_x_ratio)
-    #     kwargs.setdefault('watermark_y', plot_config.watermark_y_ratio)
-    #     kwargs.setdefault('watermark_size', plot_config.watermark_size_ratio)
-    #     kwargs.setdefault('watermark_offset', plot_config.watermark_offset_ratio)
-    #     kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x_ratio)
-    #     kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y_ratio)
-    #     kwargs.setdefault('lumi_text_size', plot_config.lumi_text_size_ratio)
-    # else:
-    #     kwargs.setdefault('watermark_x', plot_config.watermark_x)
-    #     kwargs.setdefault('watermark_y', plot_config.watermark_y)
-    #     kwargs.setdefault('watermark_size', plot_config.watermark_size)
-    #     kwargs.setdefault('watermark_offset', plot_config.watermark_offset)
-    #     kwargs.setdefault('lumi_text_x', plot_config.lumi_text_x)
-    #     kwargs.setdefault('lumi_text_y', plot_config.lumi_text_y)
-    #     kwargs.setdefault('lumi_text_size', plot_config.lumi_text_size)
 
-    kwargs.setdefault('decor_text_x', plot_config.decor_text_x)
-    kwargs.setdefault('decor_text_y', plot_config.decor_text_y)
-    kwargs.setdefault('decor_text_size', plot_config.decor_text_size)
     kwargs.setdefault('lumi_text', plot_config.lumi_text)
     kwargs.setdefault('lumi_precision', plot_config.lumi_precision)
     kwargs.setdefault('add_text', plot_config.add_text)
@@ -468,7 +449,7 @@ def set_range_y(graph_obj, minimum, maximum):
         graph_obj.GetPaintedGraph().GetYaxis().SetRangeUser(minimum, maximum)
 
 
-def set_range_z(graph_obj, minimum=None, maximum=None):
+def set_range_z(graph_obj, minimum=None, maximum=None, max_y_val_for_range=None):
     """
     Set z-axis range for given plot object. If min/max is None take the current min/max of the axis
     :param graph_obj: plottable object with z-axis
@@ -486,7 +467,6 @@ def set_range_z(graph_obj, minimum=None, maximum=None):
         minimum = graph_obj.GetMinimum()
     if maximum is None:
         maximum = graph_obj.GetMaximum()
-
     graph_obj.SetMinimum(minimum)
     graph_obj.SetMaximum(maximum)
     graph_obj.GetZaxis().SetLimits(minimum, maximum)
