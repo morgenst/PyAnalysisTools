@@ -192,30 +192,6 @@ class EventComparisonReader(object):
             result.Add(hist)
         return result
 
-    @staticmethod
-    def merge_histograms(histograms, process_configs):
-        def expand():
-            if process_configs is not None:
-                for process_name in list(histograms.keys()):
-                    find_process_config(process_name, process_configs)
-
-        expand()
-        for process, process_config in list(process_configs.items()):
-            if not hasattr(process_config, 'subprocesses'):
-                continue
-            for sub_process in process_config.subprocesses:
-                if sub_process not in list(histograms.keys()):
-                    continue
-                if process not in list(histograms.keys()):
-                    new_hist_name = histograms[sub_process].GetName().replace(sub_process, process)
-                    histograms[process] = histograms[sub_process].Clone(new_hist_name)
-                else:
-                    histograms[process].Add(histograms[sub_process])
-                histograms.pop(sub_process)
-
-        for process in list(histograms.keys()):
-            histograms[find_process_config(process, process_configs)] = histograms.pop(process)
-
 
 class Reader(EventComparisonReader):
     def __init__(self, **kwargs):
@@ -236,20 +212,9 @@ class Reader(EventComparisonReader):
 
     @staticmethod
     def merge_file_handles(file_handles, process_configs):
-        def find_parent_process(process):
-            parent_process = [c for c in iter(list(process_configs.items())) if
-                              hasattr(c[1], 'subprocesses') and process in c[1].subprocesses]
-            return parent_process[0][0]
-
-        def expand():
-            if process_configs is not None:
-                for fh in file_handles:
-                    find_process_config(fh.process, process_configs)
-
-        expand()
         tmp_file_handles = collections.OrderedDict()
         for fh in file_handles:
-            parent_process = find_parent_process(fh.process)
+            parent_process = find_process_config(fh.process, process_configs)
             if parent_process not in tmp_file_handles:
                 tmp_file_handles[parent_process] = [fh]
                 continue
@@ -319,7 +284,6 @@ class EventComparisonPlotter(BasePlotter):
 
         if 'process_config_files' in kwargs:
             self.process_configs = parse_and_build_process_config(kwargs['process_config_files'])
-            self.expand_process_configs()
 
         self.ref_modules = load_modules(kwargs['ref_mod_modules'], self)
         self.modules = load_modules(kwargs['module_config_file'], self)
@@ -350,11 +314,6 @@ class EventComparisonPlotter(BasePlotter):
             new_pc = copy(pc)
             new_pc.dist = obj.GetName()
             self.plot_configs.append(new_pc)
-
-    def expand_process_configs(self):
-        if self.process_configs is not None:
-            for fh in self.file_handles:
-                find_process_config(fh.process, self.process_configs)
 
     def update_color_palette(self):
         if isinstance(self.common_config.colors[0], str):
