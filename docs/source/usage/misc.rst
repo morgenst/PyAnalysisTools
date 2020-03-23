@@ -112,7 +112,6 @@ while if any attribute is not provided by neither the users default and plot con
 * ignore_style: ignore all style settings
 * calcsig: enable significance calculation (applying cut along x-axis to signal and background) and draw like ratio
 * enable_legend: enable adding legend (default: True)
-* disable_legend: disable drawing of legend (default: False) - remnant of earlier version will become deprecated
 * make_plot_book: produce plot book, i.e. all plots will be stored in a single pdf
 * grid: enable drawing of grid (default: False)
 * log[xyz]: Make xyz-axis log scale

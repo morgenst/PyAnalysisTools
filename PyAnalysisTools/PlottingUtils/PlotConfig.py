@@ -33,6 +33,9 @@ class PlotConfig(object):
             kwargs['lumi'] = kwargs['Lumi']
         kwargs.setdefault("cuts", None)
         # kwargs.setdefault("cuts_l1", None)
+        if 'disable_legend' in kwargs:
+            _logger.warning("disable_legend became deprecated (but will still work for now). Please use enable_legend")
+            kwargs['enable_legend'] = False
         if "draw" not in kwargs:
             kwargs.setdefault("Draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
@@ -55,6 +58,9 @@ class PlotConfig(object):
                 kwargs.setdefault(key, attr)
 
         for k, v in list(kwargs.items()):
+            if k[0].isupper():
+                _logger.warning("PlotConfig attributes should all be lower case. Please update attribute: "
+                                "{:s}".format(k))
             if v == "None":
                 v = None
             if k == "ratio_config" and v is not None:

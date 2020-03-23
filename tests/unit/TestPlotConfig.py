@@ -285,7 +285,6 @@ class TestPlotConfig(unittest.TestCase):
         self.assertFalse(pc.logx)
         self.assertFalse(pc.logz)
         self.assertFalse(pc.decor_text)
-        self.assertFalse(pc.disable_legend)
         self.assertFalse(pc.disable_bin_merge)
         self.assertFalse(pc.enable_range_arrows)
         self.assertFalse(pc.disable_bin_width_division)
