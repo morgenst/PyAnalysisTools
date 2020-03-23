@@ -1,6 +1,7 @@
 import unittest
 import os
 from PyAnalysisTools.base import OutputHandle
+from tests.unit import tearDownModule  # noqa: F401
 
 cwd = os.path.dirname(__file__)
 
