@@ -7,8 +7,9 @@ from PyAnalysisTools.AnalysisTools.EfficiencyCalculator import EfficiencyCalcula
 
 
 @classmethod
-def fct_name_patch(*_, name=None):
-    return name
+def fct_name_patch(*_, **kwargs):
+    kwargs.setdefault('ret_val', None)
+    return kwargs['ret_val']
 
 
 class TestEfficiencyCalculator(unittest.TestCase):
@@ -19,8 +20,8 @@ class TestEfficiencyCalculator(unittest.TestCase):
         calculator = ec()
         self.assertIsInstance(calculator, ec)
 
-    @patch.object(ec, "calculate_1d_efficiency", partialmethod(fct_name_patch, name='1D'))
-    @patch.object(ec, "calculate_2d_efficiency", partialmethod(fct_name_patch, name='2D'))
+    @patch.object(ec, "calculate_1d_efficiency", partialmethod(fct_name_patch, ret_val='1D'))
+    @patch.object(ec, "calculate_2d_efficiency", partialmethod(fct_name_patch, ret_val='2D'))
     def test_calculate_efficiency(self):
         self.assertEqual("1D", self.calculator.calculate_efficiency(ROOT.TH1F(), ROOT.TH1F(), 'foo'))
         self.assertEqual("2D", self.calculator.calculate_efficiency(ROOT.TH2F(), ROOT.TH2F(), 'foo'))
