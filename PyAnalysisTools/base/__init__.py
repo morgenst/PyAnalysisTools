@@ -72,7 +72,9 @@ def add_input_args(parser, disable_tree=False):
 
     parser.add_argument("input_file_list", nargs="+", type=str, help="input file list")
     if not disable_tree:
-        parser.add_argument('--tree_name', '-tn', default=None, help="tree name (required for extended CA")
+        parser.add_argument('--tree_name', '-tn', default=None, help="tree name")
+        parser.add_argument('--alternative_tree_name', '-atn', default=None,
+                            help="allternative tree name used if tree with tree_name is not available")
 
 
 def add_selection_args(parser):

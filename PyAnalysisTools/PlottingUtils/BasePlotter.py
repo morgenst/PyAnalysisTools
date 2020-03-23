@@ -18,7 +18,8 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import propagate_common_config
 from PyAnalysisTools.PlottingUtils import Formatting as fm
 from PyAnalysisTools.PlottingUtils import HistTools as ht
 from PyAnalysisTools.PlottingUtils import set_batch_mode
-from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition, merge_plot_configs
+from PyAnalysisTools.PlottingUtils.PlotConfig import parse_and_build_plot_config, get_histogram_definition, \
+    merge_plot_configs
 from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 
 
@@ -35,7 +36,7 @@ class BasePlotter(object):
         kwargs.setdefault("friend_file_pattern", None)
         kwargs.setdefault("plot_config_files", [])
         kwargs.setdefault("nfile_handles", 1)
-        kwargs.setdefault('syst_tree_name', None)
+        kwargs.setdefault('alternative_tree_name', None)
         kwargs.setdefault('cluster_config', None)
         kwargs.setdefault('redraw', False)
         kwargs.setdefault('skip_fh_reading', False)
@@ -184,8 +185,9 @@ class BasePlotter(object):
             return
         try:
             tn = self.tree_name
-            if self.syst_tree_name is not None and file_handle.is_mc:
-                tn = self.syst_tree_name
+            if self.alternative_tree_name is not None and not file_handle.get_object_by_name(self.tree_name,
+                                                                                             tree_dir_name):
+                tn = self.alternative_tree_name
             hist = file_handle.get_object_by_name("{:s}/{:s}".format(tn, plot_config.dist), tree_dir_name)
         except ValueError:
             _logger.debug('No event passed selection.')
@@ -279,8 +281,8 @@ class BasePlotter(object):
                 hist.SetName("{:s}_{:s}".format(hist.GetName(), file_handle.process.process_name))
                 selection_cuts = selection_cuts.rstrip().rstrip("&&")
                 tn = self.tree_name
-                if self.syst_tree_name is not None and file_handle.is_mc:
-                    tn = self.syst_tree_name
+                if self.alternative_tree_name is not None and not file_handle.has_object(tn, self.tree_dir_name):
+                    tn = self.alternative_tree_name
                 file_handle.fetch_and_link_hist_to_tree(tn, hist, plot_config.dist, selection_cuts,
                                                         tdirectory=tree_dir_name, weight=weight)
 
