@@ -26,11 +26,11 @@ class TestEfficiencyCalculator(unittest.TestCase):
         self.assertIsInstance(calculator, ec)
 
     @unittest.skipIf(six.PY2, "not compatible with Python 2")
-    @patch.object(ec, "calculate_1d_efficiency", partialmethod(fct_name_patch, ret_val='1D'))
-    @patch.object(ec, "calculate_2d_efficiency", partialmethod(fct_name_patch, ret_val='2D'))
     def test_calculate_efficiency(self):
-        self.assertEqual("1D", self.calculator.calculate_efficiency(ROOT.TH1F(), ROOT.TH1F(), 'foo'))
-        self.assertEqual("2D", self.calculator.calculate_efficiency(ROOT.TH2F(), ROOT.TH2F(), 'foo'))
+        with patch.object(ec, "calculate_1d_efficiency", partialmethod(fct_name_patch, ret_val='1D')):
+            self.assertEqual("1D", self.calculator.calculate_efficiency(ROOT.TH1F(), ROOT.TH1F(), 'foo'))
+        with patch.object(ec, "calculate_2d_efficiency", partialmethod(fct_name_patch, ret_val='2D')):
+            self.assertEqual("2D", self.calculator.calculate_efficiency(ROOT.TH2F(), ROOT.TH2F(), 'foo'))
         self.assertIsNone(self.calculator.calculate_efficiency(ROOT.TGraph(), ROOT.TGraph(), 'foo'))
 
     def test_calculate_1d_efficiency(self):
