@@ -1,5 +1,10 @@
 import unittest
-from functools import partialmethod
+try:
+    from functools import partialmethod
+except ImportError:
+    pass
+
+import six
 
 import ROOT
 from mock import patch
@@ -20,6 +25,7 @@ class TestEfficiencyCalculator(unittest.TestCase):
         calculator = ec()
         self.assertIsInstance(calculator, ec)
 
+    @unittest.skipIf(six.PY2, "not compatible with Python 2")
     @patch.object(ec, "calculate_1d_efficiency", partialmethod(fct_name_patch, ret_val='1D'))
     @patch.object(ec, "calculate_2d_efficiency", partialmethod(fct_name_patch, ret_val='2D'))
     def test_calculate_efficiency(self):
