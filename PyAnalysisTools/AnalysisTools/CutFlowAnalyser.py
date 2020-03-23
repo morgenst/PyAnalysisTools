@@ -224,8 +224,8 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         for k, v in list(kwargs.items()):
             if not hasattr(self, k):
                 setattr(self, k, v)
-        if 'syst_tree_name' not in kwargs:
-            self.syst_tree_name = self.tree_name
+        if 'alternative_tree_name' not in kwargs:
+            self.alternative_tree_name = self.tree_name
         self.filter_empty_trees()
         self.event_yields = {}
         self.selection = RegionBuilder(**YAMLLoader.read_yaml(kwargs["selection_config"])["RegionBuilder"])
@@ -250,14 +250,13 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
                                           lumi=self.lumi, watermark="Internal", ymin=0., ymax=100.)
 
     def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name, syst_tree_name):
+        def is_empty(file_handle, tree_name, alt_tree_name):
             tn = tree_name
-            if syst_tree_name is not None and file_handle.is_mc:
-                tn = syst_tree_name
-            return file_handle.get_object_by_name(tn, "Nominal").GetEntries() > 0
-
-        empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.syst_tree_name)]
-        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.syst_tree_name)]
+            if alt_tree_name is not None and not file_handle.has_object(tree_name, self.tree_dir_name):
+                tn = alt_tree_name
+            return file_handle.get_object_by_name(tn, self.tree_dir_name).GetEntries() > 0
+        empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.alternative_tree_name)]
+        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.alternative_tree_name)]
         list([fh.close() for fh in empty_files])
 
     def read_event_yields(self, systematic="Nominal"):
@@ -605,7 +604,6 @@ class CutflowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault('process_configs', None)
         kwargs.setdefault('no_merge', False)
         kwargs.setdefault('raw', False)
-        #kwargs.setdefault('output_dir', None)
         kwargs.setdefault('format', 'plain')
         super(CutflowAnalyser, self).__init__(**kwargs)
         self.precision = 2  # TODO: quick term fix

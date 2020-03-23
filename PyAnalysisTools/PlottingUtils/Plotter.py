@@ -225,13 +225,13 @@ class Plotter(BasePlotter):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
 
     def filter_empty_trees(self):
-        def is_empty(file_handle, tree_name, syst_tree_name):
+        def is_empty(file_handle, tree_name, alt_tree_name):
             tn = tree_name
-            if syst_tree_name is not None and file_handle.is_mc:
-                tn = syst_tree_name
+            if alt_tree_name is not None and not file_handle.has_object(tree_name, self.tree_dir_name):
+                tn = alt_tree_name
             return file_handle.get_object_by_name(tn, self.tree_dir_name).GetEntries() > 0
-        empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.syst_tree_name)]
-        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.syst_tree_name)]
+        empty_files = [fh for fh in self.file_handles if not is_empty(fh, self.tree_name, self.alternative_tree_name)]
+        self.file_handles = [fh for fh in self.file_handles if is_empty(fh, self.tree_name, self.alternative_tree_name)]
         list([fh.close() for fh in empty_files])
 
     # todo: why is RatioPlotter not called?

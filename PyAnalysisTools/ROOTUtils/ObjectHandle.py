@@ -29,7 +29,6 @@ def get_objects_from_canvas_by_type(canvas, typename):
     :return: objects of type typename in canvas
     :rtype: list[typename]
     """
-
     obj = get_objects_from_canvas(canvas)
     obj = [o for o in obj if o is not None]
     if isinstance(typename, list):
