@@ -37,7 +37,7 @@ class PlotConfig(object):
             _logger.warning("disable_legend became deprecated (but will still work for now). Please use enable_legend")
             kwargs['enable_legend'] = False
         if "draw" not in kwargs:
-            kwargs.setdefault("Draw", "hist")
+            kwargs.setdefault("draw", "hist")
         user_config = find_file('plot_config_defaults.yml', os.path.join(os.curdir, '../'))
         py_ana_config_file_name = os.path.join(os.path.dirname(__file__), 'plot_config_defaults.yml')
         defaults_py_ana = yl.read_yaml(py_ana_config_file_name)
