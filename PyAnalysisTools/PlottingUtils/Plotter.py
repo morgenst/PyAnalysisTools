@@ -405,7 +405,7 @@ class Plotter(BasePlotter):
                     pt.add_signal_to_canvas(signal, canvas, plot_config, self.process_configs)
         FM.decorate_canvas(canvas, plot_config)
 
-        if not plot_config.disable_legend or plot_config.enable_legend:
+        if plot_config.enable_legend:
             if plot_config.legend_options is not None:
                 FM.add_legend_to_canvas(canvas, ratio=plot_config.ratio, process_configs=self.process_configs,
                                         **plot_config.legend_options)
