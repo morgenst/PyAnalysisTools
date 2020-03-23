@@ -504,6 +504,10 @@ class SystematicsAnalyser(BasePlotter):
                     overview_hists[hist_base_name] = pt.plot_obj(hist.Clone(hist_base_name), syst_plot_config, index=0)
                     continue
                 overview_canvas = overview_hists[hist_base_name]
+                if hist is None:
+                    _logger.error("Received None as hist for systematic {:s} and process {:s}".format(variation,
+                                                                                                      process))
+                    continue
                 if hist.GetMaximum() < 1.0 and abs(hist.GetMinimum()) < 1.0:
                     if len(labels[process]) > 0:
                         labels[process].pop(-1)
