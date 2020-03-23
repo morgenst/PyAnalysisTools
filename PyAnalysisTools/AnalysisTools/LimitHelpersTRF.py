@@ -993,9 +993,9 @@ class CommonLimitOptimiser(object):
             self.file_handles = self.filter_mass_points()
             self.file_handles = filter_empty_trees(self.file_handles, self.tree_name, self.alternative_tree_name,
                                                    self.tree_dir_name)
-            for k, v in list(kwargs.items()):
-                if hasattr(self, k):
-                    continue
+        for k, v in list(kwargs.items()):
+            if hasattr(self, k):
+                continue
             setattr(self, k, v)
         if kwargs['mass_range'] is not None:
             self.mass_scans = np.linspace(self.mass_range[0], self.mass_range[1], kwargs["nscans"])
