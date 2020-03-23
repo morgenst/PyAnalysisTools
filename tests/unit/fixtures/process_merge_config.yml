@@ -1,0 +1,39 @@
+Zjets:
+  Type: Background
+  Label: Z+jets (Sherpa)
+  Color: kRed+2
+  Draw: Hist
+  Style: 1001
+  SubProcesses: [re.ZmumuHT.*, re.ZeeHT.*, re.ZtautauHT.*, re.Znunu.*]
+
+ttbar:
+  Type: Background
+  Label: top
+  Color: kSpring-8
+  Draw: Hist
+  Style: 1001
+  SubProcesses: [re.ttbardilepton.*, re.WtChan.*, re.WAnti.*, re.Single.*TopSChanPythia8.*, re.SingleAntiTopSChanPythia8.*, re.tte.*, re.ttW.*, re.ttZ.*, re.ttm.*, re.ttt.*]
+
+Others:
+  Type: Background
+  Label: Others
+  Color: kBlue-6
+  Draw: Hist
+  Style: 1001
+  SubProcesses: [re.Sherpal.*, re.Sherpanu.*, re.SherpaZ.*, re.SherpaW.*, re.We.*, re.Wmu.*, re.Wtau.*]
+
+QCD:
+  Type: Background
+  Label: Fakes
+  Color: kGray+2
+  Draw: Hist
+  Style: 1001
+  SubProcesses: [re.QCD.*]
+  regions_only: "re..*el.*"
+
+Data:
+  Type: Data
+  Label: Data
+  Color: kBlack
+  Draw: Marker
+  SubProcesses: [re.data1.*.period.*]

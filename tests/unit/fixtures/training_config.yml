@@ -1,0 +1,7 @@
+imbalance: over_sampling
+signals:
+  - NonPrompt
+backgrounds:
+  - Prompt
+scaler: default
+split: random
