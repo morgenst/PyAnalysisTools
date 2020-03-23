@@ -181,20 +181,22 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertEqual('foo', process.process_name)
         self.assertEqual('h_syst', hist.GetName())
 
-    @patch.object(FileHandle, 'get_object_by_name',
-                  lambda *args: None)
+    @patch.object(FileHandle, 'get_object_by_name', lambda *args: None)
     def test_load_dumped_hists_tuple(self):
-        fh = FileHandle(file_name='foo', process=Process('foo', dataset_info=None))
-        self.assertEqual([(PlotConfig(), None, None)], sa.SystematicsAnalyser(xs_handle='foo').load_dumped_hists([fh],
+        process = Process('foo', dataset_info=None)
+        fh = FileHandle(file_name='foo', process=process)
+        self.assertEqual([(PlotConfig(), process, None)], sa.SystematicsAnalyser(xs_handle='foo').load_dumped_hists([fh],
                                                                                                          [PlotConfig()],
                                                                                                          'foo'))
 
+    @patch.object(FileHandle, 'get_object_by_name', lambda *args: None)
     def test_load_dumped_hists_theory(self):
-        fh = FileHandle(file_name='foo', process=Process('foo', dataset_info=None))
-        pc, process, hist = sa.SystematicsAnalyser.load_dumped_hist((fh, PlotConfig()),
+        process = Process('foo', dataset_info=None)
+        fh = FileHandle(file_name='foo', process=process)
+        pc, res_process, hist = sa.SystematicsAnalyser.load_dumped_hist((fh, PlotConfig()),
                                                                     'weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000')
-        self.assertIsNone(pc)
-        self.assertIsNone(process)
+        self.assertEqual(pc, PlotConfig())
+        self.assertEqual(process, res_process)
         self.assertIsNone(hist)
 
     def test_retrieve_sys_hists_no_input_files(self):
