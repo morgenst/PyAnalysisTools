@@ -79,6 +79,64 @@ the defaults will be taken from there. Of course the user only needs to specify 
 while if any attribute is not provided by neither the users default and plot config the package's default config is used.
 
 * enable_range_arrows (bool): enable/disable arrows in ratio if ratio is out of range
+* cuts: selection applied when fetching histogram from tree (default: None, i.e. no cuts applied)
+* add_text: add additional text to canvas
+* weight: specify which weights to apply when fetching histogram - any expression that works in TTree::Draw
+* process_weight: same as weight but only for a specific process (default: None, i.e. nothing applied)
+* dist: name of the distribution to plot, e.g. muon_pt / 1000. plots muon p_T in GeV
+* style: ROOT draw style, i.e. line, marker, fill
+* rebin: rebin histogram - symmetric (providing single factor) or asymmetric (providing list of bin boundaries)
+* ignore_rebin: ignore rebinning settings
+* ratio: enable ratio pad (data/MC)
+* blind: selection for blinding distribution, e.g. above a certain mass threshold or whatever defines your signal region
+* ordering: list of processes in order of drawing first to last
+* [xyz]bins: number of [xyz] bins
+* [xyz]min[_log]: [xyz]-axis minimum [if log-scale]
+* [xyz]title: [xyz]-axis title
+* [xyz]title_offset: [xyz]-axis title offset
+* [xyz]title_size: [xyz]-axis title size
+* axis-labels: list of bin labels (default applied to x-axis)
+* labels: legend labels - typically parsed from process config
+* color: set of colors applied to histograms/stacks etc
+* draw_option: explicit draw option (overwrites `draw`)
+* normalise_range: range in which normalisation should be calculated (default: entire range, i.e. -1, -1)
+* ratio_config: plot configuration for ratio plot (all non explicitly specified settings are taken from provided plot config)
+* signal_scale: optional scaling factor to applied to all signal samples, e.g. to make tiny signals visible
+* lumi: luminosity used for scaling MC and printed to canvas - takes either float or dictionary of lumi per MC campaign (to disable lumi text in canvas set lumi to -1)
+* lumi_text:
+* total_lumi: total luminosity (typically calculated from lumi dictionary)
+* watermark: watermark after `ATLAS` - typically Internal/Preliminary
+* stat_box: enable statistics box - if multiple objects are drawn stat boxes are drawn with matching colors
+* normalise: normalise plot depending on normalise_range (default: unit area)
+* no_data: do not draw data
+* ignore_style: ignore all style settings
+* calcsig: enable significance calculation (applying cut along x-axis to signal and background) and draw like ratio
+* enable_legend: enable adding legend (default: True)
+* disable_legend: disable drawing of legend (default: False) - remnant of earlier version will become deprecated
+* make_plot_book: produce plot book, i.e. all plots will be stored in a single pdf
+* grid: enable drawing of grid (default: False)
+* log[xyz]: Make xyz-axis log scale
+* decor_text: additional text to add to canvas
+* disable_bin_merge: disable merging of under- and overflow bins (default: False)
+* enable_range_arrows: turn on drawing arrows in ratio hist if ratio is out of range
+* merge: (default: True)
+* signal_extraction: extract signal from all histograms - needed to treat them differently, e.g. overlay as hist on stack
+* merge_mc_campaigns: enable merging of MC production campaigns (default: True)
+* name: name of the plot config - will be used as file name for pdf
+* draw: definition of draw style, e.g. hist, marker, line
+* outline: outline of the plot, e.g. hist, stack
+* legend_options: optional legend options, e.g. position, number of columns
+* lumi_precision: digits of lumi precision (default: 1)
+* yscale[_log]: multiplicative off-set of y-axis maximum (_log if log-scale) if not explicitly specified ymax (default: 1.2 [100.])
+* norm_scale: value to which will be normalised to (default: 1.0)
+* lumi: luminosity used as label and internal calculation; can be single value or dictionary with lumi for each MC campaign
+* watermark_size[_ratio]: text size of watermark [if ratio is added to canvas]
+* watermark_offset[_ratio]: text offset of watermark w.r.t `ATLAS` [if ratio is added to canvas]
+* watermark_[xy][_ratio]: x,y position of watermark text [if ratio is added to canvas]
+* decor_size[_ratio]: size of decoration text [if ratio is added to canvas]
+* decor_[xy][_ratio]: x,y position of decoration text [if ratio is added to canvas]
+* lumi_size[_ratio]: size of lumi text [if ratio is added to canvas]
+* lumi_[xy][_ratio]: x,y position of lumi text [if ratio is added to canvas]
 
 
 Merging ntuples
