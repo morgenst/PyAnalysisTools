@@ -51,7 +51,7 @@ class TestStatisticTools(unittest.TestCase):
         self.assertIsNone(st.get_statistical_uncertainty_hist([]))
 
     def test_get_stat_unc(self):
-        h = hist
+        h = deepcopy(hist)
         h.val = MagicMock(return_value=1)
         h.Clone = MagicMock(return_value=hist)
         h.Add = MagicMock(side_effect=lambda i: i.val + 1)
@@ -59,7 +59,7 @@ class TestStatisticTools(unittest.TestCase):
         self.assertIsNotNone(stat_unc)
 
     def test_get_statistical_uncertainty_from_stack(self):
-        h = hist
+        h = deepcopy(hist)
         h.val = MagicMock(return_value=1)
         h.Clone = MagicMock(return_value=hist)
         h.Add = MagicMock(side_effect=lambda i: i.val + 1)
@@ -72,7 +72,7 @@ class TestStatisticTools(unittest.TestCase):
         self.assertIsNone(st.get_statistical_uncertainty_ratio(None))
 
     def test_get_statistical_uncertainty_ratio(self):
-        h = hist
+        h = deepcopy(hist)
         h.val = MagicMock(return_value=1)
         h.GetBinContent = MagicMock(return_value=1)
         h.GetBinError = MagicMock(return_value=1)
@@ -82,7 +82,7 @@ class TestStatisticTools(unittest.TestCase):
         self.assertIsNotNone(stat_unc)
 
     def test_get_statistical_uncertainty_ratio_zero(self):
-        h = hist
+        h = deepcopy(hist)
         h.val = MagicMock(return_value=1)
         h.GetBinContent = MagicMock(return_value=0)
         h.GetBinError = MagicMock(return_value=0)
