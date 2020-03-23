@@ -56,6 +56,9 @@ decor_text: None
 decor_text_x: 0.2
 decor_text_y: 0.8
 decor_text_size: 0.05
+decor_text_x_ratio: 0.2
+decor_text_y_ratio: 0.8
+decor_text_size_ratio: 0.05
 lumi_text_x: 0.2
 lumi_text_y: 0.8
 lumi_text_size: 0.05
