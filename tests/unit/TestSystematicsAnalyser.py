@@ -181,9 +181,11 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertEqual('foo', process.process_name)
         self.assertEqual('h_syst', hist.GetName())
 
+    @patch.object(FileHandle, 'get_object_by_name',
+                  lambda *args: None)
     def test_load_dumped_hists_tuple(self):
         fh = FileHandle(file_name='foo', process=Process('foo', dataset_info=None))
-        self.assertEqual([(None, None, None)], sa.SystematicsAnalyser(xs_handle='foo').load_dumped_hists([fh],
+        self.assertEqual([(PlotConfig(), None, None)], sa.SystematicsAnalyser(xs_handle='foo').load_dumped_hists([fh],
                                                                                                          [PlotConfig()],
                                                                                                          'foo'))
 
@@ -344,7 +346,10 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertTrue(isinstance(analyser.systematic_hists['foo'][PlotConfig()][Process('foo_311011',
                                                                                           dataset_info=None)], Mock))
 
-    @patch.object(sa.SystematicsAnalyser, 'read_histograms', lambda *args, **kwargs: None)
+    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists', lambda *args, **kwargs: [(PlotConfig(),
+                                                                                      Process('foo_410472', dataset_info=None), hist)])
+    @patch.object(BasePlotter, 'apply_lumi_weights', lambda *args, **kwargs: None)
+    @patch.object(BasePlotter, 'merge_histograms', lambda _: None)
     def test_get_fixed_scale_uncertainties_load_from_dump(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[PlotConfig()],
