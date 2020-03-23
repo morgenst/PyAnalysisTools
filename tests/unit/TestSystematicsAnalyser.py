@@ -1,7 +1,6 @@
 import os
 import unittest
 from copy import deepcopy
-from functools import partial
 
 import six
 from mock import MagicMock, patch, Mock
@@ -349,7 +348,9 @@ class TestSystematicsAnalyser(unittest.TestCase):
                                                                                           dataset_info=None)], Mock))
 
     @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists', lambda *args, **kwargs: [(PlotConfig(),
-                                                                                      Process('foo_410472', dataset_info=None), hist)])
+                                                                                         Process('foo_410472',
+                                                                                              dataset_info=None),
+                                                                                         hist)])
     @patch.object(BasePlotter, 'apply_lumi_weights', lambda *args, **kwargs: None)
     @patch.object(BasePlotter, 'merge_histograms', lambda _: None)
     def test_get_fixed_scale_uncertainties_load_from_dump(self):
@@ -360,14 +361,15 @@ class TestSystematicsAnalyser(unittest.TestCase):
                                                                  dumped_hist_path='foo'))
 
     @patch.object(sa.SystematicsAnalyser, 'read_histograms', lambda *args, **kwargs: [(PlotConfig(),
-                                                                                      Process('foo_410472', dataset_info=None), hist)])
+                                                                                      Process('foo_410472',
+                                                                                              dataset_info=None),
+                                                                                       hist)])
     def test_get_fixed_scale_uncertainties(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[PlotConfig()],
                                           dump_hist=True, output_handle=MagicMock())
-        self.assertIsNone(analyser.get_fixed_scale_uncertainties([fh], {'foo':
-                                                                            {410472: "(19.77/831.76, -29.20/831.76)"}}))
-
+        self.assertIsNone(analyser.get_fixed_scale_uncertainties([fh], {'foo': {410472:
+                                                                                    "(19.77/831.76, -29.20/831.76)"}}))
 
     def test_calculate_total_systematics(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
@@ -558,7 +560,7 @@ class TestTheoryUncertProvider(unittest.TestCase):
 
     @patch.object(sa.SystematicsAnalyser, 'get_fixed_scale_uncertainties', lambda *args: None)
     @patch.object(MLHelper.Root2NumpyConverter, 'convert_to_array',
-                  lambda *args: {name: [1.] for name in ['weight'] + sa.TheoryUncertaintyProvider.get_top_pdf_uncerts()})
+                  lambda *a: {name: [1.] for name in ['weight'] + sa.TheoryUncertaintyProvider.get_top_pdf_uncerts()})
     def test_get_top_uncert(self):
         analyser = sa.SystematicsAnalyser(xs_handle='foo', plot_configs=MagicMock(), tree_name='tree_name')
         process = MagicMock()
@@ -572,7 +574,7 @@ class TestTheoryUncertProvider(unittest.TestCase):
 
     @patch.object(sa.SystematicsAnalyser, 'get_fixed_scale_uncertainties', lambda *args: None)
     @patch.object(MLHelper.Root2NumpyConverter, 'convert_to_array',
-                  lambda *args: {name: [1.] for name in ['weight'] + sa.TheoryUncertaintyProvider.get_top_pdf_uncerts()})
+                  lambda *a: {name: [1.] for name in ['weight'] + sa.TheoryUncertaintyProvider.get_top_pdf_uncerts()})
     def test_get_top_uncert_load_dumped(self):
         analyser = sa.SystematicsAnalyser(xs_handle='foo', plot_configs=MagicMock(), tree_name='tree_name')
         process = MagicMock()

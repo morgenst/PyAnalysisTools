@@ -15,14 +15,12 @@ from keras.models import Sequential, load_model
 from keras.optimizers import SGD, Adagrad, Adam
 from keras.utils import plot_model
 from sklearn.metrics import roc_curve, auc, classification_report
-from sklearn.model_selection import train_test_split
-# from sklearn.utils import class_weight
 import numpy as np
 import pandas as pd
 from keras import metrics
 from array import array
 import ROOT
-from .MLHelper import Root2NumpyConverter, TrainingReader, DataScaler, explode, print_classification, plot_scoring, \
+from .MLHelper import Root2NumpyConverter, TrainingReader, DataScaler, print_classification, plot_scoring, \
     MLTrainConfig
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
@@ -30,8 +28,6 @@ from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
-# from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
-from imblearn import over_sampling  # , under_sampling
 
 np.seterr(divide='ignore', invalid='ignore')
 import matplotlib  # noqa: E402
@@ -100,7 +96,6 @@ class NeuralNetwork(object):
         model.compile(loss='binary_crossentropy', optimizer=limit_config.optimiser,
                       metrics=[metrics.binary_accuracy, metrics.mean_absolute_percentage_error, 'accuracy'])
         self.kerasmodel = model
-
 
 
 class NNTrainer(object):
@@ -419,7 +414,7 @@ class NNReader(object):
             self.selection = ['&&'.join([c.selection for c in self.selection_cfg.get_cut_list(is_data=False)]),
                               '&&'.join([c.selection for c in self.selection_cfg.get_cut_list(is_data=True)])]
         make_dirs(self.output_path)
-        self.train_cfg = TrainConfig(**yl.read_yaml(os.path.join(self.training_path, 'training_config.yml')))
+        self.train_cfg = MLTrainConfig(**yl.read_yaml(os.path.join(self.training_path, 'training_config.yml')))
         self.scaler = DataScaler(self.train_cfg.scaler)
         # MLConfigHandle(**self.__dict__).dump_config()
         _logger.debug("Run over files {:s}".format(', '.join([fh.file_name for fh in self.file_handles])))
