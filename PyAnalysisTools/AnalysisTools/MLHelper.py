@@ -1,15 +1,22 @@
 from __future__ import division
 from __future__ import print_function
-
+from __future__ import unicode_literals
 import os
 import pickle
+import sys
 
 import numpy as np
 import pandas as pd
 import root_numpy
 from builtins import object
 from builtins import range
+
+try:
+    from imblearn import over_sampling
+except ImportError:
+    pass
 from past.utils import old_div
+from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler, LabelEncoder, MinMaxScaler
 from sklearn.metrics import classification_report
 import PyAnalysisTools.PlottingUtils.Formatting as fm
@@ -93,6 +100,18 @@ def plot_scoring(history, name, scorers, output_path):
     plt.close()
 
 
+class MLTrainConfig(object):
+    """
+    Class wrapping training configuration
+    """
+    def __init__(self, **kwargs):
+        kwargs.setdefault('scaler', None)
+        kwargs.setdefault('imbalance', None)
+        for attr, value in list(kwargs.items()):
+            setattr(self, attr, value)
+
+
+# todo: Should be deprecated
 class MLConfig(object):
     """
     Class containing configration of ML classifier
@@ -220,7 +239,8 @@ class DataScaler(object):
         if scaler is not None:
             with open(scaler, 'rb') as fn:
                 return pickle.load(fn).transform(X), y
-
+        if dump is not None:
+            make_dirs(os.path.dirname(dump))
         le = LabelEncoder()
         if y is not None:
             y = le.fit_transform(y)
@@ -336,6 +356,51 @@ class TrainingReader(object):
             tree_names.remove(tree_name)
         tree_names += expanded_tree_names
 
+    def prepare_data(self, train_cfg, variable_list=None):
+        signal_df, bkg_df, labels = None, None, None
+        if self.mode == 'pandas':
+            signal_dfs = [v for k, v in list(self.data.items())
+                          if any(['_'+sname in k for sname in train_cfg.signals])]
+            bkg_dfs = [v for k, v in list(self.data.items())
+                       if any(['_' + sname in k for sname in train_cfg.backgrounds])]
+            signal_df = signal_dfs[0]
+            for df in signal_dfs[1:]:
+                signal_df.append(df)
+            bkg_df = bkg_dfs[0]
+            for df in bkg_dfs[1:]:
+                bkg_df.append(df)
+
+            if variable_list:
+                signal_df = explode(signal_df, lst_cols=variable_list)[variable_list]
+                bkg_df = explode(bkg_df, lst_cols=variable_list)[variable_list]
+            labels = np.concatenate([np.ones(len(signal_df)), np.zeros(len(bkg_df))])
+        return signal_df, bkg_df, labels
+
+    def pre_process_data(self, signal_df, bkg_df, labels, train_cfg, output_path):
+        X = signal_df.append(bkg_df)
+        y = labels
+        X_train = None
+        y_train = None
+        X_test = None
+        y_test = None
+        if train_cfg.scaler is not None:
+            X, y = DataScaler(train_cfg.scaler).apply_scaling(X, y, dump=os.path.join(output_path, 'scalers',
+                                                                                      'train_scaler.pkl'))
+        if train_cfg.split == 'random':
+            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
+
+        if train_cfg.imbalance == 'over_sampling':
+            if sys.version_info[0] > 2:
+                ros = over_sampling.RandomOverSampler(random_state=42)
+                X_train, y_train = ros.fit_resample(X_train, y_train)
+            else:
+                _logger.error('Imbalance scaling requested which requires python3, but running in python2.')
+        if X_train is None:
+            assert y_train is None
+            X_train = X
+            y_train = y
+        return X_train, y_train, X_test, y_test
+
 
 class MLAnalyser(object):
     def __init__(self, **kwargs):
@@ -362,7 +427,7 @@ class MLAnalyser(object):
         backgrounds = []
 
         for process_name in list(trees.keys()):
-            _ = find_process_config(process_name, self.process_configs)
+            find_process_config(process_name, self.process_configs)
         for process, process_config in list(self.process_configs.items()):
             if not hasattr(process_config, "subprocesses"):
                 continue

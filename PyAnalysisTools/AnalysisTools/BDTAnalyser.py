@@ -1,12 +1,58 @@
+import pickle
+
+from sklearn.ensemble import AdaBoostClassifier
+
 import ROOT
 import PyAnalysisTools.PlottingUtils.PlottingTools as PT
 import PyAnalysisTools.PlottingUtils.Formatting as FT
 import PyAnalysisTools.PlottingUtils.Formatting as FM
+from PyAnalysisTools.AnalysisTools.MLHelper import TrainingReader, MLTrainConfig
 from PyAnalysisTools.base import InvalidInputError
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.base.FileHandle import FileHandle
-from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as PC
+from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig as pc
 from PyAnalysisTools.AnalysisTools.StatisticsTools import get_KS
+from PyAnalysisTools.base.ShellUtils import copy
+from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
+
+
+class BDTConfig(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('num_layers', 4)
+        for k, v in kwargs.items():
+            setattr(self, k.lower(), v)
+
+
+class SklearnBDTTrainer(object):
+    def __init__(self, **kwargs):
+        kwargs.setdefault('output_path', './')
+        self.train_cfg = MLTrainConfig(**yl.read_yaml(kwargs['training_config_file']))
+        self.bdt_cfg = BDTConfig(**yl.read_yaml(kwargs['bdt_config_file']))
+        if 'variables' in kwargs:
+            self.variable_list = kwargs['variables']
+        elif 'var_list' in kwargs:
+            self.variable_list = yl.read_yaml(kwargs['var_list'])['inputs']
+            # copy(kwargs['var_list'], os.path.join(kwargs['output_path'], 'var_list.yml'))
+        else:
+            self.variable_list = None
+        self.reader = TrainingReader(**kwargs)
+        self.signal_df = None
+        self.bkg_df = None
+        self.labels = None
+        for k, v in kwargs.items():
+            setattr(self, k.lower(), v)
+
+    def load_train_data(self):
+        self.signal_df, self.bkg_df, self.labels = self.reader.prepare_data(self.train_cfg,
+                                                                            variable_list=self.variable_list)
+
+    def train_bdt(self):
+        clf = AdaBoostClassifier()
+        X_train, y_train, X_test, y_test = self.reader.pre_process_data(self.signal_df, self.bkg_df, self.labels,
+                                                                        self.train_cfg, self.output_path)
+        clf.fit(X_train, y_train)
+        with open('test.pkl', 'wb') as f:
+            pickle.dump(clf, f)
 
 
 class BDTAnalyser(object):
@@ -54,7 +100,7 @@ class BDTAnalyser(object):
                                                               "dataset/Method_BDTG/BDTG")
         variables_hists = classify()
         for variable_name, variable_hists in variables_hists.iteritems():
-            plot_config = PC(name="{:s}_{:d}".format(variable_name, self.file_handles.index(file_handle)),
+            plot_config = pc(name="{:s}_{:d}".format(variable_name, self.file_handles.index(file_handle)),
                              color=[ROOT.kRed, ROOT.kBlue],
                              draw="Hist",
                              watermark="Internal",
@@ -75,7 +121,7 @@ class BDTAnalyser(object):
 
         kolmogorov_signal = get_KS(training_score_signal, eval_score_signal)
         kolmogorov_background = get_KS(training_score_background, eval_score_background)
-        plot_config = PC(name="overtrain_{:d}".format(self.file_handles.index(file_handle)),
+        plot_config = pc(name="overtrain_{:d}".format(self.file_handles.index(file_handle)),
                          color=ROOT.kRed,
                          draw="Marker",
                          style=20,
@@ -106,7 +152,7 @@ class BDTAnalyser(object):
         index = self.file_handles.index(file_handle)
         linear_corr_coeff_signal = file_handle.get_object_by_name("CorrelationMatrixS", "dataset")
         linear_corr_coeff_background = file_handle.get_object_by_name("CorrelationMatrixB", "dataset")
-        plot_config = PC(name="linear_corr_coeff_signal_{:d}".format(index), title="signal", dist=None,
+        plot_config = pc(name="linear_corr_coeff_signal_{:d}".format(index), title="signal", dist=None,
                          draw_option="COLZTEXT", ytitle="", ztitle="lin. correlation [%]")
         canvas_corr_coeff_signal = PT.plot_obj(linear_corr_coeff_signal, plot_config)
         plot_config.title = "background"
@@ -118,7 +164,7 @@ class BDTAnalyser(object):
                                                                       "dataset/InputVariables_Id/CorrelationPlots")
         correlation_hists_background = file_handle.get_objects_by_pattern("scat_.*_Background_Id",
                                                                           "dataset/InputVariables_Id/CorrelationPlots")
-        plot_config_corr = PC(name="correlation_hist", dist=None, draw_option="COLZ", watermark="Internal")
+        plot_config_corr = pc(name="correlation_hist", dist=None, draw_option="COLZ", watermark="Internal")
         for hist in correlation_hists_signal:
             variable_info = hist.GetName().split("_")[1:-2]
             plot_config_corr.name = "corr_" + "_".join(variable_info) + "_signal_{:d}".format(index)
@@ -150,13 +196,13 @@ class BDTAnalyser(object):
             self.output_handle.register_object(canvas, tdir="performance")
 
         index = self.file_handles.index(file_handle)
-        pc_roc_eff = PC(name="roc_eff_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
+        pc_roc_eff = pc(name="roc_eff_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
                         ytitle="Background efficiency", xtitle="Signal efficiency")
         make_plot("MVA_BDTG_effBvsS", pc_roc_eff)
-        pc_roc_inveff = PC(name="roc_inveff_vs_eff_{:d}".format(index), dist=None, draw_option="Line", logy=True,
+        pc_roc_inveff = pc(name="roc_inveff_vs_eff_{:d}".format(index), dist=None, draw_option="Line", logy=True,
                            ytitle="Inverse Background efficiency", xtitle="Signal efficiency")
         make_plot("MVA_BDTG_invBeffvsSeff", pc_roc_inveff)
-        pc_roc_rejeff = PC(name="roc_rej_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
+        pc_roc_rejeff = pc(name="roc_rej_vs_eff_{:d}".format(index), dist=None, draw_option="Line",
                            ytitle="Background rejection", xtitle="Signal efficiency")
         make_plot("MVA_BDTG_rejBvsS", pc_roc_rejeff)
 

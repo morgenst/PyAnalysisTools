@@ -22,18 +22,18 @@ import pandas as pd
 from keras import metrics
 from array import array
 import ROOT
-from .MLHelper import Root2NumpyConverter, TrainingReader, DataScaler, explode, print_classification, plot_scoring
+from .MLHelper import Root2NumpyConverter, TrainingReader, DataScaler, explode, print_classification, plot_scoring, \
+    MLTrainConfig
 from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.ShellUtils import make_dirs, copy
 from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as so
 from PyAnalysisTools.AnalysisTools.RegionBuilder import RegionBuilder
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
-from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
+# from PyAnalysisTools.AnalysisTools.MLHelper import MLConfigHandle
 from imblearn import over_sampling  # , under_sampling
 
 np.seterr(divide='ignore', invalid='ignore')
-import tensorflow as tf  # noqa: E402
 import matplotlib  # noqa: E402
 matplotlib.use('Agg')  # noqa: E402
 import matplotlib.pyplot as plt  # noqa: E402
@@ -102,15 +102,6 @@ class NeuralNetwork(object):
         self.kerasmodel = model
 
 
-class TrainConfig(object):
-    """
-    Class wrapping training configuration
-    """
-    def __init__(self, **kwargs):
-        kwargs.setdefault('scaler', None)
-        for attr, value in list(kwargs.items()):
-            setattr(self, attr, value)
-
 
 class NNTrainer(object):
     def __init__(self, **kwargs):
@@ -170,7 +161,7 @@ class NNTrainer(object):
             self.input_store_path = '/'.join(kwargs['input_file'][0].split('/')[:-1])
         self.weight_train = None
         self.weight_eval = None
-        self.train_cfg = TrainConfig(**yl.read_yaml(kwargs['training_config_file']))
+        self.train_cfg = MLTrainConfig(**yl.read_yaml(kwargs['training_config_file']))
 
     @staticmethod
     def get_resolved_output_path(output_path):
@@ -220,21 +211,22 @@ class NNTrainer(object):
         self.npa_data_eval = self.df_data_eval[self.variable_list].values
 
     def prepare_data(self):
-        if self.reader.mode == 'pandas':
-            self.signal_dfs = [v for k, v in list(self.reader.data.items())
-                               if any(['_'+sname in k for sname in self.train_cfg.signals])]
-            self.bkg_dfs = [v for k, v in list(self.reader.data.items())
-                               if any(['_' + sname in k for sname in self.train_cfg.backgrounds])]
-            self.signal_df = self.signal_dfs[0]
-            for df in self.signal_dfs[1:]:
-                self.signal_df.append(df)
-            self.bkg_df = self.bkg_dfs[0]
-            for df in self.bkg_dfs[1:]:
-                self.bkg_df.append(df)
-
-            self.signal_df = explode(self.signal_df, lst_cols=self.variable_list)[self.variable_list]
-            self.bkg_df = explode(self.bkg_df, lst_cols=self.variable_list)[self.variable_list]
-            self.labels = np.concatenate([np.ones(len(self.signal_df)), np.zeros(len(self.bkg_df))])
+        self.signal_df, self.bkg_df, self.labels = self.reader.prepare_data(self.train_cfg)
+        # if self.reader.mode == 'pandas':
+        #     self.signal_dfs = [v for k, v in list(self.reader.data.items())
+        #                        if any(['_'+sname in k for sname in self.train_cfg.signals])]
+        #     self.bkg_dfs = [v for k, v in list(self.reader.data.items())
+        #                     if any(['_' + sname in k for sname in self.train_cfg.backgrounds])]
+        #     self.signal_df = self.signal_dfs[0]
+        #     for df in self.signal_dfs[1:]:
+        #         self.signal_df.append(df)
+        #     self.bkg_df = self.bkg_dfs[0]
+        #     for df in self.bkg_dfs[1:]:
+        #         self.bkg_df.append(df)
+        #
+        #     self.signal_df = explode(self.signal_df, lst_cols=self.variable_list)[self.variable_list]
+        #     self.bkg_df = explode(self.bkg_df, lst_cols=self.variable_list)[self.variable_list]
+        #     self.labels = np.concatenate([np.ones(len(self.signal_df)), np.zeros(len(self.bkg_df))])
 
     def train(self):
         # self.build_input()
@@ -244,21 +236,8 @@ class NNTrainer(object):
         #     self.weight_train = self.df_data_train['weight']
         #     self.weight_eval = self.df_data_eval['weight']
 
-        X = self.signal_df.append(self.bkg_df)
-        y = self.labels
-        if self.train_cfg.scaler is not None:
-            X, y = DataScaler(self.train_cfg.scaler).apply_scaling(X, y, dump=os.path.join(self.output_path,
-                                                                                           'scalers',
-                                                                                           'train_scaler.pkl'))
-        if self.train_cfg.split == 'random':
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.33)
-
-        if self.train_cfg.imbalance == 'over_sampling':
-            if sys.version_info[0] > 2:
-                ros = over_sampling.RandomOverSampler(random_state=42)
-                X_train, y_train = ros.fit_resample(X_train, y_train)
-            else:
-                _logger.error('Imbalance scaling requested which requires python3, but running in python2.')
+        X_train, y_train, X_test, y_test = self.reader.pre_process_data(self.signal_df, self.bkg_df, self.labels,
+                                                                        self.train_cfg, self.output_path)
 
         self.build_models()
         if self.do_control_plots:
