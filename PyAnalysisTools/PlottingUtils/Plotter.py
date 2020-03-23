@@ -89,6 +89,7 @@ class Plotter(BasePlotter):
         if "xs_config_file" not in kwargs:
             _logger.error("No cross section file provided. No scaling will be applied.")
             kwargs.setdefault("xs_config_file", None)
+        kwargs.setdefault("tree_name", "tree")
         kwargs.setdefault("tree_dir_name", "Nominal")
         kwargs.setdefault("process_config_files", None)
         kwargs.setdefault("process_config_file", None)
@@ -144,6 +145,10 @@ class Plotter(BasePlotter):
             self.plot_configs += mod.execute(original_plot_configs)
 
     def init_modules(self):
+        """
+        Initialise extra modules, e.g background estimation
+        :return: None
+        """
         self.modules_pc_modifiers = [m for m in self.modules if m.type == "PCModifier"]
         self.modules_data_providers = [m for m in self.modules if m.type == "DataProvider"]
         self.modules_data_modifiers = [m for m in self.modules if m.type == 'DataModifier']
@@ -160,13 +165,11 @@ class Plotter(BasePlotter):
         self.ncpu = 1
         self.nfile_handles = 1
         self.plot_config_files = kwargs['plot_config_files']
-        self.parse_plot_config()
         self.expand_plot_configs()
         self.xs_config_file = config.extra_args['xs_config_file']
         if len(kwargs['process_config_files']) > 0:
             self.process_config_files = kwargs['process_config_files']
             self.process_config_file = None
-            self.process_configs = parse_and_build_process_config(self.process_config_files)
         else:
             self.process_configs = config.extra_args['process_configs']
         self.syst_analyser = config.extra_args['syst_analyser']
@@ -202,23 +205,7 @@ class Plotter(BasePlotter):
                                               output_file='hist-{:s}'.format(config.file_name.split('-')[1]))
 
     def add_mc_campaigns(self):
-        if self.process_configs is None:
-            return
-        for process_config_name in list(self.process_configs.keys()):
-            process_config = self.process_configs[process_config_name]
-            if process_config.is_data:
-                continue
-            for i, campaign in enumerate(['mc16a', 'mc16c', 'mc16d', 'mc16e']):
-                new_config = copy.copy(process_config)
-                new_config.name += campaign
-                new_config.label += ' {:s}'.format(campaign)
-                # TODO fix proper calculation
-                if '+' not in new_config.color and '-' not in new_config.color:
-                    new_config.color = new_config.color + ' + {:d}'.format(3 * pow(-1, i))
-                if hasattr(process_config, 'subprocesses'):
-                    new_config.subprocesses = ['{:s}.{:s}'.format(sb, campaign) for sb in process_config.subprocesses]
-                self.process_configs['{:s}.{:s}'.format(process_config_name, campaign)] = new_config
-            self.process_configs.pop(process_config_name)
+        _logger.error("deprecated")
 
     @staticmethod
     def filter_unavailable_processes(file_handles, process_configs):
@@ -233,11 +220,6 @@ class Plotter(BasePlotter):
             _logger.debug("failed file handles {:s}.".format(', '.join([fh.file_name for fh in failed_file_handles])))
         list([fh.close() for fh in failed_file_handles])
         return [fh for fh in file_handles if find_process_config(fh.process, process_configs) is not None]
-
-    @staticmethod
-    def filter_processes_new(file_handles, process_configs):
-        _logger.error("This function is deprecated. Switch to filter_unavailable_processes.")
-        return Plotter.filter_unavailable_processes(file_handles, process_configs)
 
     def initialise(self):
         self.ncpu = min(self.ncpu, len(self.plot_configs))
@@ -361,11 +343,11 @@ class Plotter(BasePlotter):
                 HT.scale(signal_hist, self.process_configs[process].signal_scale)
 
     def scale_process(self, data):
+        if self.process_configs is None:
+            return
         for process, hist in list(data.items()):
-            try:
-                cfg = self.process_configs[process]
-            except KeyError:
-                cfg = self.process_configs[process.process_name]
+            cfg = find_process_config(process.process_name, self.process_configs)
+
             if cfg.scale_factor is None:
                 continue
             HT.scale(hist, cfg.scale_factor)
@@ -526,7 +508,7 @@ class Plotter(BasePlotter):
                                                                         plot_config_syst_unc_ratio,
                                                                         plot_config_stat_unc_ratio],
                                                                        n_systematics=len(ratio_syst_up))
-                #self.syst_analyser.make_overview_plots(plot_config)
+                # self.syst_analyser.make_overview_plots(plot_config)
             ratio_plotter.decorate_ratio_canvas(canvas_ratio)
             canvas_combined = RP.RatioPlotter.add_ratio_to_canvas(canvas, canvas_ratio,
                                                                   ratio_rel_size=ratio_plot_config.ratio_rel_size)
