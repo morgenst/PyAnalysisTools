@@ -34,7 +34,7 @@ from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig, get_default_col
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
 from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_build_process_config
 from PyAnalysisTools.base import _logger
-from PyAnalysisTools.base.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle, filter_empty_trees
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
 from PyAnalysisTools.base.ShellUtils import make_dirs
@@ -992,7 +992,8 @@ class CommonLimitOptimiser(object):
         if not kwargs['skip_fh_reading']:
             self.file_handles = Plotter.filter_unavailable_processes(self.file_handles, self.process_configs)
             self.file_handles = self.filter_mass_points()
-            self.filter_empty_trees()
+            self.file_handles = filter_empty_trees(self.file_handles, self.tree_name, self.alternative_tree_name,
+                                                   self.tree_dir_name)
         for k, v in list(kwargs.items()):
             if hasattr(self, k):
                 continue

@@ -1,7 +1,10 @@
 import unittest
 import os
+
+from mock import MagicMock
+
 import ROOT
-from PyAnalysisTools.base.FileHandle import FileHandle
+from PyAnalysisTools.base.FileHandle import FileHandle, filter_empty_trees
 
 
 class TestFileHandle(unittest.TestCase):
@@ -108,3 +111,21 @@ class TestFileHandle(unittest.TestCase):
     @unittest.skip("Segfault in py3")
     def test_get_directory_fail(self):
         self.assertRaises(TypeError, self.file_handle.get_directory('Nominal2'))
+
+    def test_filter_empty_trees_remove(self):
+        tree_mock = MagicMock()
+        tree_mock.GetEntries.return_value = 0
+        fh_mock = MagicMock()
+        fh_mock.get_object_by_name.return_value = tree_mock
+        file_handles = [fh_mock]
+        file_handles = filter_empty_trees(file_handles, 'foo', None, 'Nominal')
+        self.assertEqual([], file_handles)
+
+    def test_filter_empty_trees_keep(self):
+        tree_mock = MagicMock()
+        tree_mock.GetEntries.return_value = 10
+        fh_mock = MagicMock()
+        fh_mock.get_object_by_name.return_value = tree_mock
+        file_handles = [fh_mock]
+        file_handles = filter_empty_trees(file_handles, 'foo', None, 'Nominal')
+        self.assertEqual(1, len(file_handles))
