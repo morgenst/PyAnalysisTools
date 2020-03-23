@@ -403,7 +403,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                     fm.set_range(hist.plot_object, plot_config.xmin, plot_config.xmax, "x")
                 if plot_config.logx:
                     canvas.SetLogx()
-                #format_hist(hist.plot_object, plot_config)
+                # format_hist(hist.plot_object, plot_config)
                 if not isinstance(hist.plot_object, ROOT.TH2):
                     if plot_config.ymax:
                         hist.plot_object.SetMaximum(plot_config.ymax)
@@ -626,8 +626,10 @@ def plot_stack(hists, plot_config, **kwargs):
         process, hist = histograms
         try:
             if "data" in process.lower():
-                # todo: problem if two distinct data sets
-                data = (process, hist)
+                if data is None:
+                    data = [(process, hist)]
+                else:
+                    data.append((process, hist))
                 continue
         except AttributeError:
             pass
@@ -643,7 +645,8 @@ def plot_stack(hists, plot_config, **kwargs):
     min_y, max_y = fm.get_min_max_y(canvas, plot_config)
     fm.set_range(stack, min_y, max_y)
     if data is not None:
-        add_data_to_stack(canvas, data[1], plot_config)
+        for data_campaing in data:
+            add_data_to_stack(canvas, data_campaing[1], plot_config)
     if plot_config.logy:
         canvas.SetLogy()
     if plot_config.logx:
