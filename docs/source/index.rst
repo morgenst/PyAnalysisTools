@@ -11,6 +11,7 @@ Welcome to PyAnalysisTools's documentation!
    usage/tutorials
    usage/modules
    usage/misc
+   usage/faq
    modules
 
 Indices and tables
