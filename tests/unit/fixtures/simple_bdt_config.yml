@@ -1,0 +1,2 @@
+simple_nn_config:
+  num_layers: 3

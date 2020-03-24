@@ -1,0 +1,10 @@
+inputs:
+  - muon_cos_alpha
+  - muon_d0
+  - muon_pt
+  - muon_mt
+
+spectators:
+  - truth_muon_is_from_b
+  - truth_muon_is_from_tau
+  - calo_met

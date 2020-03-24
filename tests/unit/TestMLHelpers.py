@@ -9,6 +9,8 @@ import pandas as pd
 import root_numpy
 from mock import MagicMock, patch, mock_open
 import six
+from numpy.testing import assert_array_equal
+from pandas.util.testing import assert_frame_equal
 
 import ROOT
 from PyAnalysisTools.AnalysisTools import MLHelper as mh
@@ -130,33 +132,33 @@ class TestRootNumpyConverter(unittest.TestCase):
 
 class TestTrainingReader(unittest.TestCase):
     def test_default_ctor(self):
-        converter = mh.TrainingReader()
-        self.assertEqual('', converter.mode)
-        self.assertFalse(converter.numpy_input)
+        reader = mh.TrainingReader()
+        self.assertEqual('', reader.mode)
+        self.assertFalse(reader.numpy_input)
 
     @mock.patch.object(pd, 'read_json', lambda _: None)
     @patch(builtin + ".open", new_callable=mock_open)
     def test_ctor_json(self, _):
-        converter = mh.TrainingReader(input_file_list=['foo.json'])
-        self.assertEqual('pandas', converter.mode)
-        self.assertFalse(converter.numpy_input)
-        self.assertEqual({'foo.json': None}, converter.data)
+        reader = mh.TrainingReader(input_file_list=['foo.json'])
+        self.assertEqual('pandas', reader.mode)
+        self.assertFalse(reader.numpy_input)
+        self.assertEqual({'foo.json': None}, reader.data)
 
     def test_ctor_numpy_list(self):
-        converter = mh.TrainingReader(input_file=['foo.npy', 'bar.npy'])
-        self.assertEqual('', converter.mode)
-        self.assertTrue(converter.numpy_input)
+        reader = mh.TrainingReader(input_file=['foo.npy', 'bar.npy'])
+        self.assertEqual('', reader.mode)
+        self.assertTrue(reader.numpy_input)
 
     def test_ctor_numpy(self):
-        converter = mh.TrainingReader(input_file='foo.npy', signal_tree_names=['sig'], bkg_tree_names=['bkg'])
-        self.assertEqual('', converter.mode)
-        self.assertFalse(converter.numpy_input)
-        self.assertEqual(['sig'], converter.signal_tree_names)
-        self.assertEqual(['bkg'], converter.bkg_tree_names)
+        reader = mh.TrainingReader(input_file='foo.npy', signal_tree_names=['sig'], bkg_tree_names=['bkg'])
+        self.assertEqual('', reader.mode)
+        self.assertFalse(reader.numpy_input)
+        self.assertEqual(['sig'], reader.signal_tree_names)
+        self.assertEqual(['bkg'], reader.bkg_tree_names)
 
     def test_parse_tree_names(self):
-        converter = mh.TrainingReader(input_file='foo.npy', signal_tree_names=['sig'], bkg_tree_names=['bkg'])
-        sig_train, bkg_train, sig_eval, bkg_eval = converter.parse_tree_names()
+        reader = mh.TrainingReader(input_file='foo.npy', signal_tree_names=['sig'], bkg_tree_names=['bkg'])
+        sig_train, bkg_train, sig_eval, bkg_eval = reader.parse_tree_names()
         self.assertEqual(['train_sig'], sig_train)
         self.assertEqual(['eval_sig'], sig_eval)
         self.assertEqual(['train_bkg'], bkg_train)
@@ -164,12 +166,27 @@ class TestTrainingReader(unittest.TestCase):
 
     @mock.patch.object(FileHandle, 'get_object_by_name', lambda _, x: x)
     def test_get_trees(self):
-        converter = mh.TrainingReader(input_file='foo.npy', signal_tree_names=['sig'], bkg_tree_names=['bkg'])
-        sig_train, bkg_train, sig_eval, bkg_eval = converter.get_trees()
+        reader = mh.TrainingReader(input_file='foo.npy', signal_tree_names=['sig'], bkg_tree_names=['bkg'])
+        sig_train, bkg_train, sig_eval, bkg_eval = reader.get_trees()
         self.assertEqual(['train_sig'], sig_train)
         self.assertEqual(['eval_sig'], sig_eval)
         self.assertEqual(['train_bkg'], bkg_train)
         self.assertEqual(['eval_bkg'], bkg_eval)
+
+    def test_prepare_data(self):
+        reader = mh.TrainingReader()
+        reader.mode = 'pandas'
+        reader.data = {'_foo': pd.DataFrame({'var1': [1., 2.]}), '_bar': pd.DataFrame({'var1': [3., 4.]})}
+        cfg = mh.MLTrainConfig(signals=['foo'], backgrounds=['bar'])
+        signal, bkg, labels = reader.prepare_data(cfg)
+        assert_frame_equal(pd.DataFrame({'var1': [1., 2.]}), signal)
+        assert_frame_equal(pd.DataFrame({'var1': [3., 4.]}), bkg)
+        assert_array_equal(np.array([1, 1, 0, 0]), labels)
+
+    def test_prepare_data_unsupported_mode(self):
+        reader = mh.TrainingReader(mode='foo')
+        cfg = mh.MLTrainConfig(signals=['foo'], backgrounds=['bar'])
+        self.assertEqual((None, None, None), reader.prepare_data(cfg))
 
 
 class TestMLAnalyser(unittest.TestCase):
