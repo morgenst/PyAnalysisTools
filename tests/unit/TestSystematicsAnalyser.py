@@ -3,7 +3,7 @@ import unittest
 from copy import deepcopy
 
 import six
-from mock import MagicMock, patch, Mock, PropertyMock
+from mock import MagicMock, patch, Mock
 
 import ROOT
 from PyAnalysisTools.AnalysisTools import SystematicsAnalyser as sa, MLHelper
@@ -18,6 +18,10 @@ from .Mocks import hist
 import numpy as np
 
 cwd = os.path.dirname(__file__)
+
+
+syst_process_mock = MagicMock()
+syst_process_mock.is_syst_process = False
 
 
 def entity_patch(*args, **kwargs):
@@ -197,27 +201,31 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertEqual(process, res_process)
         self.assertIsNone(hist)
 
+    @patch('PyAnalysisTools.AnalysisTools.SystematicsAnalyser.find_process_config', lambda *_: syst_process_mock)
     def test_retrieve_sys_hists_no_input_files(self):
         fh = FileHandle(file_name='foo', process=Process('data', dataset_info=None))
-        analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo')
+        analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', process_configs=MagicMock())
         self.assertEqual(1, len(analyser.file_handles))
         self.assertIsNone(analyser.retrieve_sys_hists())
 
     def test_retrieve_sys_hists_disable(self):
         self.assertIsNone(sa.SystematicsAnalyser(xs_handle='foo').retrieve_sys_hists())
 
+    @patch('PyAnalysisTools.AnalysisTools.SystematicsAnalyser.find_process_config', lambda *_: syst_process_mock)
     def test_retrieve_sys_hists_data_only(self):
         fh = FileHandle(file_name='foo', process=Process('foo', dataset_info=None))
-        self.assertIsNone(sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo').retrieve_sys_hists())
+        self.assertIsNone(sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo',
+                                                 process_configs=MagicMock()).retrieve_sys_hists())
 
     @patch.object(BasePlotter, 'read_histograms', lambda *args, **kwargs: [(PlotConfig(), 'foo',
                                                                             ROOT.TH1F('h_syst', '', 10, 0., 10.))])
     @patch.object(BasePlotter, 'apply_lumi_weights', lambda *args, **kwargs: None)
     @patch.object(sa.SystematicsAnalyser, 'parse_syst_config', lambda *args: [syst, scale_syst])
     @patch.object(BasePlotter, 'merge_histograms', lambda _: None)
+    @patch('PyAnalysisTools.AnalysisTools.SystematicsAnalyser.find_process_config', lambda *_: syst_process_mock)
     def test_retrieve_sys_hists(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
-        print(sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo',
+        print(sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', process_configs=MagicMock(),
                                      plot_configs=[PlotConfig()]).retrieve_sys_hists())
 
     def test_get_variation_for_process_no_pc(self):
@@ -425,10 +433,12 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertTrue('foo' in data)
         self.assertEqual('h_syst', data['foo'].GetName())
 
+    @patch('PyAnalysisTools.AnalysisTools.SystematicsAnalyser.find_process_config', lambda *_: syst_process_mock)
     def test_get_variations_single_systematic(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         pc = PlotConfig(name='foo')
-        analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[pc])
+        analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[pc],
+                                          process_configs=MagicMock())
         hnom = ROOT.TH1F('hnom', '', 10, 0., 10.)
         hsys = ROOT.TH1F('hsys', '', 10, 0., 10.)
         for i in range(1, 11):
