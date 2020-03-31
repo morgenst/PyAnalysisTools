@@ -3,7 +3,7 @@ import unittest
 from copy import deepcopy
 
 import six
-from mock import MagicMock, patch, Mock
+from mock import MagicMock, patch, Mock, PropertyMock
 
 import ROOT
 from PyAnalysisTools.AnalysisTools import SystematicsAnalyser as sa, MLHelper
@@ -184,16 +184,15 @@ class TestSystematicsAnalyser(unittest.TestCase):
     def test_load_dumped_hists_tuple(self):
         process = Process('foo', dataset_info=None)
         fh = FileHandle(file_name='foo', process=process)
-        self.assertEqual([(PlotConfig(), process, None)], sa.SystematicsAnalyser(xs_handle='foo').load_dumped_hists([fh],
-                                                                                                         [PlotConfig()],
-                                                                                                         'foo'))
+        self.assertEqual([(PlotConfig(), process, None)],
+                         sa.SystematicsAnalyser(xs_handle='foo').load_dumped_hists([fh], [PlotConfig()], 'foo'))
 
     @patch.object(FileHandle, 'get_object_by_name', lambda *args: None)
     def test_load_dumped_hists_theory(self):
         process = Process('foo', dataset_info=None)
         fh = FileHandle(file_name='foo', process=process)
         pc, res_process, hist = sa.SystematicsAnalyser.load_dumped_hist((fh, PlotConfig()),
-                                                                    'weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000')
+                                                                        'weight_pdf_uncert_MUR0p5_MUF0p5_PDF261000')
         self.assertEqual(pc, PlotConfig())
         self.assertEqual(process, res_process)
         self.assertIsNone(hist)
@@ -272,9 +271,8 @@ class TestSystematicsAnalyser(unittest.TestCase):
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo')
         analyser.systematic_hists = {'pdf_uncert_MUR0p5_MUF0p5_PDF261000': {pc: [hist]}}
         self.assertIsNone(analyser.get_variation_for_process(dummy_process, hist, pc,
-                                                              'pdf_uncert_MUR0p5_MUF0p5_PDF261000'))
-        self.assertIsNone(analyser.get_variation_for_process('Zjets', hist, pc,
                                                              'pdf_uncert_MUR0p5_MUF0p5_PDF261000'))
+        self.assertIsNone(analyser.get_variation_for_process('Zjets', hist, pc, 'pdf_uncert_MUR0p5_MUF0p5_PDF261000'))
 
     def test_get_symmetrised_hists(self):
         def clone_and_rename(name):
@@ -308,8 +306,8 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertTrue('foo' in data)
         self.assertEqual('h_syst', data['foo'].GetName())
 
-    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists', lambda *args, **kwargs: [(PlotConfig(), 'foo',
-                                                                            ROOT.TH1F('h_syst', '', 10, 0., 10.))])
+    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists',
+                  lambda *args, **kwargs: [(PlotConfig(), 'foo', ROOT.TH1F('h_syst', '', 10, 0., 10.))])
     @patch.object(BasePlotter, 'apply_lumi_weights', lambda *args, **kwargs: None)
     @patch.object(BasePlotter, 'merge_histograms', lambda _: None)
     def test_get_scale_uncertainty_load_dumped(self):
@@ -347,17 +345,15 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertTrue(isinstance(analyser.systematic_hists['foo'][PlotConfig()][Process('foo_311011',
                                                                                           dataset_info=None)], Mock))
 
-    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists', lambda *args, **kwargs: [(PlotConfig(),
-                                                                                         Process('foo_410472',
-                                                                                              dataset_info=None),
-                                                                                         hist)])
+    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists',
+                  lambda *args, **kwargs: [(PlotConfig(), Process('foo_410472', dataset_info=None), hist)])
     @patch.object(BasePlotter, 'apply_lumi_weights', lambda *args, **kwargs: None)
     @patch.object(BasePlotter, 'merge_histograms', lambda _: None)
     def test_get_fixed_scale_uncertainties_load_from_dump(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[PlotConfig()],
                                           dump_hist=True)
-        self.assertIsNone(analyser.get_fixed_scale_uncertainties([fh], {'foo': {410472: "(19.77/831.76, -29.20/831.76)"}},
+        self.assertIsNone(analyser.get_fixed_scale_uncertainties([fh], {'foo': {410472: "(19.77/8.76, -29.20/8.7)"}},
                                                                  dumped_hist_path='foo'))
 
     @patch.object(sa.SystematicsAnalyser, 'read_histograms', lambda *args, **kwargs: [(PlotConfig(),
@@ -368,8 +364,7 @@ class TestSystematicsAnalyser(unittest.TestCase):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
         analyser = sa.SystematicsAnalyser(file_handles=[fh], xs_handle='foo', plot_configs=[PlotConfig()],
                                           dump_hist=True, output_handle=MagicMock())
-        self.assertIsNone(analyser.get_fixed_scale_uncertainties([fh], {'foo': {410472:
-                                                                                    "(19.77/831.76, -29.20/831.76)"}}))
+        self.assertIsNone(analyser.get_fixed_scale_uncertainties([fh], {'foo': {410472: "(19.77/8.76, -29.20/8.76)"}}))
 
     def test_calculate_total_systematics(self):
         fh = FileHandle(file_name='foo', process=Process('foo_311011', dataset_info=None))
@@ -416,8 +411,8 @@ class TestSystematicsAnalyser(unittest.TestCase):
         self.assertIsNone(analyser.get_shape_uncertainty([fh], scale_syst))
         self.assertEqual([], list(analyser.systematic_hists.keys()))
 
-    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists', lambda *args, **kwargs: [(PlotConfig(), 'foo',
-                                                                            ROOT.TH1F('h_syst', '', 10, 0., 10.))])
+    @patch.object(sa.SystematicsAnalyser, 'load_dumped_hists',
+                  lambda *args, **kwargs: [(PlotConfig(), 'foo', ROOT.TH1F('h_syst', '', 10, 0., 10.))])
     @patch.object(BasePlotter, 'apply_lumi_weights', lambda *args, **kwargs: None)
     @patch.object(BasePlotter, 'merge_histograms', lambda _: None)
     def test_get_shape_uncertainty_load_dumped(self):
@@ -494,6 +489,7 @@ class TestSystematicsAnalyser(unittest.TestCase):
         nom = {'foo': hnom}
         analyser.total_systematics[SystematicsCategory()] = {'up': {pc: {'foo': hsys}}}
         self.assertRaises(SystemExit, analyser.get_relative_unc_on_SM_total, pc, nom)
+
 
 class TestTheoryUncertProvider(unittest.TestCase):
     def setUp(self):
@@ -615,3 +611,21 @@ class TestTheoryUncertProvider(unittest.TestCase):
         analyser = Mock()
         analyser.file_handles = MagicMock(return_value=[])
         self.assertIsNone(sa.TheoryUncertaintyProvider().fetch_uncertainties(analyser, dump_hist_path='foo'))
+
+    @patch('PyAnalysisTools.AnalysisTools.SystematicsAnalyser.find_process_config', lambda *_: MagicMock())
+    def test_get_top_fragmentation(self):
+        analyser = sa.SystematicsAnalyser(xs_handle='foo', plot_configs=MagicMock(), process_configs=MagicMock(),
+                                          tree_name='tree_name')
+        process_nom = MagicMock()
+        process_nom.dsid = '410472'
+        process_nom.mc_campaign = 'mc16d'
+        process_syst = MagicMock()
+        process_syst.dsid = '410558'
+        process_syst.mc_campaign = 'mc16d'
+        analyser.unmerged_nominal_hists = {PlotConfig(): {process_nom: hist, process_syst: hist}}
+        analyser.event_yields = {process_nom: 5., process_syst: 10.}
+
+        # analyser.file_handles = [fh]
+        provider = sa.TheoryUncertaintyProvider()
+        self.assertIsNone(provider.get_top_fragmentation(analyser))
+        self.assertTrue('top_theory_fragmentation__1up' in analyser.systematic_variations)

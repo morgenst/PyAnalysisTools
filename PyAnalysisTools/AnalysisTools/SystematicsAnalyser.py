@@ -18,6 +18,7 @@ from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_color_scheme
 from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base.ProcessConfig import find_process_config
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
 
@@ -147,7 +148,6 @@ class SystematicsAnalyser(BasePlotter):
         if len(file_handles) == 0:
             self.disable = True
 
-
     @staticmethod
     def parse_syst_config(cfg_file):
         if cfg_file is None:
@@ -196,7 +196,8 @@ class SystematicsAnalyser(BasePlotter):
     def retrieve_sys_hists(self, dumped_hist_path=None):
         if self.disable:
             return
-        file_handles = [fh for fh in self.file_handles if fh.process.is_mc]
+        file_handles = [fh for fh in self.file_handles if fh.process.is_mc and
+                        not find_process_config(fh.process, self.process_configs).is_syst_process]
         if len(file_handles) == 0:
             _logger.debug("Could not find any MC file handle. Nothing to do for systematics")
             return
@@ -370,6 +371,8 @@ class SystematicsAnalyser(BasePlotter):
         variations = {}
         for process, hists in list(nominal_hists.items()):
             if process.lower() == 'data':
+                continue
+            if find_process_config(process, self.process_configs).is_syst_process:
                 continue
             variations[process] = self.get_variation_for_process(process, hists, plot_config, systematic)
         return variations
@@ -654,6 +657,55 @@ class TheoryUncertaintyProvider(object):
         if self.top_unc is None:
             return
         return list(self.top_unc.keys())
+
+    def get_top_fragmentation(self, analyser):
+        mapping = {'410558': '410472',
+                   '411032': '410659',
+                   '411033': '410658',
+                   '411034': '410644',
+                   '411035': '410645',
+                   '411036': '410646',
+                   '411037': '410647'}
+        for pc, hists in analyser.unmerged_nominal_hists.items():
+            print(pc, hists)
+            uncert_hist = None
+            if len([p for p in hists.keys() if p.dsid in mapping.keys()]) == 0:
+                return
+            for syst_dsid, nom_dsid in mapping.items():
+                matched_nominal_processes = [p for p in hists.keys() if p.dsid == nom_dsid]
+                if len(matched_nominal_processes) == 0:
+                    continue
+                mc_campaigns = set([p.mc_campaign for p in matched_nominal_processes])
+                for mc_campaign in mc_campaigns:
+                    syst_prcf = [p for p in hists.keys() if p.dsid == syst_dsid and p.mc_campaign == mc_campaign]
+                    total_nom_evt_yld = sum([yld for p, yld in analyser.event_yields.items()
+                                             if p.mc_campaign == mc_campaign and p.dsid == nom_dsid])
+                    total_syst_evt_yld = sum([yld for p, yld in analyser.event_yields.items()
+                                             if p.mc_campaign == mc_campaign and p.dsid == syst_dsid])
+                    if total_syst_evt_yld != 0.:
+                        sf = float(total_nom_evt_yld) / float(total_syst_evt_yld)
+                    else:
+                        sf = 0.
+                    for prcf in syst_prcf:
+                        htemp = analyser.unmerged_nominal_hists[pc][prcf]
+                        htemp.Scale(sf)
+                        if uncert_hist is None:
+                            uncert_hist = deepcopy(htemp)
+                            continue
+                        uncert_hist.Add(htemp)
+            # now need to add all nominal top processes for which we don't have systematic variation
+            missing_top_processes = [p for p in hists.keys()
+                                     if find_process_config(p, analyser.process_configs).name == find_process_config(syst_prcf[0], analyser.process_configs).assoc_process]
+            missing_top_processes = [p for p in missing_top_processes if p.dsid not in mapping.values()]
+            missing_top_processes = [p for p in missing_top_processes if p.mc_campaign == mc_campaign]
+            for i in missing_top_processes:
+                uncert_hist.Add(analyser.unmerged_nominal_hists[pc][i])
+            uncert_hist.SetName(uncert_hist.GetName().replace('FragmentationSyst', '_top_theory_fragmentation__1up'))
+            try:
+                analyser.systematic_variations['top_theory_fragmentation__1up'][pc] = {'ttbar': deepcopy(uncert_hist)}
+            except KeyError:
+                analyser.systematic_variations['top_theory_fragmentation__1up'] = {pc: {'ttbar': deepcopy(uncert_hist)}}
+
 
     # def calculate_envelop(self, analyser):
     #     def get_pc(hists, plot_config):
