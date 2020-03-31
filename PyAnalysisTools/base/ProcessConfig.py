@@ -219,6 +219,8 @@ class Process(object):
 
 class ProcessConfig(object):
     def __init__(self, **kwargs):
+        kwargs.setdefault('is_syst_process', False)
+        kwargs.setdefault('assoc_process', None)
         kwargs.setdefault('parent_process', None)
         kwargs.setdefault('scale_factor', None)
         kwargs.setdefault('regions_only', None)
@@ -238,13 +240,16 @@ class ProcessConfig(object):
             obj_str += '{}={} \n'.format(attribute, value)
         return obj_str
 
+    def __unicode__(self):
+        return self.__str__()
+
     def __repr__(self):
         """
         Overloads representation operator. Get's called e.g. if list of objects are printed
         :return: formatted string with name and attributes
         :rtype: str
         """
-        return self.__str__() + '\n'
+        return self.__unicode__() + '\n'
 
     def transform_type(self):
         """

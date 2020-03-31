@@ -15,7 +15,7 @@ class TestSklearnBDTTrainer(unittest.TestCase):
     @classmethod
     def setUpClass(self):
         fixture_path = os.path.join(os.path.dirname(__file__), 'fixtures')
-        self.bdt_analyser = SklearnBDTTrainer(training_config_file=os.path.join(fixture_path,'training_config.yml'),
+        self.bdt_analyser = SklearnBDTTrainer(training_config_file=os.path.join(fixture_path, 'training_config.yml'),
                                               bdt_config_file=os.path.join(fixture_path, 'simple_bdt_config.yml'),
                                               var_list=os.path.join(fixture_path, 'varlist_training.yml'),
                                               input_file_list=[os.path.join(fixture_path,
