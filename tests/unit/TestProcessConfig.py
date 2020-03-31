@@ -1,8 +1,11 @@
-import re
-import unittest
 import os
-from PyAnalysisTools.base.ProcessConfig import Process
+import unittest
+import re
+from mock import MagicMock
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig, parse_and_build_process_config, find_process_config, \
+    Process
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
+
 
 cwd = os.path.dirname(__file__)
 
@@ -10,13 +13,29 @@ cwd = os.path.dirname(__file__)
 class TestProcess(unittest.TestCase):
     @classmethod
     def setUpClass(self):
-        self.data_set_info = yl.read_yaml(os.path.join(os.path.dirname(__file__), 'fixtures/dataset_info_pmg.yml'))
+        self.data_set_info = yl.read_yaml(os.path.join(cwd, 'fixtures/dataset_info_pmg.yml'))
 
     def setUp(self):
         pass
 
     def tearDown(self):
         pass
+
+    def test_str(self):
+        process = Process('tmp/ntuple-311570_0.MC16a.root', self.data_set_info)
+        self.assertEqual("TBbLQmumu1300l1 parsed from file name tmp/ntuple-311570_0.MC16a.root", process.__str__())
+
+    def test_unicode(self):
+        process = Process('tmp/ntuple-311570_0.MC16a.root', self.data_set_info)
+        self.assertEqual("TBbLQmumu1300l1 parsed from file name tmp/ntuple-311570_0.MC16a.root", process.__unicode__())
+
+    def test_format(self):
+        process = Process('tmp/ntuple-311570_0.MC16a.root', self.data_set_info)
+        self.assertEqual("TBbLQmumu1300l1 parsed from file name tmp/ntuple-311570_0.MC16a.root", "{:s}".format(process))
+
+    def test_hash(self):
+        process = Process('tmp/ntuple-311570_0.MC16a.root', self.data_set_info)
+        self.assertEqual(hash("TBbLQmumu1300l1"), hash(process))
 
     def test_process_file_name_ntuple(self):
         process = Process('tmp/ntuple-311570_0.MC16a.root', self.data_set_info)
@@ -167,3 +186,99 @@ class TestProcess(unittest.TestCase):
     def test_process_weight(self):
         process = Process('v21/ntuple-mc16_311570_MC16e.root', self.data_set_info, weight='foo')
         self.assertEqual('foo', process.weight)
+
+
+class TestProcessConfig(unittest.TestCase):
+    def setUp(self):
+        self.pc = ProcessConfig(name='foo', type='data')
+        self.cfg_file = os.path.join(os.path.dirname(__file__), 'fixtures/process_merge_config.yml')
+
+    def test_ctor(self):
+        self.assertIsNone(self.pc.parent_process)
+        self.assertIsNone(self.pc.scale_factor)
+        self.assertIsNone(self.pc.regions_only)
+        self.assertIsNone(self.pc.weight)
+        self.assertIsNone(self.pc.assoc_process)
+        self.assertTrue(self.pc.is_data)
+        self.assertFalse(self.pc.is_syst_process)
+        self.assertFalse(self.pc.is_mc)
+
+    def test_str(self):
+        self.assertEqual("Process config: foo \nname=foo \ntype=data \nis_syst_process=False \nassoc_process=None "
+                         "\nparent_process=None \nscale_factor=None \nregions_only=None \nweight=None \nis_data=True "
+                         "\nis_mc=False \n", self.pc.__str__())
+
+    def test_unicode(self):
+        self.assertEqual("Process config: foo \nname=foo \ntype=data \nis_syst_process=False \nassoc_process=None "
+                         "\nparent_process=None \nscale_factor=None \nregions_only=None \nweight=None \nis_data=True "
+                         "\nis_mc=False \n", self.pc.__unicode__())
+
+    def test_repr(self):
+        self.assertEqual("Process config: foo \nname=foo \ntype=data \nis_syst_process=False \nassoc_process=None "
+                         "\nparent_process=None \nscale_factor=None \nregions_only=None \nweight=None \nis_data=True "
+                         "\nis_mc=False \n\n", self.pc.__repr__())
+
+    def test_parse_and_build_process_config(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        self.assertTrue('Data' in cfgs)
+
+    def test_parse_and_build_process_config_lsit(self):
+        cfgs = parse_and_build_process_config([self.cfg_file])
+        self.assertTrue('Data' in cfgs)
+
+    def test_parse_and_build_process_config_no_file(self):
+        self.assertIsNone(parse_and_build_process_config(None))
+
+    def test_parse_and_build_process_config_non_existing_file_exception(self):
+        self.assertRaises(FileNotFoundError, parse_and_build_process_config, 'foo')
+
+    def test_find_process_config_missing_input(self):
+        self.assertIsNone(find_process_config(None, MagicMock()))
+        self.assertIsNone(find_process_config(MagicMock(), None))
+
+    def test_find_process_config(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        self.assertEqual(cfgs['Data'], find_process_config('data18_13TeV_periodB', cfgs))
+
+    def test_find_process_config_direct_cfg_match(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        self.assertEqual(cfgs['Data'], find_process_config('Data', cfgs))
+
+    def test_find_process_config_no_regex(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        cfgs['Data'].subprocesses = ['data18_13TeV_periodB']
+        self.assertEqual(cfgs['Data'], find_process_config('data18_13TeV_periodB', cfgs))
+
+    def test_find_process_config_no_subprocess(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        delattr(cfgs['Data'], 'subprocesses')
+        self.assertIsNone(find_process_config('data18_13TeV_periodB', cfgs))
+
+    def test_find_process_config_multiple_matches(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        cfgs['tmp'] = cfgs['Data']
+        self.assertIsNone(find_process_config('data18_13TeV_periodB', cfgs))
+
+    def test_find_process_config_process(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        self.assertEqual(cfgs['Data'], find_process_config(Process('data18_13TeV_periodB', None), cfgs))
+
+    def test_find_process_config_direct_cfg_match_process(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        self.assertEqual(cfgs['Data'], find_process_config(Process('Data', None), cfgs))
+
+    def test_find_process_config_no_regex_process(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        cfgs['Data'].subprocesses = ['data18.periodB']
+        self.assertEqual(cfgs['Data'], find_process_config(Process('data18_13TeV_periodB', None), cfgs))
+
+    def test_find_process_config_no_subprocess_process(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        delattr(cfgs['Data'], 'subprocesses')
+        self.assertIsNone(find_process_config(Process('data18_13TeV_periodB', None), cfgs))
+
+    def test_find_process_config_multiple_matches_process(self):
+        cfgs = parse_and_build_process_config(self.cfg_file)
+        cfgs['tmp'] = cfgs['Data']
+        self.assertIsNone(find_process_config(Process('data18_13TeV_periodB', None), cfgs))
+
