@@ -204,19 +204,49 @@ class TestProcessConfig(unittest.TestCase):
         self.assertFalse(self.pc.is_mc)
 
     def test_str(self):
-        self.assertEqual("Process config: foo \nname=foo \ntype=data \nis_syst_process=False \nassoc_process=None "
-                         "\nparent_process=None \nscale_factor=None \nregions_only=None \nweight=None \nis_data=True "
-                         "\nis_mc=False \n", self.pc.__str__())
+        process_cfg_str = self.pc.__str__()
+        self.assertTrue("Process config: foo \n" in process_cfg_str)
+        self.assertTrue("name=foo \n" in process_cfg_str)
+        self.assertTrue("type=data \n" in process_cfg_str)
+        self.assertTrue("is_syst_process=False \n" in process_cfg_str)
+        self.assertTrue("parent_process=None \n" in process_cfg_str)
+        self.assertTrue("scale_factor=None \n" in process_cfg_str)
+        self.assertTrue("is_mc=False \n" in process_cfg_str)
+        self.assertTrue("weight=None \n" in process_cfg_str)
+        self.assertTrue("is_data=True \n" in process_cfg_str)
+        self.assertTrue("regions_only=None \n" in process_cfg_str)
+        self.assertTrue("assoc_process=None \n" in process_cfg_str)
+        self.assertTrue("type=data \n" in process_cfg_str)
 
     def test_unicode(self):
-        self.assertEqual("Process config: foo \nname=foo \ntype=data \nis_syst_process=False \nassoc_process=None "
-                         "\nparent_process=None \nscale_factor=None \nregions_only=None \nweight=None \nis_data=True "
-                         "\nis_mc=False \n", self.pc.__unicode__())
+        process_cfg_str = self.pc.__unicode__()
+        self.assertTrue("Process config: foo \n" in process_cfg_str)
+        self.assertTrue("name=foo \n" in process_cfg_str)
+        self.assertTrue("type=data \n" in process_cfg_str)
+        self.assertTrue("is_syst_process=False \n" in process_cfg_str)
+        self.assertTrue("parent_process=None \n" in process_cfg_str)
+        self.assertTrue("scale_factor=None \n" in process_cfg_str)
+        self.assertTrue("is_mc=False \n" in process_cfg_str)
+        self.assertTrue("weight=None \n" in process_cfg_str)
+        self.assertTrue("is_data=True \n" in process_cfg_str)
+        self.assertTrue("regions_only=None \n" in process_cfg_str)
+        self.assertTrue("assoc_process=None \n" in process_cfg_str)
+        self.assertTrue("type=data \n" in process_cfg_str)
 
     def test_repr(self):
-        self.assertEqual("Process config: foo \nname=foo \ntype=data \nis_syst_process=False \nassoc_process=None "
-                         "\nparent_process=None \nscale_factor=None \nregions_only=None \nweight=None \nis_data=True "
-                         "\nis_mc=False \n\n", self.pc.__repr__())
+        process_cfg_str = self.pc.__repr__()
+        self.assertTrue("Process config: foo \n" in process_cfg_str)
+        self.assertTrue("name=foo \n" in process_cfg_str)
+        self.assertTrue("type=data \n" in process_cfg_str)
+        self.assertTrue("is_syst_process=False \n" in process_cfg_str)
+        self.assertTrue("parent_process=None \n" in process_cfg_str)
+        self.assertTrue("scale_factor=None \n" in process_cfg_str)
+        self.assertTrue("is_mc=False \n" in process_cfg_str)
+        self.assertTrue("weight=None \n" in process_cfg_str)
+        self.assertTrue("is_data=True \n" in process_cfg_str)
+        self.assertTrue("regions_only=None \n" in process_cfg_str)
+        self.assertTrue("assoc_process=None \n" in process_cfg_str)
+        self.assertTrue("type=data \n" in process_cfg_str)
 
     def test_parse_and_build_process_config(self):
         cfgs = parse_and_build_process_config(self.cfg_file)
@@ -230,7 +260,10 @@ class TestProcessConfig(unittest.TestCase):
         self.assertIsNone(parse_and_build_process_config(None))
 
     def test_parse_and_build_process_config_non_existing_file_exception(self):
-        self.assertRaises(FileNotFoundError, parse_and_build_process_config, 'foo')
+        try:
+            self.assertRaises(FileNotFoundError, parse_and_build_process_config, 'foo')
+        except NameError:
+            self.assertRaises(IOError, parse_and_build_process_config, 'foo')
 
     def test_find_process_config_missing_input(self):
         self.assertIsNone(find_process_config(None, MagicMock()))
