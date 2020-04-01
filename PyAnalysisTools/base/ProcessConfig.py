@@ -190,8 +190,6 @@ class Process(object):
         """
         if 'mc16a' in file_name.lower():
             self.mc_campaign = 'mc16a'
-        if 'mc16c' in file_name.lower():
-            self.mc_campaign = 'mc16c'
         if 'mc16d' in file_name.lower():
             self.mc_campaign = 'mc16d'
         if 'mc16e' in file_name.lower():
@@ -321,7 +319,7 @@ def find_process_config_str(process_name, process_configs):
     matched_process_cfg = [pc for pc in list(process_configs.values()) if is_sub_process(pc)]
     if len(matched_process_cfg) != 1:
         if len(matched_process_cfg) > 0:
-            print('SOMEHOW matched to multiple configs')
+            _logger.error('SOMEHOW matched to multiple configs')
         return None
     return matched_process_cfg[0]
 

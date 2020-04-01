@@ -11,3 +11,6 @@ def tearDownModule():
     folders = glob.glob(folder_pattern)
     for fn in folders:
         shutil.rmtree(fn)
+    folders = glob.glob('*foo*')
+    for fn in folders:
+        shutil.rmtree(fn)
