@@ -4,10 +4,15 @@ import glob
 import os
 import time
 import stat
+from getpass import getuser
+from random import randint
+from subprocess import check_output
 
 from PyAnalysisTools.base import _logger
-from PyAnalysisTools.base.ShellUtils import remove_file, change_dir
 import dill
+
+from PyAnalysisTools.base.ShellUtils import change_dir, remove_file
+
 dill._dill._reverse_typemap['ObjectType'] = object
 
 
@@ -24,6 +29,8 @@ class BatchHandle(object):
     def __init__(self, job):
         if not hasattr(job, 'log_fname'):
             job.log_fname = 'log'
+        if not hasattr(job, 'identifier'):
+            job.identifier = 'batch_{:d}'.format(randint(0, 1000))
         self.system = 'qsub'
         if hasattr(job, 'extra_submission_args'):
             if job.extra_submission_args is not None:
@@ -31,6 +38,7 @@ class BatchHandle(object):
 
         self.queue = job.queue
         self.is_master = False
+        self.identifier = job.identifier
         self.log_level = job.log_level
         self.log_fname = job.log_fname
         self.local = job.local
@@ -55,6 +63,8 @@ class BatchHandle(object):
                 continue
             if self.local:
                 log_fn = '{:s}_{:d}.txt'.format(self.log_fname, job_id)
+                # os.system('python {:s} -mtcf {:s} -id {:d} -log {:s}'.format(exec_script, cfg_file_name, job_id,
+                #                                                                     self.log_level))
                 os.system('python {:s} -mtcf {:s} -id {:d} -log {:s} > {:s}'.format(exec_script, cfg_file_name, job_id,
                                                                                     self.log_level,
                                                                                     os.path.join(output_dir, log_fn)))
@@ -62,7 +72,8 @@ class BatchHandle(object):
             if 'AnaPySetup' not in os.environ:
                 _logger.error('Cannot find env AnaPySetup and thus not determine setup script. Exiting')
                 exit(9)
-            bash_script = os.path.join(os.path.join(output_dir, 'submit_{:d}.sh'.format(job_id)))
+            bash_script = os.path.join(os.path.join(output_dir, 'submit_{:s}_{:d}.sh'.format(self.identifier,
+                                                                                             job_id)))
             with open(bash_script, 'wb') as f:
                 print('#!/usr/bin/env bash', file=f)
                 print('source $HOME/.bashrc && cd {:s} && source {:s} && cd macros && python {:s} -mtcf {:s} -id {:d} '
@@ -74,9 +85,14 @@ class BatchHandle(object):
             os.system('{:s} {:s} -q {:s} -o {:s}.txt -e {:s}.err'.format(self.system, bash_script, self.queue,
                                                                          log_file_name, log_file_name))
             time.sleep(2)
+        while check_output(['qstat', '-u {:s}'.format(getuser())]).count('submit_{:s}'.format(self.identifier)) > 0:
+            time.sleep(10)
         if not disable_wait:
-            while len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root')))) < n_jobs:
-                time.sleep(10)
+            n_processed_files = len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root'))))
+            if n_processed_files < n_jobs:
+                _logger.error("Could not produce all root files. Expect {:d}, but found "
+                              "only {:d}. Giving up, not running post-processing".format(n_jobs, n_processed_files))
+                exit(-1)
         return output_dir
 
     def __del__(self):

@@ -75,12 +75,14 @@ class TestBatchHandle(unittest.TestCase):
         self.assertIsNone(handle.__del__())
 
     @patch.object(glob, 'glob', lambda _: ['foo', 'foo'])
+    @patch('PyAnalysisTools.base.BatchHandle.check_output', lambda _: ['foo'])
     def test_execute(self, _):
         handle = bh.BatchHandle(self.master_test_job)
         os.environ['AnaPySetup'] = 'foo'
         handle.execute()
 
     @patch.object(glob, 'glob', lambda _: ['foo', 'foo'])
+    @patch('PyAnalysisTools.base.BatchHandle.check_output', lambda _: ['foo'])
     def test_execute_local(self, _):
         self.master_test_job.local = True
         handle = bh.BatchHandle(self.master_test_job)
