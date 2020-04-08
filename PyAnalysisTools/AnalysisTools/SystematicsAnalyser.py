@@ -666,8 +666,27 @@ class TheoryUncertaintyProvider(object):
                    '411035': '410645',
                    '411036': '410646',
                    '411037': '410647'}
+        self.get_top_mc_varation(analyser, mapping, 'fragmentation', 'FragmentationSyst')
+
+    def get_top_hard_scatter(self, analyser):
+        mapping = {'410465': '410472',
+                   '412004': '410659',
+                   '412004': '410658',
+                   '412005': '410644',
+                   '412005': '410645',
+                   '412002': '410646',
+                   '412002': '410647'}
+        self.get_top_mc_varation(analyser, mapping, 'hard_scatter', 'HardScatterSyst')
+
+    def get_top_mc_varation(self, analyser, mapping, name, process_pattern):
+        """
+        Fct to calculate systematic theory uncertainty for top samples with different MC samples
+        :param analyser:
+        :param mapping:
+        :param name:
+        :return:
+        """
         for pc, hists in analyser.unmerged_nominal_hists.items():
-            print(pc, hists)
             uncert_hist = None
             if len([p for p in hists.keys() if p.dsid in mapping.keys()]) == 0:
                 return
@@ -700,11 +719,13 @@ class TheoryUncertaintyProvider(object):
             missing_top_processes = [p for p in missing_top_processes if p.mc_campaign == mc_campaign]
             for i in missing_top_processes:
                 uncert_hist.Add(analyser.unmerged_nominal_hists[pc][i])
-            uncert_hist.SetName(uncert_hist.GetName().replace('FragmentationSyst', '_top_theory_fragmentation__1up'))
+            syst_name = 'top_theory_{:s}__1up'.format(name)
+
+            uncert_hist.SetName(uncert_hist.GetName().replace(process_pattern, '_'+syst_name))
             try:
-                analyser.systematic_variations['top_theory_fragmentation__1up'][pc] = {'ttbar': deepcopy(uncert_hist)}
+                analyser.systematic_variations[syst_name][pc] = {'ttbar': deepcopy(uncert_hist)}
             except KeyError:
-                analyser.systematic_variations['top_theory_fragmentation__1up'] = {pc: {'ttbar': deepcopy(uncert_hist)}}
+                analyser.systematic_variations[syst_name] = {pc: {'ttbar': deepcopy(uncert_hist)}}
 
 
     # def calculate_envelop(self, analyser):

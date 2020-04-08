@@ -639,3 +639,21 @@ class TestTheoryUncertProvider(unittest.TestCase):
         provider = sa.TheoryUncertaintyProvider()
         self.assertIsNone(provider.get_top_fragmentation(analyser))
         self.assertTrue('top_theory_fragmentation__1up' in analyser.systematic_variations)
+
+    @patch('PyAnalysisTools.AnalysisTools.SystematicsAnalyser.find_process_config', lambda *_: MagicMock())
+    def test_get_top_hard_scatter(self):
+        analyser = sa.SystematicsAnalyser(xs_handle='foo', plot_configs=MagicMock(), process_configs=MagicMock(),
+                                          tree_name='tree_name')
+        process_nom = MagicMock()
+        process_nom.dsid = '410472'
+        process_nom.mc_campaign = 'mc16d'
+        process_syst = MagicMock()
+        process_syst.dsid = '410465'
+        process_syst.mc_campaign = 'mc16d'
+        analyser.unmerged_nominal_hists = {PlotConfig(): {process_nom: hist, process_syst: hist}}
+        analyser.event_yields = {process_nom: 5., process_syst: 10.}
+
+        # analyser.file_handles = [fh]
+        provider = sa.TheoryUncertaintyProvider()
+        self.assertIsNone(provider.get_top_hard_scatter(analyser))
+        self.assertTrue('top_theory_hard_scatter__1up' in analyser.systematic_variations)
