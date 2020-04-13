@@ -2,6 +2,7 @@ import os
 import unittest
 from builtins import object
 from builtins import range
+from copy import deepcopy
 from random import random as rndm
 
 # import nosedep
@@ -10,6 +11,7 @@ from mock import MagicMock
 import ROOT
 from PyAnalysisTools.PlottingUtils import PlottingTools as pt
 from PyAnalysisTools.PlottingUtils.PlotConfig import PlotConfig
+from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_name
 from PyAnalysisTools.base import InvalidInputError
 
 cwd = os.path.dirname(__file__)
@@ -52,6 +54,17 @@ class TestPlottingTools(unittest.TestCase):
     def test_plot_1d_multiple(self):
         c = pt.plot_objects([self.hist], self.plot_config)
         self.assertEqual(2, len(c.GetListOfPrimitives()))
+
+    def test_plot_1d_multiple_auto_range(self):
+        self.plot_config.ymax = None
+        self.plot_config.normalise = False
+        self.plot_config.logy = False
+        hist2 = deepcopy(self.hist)
+        hist2.Scale(1000)
+        c = pt.plot_objects([self.hist, hist2], self.plot_config)
+        h = get_objects_from_canvas_by_name(c, "h")[0]
+        c.SaveAs("foo.pdf")
+        self.assertTrue(h.GetMaximum() > hist2.GetMaximum())
 
     def test_add_plot_1d(self):
         c = pt.plot_obj(self.hist, self.plot_config)
