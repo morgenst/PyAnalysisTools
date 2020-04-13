@@ -142,9 +142,9 @@ def plot_hist(hist, plot_config, **kwargs):
     hist.Draw(draw_option)
     hist.SetMarkerSize(0.7)
     fm.apply_style(hist, plot_config, process_config, index=kwargs["index"])
-    if plot_config.ymin:
+    if plot_config.ymin is not None:
         fm.set_minimum_y(hist, plot_config.ymin)
-    if plot_config.ymax:
+    if plot_config.ymax is not None:
         fm.set_maximum_y(hist, plot_config.ymax)
     if plot_config.logy:
         hist.SetMaximum(hist.GetMaximum() * plot_config.yscale_log)
@@ -434,7 +434,6 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     for process, hist in hist_defs:
         index = list(map(itemgetter(1), hist_defs)).index(hist)
         hist = format_hist(hist, plot_config)
-
         try:
             process_config = find_process_config(process, process_configs)
         except AttributeError:
@@ -453,9 +452,9 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
                 canvas.SetRightMargin(0.15)
             format_hist(hist, plot_config)
             if plot_config.ymax:
-                fm.set_maximum_y(hist, plot_config.ymax)  # hist.SetMaximum(plot_config.ymax)
+                fm.set_maximum_y(hist, plot_config.ymax)
             else:
-                hist.SetMaximum(hist.GetMaximum() * 1.2)
+                fm.set_maximum_y(hist, max([h.GetMaximum() for _, h in hist_defs]) * 1.2)
             if plot_config.ymin:
                 fm.set_minimum_y(hist, plot_config.ymin)
         if plot_config.logy:
