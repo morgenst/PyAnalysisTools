@@ -14,7 +14,7 @@ import ROOT
 import os
 from PyAnalysisTools.base.FileHandle import FileHandle, filter_empty_trees
 from PyAnalysisTools.base import _logger, InvalidInputError
-from PyAnalysisTools.base.ProcessConfig import ProcessConfig, find_process_config, parse_and_build_process_config
+from PyAnalysisTools.base.ProcessConfig import ProcessConfig, find_process_config
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils import Formatting as FM
 from PyAnalysisTools.PlottingUtils import HistTools as HT
@@ -27,7 +27,6 @@ from PyAnalysisTools.AnalysisTools.SystematicsAnalyser import SystematicsAnalyse
 from PyAnalysisTools.AnalysisTools import StatisticsTools as ST
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.ROOTUtils.ObjectHandle import get_objects_from_canvas_by_type
-from PyAnalysisTools.AnalysisTools.FakeEstimator import ElectronFakeEstimator
 from PyAnalysisTools.base.Modules import load_modules
 
 # required to get deepcopy working for compiled regex. Should be fixed in python 3.7
@@ -125,8 +124,6 @@ class Plotter(BasePlotter):
             self.file_handles = filter_empty_trees(self.file_handles, self.tree_name, self.alternative_tree_name,
                                                    self.tree_dir_name)
         self.modules = load_modules(kwargs['module_config_files'], self)
-        # self.fake_estimator = ElectronFakeEstimator(self, file_handles=self.file_handles)
-        # self.modules.append(self.fake_estimator)
         self.init_modules()
         self.expand_plot_configs()
         if kwargs["enable_systematics"]:
@@ -267,7 +264,10 @@ class Plotter(BasePlotter):
     def make_multidimensional_plot(self, plot_config, data):
         for process, histogram in list(data.items()):
             canvas = pt.plot_obj(histogram, plot_config)
-            canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process.process_name))
+            try:
+                canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process.process_name))
+            except AttributeError:
+                canvas.SetName("{:s}_{:s}".format(canvas.GetName(), process))
             canvas.SetRightMargin(0.2)
             FM.decorate_canvas(canvas, plot_config)
             self.output_handle.register_object(canvas)
@@ -605,7 +605,9 @@ class Plotter(BasePlotter):
             if hasattr(self.plot_configs, "normalise_after_cut"):
                 self.cut_based_normalise(self.plot_configs.normalise_after_cut)
         # workaround due to missing worker node communication of regex process parsing
+        self.unmerged_nominal_hists = None
         if self.process_configs is not None:
+            self.unmerged_nominal_hists = copy.deepcopy(self.histograms)
             self.merge_histograms()
             if not self.cluster_mode:
                 for pc, hists in list(self.histograms.items()):
@@ -613,6 +615,7 @@ class Plotter(BasePlotter):
                         self.output_handle.register_object(h)
         if self.syst_analyser is not None:
             self.syst_analyser.nominal_hists = self.histograms
+            self.syst_analyser.unmerged_nominal_hists = self.unmerged_nominal_hists
             self.syst_analyser.retrieve_sys_hists(dumped_hist_path)
             self.syst_analyser.calculate_variations(self.histograms)
             if not self.cluster_mode:
