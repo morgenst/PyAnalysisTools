@@ -682,6 +682,7 @@ class LimitScanAnalyser(object):
             if 'mc' in scan.kwargs['sig_name']:
                 continue
             self.sig_reg_name = scan.sig_reg_name
+            self.sig_reg_cfg = scan.kwargs['sig_reg_cfg']
             analyser = LimitAnalyserCL(os.path.join(self.input_path, str(scan.kwargs['jobid']), self.analysis_name,
                                                     'Limits'))
             try:
@@ -901,19 +902,25 @@ class LimitScanAnalyser(object):
         ROOT.gStyle.SetPalette(1)
         pc = PlotConfig(name="limit_scan_{:s}".format(self.sig_reg_name), draw_option="COLZ",
                         xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], ztitle="95% CL U.L. #sigma [fb]",
-                        watermark='Internal', lumi=139.0)
+                        watermark='Internal', lumi=139.0, decor_text=self.sig_reg_cfg.label, decor_text_y=0.7)
         ROOT.gStyle.SetPaintTextFormat(".2g")
         pc_norm = PlotConfig(name="limit_scan_norm_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT", lumi=139.0,
                              xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'], watermark='Internal',
-                             ztitle="#splitline{95% CL U.L. #sigma [fb]}{normalised to lowest U.L. per mass bin}")
+                             ztitle="#splitline{95% CL U.L. #sigma [fb]}{normalised to lowest U.L. per mass bin}",
+                             decor_text=self.sig_reg_cfg.label, decor_text_y=0.7)
         pc_status = PlotConfig(name="limit_status_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=139.0)
+                               ztitle="fit status + 1", zmin=-1., watermark='Internal', lumi=139.0,
+                               decor_text=self.sig_reg_cfg.label, decor_text_y=0.7)
         pc_cov_quality = PlotConfig(name="limit_cov_quality_{:s}".format(self.sig_reg_name), draw_option="COLZTEXT",
                                     xtitle=plot_config['xtitle'], ytitle=plot_config['ytitle'],
-                                    ztitle="fit cov quality", watermark='Internal', lumi=139.0)
+                                    ztitle="fit cov quality", watermark='Internal', lumi=139.0,
+                                    decor_text=self.sig_reg_cfg.label, decor_text_y=0.7)
         canvas = pt.plot_obj(hist, pc)
         canvas_scan_norm = pt.plot_obj(hist_norm, pc_norm)
+        canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
+        canvas_status = pt.plot_obj(hist_fit_status, pc_status)
+
         if best_limits is not None:
             pc_best = PlotConfig(draw_option="BOX")
             for limit in best_limits:
@@ -921,13 +928,16 @@ class LimitScanAnalyser(object):
             hist_best.SetLineColor(ROOT.kRed)
             pt.add_histogram_to_canvas(canvas, hist_best, pc_best)
             pt.add_histogram_to_canvas(canvas_scan_norm, hist_best, pc_best)
-        fm.decorate_canvas(canvas, pc)
-        self.output_handle.register_object(canvas)
-        self.output_handle.register_object(canvas_scan_norm)
-        canvas_status = pt.plot_obj(hist_fit_status, pc_status)
-        self.output_handle.register_object(canvas_status)
-        canvas_quality = pt.plot_obj(hist_fit_quality, pc_cov_quality)
-        self.output_handle.register_object(canvas_quality)
+
+        def decorate_and_store(c, p):
+            fm.decorate_canvas(c, p)
+            self.output_handle.register_object(c)
+
+        decorate_and_store(canvas, pc)
+        decorate_and_store(canvas_scan_norm, pc_norm)
+        decorate_and_store(canvas_quality, pc_cov_quality)
+        decorate_and_store(canvas_status, pc_status)
+
         limit_scan_table = [['{:.0f}'.format(i[0])] + i[1] for i in list(limit_scan_table.items())]
         with open(os.path.join(self.output_handle.output_dir,
                                'limit_scan_table_{:s}.tex'.format(self.sig_reg_name)), 'w') as f:
@@ -1049,7 +1059,7 @@ class CommonLimitOptimiser(object):
                         new_cfg = deepcopy(cfg)
                         new_cfg.inj_sig = inj_sig
                         configs.append(new_cfg)
-            thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
+            thresholds = [(c.sig_reg_name, c.kwargs['mass_cut']) for c in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
                                           self.fixed_signal, self.output_dir, thresholds, blind=self.blind,
@@ -1066,7 +1076,7 @@ class CommonLimitOptimiser(object):
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
                                              sig_reg_cfg=self.signal_region_def.regions[0],
                                              output_dir=self.output_dir, sig_name=sig_name,
-                                             limit_config=self.limit_config, pruning=0.00011,
+                                             limit_config=self.limit_config, pruning=None,
                                              process_configs=self.process_configs, systematics=self.systematics,
                                              ctrl_config=cr_config, jobid=str(len(configs)),
                                              fixed_signal=self.fixed_signal, disable_plots=True,
@@ -1175,7 +1185,7 @@ def write_config(args, ranking=False):
     kwargs = args.kwargs
     kwargs.setdefault('stat_only', False)
     kwargs.setdefault('disable_plots', False)
-
+    kwargs["process_configs"] = {k: v for k, v in kwargs["process_configs"].items() if not v.is_syst_process}
     hist_path = os.path.join(args.output_dir, 'hists')
     if ranking:
         args.output_dir = os.path.join(args.output_dir, 'ranking')
@@ -1365,15 +1375,15 @@ def write_config(args, ranking=False):
             print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
         print('\n', file=f)
 
-        for bkg in [p.name for p in
+        for bkg in [p for p in
                     [pc for pc in list(kwargs["process_configs"].values()) if pc.type.lower() == 'background']]:
-            print('Sample: "{:s}"'.format(bkg), file=f)
+            print('Sample: "{:s}"'.format(bkg.name), file=f)
             print('\tType: BACKGROUND', file=f)
-            print('\tTitle: "{:s}"'.format(bkg), file=f)
-            print('\tTexTitle: "{:s}"'.format(bkg), file=f)
-            print('\tFillColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
-            print('\tLineColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
-            print('\tHistoFile: "{:s}";'.format(bkg), file=f)
+            print('\tTitle: "{:s}"'.format(bkg.label), file=f)
+            print('\tTexTitle: "{:s}"'.format(bkg.label), file=f)
+            print('\tFillColor: {:d}'.format(transform_color(bkg.color)), file=f)
+            print('\tLineColor: {:d}'.format(transform_color(bkg.color)), file=f)
+            print('\tHistoFile: "{:s}";'.format(bkg.name), file=f)
             print('\tSmooth: FALSE', file=f)
             print('\tUseMCstat: TRUE', file=f)
             print('\tSeparateGammas: TRUE', file=f)
