@@ -220,6 +220,7 @@ class ExtendedCutFlowAnalyser(CommonCutFlowAnalyser):
         kwargs.setdefault('percent_eff', False)
         kwargs.setdefault('enable_signal_plots', False)
         kwargs.setdefault('friend_tree_names', None)
+        kwargs.setdefault('tree_dir_name', 'Nominal')
         super(ExtendedCutFlowAnalyser, self).__init__(**kwargs)
         for k, v in list(kwargs.items()):
             if not hasattr(self, k):
