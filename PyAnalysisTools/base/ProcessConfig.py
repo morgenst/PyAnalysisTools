@@ -329,12 +329,12 @@ def find_process_config(process, process_configs):
     Searches for process config matching process name. If process name matches subprocess of mother process it adds a
     new process config to process_configs. If a MC campaign is parsed and it is a subprocess and no mother process with
     MC campaign info exists it will be created adding
-    :param process_name:
-    :type process_name:
-    :param process_configs:
-    :type process_configs:
-    :return:
-    :rtype:
+    :param process: input process
+    :type process: Process
+    :param process_configs: process merge definitions
+    :type process_configs: dict
+    :return: matching process merge configuration
+    :rtype: ProcessConfig
     """
 
     def is_sub_process(config):
