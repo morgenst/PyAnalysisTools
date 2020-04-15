@@ -1048,7 +1048,7 @@ class CommonLimitOptimiser(object):
                         new_cfg = deepcopy(cfg)
                         new_cfg.inj_sig = inj_sig
                         configs.append(new_cfg)
-            thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
+            thresholds = [(c.sig_reg_name, c.kwargs['mass_cut']) for c in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
                                           self.fixed_signal, self.output_dir, thresholds, blind=self.blind,
@@ -1065,7 +1065,7 @@ class CommonLimitOptimiser(object):
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
                                              sig_reg_cfg=self.signal_region_def.regions[0],
                                              output_dir=self.output_dir, sig_name=sig_name,
-                                             limit_config=self.limit_config, pruning=0.00011,
+                                             limit_config=self.limit_config, pruning=None,
                                              process_configs=self.process_configs, systematics=self.systematics,
                                              ctrl_config=cr_config, jobid=str(len(configs)),
                                              fixed_signal=self.fixed_signal, disable_plots=True,
@@ -1174,7 +1174,7 @@ def write_config(args, ranking=False):
     kwargs = args.kwargs
     kwargs.setdefault('stat_only', False)
     kwargs.setdefault('disable_plots', False)
-
+    kwargs["process_configs"] = {k: v for k, v in kwargs["process_configs"].items() if not v.is_syst_process}
     hist_path = os.path.join(args.output_dir, 'hists')
     if ranking:
         args.output_dir = os.path.join(args.output_dir, 'ranking')
@@ -1364,15 +1364,15 @@ def write_config(args, ranking=False):
             print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
         print('\n', file=f)
 
-        for bkg in [p.name for p in
+        for bkg in [p for p in
                     [pc for pc in list(kwargs["process_configs"].values()) if pc.type.lower() == 'background']]:
-            print('Sample: "{:s}"'.format(bkg), file=f)
+            print('Sample: "{:s}"'.format(bkg.name), file=f)
             print('\tType: BACKGROUND', file=f)
-            print('\tTitle: "{:s}"'.format(bkg), file=f)
-            print('\tTexTitle: "{:s}"'.format(bkg), file=f)
-            print('\tFillColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
-            print('\tLineColor: {:d}'.format(transform_color(kwargs['process_configs'][bkg].color)), file=f)
-            print('\tHistoFile: "{:s}";'.format(bkg), file=f)
+            print('\tTitle: "{:s}"'.format(bkg.label), file=f)
+            print('\tTexTitle: "{:s}"'.format(bkg.label), file=f)
+            print('\tFillColor: {:d}'.format(transform_color(bkg.color)), file=f)
+            print('\tLineColor: {:d}'.format(transform_color(bkg.color)), file=f)
+            print('\tHistoFile: "{:s}";'.format(bkg.name), file=f)
             print('\tSmooth: FALSE', file=f)
             print('\tUseMCstat: TRUE', file=f)
             print('\tSeparateGammas: TRUE', file=f)
