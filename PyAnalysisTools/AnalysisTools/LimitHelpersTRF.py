@@ -68,6 +68,8 @@ class LimitArgs(object):
         kwargs.setdefault("pruning", None)
         kwargs.setdefault("blind", True)
         kwargs.setdefault('inj_sig', None)
+        kwargs.setdefault('disable_spectator', False)
+        kwargs.setdefault('options', 'hbwdflp')
         self.skip_ws_build = kwargs['skip_ws_build']
         self.output_dir = output_dir
         self.base_output_dir = kwargs['base_output_dir']
@@ -1081,7 +1083,8 @@ class CommonLimitOptimiser(object):
                                              ctrl_config=cr_config, jobid=str(len(configs)),
                                              fixed_signal=self.fixed_signal, disable_plots=True,
                                              queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
-                                             ranking=False, log_level=self.log_level, blind=self.blind))
+                                             ranking=False, log_level=self.log_level, blind=self.blind,
+                                             disable_spectator=True, options='hwl'))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
@@ -1131,14 +1134,13 @@ class CommonLimitOptimiser(object):
 
         args.kwargs = merge_dictionaries(args.kwargs, kwargs)
         write_config(args)
-        kwargs.setdefault('options', 'hbwdflp')
-
         cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
-        execute(kwargs['options'])
         if args.kwargs['ranking']:
             args.output_dir = os.path.join(args.output_dir, 'ranking')
             cfg_file = os.path.join(args.output_dir, str(args.job_id), 'trex_fitter.config')
             execute('hbwfr')
+        else:
+            execute(args.kwargs['options'])
 
     def finish(self):
         _logger.info('Wrote limits to {:s}'.format(self.output_dir))
@@ -1299,7 +1301,7 @@ def write_config(args, ranking=False):
             print('\tBinning: {:f}, 8000.'.format(kwargs['mass_cut']), file=f)
         print('\n', file=f)
 
-        if 'spectators' in limit_config['general']:
+        if 'spectators' in limit_config['general'] and not args.kwargs['disable_spectator']:
             reg_match = [r for r in list(limit_config['general']['spectators']['regions'].keys()) if
                          re.match(r, kwargs['sig_reg_name'])]
             if len(reg_match):
@@ -1331,7 +1333,7 @@ def write_config(args, ranking=False):
                 if 'norm_factor' not in norm_param:
                     continue
                 norm_factors.append((norm_param['norm_factor'], bkg))
-            if 'spectators' in limit_config['general']:
+            if 'spectators' in limit_config['general'] and not args.kwargs['disable_spectator']:
                 reg_match = [r for r in list(limit_config['general']['spectators']['regions'].keys()) if
                              re.match(r, reg)]
                 if len(reg_match):
