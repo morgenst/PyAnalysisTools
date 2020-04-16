@@ -85,8 +85,10 @@ class BatchHandle(object):
             os.system('{:s} {:s} -q {:s} -o {:s}.txt -e {:s}.err'.format(self.system, bash_script, self.queue,
                                                                          log_file_name, log_file_name))
             time.sleep(2)
-        while check_output(['qstat', '-u {:s}'.format(getuser())]).count('submit_{:s}'.format(self.identifier)) > 0:
-            time.sleep(10)
+        if not self.local:
+            while check_output(['qstat', '-u {:s}'.format(getuser())]).count('submit_{:s}'.format(self.identifier)) > 0:
+                time.sleep(10)
+            time.sleep(30)
         if not disable_wait:
             n_processed_files = len(glob.glob(os.path.join(output_dir, '*.{:s}'.format('root'))))
             if n_processed_files < n_jobs:
