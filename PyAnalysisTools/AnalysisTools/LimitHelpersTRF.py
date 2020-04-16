@@ -1074,7 +1074,6 @@ class CommonLimitOptimiser(object):
                         if threshold < mass - self.scan_bounds_per_mass[0] or threshold > self.scan_bounds_per_mass[1] \
                                 + mass:
                             continue
-                    print("RUN MASS SCAN")
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
                                              sig_reg_cfg=self.signal_region_def.regions[0],
                                              output_dir=self.output_dir, sig_name=sig_name,
