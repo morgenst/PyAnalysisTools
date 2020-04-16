@@ -516,11 +516,11 @@ class Plotter(BasePlotter):
         """
         hists = []
         for arg in product(self.file_handles, self.plot_configs):
-            hists.append(self.get_fetched_hist(arg))
+            hists.append(self.get_fetched_hist(arg, self.process_configs))
         return hists
 
     @staticmethod
-    def get_fetched_hist(args):
+    def get_fetched_hist(args, process_configs=None):
         """
         Read histogram from canvas stored in root file
         :param args: input arguments containing pair of file handle and plot config
@@ -531,8 +531,15 @@ class Plotter(BasePlotter):
 
         fh = args[0]
         pc = args[1]
-        c = fh.get_object_by_name(pc.name)
-        return pc, fh.process, copy.deepcopy(get_objects_from_canvas_by_type(c, 'TH1F')[0])
+        if pc.is_multidimensional:
+            c = fh.get_object_by_name('{:s}_{:s}'.format(pc.name,
+                                                         find_process_config(fh.process.process_name,
+                                                                             process_configs).name))
+            obj = copy.deepcopy(get_objects_from_canvas_by_type(c, 'TH2F')[0])
+        else:
+            c = fh.get_object_by_name(pc.name)
+            obj = copy.deepcopy(get_objects_from_canvas_by_type(c, 'TH1F')[0])
+        return pc, fh.process, obj
 
     def project_hists(self):
         self.read_cutflows()  # disabled in susy
