@@ -37,7 +37,7 @@ from PyAnalysisTools.base import _logger
 from PyAnalysisTools.base.FileHandle import FileHandle, filter_empty_trees
 from PyAnalysisTools.base.OutputHandle import OutputFileHandle
 from PyAnalysisTools.base.OutputHandle import SysOutputHandle as soh
-from PyAnalysisTools.base.ShellUtils import make_dirs
+from PyAnalysisTools.base.ShellUtils import make_dirs, change_dir
 from PyAnalysisTools.base.Utilities import merge_dictionaries
 from PyAnalysisTools.base.YAMLHandle import YAMLDumper as yd, YAMLDumper
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
@@ -983,6 +983,8 @@ class CommonLimitOptimiser(object):
         self.output_dir = soh.resolve_output_dir(output_dir=kwargs["output_dir"], sub_dir_name="limit")
         if kwargs['resubmit'] is not None:
             self.output_dir = kwargs['resubmit']
+            with change_dir(self.output_dir):
+                os.system('tar -xf hists.tar')
 
         make_dirs(self.output_dir)
         self.blind = not kwargs['unblind']
@@ -1144,6 +1146,14 @@ class CommonLimitOptimiser(object):
 
     def finish(self):
         _logger.info('Wrote limits to {:s}'.format(self.output_dir))
+        with change_dir(self.output_dir):
+            os.system('tar -cf {:s} hists &> /dev/null'.format('hists.tar'))
+            os.system('rm -rf hists')
+            if self.mass_scans is not None:
+                os.system('rm */LQAnalysis/*.pdf')
+                os.system('rm */LQAnalysis/Pruning*')
+                os.system('rm -rf */LQAnalysis/RooStats')
+                os.system('rm -rf */LQAnalysis/Histograms')
 
     def run(self, cluster_cfg_file, job_id):
         """
