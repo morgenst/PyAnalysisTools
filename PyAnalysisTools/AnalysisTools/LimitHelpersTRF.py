@@ -989,7 +989,6 @@ class CommonLimitOptimiser(object):
         make_dirs(self.output_dir)
         self.blind = not kwargs['unblind']
         self.input_hist_file = kwargs['input_hist_file']
-        self.output_handle = OutputFileHandle(**kwargs)
         self.run_syst = False
         self.shape_syst_config, self.scale_syst_config = None, None
         self.systematics = []
