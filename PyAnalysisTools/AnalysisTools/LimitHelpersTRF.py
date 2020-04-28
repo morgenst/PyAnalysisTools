@@ -324,7 +324,6 @@ class LimitAnalyserCL(object):
                                          signal_strength=data['exp_upperlimit'],
                                          signal_strength_up=data['exp_upperlimit_plus1'],
                                          signal_strength_low=data['exp_upperlimit_minus1'])
-
         except ValueError:
             try:
                 with open(os.path.join(self.input_path, 'limit.json'), 'r') as f:
@@ -547,8 +546,9 @@ class XsecLimitAnalyser(object):
                 scale_factor = None
                 if self.scale_factors is not None:
                     scale_factor = self.scale_factors[scan.kwargs['sig_name']]
-                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'],
-                                                    self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
+                limit_info = analyser.analyse_limit(signal_scale=scan.kwargs['signal_scale'],
+                                                    mass_cut=scan.kwargs["mass_cut"],
+                                                    pmg_xsec=self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
                                                     fixed_sig_sf=scale_factor, enable_debug_plot=self.enable_debug_plot)
             except ReferenceError:
                 _logger.error("Could not find info for scan {:s}".format(scan))
@@ -605,10 +605,10 @@ class XsecLimitAnalyser(object):
                     continue
                 f = FileHandle(file_name=fname)
                 for process in ['Data'] + [p.name for p in [pc for pc in list(scan.kwargs["process_configs"].values())
-                                                            if pc.type.lower() == 'background']]:
+                                                            if pc.type.lower() == 'background' and not pc.is_syst_process]]:
                     _logger.debug('Try loading hist: h_{:s}_postFit'.format(process))
                     if not process == 'Data':
-                        h = f.tfile.Get('h_{:s}_postFit'.format(process))
+                        h = f.get_object_by_name('h_{:s}_postFit'.format(process))
                     else:
                         h = f.get_object_by_name('h_{:s}'.format(process))
                     sr_data.append((scan.kwargs['mass_cut'], process, h.Integral(1, h.GetNbinsX()),
@@ -625,7 +625,7 @@ class XsecLimitAnalyser(object):
                 continue
             for process in ['Data'] + [p.name for p in [pc for pc in
                                                         list(self.scan_info[0].kwargs["process_configs"].values())
-                                                        if pc.type.lower() == 'background']]:
+                                                        if pc.type.lower() == 'background' and not pc.is_syst_process]]:
                 if not process == 'Data':
                     h = f.get_object_by_name('h_{:s}_postFit'.format(process))
                 else:
@@ -1012,6 +1012,8 @@ class CommonLimitOptimiser(object):
             setattr(self, k, v)
         if kwargs['mass_range'] is not None:
             self.mass_scans = np.linspace(self.mass_range[0], self.mass_range[1], kwargs["nscans"])
+        else:
+            self.mass_scans = None
 
     def filter_mass_points(self):
         """
@@ -1152,6 +1154,13 @@ class CommonLimitOptimiser(object):
                 os.system('rm */LQAnalysis/Pruning*')
                 os.system('rm -rf */LQAnalysis/RooStats')
                 os.system('rm -rf */LQAnalysis/Histograms')
+            else:
+                for sub_dir in os.listdir(self.output_dir):
+                    if not os.path.isdir(os.path.join(self.output_dir, sub_dir)):
+                        continue
+                    with change_dir(os.path.join(self.output_dir, sub_dir, 'LQAnalysis')):
+                        os.system('tar -cf systematics.tar Systematics &> /dev/null')
+                        os.system('rm -rf Systematics/')
 
     def run(self, cluster_cfg_file, job_id):
         """
