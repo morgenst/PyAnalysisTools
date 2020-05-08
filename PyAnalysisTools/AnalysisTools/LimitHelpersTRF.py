@@ -325,7 +325,6 @@ class LimitAnalyserCL(object):
                                          signal_strength=data['exp_upperlimit'],
                                          signal_strength_up=data['exp_upperlimit_plus1'],
                                          signal_strength_low=data['exp_upperlimit_minus1'])
-
         except ValueError:
             try:
                 with open(os.path.join(self.input_path, 'limit.json'), 'r') as f:
@@ -548,8 +547,9 @@ class XsecLimitAnalyser(object):
                 scale_factor = None
                 if self.scale_factors is not None:
                     scale_factor = self.scale_factors[scan.kwargs['sig_name']]
-                limit_info = analyser.analyse_limit(scan.kwargs['signal_scale'],
-                                                    self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
+                limit_info = analyser.analyse_limit(signal_scale=scan.kwargs['signal_scale'],
+                                                    mass_cut=scan.kwargs["mass_cut"],
+                                                    pmg_xsec=self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
                                                     fixed_sig_sf=scale_factor, enable_debug_plot=self.enable_debug_plot)
             except ReferenceError:
                 _logger.error("Could not find info for scan {:s}".format(scan))
@@ -606,10 +606,10 @@ class XsecLimitAnalyser(object):
                     continue
                 f = FileHandle(file_name=fname)
                 for process in ['Data'] + [p.name for p in [pc for pc in list(scan.kwargs["process_configs"].values())
-                                                            if pc.type.lower() == 'background']]:
+                                                            if pc.type.lower() == 'background' and not pc.is_syst_process]]:
                     _logger.debug('Try loading hist: h_{:s}_postFit'.format(process))
                     if not process == 'Data':
-                        h = f.tfile.Get('h_{:s}_postFit'.format(process))
+                        h = f.get_object_by_name('h_{:s}_postFit'.format(process))
                     else:
                         h = f.get_object_by_name('h_{:s}'.format(process))
                     sr_data.append((scan.kwargs['mass_cut'], process, h.Integral(1, h.GetNbinsX()),
@@ -626,7 +626,7 @@ class XsecLimitAnalyser(object):
                 continue
             for process in ['Data'] + [p.name for p in [pc for pc in
                                                         list(self.scan_info[0].kwargs["process_configs"].values())
-                                                        if pc.type.lower() == 'background']]:
+                                                        if pc.type.lower() == 'background' and not pc.is_syst_process]]:
                 if not process == 'Data':
                     h = f.get_object_by_name('h_{:s}_postFit'.format(process))
                 else:
@@ -1013,6 +1013,8 @@ class CommonLimitOptimiser(object):
             setattr(self, k, v)
         if kwargs['mass_range'] is not None:
             self.mass_scans = np.linspace(self.mass_range[0], self.mass_range[1], kwargs["nscans"])
+        else:
+            self.mass_scans = None
 
     def filter_mass_points(self):
         """
@@ -1054,7 +1056,8 @@ class CommonLimitOptimiser(object):
                                 process_configs=self.process_configs, systematics=self.systematics,
                                 ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
                                 queue=self.queue, mass_cut=threshold, blind=self.blind, ranking=self.ranking,
-                                signal_scale=self.signal_scale, log_level=self.log_level)
+                                signal_scale=self.signal_scale, log_level=self.log_level,
+                                disable_spectator=self.ranking)
                 if self.signal_injection is None:
                     configs.append(cfg)
                 else:
@@ -1153,6 +1156,13 @@ class CommonLimitOptimiser(object):
                 os.system('rm */LQAnalysis/Pruning*')
                 os.system('rm -rf */LQAnalysis/RooStats')
                 os.system('rm -rf */LQAnalysis/Histograms')
+            else:
+                for sub_dir in os.listdir(self.output_dir):
+                    if not os.path.isdir(os.path.join(self.output_dir, sub_dir)):
+                        continue
+                    with change_dir(os.path.join(self.output_dir, sub_dir, 'LQAnalysis')):
+                        os.system('tar -cf systematics.tar Systematics &> /dev/null')
+                        os.system('rm -rf Systematics/')
 
     def run(self, cluster_cfg_file, job_id):
         """
@@ -1245,6 +1255,14 @@ def write_config(args, ranking=False):
         print('\tDoTables: {:s}'.format(make_plots), file=f)
         print('\tDoSignalRegionsPlot: {:s}'.format(make_plots), file=f)
         print('\tDoPieChartPlot: {:s}'.format(make_plots), file=f)
+        print('\tRegionGroups: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
+        if 'spectators' in limit_config['general'] and not args.kwargs['disable_spectator']:
+            print('\tSummaryPlotRegions: {:s}'.format(
+                ','.join([kwargs['sig_reg_name']] + list(kwargs["ctrl_config"].keys()))), file=f)
+            print('\tSummaryPlotValidationRegions: {:s}'.format(','.join([reg for reg,
+                                                                                  cfg in kwargs["ctrl_config"].items()
+                                                                          if cfg['is_val_region']])),
+                  file=f)
         print('\tMergeUnderOverFlow: FALSE', file=f)
         if limit_config['general']['suffix']:
             print('\tSuffix: {:s}'.format(limit_config['general']['suffix']), file=f)
@@ -1286,7 +1304,7 @@ def write_config(args, ranking=False):
         if args.inj_sig is not None:
             print('\tSignalInjection: TRUE', file=f)
             print('\tSignalInjectionValue: {:f}'.format(args.inj_sig), file=f)
-        print('\t% POIAsimov: 1', file=f)
+        # print('\t% POIAsimov: 1', file=f)
         print('\n', file=f)
 
         print('% --------------- %', file=f)
@@ -1303,6 +1321,7 @@ def write_config(args, ranking=False):
             print('\tLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tShortLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
+        print('\tGroup: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
         print('\tDataType: {:s}'.format('ASIMOV' if args.blind else 'DATA'), file=f)
         if 'signal_region' in limit_config and 'binning' in limit_config['signal_region']:
             print('\tBinning: {:s}'.format(convert_binning(limit_config['signal_region']['binning'])), file=f)
@@ -1335,6 +1354,7 @@ def write_config(args, ranking=False):
             print('\tLabel: "{:s}"'.format(ctrl_reg_cfg['label']), file=f)
             print('\tShortLabel: "{:s}"'.format(reg), file=f)
             print('\tHistoName: "h_{:s}"'.format(reg), file=f)
+            print('\tGroup: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
             if ctrl_reg_cfg['binning'] is not None:
                 print('\tBinning: {:s}'.format(convert_binning(ctrl_reg_cfg['binning'])), file=f)
             print('', file=f)
@@ -1382,8 +1402,8 @@ def write_config(args, ranking=False):
         print('\tNormFactor: "mu_Sig", 1, 0, 10000', file=f)
         print('\tSeparateGammas: TRUE', file=f)
         print('\tUseMCstat: TRUE', file=f)
-        if kwargs['scale_factors'] is not None:
-            print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
+        # if kwargs['scale_factors'] is not None:
+        #     print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
         print('\n', file=f)
 
         for bkg in [p for p in
@@ -1505,7 +1525,7 @@ def write_config(args, ranking=False):
                 print('\tCategory: {:s}'.format('instrumental'), file=f)
                 print('\tSubCategory: {:s}'.format(syst.group), file=f)
             if syst.type != 'fixed':
-                if syst.variation == 'updown' or syst.symmetrise:
+                if syst.variation == 'updown' or (syst.symmetrise and not syst.variation.split(':')[0] == 'custom'):
                     hist_name = syst_name
                     if syst.hist_name is not None:
                         hist_name = syst.hist_name
@@ -1524,6 +1544,8 @@ def write_config(args, ranking=False):
                     if syst.envelope is not None:
                         print('\tCombineName: {:s}'.format(syst.envelope), file=f)
                         print('\tCombineType: ENVELOPE', file=f)
+                        if syst.symmetrise:
+                            print('\tSymmetrisation: ABSMEAN', file=f)
                     hist_name = hist_name.replace('weight_', '')
                     if 'updown' not in syst.variation:
                         print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
