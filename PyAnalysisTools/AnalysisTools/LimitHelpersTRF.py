@@ -1055,7 +1055,8 @@ class CommonLimitOptimiser(object):
                                 process_configs=self.process_configs, systematics=self.systematics,
                                 ctrl_config=cr_config, jobid=str(len(configs)), fixed_signal=self.fixed_signal,
                                 queue=self.queue, mass_cut=threshold, blind=self.blind, ranking=self.ranking,
-                                signal_scale=self.signal_scale, log_level=self.log_level)
+                                signal_scale=self.signal_scale, log_level=self.log_level,
+                                disable_spectator=self.ranking)
                 if self.signal_injection is None:
                     configs.append(cfg)
                 else:
@@ -1253,6 +1254,14 @@ def write_config(args, ranking=False):
         print('\tDoTables: {:s}'.format(make_plots), file=f)
         print('\tDoSignalRegionsPlot: {:s}'.format(make_plots), file=f)
         print('\tDoPieChartPlot: {:s}'.format(make_plots), file=f)
+        print('\tRegionGroups: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
+        if 'spectators' in limit_config['general'] and not args.kwargs['disable_spectator']:
+            print('\tSummaryPlotRegions: {:s}'.format(
+                ','.join([kwargs['sig_reg_name']] + list(kwargs["ctrl_config"].keys()))), file=f)
+            print('\tSummaryPlotValidationRegions: {:s}'.format(','.join([reg for reg,
+                                                                                  cfg in kwargs["ctrl_config"].items()
+                                                                          if cfg['is_val_region']])),
+                  file=f)
         print('\tMergeUnderOverFlow: FALSE', file=f)
         if limit_config['general']['suffix']:
             print('\tSuffix: {:s}'.format(limit_config['general']['suffix']), file=f)
@@ -1294,7 +1303,7 @@ def write_config(args, ranking=False):
         if args.inj_sig is not None:
             print('\tSignalInjection: TRUE', file=f)
             print('\tSignalInjectionValue: {:f}'.format(args.inj_sig), file=f)
-        print('\t% POIAsimov: 1', file=f)
+        # print('\t% POIAsimov: 1', file=f)
         print('\n', file=f)
 
         print('% --------------- %', file=f)
@@ -1311,6 +1320,7 @@ def write_config(args, ranking=False):
             print('\tLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tShortLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
+        print('\tGroup: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
         print('\tDataType: {:s}'.format('ASIMOV' if args.blind else 'DATA'), file=f)
         if 'signal_region' in limit_config and 'binning' in limit_config['signal_region']:
             print('\tBinning: {:s}'.format(convert_binning(limit_config['signal_region']['binning'])), file=f)
@@ -1343,6 +1353,7 @@ def write_config(args, ranking=False):
             print('\tLabel: "{:s}"'.format(ctrl_reg_cfg['label']), file=f)
             print('\tShortLabel: "{:s}"'.format(reg), file=f)
             print('\tHistoName: "h_{:s}"'.format(reg), file=f)
+            print('\tGroup: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
             if ctrl_reg_cfg['binning'] is not None:
                 print('\tBinning: {:s}'.format(convert_binning(ctrl_reg_cfg['binning'])), file=f)
             print('', file=f)
@@ -1390,8 +1401,8 @@ def write_config(args, ranking=False):
         print('\tNormFactor: "mu_Sig", 1, 0, 10000', file=f)
         print('\tSeparateGammas: TRUE', file=f)
         print('\tUseMCstat: TRUE', file=f)
-        if kwargs['scale_factors'] is not None:
-            print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
+        # if kwargs['scale_factors'] is not None:
+        #     print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
         print('\n', file=f)
 
         for bkg in [p for p in
@@ -1513,7 +1524,7 @@ def write_config(args, ranking=False):
                 print('\tCategory: {:s}'.format('instrumental'), file=f)
                 print('\tSubCategory: {:s}'.format(syst.group), file=f)
             if syst.type != 'fixed':
-                if syst.variation == 'updown' or syst.symmetrise:
+                if syst.variation == 'updown' or (syst.symmetrise and not syst.variation.split(':')[0] == 'custom'):
                     hist_name = syst_name
                     if syst.hist_name is not None:
                         hist_name = syst.hist_name
@@ -1532,6 +1543,8 @@ def write_config(args, ranking=False):
                     if syst.envelope is not None:
                         print('\tCombineName: {:s}'.format(syst.envelope), file=f)
                         print('\tCombineType: ENVELOPE', file=f)
+                        if syst.symmetrise:
+                            print('\tSymmetrisation: ABSMEAN', file=f)
                     hist_name = hist_name.replace('weight_', '')
                     if 'updown' not in syst.variation:
                         print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
