@@ -106,6 +106,7 @@ class RatioPlotter(object):
                 self.plot_config.xtitle = self.reference[0].GetXaxis().GetTitle()
             else:
                 self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
+            print("XTITLE: ", self.plot_config.xtitle)
             if len(self.compare) > 1:
                 colors = get_colors(self.compare)
                 self.plot_config.color = colors
@@ -246,7 +247,7 @@ class RatioPlotter(object):
 
         if name is None:
             name = canvas.GetName() + "_ratio"
-        c = pt.retrieve_new_canvas(name, title)
+        c = pt.retrieve_new_canvas(name, title, canvas.GetWindowWidth(), canvas.GetWindowHeight())
         c.Draw()
         pad1 = ROOT.TPad("pad1", "top pad", 0., ratio_rel_size, 1., 1.)
         pad1.SetBottomMargin(0.05)
@@ -258,6 +259,7 @@ class RatioPlotter(object):
         pad2.Draw()
         pad1.cd()
         object_handle.get_objects_from_canvas(canvas)
+
         try:
             stack = object_handle.get_objects_from_canvas_by_type(canvas, "THStack")[0]
         except IndexError:
@@ -272,7 +274,10 @@ class RatioPlotter(object):
         stack.GetXaxis().SetLabelSize(0)
         scale = 1. / (1. - ratio_rel_size)
         scale_frame_text(stack, scale)
+        print("here3", canvas.GetLogy())
+        canvas.SaveAs("foo.pdf")
         canvas.DrawClonePad()
+        print("here")
 
         pad2.cd()
         hratio.GetYaxis().SetNdivisions(505)

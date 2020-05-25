@@ -81,3 +81,5 @@ disable_bin_merge: False
 enable_range_arrows: False
 ignore_process_labels: False
 disable_bin_width_division: False
+canvas_size_x: 800
+canvas_size_y: 600
