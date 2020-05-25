@@ -25,7 +25,7 @@ from PyAnalysisTools.base.ProcessConfig import find_process_config, parse_and_bu
 
 class BasePlotter(object):
     def __init__(self, **kwargs):
-        self.plot_configs = None
+        # self.plot_configs = None
         self.lumi = None
         kwargs.setdefault("batch", True)
         kwargs.setdefault("process_config_files", None)
@@ -292,7 +292,8 @@ class BasePlotter(object):
                 return None
             except Exception:
                 _logger.error("Catched exception for process "
-                              "{:s} and plot_config {:s}".format(file_handle, file_handle.process, plot_config.name))
+                              "{:s} and plot_config {:s}".format(file_handle.__str__(), file_handle.process,
+                                                                 plot_config.name))
                 print(traceback.print_exc())
                 return None
             _logger.debug("try to access config for process {:s}".format(file_handle.process))

@@ -447,8 +447,8 @@ def get_style_setters_and_values(plot_config, process_config=None, index=None):
         elif isinstance(plot_config.color, list) and index > len(plot_config.color):
             index = index % len(plot_config.color)
             style_attr = 10
-        color = transform_color(plot_config.color, index)
 
+        color = transform_color(plot_config.color, index)
     # else:
     #     style_attr = None
     if not isinstance(style_setter, list):

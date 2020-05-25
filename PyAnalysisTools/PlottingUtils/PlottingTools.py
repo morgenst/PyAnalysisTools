@@ -15,19 +15,34 @@ import PyAnalysisTools.PlottingUtils.PlotableObject as PO
 
 
 def retrieve_new_canvas(name, title='', size_x=800, size_y=600):
+    """
+    Retrieve a new TCanvas
+    :param name: canvas name
+    :param title: canvas title
+    :param size_x: x size
+    :param size_y: y size
+    :return: empty canvas
+    """
     canvas = ROOT.TCanvas(name, title, size_x, size_y)
     canvas.SetRightMargin(0.07)
     ROOT.SetOwnership(canvas, False)
     return canvas
 
 
-def plot_obj(hist, plot_config, **kwargs):
-    if isinstance(hist, ROOT.TH2):
-        return plot_2d_hist(hist, plot_config, **kwargs)
-    if isinstance(hist, ROOT.TH1):
-        return plot_hist(hist, plot_config, **kwargs)
-    if isinstance(hist, ROOT.TEfficiency) or isinstance(hist, ROOT.TGraph):
-        return plot_graph(hist, plot_config, **kwargs)
+def plot_obj(obj, plot_config, **kwargs):
+    """
+    Base wrapper to plot an object. Based on object type appropriate plotting functions are called
+    :param obj: object to plot
+    :param plot_config: plot configuration
+    :param kwargs: additional arguments
+    :return: canvas with plotted object
+    """
+    if isinstance(obj, ROOT.TH2):
+        return plot_2d_hist(obj, plot_config, **kwargs)
+    if isinstance(obj, ROOT.TH1):
+        return plot_hist(obj, plot_config, **kwargs)
+    if isinstance(obj, ROOT.TEfficiency) or isinstance(obj, ROOT.TGraph):
+        return plot_graph(obj, plot_config, **kwargs)
 
 
 def project_hist(tree, hist, var_name, cut_string='', weight=None, is_data=False):
@@ -133,7 +148,7 @@ def plot_hist(hist, plot_config, **kwargs):
     kwargs.setdefault("y_max", plot_config.yscale * hist.GetMaximum())
     # kwargs.setdefault("y_max", 1.1 * hist[0].GetMaximum()) - sm dev
     kwargs.setdefault("index", None)
-    canvas = retrieve_new_canvas(plot_config.name, "")
+    canvas = retrieve_new_canvas(plot_config.name, '', plot_config.canvas_size_x, plot_config.canvas_size_y)
     canvas.cd()
     ROOT.SetOwnership(hist, False)
     process_config = None
@@ -165,8 +180,8 @@ def plot_hist(hist, plot_config, **kwargs):
 
 
 def plot_2d_hist(hist, plot_config, **kwargs):
-    title = plot_config.title
-    canvas = retrieve_new_canvas(plot_config.name, title)
+    canvas = retrieve_new_canvas(plot_config.name, plot_config.title, plot_config.canvas_size_x,
+                                 plot_config.canvas_size_y)
     canvas.cd()
     hist = format_obj(hist, plot_config)
     ROOT.SetOwnership(hist, False)
@@ -353,7 +368,7 @@ def plot_histograms(hists, plot_config, process_configs=None, switchOff=False):
     """
     if plot_config is None:
         plot_config = get_default_plot_config(hists[0])
-    canvas = retrieve_new_canvas(plot_config.name, "")
+    canvas = retrieve_new_canvas(plot_config.name, '', plot_config.canvas_size_x, plot_config.canvas_size_y)
     canvas.cd()
     is_first = True
     max_y = None
@@ -547,7 +562,8 @@ def plot_graph(graph, plot_config, **kwargs):
     kwargs.setdefault('index', 0)
     kwargs.setdefault('canvas_name', plot_config.name)
     kwargs.setdefault('canvas_title', '')
-    canvas = retrieve_new_canvas(kwargs['canvas_name'], kwargs['canvas_title'])
+    canvas = retrieve_new_canvas(kwargs['canvas_name'], kwargs['canvas_title'], plot_config.canvas_size_x,
+                                 plot_config.canvas_size_y)
     canvas.cd()
     draw_option = 'a' + get_draw_option_as_root_str(plot_config)
     if plot_config.ymax is not None:
@@ -605,7 +621,7 @@ def plot_stack(hists, plot_config, **kwargs):
     """
     kwargs.setdefault("process_configs", None)
     process_configs = kwargs["process_configs"]
-    canvas = retrieve_new_canvas(plot_config.name, "")
+    canvas = retrieve_new_canvas(plot_config.name, '', plot_config.canvas_size_x, plot_config.canvas_size_y)
     canvas.Clear()
     canvas.cd()
     if isinstance(hists, dict) or isinstance(hists, defaultdict):
