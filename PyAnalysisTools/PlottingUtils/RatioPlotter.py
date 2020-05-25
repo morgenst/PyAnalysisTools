@@ -106,7 +106,6 @@ class RatioPlotter(object):
                 self.plot_config.xtitle = self.reference[0].GetXaxis().GetTitle()
             else:
                 self.plot_config.xtitle = self.reference.GetXaxis().GetTitle()
-            print("XTITLE: ", self.plot_config.xtitle)
             if len(self.compare) > 1:
                 colors = get_colors(self.compare)
                 self.plot_config.color = colors
@@ -274,10 +273,7 @@ class RatioPlotter(object):
         stack.GetXaxis().SetLabelSize(0)
         scale = 1. / (1. - ratio_rel_size)
         scale_frame_text(stack, scale)
-        print("here3", canvas.GetLogy())
-        canvas.SaveAs("foo.pdf")
         canvas.DrawClonePad()
-        print("here")
 
         pad2.cd()
         hratio.GetYaxis().SetNdivisions(505)
