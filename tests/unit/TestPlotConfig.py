@@ -325,7 +325,7 @@ class TestPlotConfig(unittest.TestCase):
         self.assertEqual(0.05, pc.lumi_text_size)
         self.assertEqual(0.25, pc.ratio_rel_size)
         self.assertEqual(800, pc.canvas_size_x)
-        self.assertEqual(600, pc.canvas_size_x)
+        self.assertEqual(600, pc.canvas_size_y)
         self.assertEqual('', pc.xtitle)
         self.assertEqual('', pc.title)
         self.assertEqual('Internal', pc.watermark)
