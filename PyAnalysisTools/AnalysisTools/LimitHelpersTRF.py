@@ -199,7 +199,8 @@ def build_region_info(control_region_defs):
                                           "bgk_to_normalise": region.norm_backgrounds,
                                           'is_val_region': region.val_region,
                                           'binning': region.binning,
-                                          'label': region.label}
+                                          'label': region.label,
+                                          'tex_label': region.tex_label}
     return limit_region_info
 
 
@@ -299,7 +300,9 @@ class LimitAnalyserCL(object):
                     fixed_sf = fixed_sig_sf[mass_cut]
                 else:
                     fixed_sf = fixed_sig_sf
-                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}".format(fixed_sf, scale_factor))
+                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}; \t pmg xsec: ".format(fixed_sf,
+                                                                                                       scale_factor,
+                                                                                                       pmg_xsec))
                 scale_factor = fixed_sf * 1000. * pmg_xsec
             elif pmg_xsec is not None:
                 scale_factor = 1000. * pmg_xsec
@@ -1081,13 +1084,13 @@ class CommonLimitOptimiser(object):
                     configs.append(LimitArgs(sig_reg_name=self.signal_region_def.regions[0].name,
                                              sig_reg_cfg=self.signal_region_def.regions[0],
                                              output_dir=self.output_dir, sig_name=sig_name,
-                                             limit_config=self.limit_config, pruning=None,
+                                             limit_config=self.limit_config,
                                              process_configs=self.process_configs, systematics=self.systematics,
                                              ctrl_config=cr_config, jobid=str(len(configs)),
                                              fixed_signal=self.fixed_signal, disable_plots=True,
                                              queue=self.queue, mass_cut=threshold, signal_scale=self.signal_scale,
                                              ranking=False, log_level=self.log_level, blind=self.blind,
-                                             disable_spectator=True, options='hwl'))
+                                             disable_spectator=True, options='hbwl'))
             thresholds = [(cfg.sig_reg_name, cfg.kwargs['mass_cut']) for cfg in configs]
             scale_factors = convert_hists(self.input_hist_file, self.process_configs,
                                           self.signal_region_def.regions + self.control_region_defs.regions,
@@ -1217,6 +1220,9 @@ def write_config(args, ranking=False):
     limit_config = yl.read_yaml(kwargs['limit_config'])
     limit_config['general'].setdefault('lumi_uncert', 0.017)
     limit_config['general'].setdefault('suffix', None)
+    if args.kwargs['pruning'] is not None:
+        limit_config['general']['pruning'] = args.kwargs['pruning']
+    limit_config['general'].setdefault('pruning', None)
 
     def convert_binning(parsed_info):
         if 'logx' in parsed_info:
@@ -1240,7 +1246,6 @@ def write_config(args, ranking=False):
         print('\tLumiLabel: "139 fb^{-1}"', file=f)
         print('\tPlotOptions: NOXERR, NOENDERR', file=f)
         print('\tSystErrorBars: {:s}'.format(make_plots), file=f)
-        print('\tSystControlPlots: {:s}'.format(make_plots), file=f)
         print('\tCorrelationThreshold: 0.1', file=f)
         print('\tAtlasLabel: Internal', file=f)
         print('\tDebugLevel: 1', file=f)
@@ -1265,9 +1270,9 @@ def write_config(args, ranking=False):
         print('\tMergeUnderOverFlow: FALSE', file=f)
         if limit_config['general']['suffix']:
             print('\tSuffix: {:s}'.format(limit_config['general']['suffix']), file=f)
-        if kwargs['pruning'] is not None:
-            print('\tSystPruningNorm: {:f}'.format(kwargs['pruning']), file=f)
-            print('\tSystPruningShape: {:f}'.format(kwargs['pruning']), file=f)
+        if limit_config['general']['pruning'] is not None:
+            print('\tSystPruningNorm: {:f}'.format(limit_config['general']['pruning']), file=f)
+            print('\tSystPruningShape: {:f}'.format(limit_config['general']['pruning']), file=f)
 
         print('\tUseATLASRounding: TRUE', file=f)
         print('\tTableOptions: !STANDALONE', file=f)
@@ -1316,8 +1321,11 @@ def write_config(args, ranking=False):
         print('\tVariableTitle: "{:s}"'.format(limit_config['plotting']['xtitle']), file=f)
         if kwargs['sig_reg_cfg'].channel is not None:
             print('\tLabel: "{:s}"'.format(kwargs['sig_reg_cfg'].label), file=f)
+            if kwargs['sig_reg_cfg'].tex_label is not None:
+                print('\tTexLabel: "{:s}"'.format(kwargs['sig_reg_cfg'].tex_label), file=f)
         else:
             print('\tLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
+
         print('\tShortLabel: "{:s}"'.format(kwargs['sig_reg_name']), file=f)
         print('\tHistoName: h_{:s}'.format(kwargs['sig_reg_name']), file=f)
         print('\tGroup: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
@@ -1351,6 +1359,9 @@ def write_config(args, ranking=False):
                 print('\tType: VALIDATION', file=f)
             print('\tVariableTitle: "{:s}"'.format(limit_config['plotting']['xtitle']), file=f)
             print('\tLabel: "{:s}"'.format(ctrl_reg_cfg['label']), file=f)
+            print("CTRL CFG: ", ctrl_reg_cfg)
+            if ctrl_reg_cfg['tex_label'] is not None:
+                print('\tTexLabel: "{:s}"'.format(ctrl_reg_cfg['tex_label']), file=f)
             print('\tShortLabel: "{:s}"'.format(reg), file=f)
             print('\tHistoName: "h_{:s}"'.format(reg), file=f)
             print('\tGroup: plotGroup_{:s}'.format(kwargs['sig_reg_name']), file=f)
@@ -1370,6 +1381,9 @@ def write_config(args, ranking=False):
                     print('\tType: VALIDATION', file=f)
                     print('\tVariableTitle: "{:s}"'.format(limit_config['plotting']['xtitle']), file=f)
                     print('\tLabel: "{:s}"'.format(ctrl_reg_cfg['label']), file=f)
+                    if ctrl_reg_cfg['tex_label'] is not None:
+                        print('\tTexLabel: "{:s}"'.format(ctrl_reg_cfg['tex_label']), file=f)
+
                     print('\tShortLabel: "{:s}"'.format(reg), file=f)
                     print('\tHistoName: "h_{:s}"'.format(reg), file=f)
                     if spec_cfg is not None:

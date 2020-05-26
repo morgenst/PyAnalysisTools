@@ -71,6 +71,7 @@ class Region(object):
         kwargs.setdefault("val_region", False)
         kwargs.setdefault("channel", None)
         kwargs.setdefault("label", None)
+        kwargs.setdefault("tex_label", None)
         kwargs.setdefault("norm_backgrounds", {})
 
         self.name = kwargs["name"]
