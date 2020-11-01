@@ -11,3 +11,4 @@ tests/fixtures/unit/datasetlist_resubmit.yml
 tests/unit/fixtures/files/**
 .coverage
 docs/build/
+prototypes

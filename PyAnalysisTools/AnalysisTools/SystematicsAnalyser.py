@@ -18,6 +18,7 @@ from PyAnalysisTools.PlottingUtils import HistTools as HT
 from PyAnalysisTools.PlottingUtils.BasePlotter import BasePlotter
 from PyAnalysisTools.PlottingUtils.PlotConfig import get_default_color_scheme
 from PyAnalysisTools.base import _logger
+from PyAnalysisTools.base.FileHandle import FileHandle
 from PyAnalysisTools.base.ProcessConfig import find_process_config
 from PyAnalysisTools.base.YAMLHandle import YAMLLoader as yl
 
@@ -117,6 +118,8 @@ class Systematic(object):
             return [self.prefix + self.name + '__1down']
         if 'down' in self.variation:
             return [self.prefix + self.name + '__1up']
+        # if 'custom' in self.variation:
+        #     return [self.prefix + self.name]
         _logger.error("Catched undefined behaviour in systematics symmetrisation")
 
 
@@ -353,6 +356,12 @@ class SystematicsAnalyser(BasePlotter):
             return
         for syst in [s for s in self.systematic_configs if s.symmetrise]:
             self.systematic_variations[syst.get_symmetrised_name()[0]] = {}
+            try:
+                syst.get_symmetrised_name()[0]
+            except KeyError:
+                print(syst.name)
+            if 'SRCR_extrapolation' in syst.name:
+                continue
             for pc in self.systematic_variations[syst.get_variations()[0]]:
                 self.systematic_variations[syst.get_symmetrised_name()[0]][pc] = {}
                 for process, hist in list(self.systematic_variations[syst.get_variations()[0]][pc].items()):
@@ -442,6 +451,9 @@ class SystematicsAnalyser(BasePlotter):
                     if "data" in process.lower():
                         continue
                     tmp_nominal_hist = nominal_hist.Clone("_".join([nominal_hist.GetName(), variation]))
+                    if process not in syst_hists:
+                        _logger.warning('Could not find process {:s} in syst_hists'.format(process))
+                        continue
                     tmp_syst = syst_hists[process]
                     for b in range(tmp_syst.GetNbinsX() + 1):
                         if tmp_syst.GetBinContent(b) > 1. or tmp_syst.GetBinContent(b) < 0.:
@@ -477,7 +489,7 @@ class SystematicsAnalyser(BasePlotter):
         :return:
         :rtype:
         """
-
+        return
         def format_plot(canvas, labels, **kwargs):
             fm.decorate_canvas(canvas, plot_config)
             fm.add_legend_to_canvas(canvas, labels=labels, **kwargs)
@@ -494,6 +506,9 @@ class SystematicsAnalyser(BasePlotter):
         skipped = {}
 
         for index, variation in enumerate(self.systematic_variations.keys()):
+            if 'SRCR_extrapolation' in variation:
+                continue
+            print(variation)
             sys_hists = self.systematic_variations[variation][plot_config]
             for process, hist in list(sys_hists.items()):
                 if process not in labels:
@@ -586,6 +601,10 @@ class TheoryUncertaintyProvider(object):
         return uncerts
 
     @staticmethod
+    def get_region_extrapolation_uncerts():
+        return ['SRCR_extrapolation']
+
+    @staticmethod
     def is_affected(file_handle, tree_name, branch_name):
         """
         Check if file is affected by Sherpa uncertainties
@@ -611,6 +630,29 @@ class TheoryUncertaintyProvider(object):
         :rtype: bool
         """
         return hasattr(tree, branch_name)
+
+    def get_region_extrapolation_uncert(self, analyser, dump_hist_path=None, input_file=None):
+        if dump_hist_path is None:
+            return
+
+        syst_name = 'SRCR_extrapolation'
+        fh = FileHandle(file_name=input_file)
+        hists = fh.get_objects()
+        systs = list(analyser.systematic_variations.keys())
+        print('systs: ', systs)
+        for hist in hists:
+            name = hist.GetName()
+            channel = "SR_" + "_".join(name.split('_')[:2])
+            channel = channel.replace('Tot', 'el_bveto')
+            process = name.split('_')[-1]
+            hist.SetName(channel + '_lq_mass_max_' + process + '_' + syst_name + '__1up')
+            print('HIST NAME: ', channel + '_lq_mass_max_' + process + '_' + syst_name + '__1up')
+            for pc in analyser.systematic_variations[systs[0]].keys():
+                if channel not in pc.name:
+                    continue
+                analyser.systematic_variations[syst_name][pc] = {process: deepcopy(hist)}
+
+            analyser.output_handle.register_object(hist)
 
     def get_envelop(self, analyser, dump_hist_path=None):
         self.fetch_uncertainties(analyser, dump_hist_path)
@@ -659,23 +701,20 @@ class TheoryUncertaintyProvider(object):
         return list(self.top_unc.keys())
 
     def get_top_fragmentation(self, analyser):
-        mapping = {'410558': '410472',
-                   '411032': '410659',
-                   '411033': '410658',
-                   '411034': '410644',
-                   '411035': '410645',
-                   '411036': '410646',
-                   '411037': '410647'}
+        mapping = {'410558': ['410472'],
+                   '411032': ['410659'],
+                   '411033': ['410658'],
+                   '411034': ['410644'],
+                   '411035': ['410645'],
+                   '411036': ['410646'],
+                   '411037': ['410647']}
         self.get_top_mc_varation(analyser, mapping, 'fragmentation', 'FragmentationSyst')
 
     def get_top_hard_scatter(self, analyser):
-        mapping = {'410465': '410472',
-                   '412004': '410659',
-                   '412004': '410658',
-                   '412005': '410644',
-                   '412005': '410645',
-                   '412002': '410646',
-                   '412002': '410647'}
+        mapping = {'410465': ['410472'],
+                   '412004': ['410658', '410659'],
+                   '412005': ['410644', '410645'],
+                   '412002': ['410646', '410647']}
         self.get_top_mc_varation(analyser, mapping, 'hard_scatter', 'HardScatterSyst')
 
     def get_top_mc_varation(self, analyser, mapping, name, process_pattern):
@@ -691,7 +730,7 @@ class TheoryUncertaintyProvider(object):
             if len([p for p in hists.keys() if p.dsid in mapping.keys()]) == 0:
                 return
             for syst_dsid, nom_dsid in mapping.items():
-                matched_nominal_processes = [p for p in hists.keys() if p.dsid == nom_dsid]
+                matched_nominal_processes = [p for p in hists.keys() if p.dsid in nom_dsid]
                 if len(matched_nominal_processes) == 0:
                     continue
                 mc_campaigns = set([p.mc_campaign for p in matched_nominal_processes])
@@ -714,7 +753,8 @@ class TheoryUncertaintyProvider(object):
                         uncert_hist.Add(htemp)
             # now need to add all nominal top processes for which we don't have systematic variation
             missing_top_processes = [p for p in hists.keys()
-                                     if find_process_config(p, analyser.process_configs).name == find_process_config(syst_prcf[0], analyser.process_configs).assoc_process]
+                                     if find_process_config(p, analyser.process_configs).name ==
+                                     find_process_config(syst_prcf[0], analyser.process_configs).assoc_process]
             missing_top_processes = [p for p in missing_top_processes if p.dsid not in mapping.values()]
             missing_top_processes = [p for p in missing_top_processes if p.mc_campaign == mc_campaign]
             for i in missing_top_processes:
@@ -726,7 +766,6 @@ class TheoryUncertaintyProvider(object):
                 analyser.systematic_variations[syst_name][pc] = {'ttbar': deepcopy(uncert_hist)}
             except KeyError:
                 analyser.systematic_variations[syst_name] = {pc: {'ttbar': deepcopy(uncert_hist)}}
-
 
     # def calculate_envelop(self, analyser):
     #     def get_pc(hists, plot_config):
