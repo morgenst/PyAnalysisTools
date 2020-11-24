@@ -300,12 +300,12 @@ class LimitAnalyserCL(object):
                     fixed_sf = fixed_sig_sf[mass_cut]
                 else:
                     fixed_sf = fixed_sig_sf
-                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}; \t pmg xsec: ".format(fixed_sf,
-                                                                                                       scale_factor,
-                                                                                                       pmg_xsec))
+                _logger.debug("Apply sf: {:.3f}; \t scale factor before: {:.3f}; "
+                              "\t pmg xsec: {:f}".format(fixed_sf, scale_factor, pmg_xsec * 1000.))
                 scale_factor = fixed_sf * 1000. * pmg_xsec
             elif pmg_xsec is not None:
                 scale_factor = 1000. * pmg_xsec
+            return 1000. * pmg_xsec
             return scale_factor
 
         try:
@@ -316,9 +316,9 @@ class LimitAnalyserCL(object):
             fit_status = data['fit_status']
             scale_factor = get_scale_factor(signal_scale)
             self.limit_info.add_info(fit_status=fit_status, fit_cov_quality=-1)
-            _logger.debug("limits for {:s} exp upper limit: {:f} scale factor: {:f} exp upper limit: * "
-                          "SF: {:f}".format(self.input_path, data['exp_upperlimit'][0], scale_factor,
-                                            data['exp_upperlimit'][0] * scale_factor))
+            _logger.debug("limits for {:s} exp upper limit: {:f} scale factor: {:f} exp upper limit * "
+                          "SF (no. of events): {:f} mass cut: {:f}".format(self.input_path, data['exp_upperlimit'][0], scale_factor,
+                                                           data['exp_upperlimit'][0] * scale_factor, mass_cut))
             self.limit_info.add_info(exp_limit=data['exp_upperlimit'] * scale_factor,
                                      exp_limit_up=data['exp_upperlimit_plus1'] * scale_factor,
                                      exp_limit_low=data['exp_upperlimit_minus1'] * scale_factor)
@@ -539,7 +539,7 @@ class XsecLimitAnalyser(object):
 
     def parse_limits(self):
         parsed_data = []
-        for scan in self.scan_info:
+        for scan in self.scan_info[:2]:
             if 'mc' in scan.kwargs['sig_name']:
                 continue
             self.sig_reg_name = scan.sig_reg_name
@@ -549,9 +549,10 @@ class XsecLimitAnalyser(object):
                 scale_factor = None
                 if self.scale_factors is not None:
                     scale_factor = self.scale_factors[scan.kwargs['sig_name']]
+                pmg_xsec = self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name'])
                 limit_info = analyser.analyse_limit(signal_scale=scan.kwargs['signal_scale'],
                                                     mass_cut=scan.kwargs["mass_cut"],
-                                                    pmg_xsec=self.xsec_handle.get_xs_scale_factor(scan.kwargs['sig_name']),
+                                                    pmg_xsec=pmg_xsec,
                                                     fixed_sig_sf=scale_factor, enable_debug_plot=self.enable_debug_plot)
             except ReferenceError:
                 _logger.error("Could not find info for scan {:s}".format(scan))
@@ -561,6 +562,8 @@ class XsecLimitAnalyser(object):
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"], mass=mass)
             parsed_data.append(limit_info)
+        print(parsed_data)
+        exit()
         limits = LimitScanAnalyser.find_best_limit(parsed_data)
         theory_xsec = None
         if 'SR_mu_bveto' in self.sig_reg_name:
@@ -607,8 +610,9 @@ class XsecLimitAnalyser(object):
                     _logger.error('Could not read post-fit histograms for {:s}'.format(fname))
                     continue
                 f = FileHandle(file_name=fname)
-                for process in ['Data'] + [p.name for p in [pc for pc in list(scan.kwargs["process_configs"].values())
-                                                            if pc.type.lower() == 'background' and not pc.is_syst_process]]:
+                processes = ['Data'] + [p.name for p in [pc for pc in list(scan.kwargs["process_configs"].values())
+                                                         if pc.type.lower() == 'background' and not pc.is_syst_process]]
+                for process in processes:
                     _logger.debug('Try loading hist: h_{:s}_postFit'.format(process))
                     if not process == 'Data':
                         h = f.get_object_by_name('h_{:s}_postFit'.format(process))
@@ -1263,8 +1267,8 @@ def write_config(args, ranking=False):
         if 'spectators' in limit_config['general'] and not args.kwargs['disable_spectator']:
             print('\tSummaryPlotRegions: {:s}'.format(
                 ','.join([kwargs['sig_reg_name']] + list(kwargs["ctrl_config"].keys()))), file=f)
-            print('\tSummaryPlotValidationRegions: {:s}'.format(','.join([reg for reg,
-                                                                                  cfg in kwargs["ctrl_config"].items()
+            print('\tSummaryPlotValidationRegions: {:s}'.format(','.join([reg for reg, cfg
+                                                                          in kwargs["ctrl_config"].items()
                                                                           if cfg['is_val_region']])),
                   file=f)
         print('\tMergeUnderOverFlow: FALSE', file=f)
@@ -1415,8 +1419,8 @@ def write_config(args, ranking=False):
         print('\tNormFactor: "mu_Sig", 1, 0, 10000', file=f)
         print('\tSeparateGammas: TRUE', file=f)
         print('\tUseMCstat: TRUE', file=f)
-        # if kwargs['scale_factors'] is not None:
-        #     print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
+        if kwargs['scale_factors'] is not None:
+            print('\tLumiScale: {:f}'.format(kwargs['scale_factors'][kwargs['sig_name']][kwargs['mass_cut']]), file=f)
         print('\n', file=f)
 
         for bkg in [p for p in
@@ -1561,6 +1565,9 @@ def write_config(args, ranking=False):
                             print('\tSymmetrisation: ABSMEAN', file=f)
                     hist_name = hist_name.replace('weight_', '')
                     if 'updown' not in syst.variation:
+                        if 'SRCR' in hist_name:
+                            print('\tSymmetrisation: ABSMEAN', file=f)
+                            hist_name += '__1up'
                         print('\tHistoPathUp: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
                         print('\tHistoPathDown: "{:s}"'.format(os.path.join(hist_path, hist_name)), file=f)
                     else:
@@ -1652,6 +1659,7 @@ def convert_hists(input_hist_file, process_configs, regions, fixed_signal, outpu
                     if process not in scale_factors:
                         scale_factors[process] = {}
                     scale_factors[process][thrs] = sf
+
     make_dirs(os.path.join(output_dir, 'hists'))
     for unc in list(data.keys()):
         if 'theory_envelop' in unc:
