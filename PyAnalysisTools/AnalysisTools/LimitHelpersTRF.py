@@ -562,8 +562,6 @@ class XsecLimitAnalyser(object):
             self.theory_xsec[mass] = None
             limit_info.add_info(mass_cut=scan.kwargs["mass_cut"], mass=mass)
             parsed_data.append(limit_info)
-        print(parsed_data)
-        exit()
         limits = LimitScanAnalyser.find_best_limit(parsed_data)
         theory_xsec = None
         if 'SR_mu_bveto' in self.sig_reg_name:
