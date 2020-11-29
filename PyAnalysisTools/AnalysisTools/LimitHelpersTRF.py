@@ -540,7 +540,7 @@ class XsecLimitAnalyser(object):
 
     def parse_limits(self):
         parsed_data = []
-        for scan in self.scan_info[:2]:
+        for scan in self.scan_info:
             if 'mc' in scan.kwargs['sig_name']:
                 continue
             self.sig_reg_name = scan.sig_reg_name
